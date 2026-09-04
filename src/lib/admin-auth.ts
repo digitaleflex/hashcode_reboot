@@ -71,6 +71,9 @@ export function verifyAdminToken(token: string | undefined | null): boolean {
     if (a.length !== b.length) return false;
     return timingSafeEqual(a, b);
   } catch {
+    // If ADMIN_PASSCODE is not configured (e.g. production without env var),
+    // getAdminPasscode() throws. We catch it and return false instead of
+    // crashing the whole page render.
     return false;
   }
 }
