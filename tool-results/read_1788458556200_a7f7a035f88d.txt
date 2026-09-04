@@ -1,0 +1,1580 @@
+     1→     1→# HASHCODE REBOOT
+     2→     2→## Production-ready onboarding & community entry platform
+     3→     3→
+     4→     4→Tu es maintenant le Lead Product Engineer, Senior UX/UI Designer,
+     5→     5→Growth Engineer, Product Strategist et QA Engineer responsable de
+     6→     6→concevoir et développer HASHCODE REBOOT.
+     7→     7→
+     8→     8→Tu dois travailler comme si tu étais responsable de livrer une
+     9→     9→application réelle destinée à être mise en production aujourd'hui.
+    10→    10→
+    11→    11→NE TE CONTENTE PAS DE PRODUIRE UNE MAQUETTE.
+    12→    12→
+    13→    13→Tu dois :
+    14→    14→1. analyser le projet existant ;
+    15→    15→2. comprendre l'architecture actuelle ;
+    16→    16→3. proposer les corrections nécessaires ;
+    17→    17→4. concevoir l'expérience utilisateur ;
+    18→    18→5. implémenter l'application ;
+    19→    19→6. implémenter la logique conditionnelle ;
+    20→    20→7. implémenter la collecte de données ;
+    21→    21→8. implémenter la validation ;
+    22→    22→9. implémenter le back-office nécessaire ;
+    23→    23→10. tester le parcours complet ;
+    24→    24→11. corriger les problèmes ;
+    25→    25→12. préparer la production ;
+    26→    26→13. documenter ce qui a été réalisé.
+    27→    27→
+    28→    28→==================================================
+    29→    29→# 1. CONTEXTE DU PRODUIT
+    30→    30→==================================================
+    31→    31→
+    32→    32→HASHCODE est une communauté technologique en phase de
+    33→    33→repositionnement et de relance.
+    34→    34→
+    35→    35→HASHCODE revient autour de trois grands axes :
+    36→    36→
+    37→    37→- Web Development
+    38→    38→- Cybersecurity
+    39→    39→- Applied AI
+    40→    40→
+    41→    41→L'objectif n'est plus simplement de partager des tutoriels.
+    42→    42→
+    43→    43→HASHCODE veut permettre aux membres de :
+    44→    44→
+    45→    45→- apprendre ;
+    46→    46→- pratiquer ;
+    47→    47→- construire ;
+    48→    48→- expérimenter ;
+    49→    49→- collaborer ;
+    50→    50→- progresser.
+    51→    51→
+    52→    52→Le nouveau HASHCODE Registry sera à terme le centre de gestion
+    53→    53→des profils, parcours, missions et progression des membres.
+    54→    54→
+    55→    55→Mais le Registry complet n'est PAS encore nécessaire pour cette phase.
+    56→    56→
+    57→    57→Nous construisons maintenant :
+    58→    58→
+    59→    59→HASHCODE REBOOT
+    60→    60→
+    61→    61→URL cible :
+    62→    62→
+    63→    63→https://reboot.joinhashcode.com
+    64→    64→
+    65→    65→Cette plateforme constitue le nouveau point d'entrée de la communauté.
+    66→    66→
+    67→    67→==================================================
+    68→    68→# 2. OBJECTIF PRINCIPAL
+    69→    69→==================================================
+    70→    70→
+    71→    71→Construire une expérience de profilage extrêmement fluide permettant
+    72→    72→de comprendre rapidement un nouveau membre sans lui donner
+    73→    73→l'impression de remplir un long formulaire.
+    74→    74→
+    75→    75→Objectifs :
+    76→    76→
+    77→    77→- moins de 3 minutes maximum ;
+    78→    78→- cible idéale : 60 à 120 secondes ;
+    79→    79→- très faible friction ;
+    80→    80→- majorité des réponses par clic ;
+    81→    81→- questions conditionnelles ;
+    82→    82→- collecte intelligente ;
+    83→    83→- profil généré à la fin ;
+    84→    84→- segmentation exploitable ;
+    85→    85→- possibilité de rejoindre la communauté officielle WhatsApp
+    86→    86→  après validation du parcours.
+    87→    87→
+    88→    88→PRINCIPE UX CENTRAL :
+    89→    89→
+    90→    90→"Tu ne remplis pas un formulaire.
+    91→    91→Tu construis ton profil HASHCODE."
+    92→    92→
+    93→    93→==================================================
+    94→    94→# 3. STACK TECHNIQUE
+    95→    95→==================================================
+    96→    96→
+    97→    97→Utiliser la stack moderne suivante, sauf contrainte réelle découverte
+    98→    98→dans le repository existant :
+    99→    99→
+   100→   100→- Next.js
+   101→   101→- App Router
+   102→   102→- TypeScript
+   103→   103→- Tailwind CSS
+   104→   104→- shadcn/ui
+   105→   105→- PostgreSQL
+   106→   106→- Prisma
+   107→   107→- pnpm
+   108→   108→
+   109→   109→Si l'authentification est nécessaire pour le back-office,
+   110→   110→utiliser Better Auth ou la solution déjà présente dans le projet.
+   111→   111→
+   112→   112→Ne PAS introduire inutilement de nouvelles dépendances.
+   113→   113→
+   114→   114→Avant toute modification :
+   115→   115→
+   116→   116→- inspecter package.json ;
+   117→   117→- inspecter la structure du repository ;
+   118→   118→- inspecter les variables d'environnement ;
+   119→   119→- inspecter les composants existants ;
+   120→   120→- inspecter les conventions de code ;
+   121→   121→- réutiliser ce qui est pertinent ;
+   122→   122→- supprimer les duplications seulement si cela est sûr.
+   123→   123→
+   124→   124→NE PAS écraser arbitrairement le projet existant.
+   125→   125→
+   126→   126→==================================================
+   127→   127→# 4. LANGUE
+   128→   128→==================================================
+   129→   129→
+   130→   130→La V1 est entièrement francophone.
+   131→   131→
+   132→   132→Toutes les interfaces utilisateur doivent être en français :
+   133→   133→
+   134→   134→- navigation ;
+   135→   135→- boutons ;
+   136→   136→- questions ;
+   137→   137→- messages ;
+   138→   138→- erreurs ;
+   139→   139→- validation ;
+   140→   140→- onboarding ;
+   141→   141→- dashboard admin ;
+   142→   142→- emails éventuels.
+   143→   143→
+   144→   144→Le code doit cependant être i18n-ready.
+   145→   145→
+   146→   146→Ne mélange jamais français et anglais dans l'interface.
+   147→   147→
+   148→   148→==================================================
+   149→   149→# 5. IDENTITÉ VISUELLE
+   150→   150→==================================================
+   151→   151→
+   152→   152→HASHCODE doit avoir une identité technologique, moderne,
+   153→   153→premium et crédible.
+   154→   154→
+   155→   155→Couleur principale HASHCODE :
+   156→   156→
+   157→   157→#C5F441
+   158→   158→
+   159→   159→Utiliser cette couleur avec intelligence.
+   160→   160→
+   161→   161→Ne PAS transformer toute l'interface en vert fluorescent.
+   162→   162→
+   163→   163→Direction visuelle :
+   164→   164→
+   165→   165→- dark-first ;
+   166→   166→- premium ;
+   167→   167→- minimaliste ;
+   168→   168→- technologie ;
+   169→   169→- communauté developer ;
+   170→   170→- beaucoup d'espace ;
+   171→   171→- excellente typographie ;
+   172→   172→- cartes sobres ;
+   173→   173→- micro-interactions ;
+   174→   174→- animations légères ;
+   175→   175→- contraste élevé ;
+   176→   176→- aucun effet "template IA générique".
+   177→   177→
+   178→   178→Inspiration conceptuelle :
+   179→   179→
+   180→   180→- developer platforms modernes ;
+   181→   181→- SaaS premium ;
+   182→   182→- communautés technologiques ;
+   183→   183→- produits construits par des équipes sérieuses.
+   184→   184→
+   185→   185→Éviter :
+   186→   186→
+   187→   187→- gradients excessifs ;
+   188→   188→- glassmorphism partout ;
+   189→   189→- animations inutiles ;
+   190→   190→- énormes titres illisibles ;
+   191→   191→- surcharge graphique ;
+   192→   192→- emojis excessifs ;
+   193→   193→- design cyberpunk cliché.
+   194→   194→
+   195→   195→==================================================
+   196→   196→# 6. ARCHITECTURE GLOBALE
+   197→   197→==================================================
+   198→   198→
+   199→   199→Créer le parcours :
+   200→   200→
+   201→   201→/
+   202→   202→
+   203→   203→↓ 
+   204→   204→
+   205→   205→Landing HASHCODE REBOOT
+   206→   206→
+   207→   207→↓
+   208→   208→
+   209→   209→/join
+   210→   210→
+   211→   211→Profilage intelligent
+   212→   212→
+   213→   213→↓
+   214→   214→
+   215→   215→Profil généré
+   216→   216→
+   217→   217→↓
+   218→   218→
+   219→   219→Validation / traitement
+   220→   220→
+   221→   221→↓
+   222→   222→
+   223→   223→Succès
+   224→   224→
+   225→   225→↓
+   226→   226→
+   227→   227→Invitation communauté officielle
+   228→   228→
+   229→   229→↓
+   230→   230→
+   231→   231→WhatsApp
+   232→   232→
+   233→   233→Le lien WhatsApp officiel est :
+   234→   234→
+   235→   235→https://chat.whatsapp.com/JwJGgoQpS46I9r81QPrCs4
+   236→   236→
+   237→   237→IMPORTANT :
+   238→   238→
+   239→   239→Ne jamais afficher le lien WhatsApp brut dans l'interface.
+   240→   240→
+   241→   241→Utiliser un bouton :
+   242→   242→
+   243→   243→"Rejoindre la communauté officielle"
+   244→   244→
+   245→   245→==================================================
+   246→   246→# 7. LANDING PAGE
+   247→   247→==================================================
+   248→   248→
+   249→   249→La landing page doit être conçue comme une page de conversion,
+   250→   250→pas comme une simple page institutionnelle.
+   251→   251→
+   252→   252→SECTION 1 — HERO
+   253→   253→
+   254→   254→Titre :
+   255→   255→
+   256→   256→HASHCODE REBOOT
+   257→   257→
+   258→   258→Sous-titre conceptuel :
+   259→   259→
+   260→   260→"Une nouvelle génération de la communauté HASHCODE commence."
+   261→   261→
+   262→   262→Texte :
+   263→   263→
+   264→   264→HASHCODE revient avec une nouvelle vision :
+   265→   265→apprendre, construire, pratiquer et progresser ensemble.
+   266→   266→
+   267→   267→CTA principal :
+   268→   268→
+   269→   269→"Rejoindre le Reboot"
+   270→   270→
+   271→   271→CTA secondaire éventuel :
+   272→   272→
+   273→   273→"Découvrir HASHCODE"
+   274→   274→
+   275→   275→Le CTA principal doit envoyer vers /join.
+   276→   276→
+   277→   277→Créer une impression immédiate :
+   278→   278→
+   279→   279→- nouveau départ ;
+   280→   280→- mouvement ;
+   281→   281→- communauté ;
+   282→   282→- ambition ;
+   283→   283→- technologie.
+   284→   284→
+   285→   285→==================================================
+   286→   286→# 8. SECTION "POURQUOI HASHCODE REVIENT"
+   287→   287→==================================================
+   288→   288→
+   289→   289→Expliquer simplement :
+   290→   290→
+   291→   291→HASHCODE a évolué.
+   292→   292→
+   293→   293→L'objectif n'est plus uniquement de consommer du contenu.
+   294→   294→
+   295→   295→Nous voulons construire un environnement où les membres peuvent :
+   296→   296→
+   297→   297→- apprendre ;
+   298→   298→- pratiquer ;
+   299→   299→- construire ;
+   300→   300→- collaborer ;
+   301→   301→- progresser.
+   302→   302→
+   303→   303→Texte court et puissant.
+   304→   304→
+   305→   305→Ne pas écrire un long manifeste.
+   306→   306→
+   307→   307→==================================================
+   308→   308→# 9. LES 3 AXES
+   309→   309→==================================================
+   310→   310→
+   311→   311→Présenter :
+   312→   312→
+   313→   313→WEB DEVELOPMENT
+   314→   314→
+   315→   315→Créer des applications, produits et expériences numériques.
+   316→   316→
+   317→   317→CYBERSECURITY
+   318→   318→
+   319→   319→Comprendre, protéger, analyser et expérimenter.
+   320→   320→
+   321→   321→APPLIED AI
+   322→   322→
+   323→   323→Construire avec l'IA, l'automatisation et les agents.
+   324→   324→
+   325→   325→Chaque carte doit être interactive mais sobre.
+   326→   326→
+   327→   327→==================================================
+   328→   328→# 10. "CE QUI CHANGE"
+   329→   329→==================================================
+   330→   330→
+   331→   331→Présenter 4 piliers :
+   332→   332→
+   333→   333→LEARN
+   334→   334→Apprendre les fondamentaux.
+   335→   335→
+   336→   336→BUILD
+   337→   337→Construire de vrais projets.
+   338→   338→
+   339→   339→PRACTICE
+   340→   340→Résoudre des challenges.
+   341→   341→
+   342→   342→COLLABORATE
+   343→   343→Progresser avec d'autres membres.
+   344→   344→
+   345→   345→Ne pas surcharger.
+   346→   346→
+   347→   347→==================================================
+   348→   348→# 11. "POUR QUI ?"
+   349→   349→==================================================
+   350→   350→
+   351→   351→HASHCODE est ouvert à :
+   352→   352→
+   353→   353→- débutants ;
+   354→   354→- étudiants ;
+   355→   355→- développeurs ;
+   356→   356→- professionnels ;
+   357→   357→- entrepreneurs ;
+   358→   358→- passionnés de cybersécurité ;
+   359→   359→- personnes intéressées par l'IA ;
+   360→   360→- autodidactes.
+   361→   361→
+   362→   362→Message important :
+   363→   363→
+   364→   364→"Pas besoin d'être expert."
+   365→   365→
+   366→   366→==================================================
+   367→   367→# 12. "CE QUI ARRIVE"
+   368→   368→==================================================
+   369→   369→
+   370→   370→Présenter progressivement :
+   371→   371→
+   372→   372→- Challenges
+   373→   373→- Workshops
+   374→   374→- Projects
+   375→   375→- Mentoring
+   376→   376→- HASHCODE Registry
+   377→   377→
+   378→   378→Le Registry doit être présenté comme une prochaine étape,
+   379→   379→pas comme une fonctionnalité déjà totalement disponible.
+   380→   380→
+   381→   381→==================================================
+   382→   382→# 13. CTA FINAL LANDING
+   383→   383→==================================================
+   384→   384→
+   385→   385→Titre :
+   386→   386→
+   387→   387→"Prêt à repartir avec HASHCODE ?"
+   388→   388→
+   389→   389→Texte :
+   390→   390→
+   391→   391→"Quelques choix suffisent pour nous permettre de comprendre
+   392→   392→où tu veux aller."
+   393→   393→
+   394→   394→CTA :
+   395→   395→
+   396→   396→"Construire mon profil"
+   397→   397→
+   398→   398→→ /join
+   399→   399→
+   400→   400→==================================================
+   401→   401→# 14. PAGE /join
+   402→   402→==================================================
+   403→   403→
+   404→   404→C'est la partie la plus importante de l'application.
+   405→   405→
+   406→   406→Elle ne doit PAS ressembler à un formulaire traditionnel.
+   407→   407→
+   408→   408→Titre :
+   409→   409→
+   410→   410→"Construisons ton profil HASHCODE."
+   411→   411→
+   412→   412→Sous-titre :
+   413→   413→
+   414→   414→"En moins de 2 minutes, donne-nous quelques indications
+   415→   415→pour mieux comprendre tes objectifs et personnaliser ton expérience."
+   416→   416→
+   417→   417→Afficher :
+   418→   418→
+   419→   419→"Environ 2 minutes"
+   420→   420→
+   421→   421→Ne jamais afficher :
+   422→   422→
+   423→   423→"Question 1 sur 15"
+   424→   424→
+   425→   425→Ne jamais afficher :
+   426→   426→
+   427→   427→"Il reste 12 questions"
+   428→   428→
+   429→   429→Utiliser plutôt une progression visuelle :
+   430→   430→
+   431→   431→"Ton profil HASHCODE"
+   432→   432→
+   433→   433→████████░░
+   434→   434→
+   435→   435→ou un indicateur subtil.
+   436→   436→
+   437→   437→==================================================
+   438→   438→# 15. RÈGLES UX DU PROFILAGE
+   439→   439→==================================================
+   440→   440→
+   441→   441→RÈGLE 1
+   442→   442→
+   443→   443→Une question principale par écran.
+   444→   444→
+   445→   445→RÈGLE 2
+   446→   446→
+   447→   447→Privilégier les cartes et boutons.
+   448→   448→
+   449→   449→RÈGLE 3
+   450→   450→
+   451→   451→Éviter les champs texte.
+   452→   452→
+   453→   453→RÈGLE 4
+   454→   454→
+   455→   455→Une question ne doit être affichée que si elle est pertinente.
+   456→   456→
+   457→   457→RÈGLE 5
+   458→   458→
+   459→   459→Ne jamais demander une information qui n'a aucune utilité.
+   460→   460→
+   461→   461→RÈGLE 6
+   462→   462→
+   463→   463→Les questions difficiles arrivent après les questions faciles.
+   464→   464→
+   465→   465→RÈGLE 7
+   466→   466→
+   467→   467→Afficher des micro-messages de progression.
+   468→   468→
+   469→   469→Exemples :
+   470→   470→
+   471→   471→"Parfait."
+   472→   472→
+   473→   473→"On commence à cerner ton profil."
+   474→   474→
+   475→   475→"Encore quelques choix."
+   476→   476→
+   477→   477→"Ton profil prend forme."
+   478→   478→
+   479→   479→"Presque terminé."
+   480→   480→
+   481→   481→RÈGLE 8
+   482→   482→
+   483→   483→Permettre précédent / suivant.
+   484→   484→
+   485→   485→RÈGLE 9
+   486→   486→
+   487→   487→Sauvegarder temporairement les réponses.
+   488→   488→
+   489→   489→RÈGLE 10
+   490→   490→
+   491→   491→Le parcours doit être utilisable au clavier et sur mobile.
+   492→   492→
+   493→   493→==================================================
+   494→   494→# 16. DONNÉES À COLLECTER
+   495→   495→==================================================
+   496→   496→
+   497→   497→Les données doivent être réparties en trois catégories.
+   498→   498→
+   499→   499→------------------------------------------
+   500→   500→IDENTITÉ
+   501→   501→------------------------------------------
+   502→   502→
+   503→   503→- prénom ;
+   504→   504→- nom ;
+   505→   505→- email ;
+   506→   506→- WhatsApp ;
+   507→   507→- pays ;
+   508→   508→- ville/région facultative ;
+   509→   509→- genre facultatif.
+   510→   510→
+   511→   511→Le genre ne doit jamais être obligatoire.
+   512→   512→
+   513→   513→Options :
+   514→   514→
+   515→   515→- Homme
+   516→   516→- Femme
+   517→   517→- Autre
+   518→   518→- Préfère ne pas répondre
+   519→   519→
+   520→   520→------------------------------------------
+   521→   521→PROFIL
+   522→   522→------------------------------------------
+   523→   523→
+   524→   524→- domaine principal ;
+   525→   525→- domaines secondaires ;
+   526→   526→- niveau ;
+   527→   527→- technologies / compétences ;
+   528→   528→- expérience.
+   529→   529→
+   530→   530→------------------------------------------
+   531→   531→OBJECTIFS
+   532→   532→------------------------------------------
+   533→   533→
+   534→   534→- objectif principal ;
+   535→   535→- objectif secondaire ;
+   536→   536→- objectif à 3 mois ;
+   537→   537→- type de projet ;
+   538→   538→- situation professionnelle si pertinente.
+   539→   539→
+   540→   540→------------------------------------------
+   541→   541→DISPONIBILITÉ
+   542→   542→------------------------------------------
+   543→   543→
+   544→   544→- temps disponible par semaine ;
+   545→   545→- moments disponibles ;
+   546→   546→- préférence de rythme.
+   547→   547→
+   548→   548→------------------------------------------
+   549→   549→APPRENTISSAGE
+   550→   550→------------------------------------------
+   551→   551→
+   552→   552→- apprendre seul ;
+   553→   553→- parcours structuré ;
+   554→   554→- groupe ;
+   555→   555→- projet ;
+   556→   556→- mentor.
+   557→   557→
+   558→   558→------------------------------------------
+   559→   559→MENTORAT
+   560→   560→------------------------------------------
+   561→   561→
+   562→   562→Conditionnel uniquement.
+   563→   563→
+   564→   564→Demander :
+   565→   565→
+   566→   566→"As-tu besoin d'un accompagnement personnalisé ?"
+   567→   567→
+   568→   568→Options :
+   569→   569→
+   570→   570→- Non
+   571→   571→- Peut-être
+   572→   572→- Oui
+   573→   573→
+   574→   574→Si Non :
+   575→   575→
+   576→   576→ne poser aucune question supplémentaire de mentorat.
+   577→   577→
+   578→   578→Si Peut-être :
+   579→   579→
+   580→   580→demander ce qui pourrait le convaincre.
+   581→   581→
+   582→   582→Si Oui :
+   583→   583→
+   584→   584→demander :
+   585→   585→
+   586→   586→- type de mentorat ;
+   587→   587→- fréquence souhaitée ;
+   588→   588→- domaine du mentorat.
+   589→   589→
+   590→   590→------------------------------------------
+   591→   591→DISPOSITION À INVESTIR
+   592→   592→------------------------------------------
+   593→   593→
+   594→   594→Uniquement si l'utilisateur manifeste un intérêt pour
+   595→   595→l'accompagnement.
+   596→   596→
+   597→   597→Question :
+   598→   598→
+   599→   599→"Si HASHCODE proposait un accompagnement personnalisé adapté
+   600→   600→à tes objectifs, serais-tu prêt à investir dans ton accompagnement ?"
+   601→   601→
+   602→   602→Options :
+   603→   603→
+   604→   604→- Oui
+   605→   605→- Peut-être
+   606→   606→- Pas pour le moment
+   607→   607→
+   608→   608→Si Oui ou Peut-être :
+   609→   609→
+   610→   610→demander une fourchette :
+   611→   611→
+   612→   612→- Moins de 2 500 FCFA / mois
+   613→   613→- 2 500 – 5 000 FCFA / mois
+   614→   614→- 5 000 – 10 000 FCFA / mois
+   615→   615→- 10 000 – 20 000 FCFA / mois
+   616→   616→- 20 000 – 30 000 FCFA / mois
+   617→   617→- Plus de 30 000 FCFA / mois
+   618→   618→- Je ne sais pas encore
+   619→   619→
+   620→   620→NE PAS demander un montant libre.
+   621→   621→
+   622→   622→IMPORTANT :
+   623→   623→
+   624→   624→Présenter cette question comme une recherche de besoins,
+   625→   625→pas comme une vente.
+   626→   626→
+   627→   627→==================================================
+   628→   628→# 17. QUESTION OUVERTE FINALE
+   629→   629→==================================================
+   630→   630→
+   631→   631→Une seule question ouverte :
+   632→   632→
+   633→   633→"Dans 3 mois, qu'aimerais-tu avoir accompli ?"
+   634→   634→
+   635→   635→Texte libre.
+   636→   636→
+   637→   637→Cette question est importante.
+   638→   638→
+   639→   639→Ne pas ajouter plusieurs questions ouvertes.
+   640→   640→
+   641→   641→==================================================
+   642→   642→# 18. LOGIQUE CONDITIONNELLE
+   643→   643→==================================================
+   644→   644→
+   645→   645→Construire un vrai moteur de conditions.
+   646→   646→
+   647→   647→Exemples :
+   648→   648→
+   649→   649→IF domain = cybersecurity
+   650→   650→→ proposer des sous-domaines cyber.
+   651→   651→
+   652→   652→IF domain = web
+   653→   653→→ proposer des spécialisations web.
+   654→   654→
+   655→   655→IF domain = ai
+   656→   656→→ proposer des spécialisations AI.
+   657→   657→
+   658→   658→IF mentoring = no
+   659→   659→→ ne pas demander budget.
+   660→   660→
+   661→   661→IF mentoring = maybe
+   662→   662→→ questions légères.
+   663→   663→
+   664→   664→IF mentoring = yes
+   665→   665→→ type de mentorat + fréquence + budget.
+   666→   666→
+   667→   667→IF goal = project
+   668→   668→→ demander si le projet existe déjà.
+   669→   669→
+   670→   670→IF goal = employment
+   671→   671→→ demander situation actuelle si pertinent.
+   672→   672→
+   673→   673→IF goal = entrepreneurship
+   674→   674→→ demander stade du projet.
+   675→   675→
+   676→   676→IF availability < 2h
+   677→   677→→ proposer un rythme léger.
+   678→   678→
+   679→   679→IF availability >= 10h
+   680→   680→→ possibilité de proposer parcours plus intensif.
+   681→   681→
+   682→   682→Le moteur doit être extensible.
+   683→   683→
+   684→   684→NE PAS coder toutes les conditions en dur dans des composants
+   685→   685→UI chaotiques.
+   686→   686→
+   687→   687→Créer une structure de configuration propre.
+   688→   688→
+   689→   689→Par exemple :
+   690→   690→
+   691→   691→questions/
+   692→   692→profiling/
+   693→   693→rules/
+   694→   694→
+   695→   695→ou une architecture équivalente adaptée au projet.
+   696→   696→
+   697→   697→==================================================
+   698→   698→# 19. PROFIL DYNAMIQUE
+   699→   699→==================================================
+   700→   700→
+   701→   701→À la fin du parcours, générer un résumé :
+   702→   702→
+   703→   703→"Voici ton profil HASHCODE."
+   704→   704→
+   705→   705→Exemple :
+   706→   706→
+   707→   707→WEB BUILDER
+   708→   708→
+   709→   709→Domaine :
+   710→   710→Web Development
+   711→   711→
+   712→   712→Niveau :
+   713→   713→Intermédiaire
+   714→   714→
+   715→   715→Objectif :
+   716→   716→Construire un projet
+   717→   717→
+   718→   718→Disponibilité :
+   719→   719→5–10h / semaine
+   720→   720→
+   721→   721→Style :
+   722→   722→Apprentissage par projet
+   723→   723→
+   724→   724→Mentorat :
+   725→   725→Intéressé
+   726→   726→
+   727→   727→Objectif à 3 mois :
+   728→   728→[réponse utilisateur]
+   729→   729→
+   730→   730→IMPORTANT :
+   731→   731→
+   732→   732→Ne prétendre PAS que ce profil est une évaluation psychologique
+   733→   733→scientifique.
+   734→   734→
+   735→   735→C'est une première orientation basée sur les réponses.
+   736→   736→
+   737→   737→==================================================
+   738→   738→# 20. SCORE / SEGMENTATION
+   739→   739→==================================================
+   740→   740→
+   741→   741→Préparer le système pour attribuer des métadonnées :
+   742→   742→
+   743→   743→- primary_domain ;
+   744→   744→- secondary_domains ;
+   745→   745→- level ;
+   746→   746→- goal ;
+   747→   747→- availability ;
+   748→   748→- mentoring_interest ;
+   749→   749→- mentoring_type ;
+   750→   750→- budget_range ;
+   751→   751→- learning_style ;
+   752→   752→- profile_status ;
+   753→   753→- community_status.
+   754→   754→
+   755→   755→Préparer également un système de tags :
+   756→   756→
+   757→   757→CYBER-BEGINNER
+   758→   758→WEB-BUILDER
+   759→   759→AI-EXPLORER
+   760→   760→MENTORING-INTERESTED
+   761→   761→HIGH-AVAILABILITY
+   762→   762→PROJECT-FOCUSED
+   763→   763→etc.
+   764→   764→
+   765→   765→Les tags doivent être générés de manière déterministe.
+   766→   766→
+   767→   767→Ne PAS utiliser une IA externe pour cela dans la V1
+   768→   768→si une logique déterministe suffit.
+   769→   769→
+   770→   770→==================================================
+   771→   771→# 21. ÉCRAN FINAL
+   772→   772→==================================================
+   773→   773→
+   774→   774→Après validation :
+   775→   775→
+   776→   776→Titre :
+   777→   777→
+   778→   778→"Ton profil HASHCODE est prêt."
+   779→   779→
+   780→   780→Texte :
+   781→   781→
+   782→   782→"Merci. Nous avons maintenant une première vision de tes objectifs,
+   783→   783→de ton rythme et de la manière dont tu souhaites progresser."
+   784→   784→
+   785→   785→Puis :
+   786→   786→
+   787→   787→"Prochaine étape"
+   788→   788→
+   789→   789→"Nous préparons actuellement la nouvelle expérience HASHCODE.
+   790→   790→Les membres du Reboot seront les premiers invités à découvrir
+   791→   791→le nouveau Registry."
+   792→   792→
+   793→   793→Puis CTA :
+   794→   794→
+   795→   795→"Rejoindre la communauté officielle"
+   796→   796→
+   797→   797→Ce bouton doit ouvrir :
+   798→   798→
+   799→   799→https://chat.whatsapp.com/JwJGgoQpS46I9r81QPrCs4
+   800→   800→
+   801→   801→Utiliser target="_blank"
+   802→   802→et rel="noopener noreferrer".
+   803→   803→
+   804→   804→Ajouter éventuellement :
+   805→   805→
+   806→   806→"Retourner à HASHCODE"
+   807→   807→
+   808→   808→==================================================
+   809→   809→# 22. STATUT DES INSCRIPTIONS
+   810→   810→==================================================
+   811→   811→
+   812→   812→Prévoir au minimum :
+   813→   813→
+   814→   814→PENDING
+   815→   815→APPROVED
+   816→   816→REJECTED
+   817→   817→WAITLIST
+   818→   818→
+   819→   819→Et côté communauté :
+   820→   820→
+   821→   821→NOT_INVITED
+   822→   822→INVITED
+   823→   823→JOINED
+   824→   824→
+   825→   825→Le système doit être conçu pour pouvoir évoluer.
+   826→   826→
+   827→   827→Par défaut après soumission :
+   828→   828→
+   829→   829→PENDING
+   830→   830→
+   831→   831→La logique de validation peut ensuite être automatisée ou
+   832→   832→effectuée depuis l'admin.
+   833→   833→
+   834→   834→==================================================
+   835→   835→# 23. BASE DE DONNÉES
+   836→   836→==================================================
+   837→   837→
+   838→   838→Créer un modèle propre.
+   839→   839→
+   840→   840→Exemple conceptuel :
+   841→   841→
+   842→   842→Member
+   843→   843→- id
+   844→   844→- firstName
+   845→   845→- lastName
+   846→   846→- email
+   847→   847→- phone
+   848→   848→- country
+   849→   849→- city
+   850→   850→- gender
+   851→   851→- primaryDomain
+   852→   852→- secondaryDomains
+   853→   853→- level
+   854→   854→- goals
+   855→   855→- availability
+   856→   856→- learningStyle
+   857→   857→- mentoringInterest
+   858→   858→- mentoringTypes
+   859→   859→- mentoringFrequency
+   860→   860→- budgetRange
+   861→   861→- threeMonthGoal
+   862→   862→- profileStatus
+   863→   863→- communityStatus
+   864→   864→- createdAt
+   865→   865→- updatedAt
+   866→   866→
+   867→   867→Ne PAS copier aveuglément cet exemple.
+   868→   868→
+   869→   869→Adapter au schéma Prisma existant.
+   870→   870→
+   871→   871→Prévoir :
+   872→   872→
+   873→   873→- indexes pertinents ;
+   874→   874→- enums lorsque cela est approprié ;
+   875→   875→- timestamps ;
+   876→   876→- contraintes ;
+   877→   877→- validation serveur.
+   878→   878→
+   879→   879→==================================================
+   880→   880→# 24. VALIDATION
+   881→   881→==================================================
+   882→   882→
+   883→   883→Utiliser une validation stricte côté serveur.
+   884→   884→
+   885→   885→Les données provenant du navigateur ne doivent jamais être considérées
+   886→   886→comme fiables.
+   887→   887→
+   888→   888→Valider :
+   889→   889→
+   890→   890→- email ;
+   891→   891→- longueur des chaînes ;
+   892→   892→- enum ;
+   893→   893→- pays ;
+   894→   894→- domaine ;
+   895→   895→- niveau ;
+   896→   896→- budget ;
+   897→   897→- statut ;
+   898→   898→- données conditionnelles.
+   899→   899→
+   900→   900→Utiliser Zod si déjà présent ou si nécessaire.
+   901→   901→
+   902→   902→==================================================
+   903→   903→# 25. SÉCURITÉ
+   904→   904→==================================================
+   905→   905→
+   906→   906→Appliquer les bonnes pratiques :
+   907→   907→
+   908→   908→- validation serveur ;
+   909→   909→- sanitation ;
+   910→   910→- protection contre abus ;
+   911→   911→- rate limiting si nécessaire ;
+   912→   912→- aucune donnée sensible dans les logs ;
+   913→   913→- aucune clé secrète côté client ;
+   914→   914→- variables d'environnement ;
+   915→   915→- protection des routes admin ;
+   916→   916→- contrôle d'accès ;
+   917→   917→- CSRF selon architecture ;
+   918→   918→- headers de sécurité appropriés ;
+   919→   919→- pas d'exposition inutile de données membres.
+   920→   920→
+   921→   921→Le lien WhatsApp n'est pas une donnée secrète.
+   922→   922→
+   923→   923→==================================================
+   924→   924→# 26. ADMIN DASHBOARD
+   925→   925→==================================================
+   926→   926→
+   927→   927→Créer un dashboard minimal mais réellement utile.
+   928→   928→
+   929→   929→Route :
+   930→   930→
+   931→   931→/admin
+   932→   932→
+   933→   933→Il doit permettre :
+   934→   934→
+   935→   935→- voir le nombre d'inscriptions ;
+   936→   936→- voir les profils récents ;
+   937→   937→- filtrer par domaine ;
+   938→   938→- filtrer par pays ;
+   939→   939→- filtrer par niveau ;
+   940→   940→- filtrer par besoin de mentorat ;
+   941→   941→- filtrer par budget ;
+   942→   942→- filtrer par statut ;
+   943→   943→- voir le détail d'un profil ;
+   944→   944→- changer le statut ;
+   945→   945→- marquer comme invité ;
+   946→   946→- exporter les données si nécessaire.
+   947→   947→
+   948→   948→Dashboard :
+   949→   949→
+   950→   950→------------------------------------------------
+   951→   951→HASHCODE REBOOT
+   952→   952→------------------------------------------------
+   953→   953→
+   954→   954→INSCRITS
+   955→   955→VALIDÉS
+   956→   956→EN ATTENTE
+   957→   957→MENTORAT
+   958→   958→WEB
+   959→   959→CYBER
+   960→   960→AI
+   961→   961→
+   962→   962→------------------------------------------------
+   963→   963→
+   964→   964→Répartition par domaine
+   965→   965→
+   966→   966→Répartition par pays
+   967→   967→
+   968→   968→Répartition par niveau
+   969→   969→
+   970→   970→Disponibilité
+   971→   971→
+   972→   972→Intérêt mentorat
+   973→   973→
+   974→   974→Budget potentiel
+   975→   975→
+   976→   976→------------------------------------------------
+   977→   977→
+   978→   978→Liste des derniers membres
+   979→   979→------------------------------------------------
+   980→   980→
+   981→   981→Le dashboard doit être simple.
+   982→   982→
+   983→   983→Pas besoin de construire le futur Registry complet.
+   984→   984→
+   985→   985→==================================================
+   986→   986→# 27. ANALYTICS
+   987→   987→==================================================
+   988→   988→
+   989→   989→Préparer des événements analytiques.
+   990→   990→
+   991→   991→Événements :
+   992→   992→
+   993→   993→reboot_page_view
+   994→   994→reboot_cta_clicked
+   995→   995→profiling_started
+   996→   996→profiling_question_answered
+   997→   997→profiling_completed
+   998→   998→profil_generated
+   999→   999→community_cta_clicked
+  1000→  1000→whatsapp_join_clicked
+  1001→  1001→
+  1002→  1002→Ne pas collecter de données analytiques inutiles.
+  1003→  1003→
+  1004→  1004→Respecter la confidentialité.
+  1005→  1005→
+  1006→  1006→==================================================
+  1007→  1007→# 28. PERFORMANCE
+  1008→  1008→==================================================
+  1009→  1009→
+  1010→  1010→Objectif :
+  1011→  1011→
+  1012→  1012→Landing extrêmement rapide.
+  1013→  1013→
+  1014→  1014→Optimiser :
+  1015→  1015→
+  1016→  1016→- images ;
+  1017→  1017→- fonts ;
+  1018→  1018→- JavaScript ;
+  1019→  1019→- animations ;
+  1020→  1020→- composants client ;
+  1021→  1021→- requêtes DB.
+  1022→  1022→
+  1023→  1023→Le profiling peut utiliser des composants client,
+  1024→  1024→mais la landing doit rester aussi légère que possible.
+  1025→  1025→
+  1026→  1026→==================================================
+  1027→  1027→# 29. MOBILE-FIRST
+  1028→  1028→==================================================
+  1029→  1029→
+  1030→  1030→La majorité des utilisateurs peuvent venir du mobile.
+  1031→  1031→
+  1032→  1032→Le mobile n'est PAS une adaptation secondaire.
+  1033→  1033→
+  1034→  1034→Concevoir d'abord pour :
+  1035→  1035→
+  1036→  1036→- téléphone ;
+  1037→  1037→- écran étroit ;
+  1038→  1038→- tactile ;
+  1039→  1039→- connexion lente.
+  1040→  1040→
+  1041→  1041→Les boutons doivent être suffisamment grands.
+  1042→  1042→
+  1043→  1043→Les cartes doivent être facilement sélectionnables.
+  1044→  1044→
+  1045→  1045→==================================================
+  1046→  1046→# 30. ACCESSIBILITÉ
+  1047→  1047→==================================================
+  1048→  1048→
+  1049→  1049→Respecter autant que possible WCAG :
+  1050→  1050→
+  1051→  1051→- contraste ;
+  1052→  1052→- focus ;
+  1053→  1053→- navigation clavier ;
+  1054→  1054→- labels ;
+  1055→  1055→- aria ;
+  1056→  1056→- lecteurs d'écran ;
+  1057→  1057→- boutons réellement accessibles ;
+  1058→  1058→- erreurs compréhensibles.
+  1059→  1059→
+  1060→  1060→Ne pas utiliser la couleur comme seul indicateur.
+  1061→  1061→
+  1062→  1062→==================================================
+  1063→  1063→# 31. MICRO-INTERACTIONS
+  1064→  1064→==================================================
+  1065→  1065→
+  1066→  1066→Utiliser des animations très légères :
+  1067→  1067→
+  1068→  1068→- transition des questions ;
+  1069→  1069→- sélection des cartes ;
+  1070→  1070→- progression ;
+  1071→  1071→- apparition du profil ;
+  1072→  1072→- état de succès.
+  1073→  1073→
+  1074→  1074→Les animations doivent renforcer le sentiment de progression.
+  1075→  1075→
+  1076→  1076→Elles ne doivent jamais ralentir l'utilisateur.
+  1077→  1077→
+  1078→  1078→==================================================
+  1079→  1079→# 32. COPYWRITING
+  1080→  1080→==================================================
+  1081→  1081→
+  1082→  1082→Le ton HASHCODE :
+  1083→  1083→
+  1084→  1084→- direct ;
+  1085→  1085→- ambitieux ;
+  1086→  1086→- humain ;
+  1087→  1087→- technologique ;
+  1088→  1088→- confiant ;
+  1089→  1089→- jamais corporate ;
+  1090→  1090→- jamais infantilisant.
+  1091→  1091→
+  1092→  1092→Éviter les phrases génériques de marketing IA.
+  1093→  1093→
+  1094→  1094→Éviter :
+  1095→  1095→
+  1096→  1096→"Libérez votre potentiel et révolutionnez votre avenir."
+  1097→  1097→
+  1098→  1098→Préférer :
+  1099→  1099→
+  1100→  1100→"Tu veux apprendre ? Construire ? Progresser ?
+  1101→  1101→Commence ici."
+  1102→  1102→
+  1103→  1103→==================================================
+  1104→  1104→# 33. DONNÉES ET CONFIDENTIALITÉ
+  1105→  1105→==================================================
+  1106→  1106→
+  1107→  1107→Ajouter une mention claire :
+  1108→  1108→
+  1109→  1109→"Tes réponses servent à mieux comprendre ton profil et à
+  1110→  1110→personnaliser ton expérience HASHCODE."
+  1111→  1111→
+  1112→  1112→Prévoir :
+  1113→  1113→
+  1114→  1114→- politique de confidentialité ;
+  1115→  1115→- consentement approprié ;
+  1116→  1116→- possibilité de demander suppression/export des données
+  1117→  1117→  selon les besoins du projet.
+  1118→  1118→
+  1119→  1119→Ne pas collecter des données sans finalité.
+  1120→  1120→
+  1121→  1121→==================================================
+  1122→  1122→# 34. SEO
+  1123→  1123→==================================================
+  1124→  1124→
+  1125→  1125→Configurer :
+  1126→  1126→
+  1127→  1127→title :
+  1128→  1128→"HASHCODE REBOOT — Rejoins la nouvelle génération HASHCODE"
+  1129→  1129→
+  1130→  1130→description :
+  1131→  1131→"Rejoins HASHCODE, une communauté orientée Web Development,
+  1132→  1132→Cybersecurity et Applied AI."
+  1133→  1133→
+  1134→  1134→Open Graph.
+  1135→  1135→
+  1136→  1136→Twitter/X metadata si pertinent.
+  1137→  1137→
+  1138→  1138→Favicon.
+  1139→  1139→
+  1140→  1140→robots.
+  1141→  1141→
+  1142→  1142→sitemap si nécessaire.
+  1143→  1143→
+  1144→  1144→==================================================
+  1145→  1145→# 35. ROUTES
+  1146→  1146→==================================================
+  1147→  1147→
+  1148→  1148→Minimum :
+  1149→  1149→
+  1150→  1150→/
+  1151→  1151→ /join
+  1152→  1152→ /success
+  1153→  1153→ /privacy
+  1154→  1154→ /admin
+  1155→  1155→ /admin/members
+  1156→  1156→
+  1157→  1157→API/server actions selon architecture.
+  1158→  1158→
+  1159→  1159→Ne pas créer une API REST inutile si Server Actions
+  1160→  1160→ou l'architecture Next.js choisie suffit.
+  1161→  1161→
+  1162→  1162→==================================================
+  1163→  1163→# 36. ÉTATS D'INTERFACE
+  1164→  1164→==================================================
+  1165→  1165→
+  1166→  1166→Prévoir tous les états :
+  1167→  1167→
+  1168→  1168→loading
+  1169→  1169→empty
+  1170→  1170→success
+  1171→  1171→error
+  1172→  1172→validation
+  1173→  1173→offline
+  1174→  1174→submitting
+  1175→  1175→already_submitted
+  1176→  1176→
+  1177→  1177→Aucune interface ne doit rester bloquée sans feedback.
+  1178→  1178→
+  1179→  1179→==================================================
+  1180→  1180→# 37. PRÉVENTION DES ABANDONS
+  1181→  1181→==================================================
+  1182→  1182→
+  1183→  1183→Si l'utilisateur ferme la page au milieu :
+  1184→  1184→
+  1185→  1185→préserver temporairement les réponses localement.
+  1186→  1186→
+  1187→  1187→Au retour :
+  1188→  1188→
+  1189→  1189→"Ton profil est toujours là.
+  1190→  1190→Tu peux reprendre là où tu t'étais arrêté."
+  1191→  1191→
+  1192→  1192→Ne pas stocker inutilement des données sensibles dans localStorage.
+  1193→  1193→
+  1194→  1194→Si des données personnelles sont stockées temporairement,
+  1195→  1195→minimiser leur durée et leur exposition.
+  1196→  1196→
+  1197→  1197→==================================================
+  1198→  1198→# 38. ANTI-DUPLICATION
+  1199→  1199→==================================================
+  1200→  1200→
+  1201→  1201→Éviter plusieurs inscriptions accidentelles.
+  1202→  1202→
+  1203→  1203→Utiliser email ou autre identifiant approprié
+  1204→  1204→pour détecter une inscription existante.
+  1205→  1205→
+  1206→  1206→Si un profil existe déjà :
+  1207→  1207→
+  1208→  1208→"Tu as déjà commencé ton profil HASHCODE."
+  1209→  1209→
+  1210→  1210→Proposer de reprendre ou d'afficher l'état.
+  1211→  1211→
+  1212→  1212→==================================================
+  1213→  1213→# 39. ADMIN UX
+  1214→  1214→==================================================
+  1215→  1215→
+  1216→  1216→L'administrateur doit pouvoir comprendre la communauté rapidement.
+  1217→  1217→
+  1218→  1218→Exemple :
+  1219→  1219→
+  1220→  1220→Filtres :
+  1221→  1221→
+  1222→  1222→[ Tous ]
+  1223→  1223→
+  1224→  1224→[ Web ]
+  1225→  1225→
+  1226→  1226→[ Cyber ]
+  1227→  1227→
+  1228→  1228→[ AI ]
+  1229→  1229→
+  1230→  1230→[ Mentorat ]
+  1231→  1231→
+  1232→  1232→[ En attente ]
+  1233→  1233→
+  1234→  1234→[ Validés ]
+  1235→  1235→
+  1236→  1236→Puis tableau :
+  1237→  1237→
+  1238→  1238→Nom
+  1239→  1239→Pays
+  1240→  1240→Domaine
+  1241→  1241→Niveau
+  1242→  1242→Objectif
+  1243→  1243→Mentorat
+  1244→  1244→Budget
+  1245→  1245→Statut
+  1246→  1246→Date
+  1247→  1247→
+  1248→  1248→Cliquer sur un membre ouvre son profil détaillé.
+  1249→  1249→
+  1250→  1250→==================================================
+  1251→  1251→# 40. EXPORT
+  1252→  1252→==================================================
+  1253→  1253→
+  1254→  1254→Prévoir un export CSV administrateur.
+  1255→  1255→
+  1256→  1256→Colonnes utiles :
+  1257→  1257→
+  1258→  1258→- nom ;
+  1259→  1259→- email ;
+  1260→  1260→- téléphone ;
+  1261→  1261→- pays ;
+  1262→  1262→- domaine ;
+  1263→  1263→- niveau ;
+  1264→  1264→- objectif ;
+  1265→  1265→- disponibilité ;
+  1266→  1266→- mentorat ;
+  1267→  1267→- budget ;
+  1268→  1268→- statut ;
+  1269→  1269→- date.
+  1270→  1270→
+  1271→  1271→Sécuriser fortement cette fonctionnalité.
+  1272→  1272→
+  1273→  1273→==================================================
+  1274→  1274→# 41. DESIGN SYSTEM
+  1275→  1275→==================================================
+  1276→  1276→
+  1277→  1277→Créer des composants réutilisables :
+  1278→  1278→
+  1279→  1279→Button
+  1280→  1280→Card
+  1281→  1281→ProgressIndicator
+  1282→  1282→QuestionCard
+  1283→  1283→OptionCard
+  1284→  1284→Input
+  1285→  1285→Select
+  1286→  1286→CountrySelect
+  1287→  1287→StepContainer
+  1288→  1288→ProfilSummary
+  1289→  1289→StatusBadge
+  1290→  1290→StatCard
+  1291→  1291→DataTable
+  1292→  1292→FilterBar
+  1293→  1293→EmptyState
+  1294→  1294→ErrorState
+  1295→  1295→SuccessState
+  1296→  1296→
+  1297→  1297→Ne pas dupliquer les composants.
+  1298→  1298→
+  1299→  1299→==================================================
+  1300→  1300→# 42. ARCHITECTURE DU PROFILAGE
+  1301→  1301→==================================================
+  1302→  1302→
+  1303→  1303→Créer une structure de questions configurable.
+  1304→  1304→
+  1305→  1305→Exemple conceptuel :
+  1306→  1306→
+  1307→  1307→Question {
+  1308→  1308→ id
+  1309→  1309→ type
+  1310→  1310→ title
+  1311→  1311→ description
+  1312→  1312→ options
+  1313→  1313→ required
+  1314→  1314→ condition
+  1315→  1315→ mapsTo
+  1316→  1316→}
+  1317→  1317→
+  1318→  1318→Types possibles :
+  1319→  1319→
+  1320→  1320→single_choice
+  1321→  1321→multi_choice
+  1322→  1322→text
+  1323→  1323→number
+  1324→  1324→country
+  1325→  1325→email
+  1326→  1326→
+  1327→  1327→La logique doit pouvoir évoluer sans réécrire
+  1328→  1328→toute l'interface.
+  1329→  1329→
+  1330→  1330→==================================================
+  1331→  1331→# 43. OBJECTIF DE CONVERSION
+  1332→  1332→==================================================
+  1333→  1333→
+  1334→  1334→Optimiser ce funnel :
+  1335→  1335→
+  1336→  1336→VISITE
+  1337→  1337→ ↓
+  1338→  1338→CTA
+  1339→  1339→ ↓
+  1340→  1340→PROFILAGE
+  1341→  1341→ ↓
+  1342→  1342→PROFIL COMPLET
+  1343→  1343→ ↓
+  1344→  1344→SUCCESS
+  1345→  1345→ ↓
+  1346→  1346→WHATSAPP
+  1347→  1347→
+  1348→  1348→Mesurer les abandons.
+  1349→  1349→
+  1350→  1350→Identifier :
+  1351→  1351→
+  1352→  1352→- question où les utilisateurs quittent ;
+  1353→  1353→- temps moyen ;
+  1354→  1354→- taux de complétion ;
+  1355→  1355→- taux de clic WhatsApp.
+  1356→  1356→
+  1357→  1357→==================================================
+  1358→  1358→# 44. NE PAS SURCONSTRUIRE
+  1359→  1359→==================================================
+  1360→  1360→
+  1361→  1361→IMPORTANT.
+  1362→  1362→
+  1363→  1363→Ne construis PAS maintenant :
+  1364→  1364→
+  1365→  1365→- le Registry complet ;
+  1366→  1366→- système XP complet ;
+  1367→  1367→- missions complètes ;
+  1368→  1368→- squads ;
+  1369→  1369→- peer review ;
+  1370→  1370→- système complexe de recommandations IA ;
+  1371→  1371→- marketplace ;
+  1372→  1372→- paiement ;
+  1373→  1373→- application mobile.
+  1374→  1374→
+  1375→  1375→Le Reboot est une porte d'entrée.
+  1376→  1376→
+  1377→  1377→Construire uniquement ce qui est nécessaire
+  1378→  1378→pour apprendre sur la communauté et l'activer.
+  1379→  1379→
+  1380→  1380→==================================================
+  1381→  1381→# 45. CRITÈRES DE SUCCÈS
+  1382→  1382→==================================================
+  1383→  1383→
+  1384→  1384→Le produit est considéré comme réussi si :
+  1385→  1385→
+  1386→  1386→[ ] Landing rapide
+  1387→  1387→[ ] Mobile parfaite
+  1388→  1388→[ ] CTA évident
+  1389→  1389→[ ] Profilage < 3 minutes
+  1390→  1390→[ ] Majorité des réponses par clic
+  1391→  1391→[ ] Questions conditionnelles fonctionnelles
+  1392→  1392→[ ] Pas de questions inutiles
+  1393→  1393→[ ] Données sauvegardées correctement
+  1394→  1394→[ ] Profil généré
+  1395→  1395→[ ] Validation fonctionnelle
+  1396→  1396→[ ] Admin fonctionnel
+  1397→  1397→[ ] Filtres fonctionnels
+  1398→  1398→[ ] Export fonctionnel
+  1399→  1399→[ ] WhatsApp CTA fonctionnel
+  1400→  1400→[ ] Sécurité correcte
+  1401→  1401→[ ] SEO correct
+  1402→  1402→[ ] Aucun secret exposé
+  1403→  1403→[ ] Aucun bug bloquant
+  1404→  1404→[ ] Build production réussi
+  1405→  1405→
+  1406→  1406→==================================================
+  1407→  1407→# 46. PROCESSUS DE TRAVAIL OBLIGATOIRE
+  1408→  1408→==================================================
+  1409→  1409→
+  1410→  1410→NE COMMENCE PAS immédiatement à coder.
+  1411→  1411→
+  1412→  1412→ÉTAPE 1
+  1413→  1413→
+  1414→  1414→Inspecte entièrement le repository.
+  1415→  1415→
+  1416→  1416→ÉTAPE 2
+  1417→  1417→
+  1418→  1418→Décris brièvement :
+  1419→  1419→
+  1420→  1420→- architecture actuelle ;
+  1421→  1421→- stack ;
+  1422→  1422→- fichiers importants ;
+  1423→  1423→- dépendances ;
+  1424→  1424→- risques ;
+  1425→  1425→- ce qui peut être réutilisé.
+  1426→  1426→
+  1427→  1427→ÉTAPE 3
+  1428→  1428→
+  1429→  1429→Propose l'architecture cible.
+  1430→  1430→
+  1431→  1431→ÉTAPE 4
+  1432→  1432→
+  1433→  1433→Implémente.
+  1434→  1434→
+  1435→  1435→ÉTAPE 5
+  1436→  1436→
+  1437→  1437→Lance le lint.
+  1438→  1438→
+  1439→  1439→ÉTAPE 6
+  1440→  1440→
+  1441→  1441→Lance le typecheck.
+  1442→  1442→
+  1443→  1443→ÉTAPE 7
+  1444→  1444→
+  1445→  1445→Lance le build.
+  1446→  1446→
+  1447→  1447→ÉTAPE 8
+  1448→  1448→
+  1449→  1449→Corrige toutes les erreurs.
+  1450→  1450→
+  1451→  1451→ÉTAPE 9
+  1452→  1452→
+  1453→  1453→Teste manuellement le parcours complet.
+  1454→  1454→
+  1455→  1455→ÉTAPE 10
+  1456→  1456→
+  1457→  1457→Teste au minimum :
+  1458→  1458→
+  1459→  1459→- mobile ;
+  1460→  1460→- desktop ;
+  1461→  1461→- inscription complète ;
+  1462→  1462→- abandon/reprise ;
+  1463→  1463→- conditions mentorat ;
+  1464→  1464→- conditions domaine ;
+  1465→  1465→- validation ;
+  1466→  1466→- duplicate submission ;
+  1467→  1467→- erreur serveur ;
+  1468→  1468→- accès admin ;
+  1469→  1469→- export ;
+  1470→  1470→- CTA WhatsApp.
+  1471→  1471→
+  1472→  1472→ÉTAPE 11
+  1473→  1473→
+  1474→  1474→Effectue un audit UX.
+  1475→  1475→
+  1476→  1476→ÉTAPE 12
+  1477→  1477→
+  1478→  1478→Effectue un audit sécurité.
+  1479→  1479→
+  1480→  1480→ÉTAPE 13
+  1481→  1481→
+  1482→  1482→Effectue un audit performance.
+  1483→  1483→
+  1484→  1484→ÉTAPE 14
+  1485→  1485→
+  1486→  1486→Effectue un audit SEO.
+  1487→  1487→
+  1488→  1488→ÉTAPE 15
+  1489→  1489→
+  1490→  1490→Effectue un dernier passage de nettoyage du code.
+  1491→  1491→
+  1492→  1492→==================================================
+  1493→  1493→# 47. DÉPLOIEMENT
+  1494→  1494→==================================================
+  1495→  1495→
+  1496→  1496→Le produit doit être préparé pour :
+  1497→  1497→
+  1498→  1498→reboot.joinhashcode.com
+  1499→  1499→
+  1500→  1500→Avant déploiement :
+  1501→  1501→
+  1502→  1502→- vérifier variables d'environnement ;
+  1503→  1503→- vérifier DATABASE_URL ;
+  1504→  1504→- exécuter migrations ;
+  1505→  1505→- vérifier production build ;
+  1506→  1506→- vérifier domaine ;
+  1507→  1507→- vérifier HTTPS ;
+  1508→  1508→- vérifier redirections ;
+  1509→  1509→- vérifier accès admin ;
+  1510→  1510→- vérifier connexion DB ;
+  1511→  1511→- vérifier WhatsApp CTA.
+  1512→  1512→
+  1513→  1513→Ne jamais mettre de secrets dans Git.
+  1514→  1514→
+  1515→  1515→==================================================
+  1516→  1516→# 48. LIVRABLE FINAL
+  1517→  1517→==================================================
+  1518→  1518→
+  1519→  1519→À la fin du travail, fournir un rapport très court :
+  1520→  1520→
+  1521→  1521→1. Ce qui a été construit.
+  1522→  1522→2. Architecture.
+  1523→  1523→3. Routes.
+  1524→  1524→4. Base de données.
+  1525→  1525→5. Variables d'environnement nécessaires.
+  1526→  1526→6. Commandes pour lancer localement.
+  1527→  1527→7. Commandes de build.
+  1528→  1528→8. Procédure de migration.
+  1529→  1529→9. Procédure de déploiement.
+  1530→  1530→10. Tests effectués.
+  1531→  1531→11. Problèmes restants.
+  1532→  1532→12. Recommandations V2.
+  1533→  1533→
+  1534→  1534→==================================================
+  1535→  1535→# 49. RÈGLE ABSOLUE
+  1536→  1536→==================================================
+  1537→  1537→
+  1538→  1538→Ne jamais sacrifier l'expérience utilisateur pour collecter
+  1539→  1539→davantage de données.
+  1540→  1540→
+  1541→  1541→Le produit doit donner cette impression :
+  1542→  1542→
+  1543→  1543→"Je viens de construire mon profil en moins de deux minutes."
+  1544→  1544→
+  1545→  1545→et jamais :
+  1546→  1546→
+  1547→  1547→"Je viens de remplir un long formulaire."
+  1548→  1548→
+  1549→  1549→==================================================
+  1550→  1550→# 50. MISSION
+  1551→  1551→==================================================
+  1552→  1552→
+  1553→  1553→Construis maintenant HASHCODE REBOOT comme un produit
+  1554→  1554→production-ready.
+  1555→  1555→
+  1556→  1556→Commence par inspecter le repository.
+  1557→  1557→
+  1558→  1558→Ne demande pas de confirmation pour chaque petite décision.
+  1559→  1559→
+  1560→  1560→Prends des décisions professionnelles lorsque les informations
+  1561→  1561→sont suffisamment claires.
+  1562→  1562→
+  1563→  1563→Si une décision importante est ambiguë ou peut entraîner une
+  1564→  1564→architecture difficilement réversible, signale-la avant de
+  1565→  1565→continuer.
+  1566→  1566→
+  1567→  1567→Sinon, avance.
+  1568→  1568→
+  1569→  1569→Priorités :
+  1570→  1570→
+  1571→  1571→1. UX
+  1572→  1572→2. Conversion
+  1573→  1573→3. Qualité
+  1574→  1574→4. Simplicité
+  1575→  1575→5. Sécurité
+  1576→  1576→6. Performance
+  1577→  1577→7. Maintenabilité
+  1578→  1578→
+  1579→  1579→Le résultat doit être suffisamment propre pour être déployé
+  1580→  1580→aujourd'hui.

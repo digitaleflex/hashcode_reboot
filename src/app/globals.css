@@ -1,0 +1,350 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ============================================================
+   HASHCODE REBOOT — Brand tokens
+   Dark-first. Lime is an ACCENT, never a background.
+   ============================================================ */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-sora);
+
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+}
+
+/* HASHCODE dark theme is the default (no light theme). */
+:root {
+  --radius: 8px;
+
+  --background: oklch(0.16 0 0);          /* #0A0A0A — VOID */
+  --foreground: oklch(0.97 0.005 120);    /* #F8FAFC — TEXT PRIMARY */
+  --card: oklch(0.20 0 0);                /* SURFACE #141414 */
+  --card-foreground: oklch(0.97 0.005 120);
+  --popover: oklch(0.18 0 0);
+  --popover-foreground: oklch(0.97 0.005 120);
+
+  --primary: oklch(0.92 0.21 125);        /* HASH LIME #C5F441 */
+  --primary-foreground: oklch(0.16 0 0);  /* dark text on lime */
+
+  --secondary: oklch(0.24 0 0);           /* ELEVATED #1A1A1A */
+  --secondary-foreground: oklch(0.97 0.005 120);
+
+  --muted: oklch(0.22 0 0);
+  --muted-foreground: oklch(0.70 0.02 240); /* #94A3B8 — TEXT SECONDARY */
+
+  --accent: oklch(0.27 0 0);
+  --accent-foreground: oklch(0.97 0.005 120);
+
+  --destructive: oklch(0.62 0.22 25);
+
+  --border: oklch(0.31 0 0);              /* #2A2A2A — BORDER */
+  --input: oklch(0.31 0 0);
+  --ring: oklch(0.92 0.21 125);           /* lime ring */
+
+  --chart-1: oklch(0.92 0.21 125);         /* lime */
+  --chart-2: oklch(0.70 0.12 200);
+  --chart-3: oklch(0.65 0.18 40);
+  --chart-4: oklch(0.60 0.10 280);
+  --chart-5: oklch(0.75 0.14 160);
+
+  --sidebar: oklch(0.18 0 0);
+  --sidebar-foreground: oklch(0.97 0.005 120);
+  --sidebar-primary: oklch(0.92 0.21 125);
+  --sidebar-primary-foreground: oklch(0.16 0 0);
+  --sidebar-accent: oklch(0.22 0 0);
+  --sidebar-accent-foreground: oklch(0.97 0.005 120);
+  --sidebar-border: oklch(0.31 0 0);
+  --sidebar-ring: oklch(0.92 0.21 125);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/40;
+  }
+  html {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "ss01", "cv01";
+  }
+  ::selection {
+    background: var(--primary);
+    color: var(--primary-foreground);
+  }
+}
+
+/* ============================================================
+   HASHCODE utility helpers
+   ============================================================ */
+
+/* Lime accent text */
+.text-lime {
+  color: var(--primary);
+}
+
+/* Lime accent background — needed because Tailwind 4 doesn't auto-generate
+   custom-named utilities. bg-primary works (via --color-primary), but we
+   use bg-lime throughout the components for readability. */
+.bg-lime {
+  background-color: var(--primary);
+}
+
+/* Lime border */
+.border-lime {
+  border-color: var(--primary);
+}
+
+/* Lime background with opacity (e.g. bg-lime/5) — Tailwind 4 handles the
+   /opacity modifier on registered colors, but bg-lime is a custom class.
+   We provide common opacity variants here. */
+.bg-lime\/5 { background-color: oklch(0.92 0.21 125 / 0.05); }
+.bg-lime\/10 { background-color: oklch(0.92 0.21 125 / 0.10); }
+.bg-lime\/\[0\.04\] { background-color: oklch(0.92 0.21 125 / 0.04); }
+.bg-lime\/\[0\.06\] { background-color: oklch(0.92 0.21 125 / 0.06); }
+
+/* Lime border with opacity */
+.border-lime\/40 { border-color: oklch(0.92 0.21 125 / 0.40); }
+.border-lime\/60 { border-color: oklch(0.92 0.21 125 / 0.60); }
+.border-lime\/50 { border-color: oklch(0.92 0.21 125 / 0.50); }
+.border-lime\/80 { border-color: oklch(0.92 0.21 125 / 0.80); }
+
+/* Lime text with opacity */
+.text-lime\/20 { color: oklch(0.92 0.21 125 / 0.20); }
+.text-lime\/80 { color: oklch(0.92 0.21 125 / 0.80); }
+.text-lime\/90 { color: oklch(0.92 0.21 125 / 0.90); }
+
+/* Lime background hover with opacity */
+.hover\:bg-lime\/90:hover { background-color: oklch(0.92 0.21 125 / 0.90); }
+.hover\:bg-lime:hover { background-color: var(--primary); }
+.hover\:border-lime\/60:hover { border-color: oklch(0.92 0.21 125 / 0.60); }
+.hover\:border-lime\/50:hover { border-color: oklch(0.92 0.21 125 / 0.50); }
+.hover\:border-lime\/40:hover { border-color: oklch(0.92 0.21 125 / 0.40); }
+.hover\:text-lime:hover { color: var(--primary); }
+.hover\:text-lime\/80:hover { color: oklch(0.92 0.21 125 / 0.80); }
+
+/* Subtle dotted grid background — engineered, not decorated */
+.bg-grid {
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(248, 250, 252, 0.05) 1px, transparent 0);
+  background-size: 32px 32px;
+}
+
+/* Radial vignette — focuses attention on content, adds depth */
+.bg-vignette::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 80% 60% at 50% 35%,
+    transparent 0%,
+    rgba(0, 0, 0, 0.35) 100%
+  );
+  z-index: 0;
+}
+
+/* Fine grain noise overlay — kills flat banding, adds texture */
+.bg-noise::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.025;
+  z-index: 1;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.7'/></svg>");
+}
+
+/* Lime glow for hero wordmark — subtle, never tacky */
+.text-glow-lime {
+  text-shadow: 0 0 24px rgba(197, 244, 65, 0.18), 0 0 2px rgba(197, 244, 65, 0.4);
+}
+
+/* Hairline border helper */
+.hairline {
+  border: 1px solid var(--border);
+}
+
+/* Gradient divider — engineered transition between sections */
+.divider-grad {
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    var(--border) 20%,
+    var(--border) 80%,
+    transparent 100%
+  );
+}
+
+/* Monospace numeric / labels */
+.mono-label {
+  font-family: var(--font-geist-mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+/* Italic display wordmark treatment */
+.wordmark-italic {
+  font-style: italic;
+  letter-spacing: -0.01em;
+}
+
+/* Lime focus ring for keyboard nav */
+.focus-lime:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Custom slim scrollbar for long lists */
+.scroll-slim::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scroll-slim::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 999px;
+}
+.scroll-slim::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+.scroll-slim::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Card hover lift — subtle, premium */
+.lift-on-hover {
+  transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.24s ease, background-color 0.24s ease;
+}
+.lift-on-hover:hover {
+  transform: translateY(-1px);
+}
+
+/* Lime border sweep on hover for interactive rows */
+.row-sweep {
+  position: relative;
+}
+.row-sweep::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--primary);
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform 0.24s ease;
+}
+.row-sweep:hover::before {
+  transform: scaleY(1);
+}
+
+/* Animation: lime sweep for progress */
+@keyframes hash-sweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+.animate-hash-sweep::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(197, 244, 65, 0.35), transparent);
+  animation: hash-sweep 1.6s ease-in-out infinite;
+}
+
+/* Fade/slide for question transitions */
+@keyframes hash-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-hash-in {
+  animation: hash-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Subtle pulse for live/active indicators */
+@keyframes hash-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.animate-hash-pulse {
+  animation: hash-pulse 2s ease-in-out infinite;
+}
+
+/* Counter rollup */
+@keyframes hash-roll {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-hash-roll {
+  animation: hash-roll 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Slow bounce (scroll indicator) */
+@keyframes bounce-slow {
+  0%, 100% { transform: translateY(0); opacity: 0.6; }
+  50% { transform: translateY(4px); opacity: 1; }
+}
+.animate-bounce-slow {
+  animation: bounce-slow 1.8s ease-in-out infinite;
+}
+
+/* Slide-in from bottom (cookie banner, banners) */
+@keyframes hash-slide-up {
+  from { opacity: 0; transform: translateY(100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-hash-slide-up {
+  animation: hash-slide-up 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Donut chart stroke draw */
+@keyframes hash-draw {
+  from { stroke-dashoffset: var(--len, 1000); }
+  to { stroke-dashoffset: var(--off, 0); }
+}
+.animate-hash-draw {
+  animation: hash-draw 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}

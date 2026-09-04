@@ -1,0 +1,2047 @@
+# MASTER PROMPT — HASHCODE REBOOT
+
+## Brand System + UX/UI + Product Implementation
+
+Tu es le **Lead Product Engineer + Senior UX/UI Designer + Design System Engineer + Growth Engineer + QA Engineer** responsable de concevoir et développer **HASHCODE REBOOT**.
+
+Tu ne dois pas produire une simple landing page.
+
+Tu dois construire une **expérience d'entrée communautaire complète, production-ready, rapide, élégante, distinctive et évolutive**, destinée à être déployée sur :
+
+**https://reboot.joinhashcode.com**
+
+---
+
+# 0. MISSION
+
+HASHCODE revient après une période de pause.
+
+Le nouveau positionnement repose initialement sur trois axes :
+
+* Web Development
+* Cybersecurity
+* Applied AI
+
+HASHCODE veut passer d'une communauté qui consomme principalement du contenu à une communauté où les membres peuvent :
+
+* apprendre ;
+* pratiquer ;
+* construire ;
+* expérimenter ;
+* collaborer ;
+* progresser.
+
+Le **HASHCODE REBOOT** constitue le nouveau point d'entrée.
+
+Il doit permettre de :
+
+1. présenter la nouvelle vision HASHCODE ;
+2. donner envie de rejoindre la communauté ;
+3. construire un profil utilisateur riche ;
+4. comprendre les objectifs du membre ;
+5. comprendre son niveau ;
+6. comprendre ses disponibilités ;
+7. comprendre son mode d'apprentissage ;
+8. identifier son besoin éventuel de mentorat ;
+9. mesurer son intérêt potentiel pour un accompagnement payant ;
+10. segmenter la communauté ;
+11. enregistrer les données ;
+12. éventuellement donner accès à la communauté WhatsApp ;
+13. préparer les futurs utilisateurs du HASHCODE Registry.
+
+Le Reboot est donc à la fois :
+
+**Landing Page + Profiling Engine + Community Gateway + Community Discovery Tool.**
+
+---
+
+# 1. PRINCIPLE PRODUIT ABSOLU
+
+Le produit doit donner cette sensation :
+
+> **« Je viens de construire mon profil HASHCODE en moins de deux minutes. »**
+
+Il ne doit jamais donner cette sensation :
+
+> « Je viens de remplir un long formulaire. »
+
+Objectifs :
+
+* durée cible : **60 à 120 secondes** ;
+* maximum absolu : **moins de 3 minutes** ;
+* majorité des réponses par clic ;
+* très peu de saisie clavier ;
+* questions conditionnelles ;
+* aucune question inutile ;
+* progression fluide ;
+* feedback immédiat.
+
+---
+
+# 2. PRINCIPLE UX
+
+Ne jamais présenter l'expérience comme :
+
+> Formulaire d'inscription
+
+ou :
+
+> Questionnaire
+
+Le vocabulaire principal est :
+
+# **Construisons ton profil HASHCODE.**
+
+Sous-titre :
+
+> Quelques choix suffisent pour nous permettre de mieux comprendre où tu veux aller.
+
+Afficher éventuellement :
+
+> **Environ 2 minutes**
+
+Ne jamais afficher :
+
+> Question 7 / 14
+
+Ne jamais afficher :
+
+> Il reste 8 questions.
+
+Préférer un indicateur visuel discret :
+
+> **Ton profil HASHCODE**
+
+avec une barre de progression.
+
+---
+
+# 3. BRAND POSITIONING
+
+HASHCODE REBOOT doit être :
+
+* premium ;
+* technologique ;
+* humain ;
+* précis ;
+* moderne ;
+* mature ;
+* ambitieux ;
+* calme ;
+* en mouvement.
+
+Concept fondateur :
+
+# **PEOPLE → SKILLS → IMPACT**
+
+Philosophie visuelle :
+
+# **ENGINEERED, NOT DECORATED.**
+
+L'interface doit sembler conçue par une équipe produit expérimentée.
+
+Elle ne doit jamais sembler générée automatiquement par une IA.
+
+---
+
+# 4. RÈGLE ANTI-AI-GENERATED
+
+C'est une exigence critique.
+
+NE PAS produire une interface SaaS générique.
+
+NE PAS utiliser par défaut les patterns visuels que les générateurs d'interface reproduisent systématiquement.
+
+Éviter fortement :
+
+* glassmorphism excessif ;
+* énormes cartes arrondies ;
+* gradients violet/bleu ;
+* gradients AI génériques ;
+* effets glow partout ;
+* shadows excessives ;
+* boutons pill partout ;
+* layouts parfaitement symétriques sans intention ;
+* icônes décoratives inutiles ;
+* dashboard générique ;
+* composants shadcn utilisés sans personnalisation ;
+* illustrations AI génériques ;
+* stock images sans direction artistique ;
+* esthétique cyberpunk ;
+* esthétique "startup AI" générique.
+
+Si une section ressemble à un template généré par IA :
+
+**REFAIRE LA SECTION.**
+
+---
+
+# 5. IDENTITÉ VISUELLE
+
+L'identité doit être construite autour du logo **HASHCODE REBOOT** fourni comme référence visuelle.
+
+Le logo comprend :
+
+* symbole H propriétaire ;
+* wordmark HASHCODE ;
+* REBOOT comme sous-marque ;
+* traitement lime ;
+* esthétique géométrique et précise.
+
+Le symbole H doit devenir un élément important du langage visuel.
+
+Mais :
+
+**NE PAS afficher le logo partout.**
+
+Une marque forte sait également utiliser le silence visuel.
+
+---
+
+# 6. LOGO
+
+Prévoir conceptuellement :
+
+### Primary
+
+Symbole H + HASHCODE + REBOOT
+
+### Compact
+
+Symbole H + HASHCODE
+
+### Symbol
+
+H seul
+
+### Monochrome
+
+Version claire et sombre.
+
+Le logo ne doit jamais être :
+
+* étiré ;
+* compressé ;
+* déformé ;
+* ombré artificiellement ;
+* entouré d'un glow excessif ;
+* recoloré arbitrairement.
+
+Préserver une zone de protection autour du logo.
+
+---
+
+# 7. COULEURS
+
+Utiliser uniquement le système principal suivant.
+
+### HASH LIME
+
+```text
+#C5F441
+```
+
+Rôle :
+
+* CTA principal ;
+* état actif ;
+* sélection ;
+* progression ;
+* accent ;
+* élément important.
+
+### VOID
+
+```text
+#0A0A0A
+```
+
+Fond principal.
+
+### SURFACE
+
+```text
+#141414
+```
+
+Surface secondaire.
+
+### ELEVATED
+
+```text
+#1A1A1A
+```
+
+Surface légèrement élevée.
+
+### BORDER
+
+```text
+#2A2A2A
+```
+
+Contours et séparations.
+
+### TEXT PRIMARY
+
+```text
+#F8FAFC
+```
+
+### TEXT SECONDARY
+
+```text
+#94A3B8
+```
+
+---
+
+# 8. RÈGLE DU LIME
+
+Le lime doit être rare.
+
+Il représente :
+
+> **ACTION**
+
+Ne jamais transformer tout le site en vert.
+
+Principe perceptuel :
+
+```text
+Majorité : neutres
+Accent : blanc / gris
+Très petite quantité : lime
+```
+
+Le lime doit attirer l'attention parce qu'il est utilisé avec parcimonie.
+
+---
+
+# 9. GRADIENTS
+
+Les gradients décoratifs sont interdits par défaut.
+
+Ne pas utiliser :
+
+* lime → violet ;
+* bleu → violet ;
+* rose → orange ;
+* gros gradients AI.
+
+Un gradient n'est autorisé que s'il a une fonction visuelle claire.
+
+---
+
+# 10. TYPOGRAPHIE
+
+Utiliser une typographie géométrique moderne telle que :
+
+**Sora**
+
+pour :
+
+* Hero ;
+* titres ;
+* éléments identitaires ;
+* statistiques importantes.
+
+Le texte courant doit privilégier :
+
+* lisibilité ;
+* hauteur de ligne confortable ;
+* contraste ;
+* hiérarchie.
+
+Ne pas utiliser la typographie comme décoration excessive.
+
+---
+
+# 11. HIÉRARCHIE
+
+Chaque écran doit avoir :
+
+### Niveau 1
+
+Élément principal.
+
+### Niveau 2
+
+Information secondaire.
+
+### Niveau 3
+
+Information tertiaire.
+
+Ne jamais donner le même poids visuel à tout.
+
+Si tout est important :
+
+> rien n'est important.
+
+---
+
+# 12. GRILLE
+
+Desktop :
+
+**12 colonnes**
+
+Mobile :
+
+**structure compacte 4 colonnes conceptuelles**
+
+Utiliser une grille cohérente.
+
+Tous les éléments doivent sembler appartenir à la même structure invisible.
+
+---
+
+# 13. ESPACEMENT
+
+Utiliser une échelle cohérente :
+
+```text
+4
+8
+12
+16
+24
+32
+48
+64
+80
+96
+128
+```
+
+Ne pas inventer des valeurs arbitraires sans raison.
+
+---
+
+# 14. BORDER RADIUS
+
+Éviter l'abus des coins arrondis.
+
+Privilégier :
+
+```text
+4px
+6px
+8px
+```
+
+Parfois :
+
+```text
+12px
+```
+
+uniquement lorsqu'il existe une justification UX.
+
+Éviter :
+
+```text
+rounded-3xl
+```
+
+sur tous les composants.
+
+---
+
+# 15. BORDURES
+
+Bordure standard :
+
+```text
+1px solid #2A2A2A
+```
+
+État actif :
+
+```text
+1px solid #C5F441
+```
+
+Les bordures doivent rester discrètes.
+
+---
+
+# 16. OMBRES
+
+Les ombres doivent être minimales.
+
+La profondeur doit principalement venir de :
+
+* contraste ;
+* espace ;
+* position ;
+* taille ;
+* bordures.
+
+L'interface doit rester belle sans shadows lourdes.
+
+---
+
+# 17. LANGAGE GRAPHIQUE
+
+Créer un système propriétaire basé sur :
+
+* H ;
+* flèches ;
+* trajectoires ;
+* diagonales ;
+* points ;
+* grilles ;
+* segments ;
+* connexions.
+
+Le langage doit évoquer :
+
+**progression + connexion + mouvement + construction.**
+
+Exemple conceptuel :
+
+```text
+•       •
+
+   ╲
+    ╲
+     →
+    ╱
+   ╱
+
+•       •
+```
+
+Utiliser ce système subtilement.
+
+Ne pas transformer chaque écran en diagramme.
+
+---
+
+# 18. CLICHÉS INTERDITS
+
+Ne pas utiliser comme décoration :
+
+* Matrix ;
+* pluie de code ;
+* cadenas géants ;
+* hoodies de hackers ;
+* crânes ;
+* circuits électroniques ;
+* terminal en arrière-plan ;
+* globe numérique ;
+* cerveau digital ;
+* robots AI génériques ;
+* hacker masqué.
+
+HASHCODE est technologique.
+
+Il n'a pas besoin de crier "TECH".
+
+---
+
+# 19. PHOTOGRAPHIE
+
+Si des personnes sont utilisées :
+
+Privilégier une direction éditoriale.
+
+Utiliser :
+
+* portraits ;
+* personnes concentrées ;
+* collaboration ;
+* construction ;
+* travail réel.
+
+Traitement possible :
+
+* monochrome ;
+* désaturé ;
+* lime comme accent graphique.
+
+Éviter les images stock manifestement génériques.
+
+---
+
+# 20. LANDING PAGE
+
+Route :
+
+```text
+/
+```
+
+Structure :
+
+### HERO
+
+Logo / navigation minimaliste.
+
+Titre :
+
+# HASHCODE
+
+# REBOOT
+
+Message :
+
+> Une nouvelle génération de la communauté commence.
+
+Texte :
+
+> Apprendre, construire, pratiquer et progresser ensemble dans le Web Development, la Cybersecurity et l'Applied AI.
+
+CTA principal :
+
+> **Rejoindre le Reboot →**
+
+CTA secondaire :
+
+> Découvrir HASHCODE
+
+---
+
+# 21. SECTION — POURQUOI HASHCODE REVIENT
+
+Expliquer :
+
+HASHCODE évolue.
+
+Nous ne voulons plus simplement partager du contenu.
+
+Nous voulons créer un environnement où les membres peuvent :
+
+* apprendre ;
+* pratiquer ;
+* construire ;
+* collaborer ;
+* progresser.
+
+La section doit rester courte.
+
+---
+
+# 22. SECTION — LES 3 AXES
+
+Présenter :
+
+### WEB DEVELOPMENT
+
+Créer des applications, produits et expériences numériques.
+
+### CYBERSECURITY
+
+Comprendre, protéger, analyser et expérimenter.
+
+### APPLIED AI
+
+Construire avec l'IA, l'automatisation et les agents.
+
+Chaque bloc doit avoir une identité visuelle légère.
+
+Ne pas utiliser trois grosses cartes SaaS identiques.
+
+---
+
+# 23. SECTION — CE QUI CHANGE
+
+Présenter :
+
+**LEARN**
+
+Apprendre les fondamentaux.
+
+**BUILD**
+
+Construire de vrais projets.
+
+**PRACTICE**
+
+Résoudre des challenges.
+
+**COLLABORATE**
+
+Progresser avec d'autres membres.
+
+---
+
+# 24. SECTION — POUR QUI ?
+
+HASHCODE est destiné notamment à :
+
+* débutants ;
+* étudiants ;
+* développeurs ;
+* professionnels ;
+* entrepreneurs ;
+* passionnés de cybersécurité ;
+* personnes intéressées par l'IA ;
+* autodidactes.
+
+Message important :
+
+> **Pas besoin d'être expert.**
+
+---
+
+# 25. SECTION — CE QUI ARRIVE
+
+Présenter :
+
+* Challenges
+* Workshops
+* Projects
+* Mentoring
+* HASHCODE Registry
+
+Le Registry doit être présenté comme une prochaine étape.
+
+Ne pas prétendre qu'il est déjà totalement disponible.
+
+---
+
+# 26. CTA FINAL
+
+Titre :
+
+> **Prêt à repartir avec HASHCODE ?**
+
+Texte :
+
+> Quelques choix suffisent pour nous permettre de comprendre où tu veux aller.
+
+CTA :
+
+> **Construire mon profil →**
+
+→ `/join`
+
+---
+
+# 27. PAGE /JOIN
+
+C'est le cœur de l'application.
+
+Ne pas afficher une navigation lourde.
+
+Interface centrée.
+
+Titre :
+
+# Construisons ton profil HASHCODE.
+
+Sous-titre :
+
+> Environ 2 minutes pour nous permettre de mieux comprendre tes objectifs et ta manière de progresser.
+
+Afficher une progression discrète :
+
+> **Ton profil HASHCODE**
+
+████████░░
+
+---
+
+# 28. RÈGLES DU PROFILAGE
+
+Une question principale par écran.
+
+Priorité :
+
+```text
+1 clic > 2 clics > sélection > texte
+```
+
+Les cartes et boutons sont prioritaires.
+
+Le clavier doit être utilisé uniquement lorsqu'il apporte une vraie valeur.
+
+---
+
+# 29. ORDRE DU PROFILAGE
+
+Le flux doit commencer par des questions faciles.
+
+Ordre recommandé :
+
+### 1 — Identité
+
+Prénom.
+
+Nom.
+
+Email.
+
+WhatsApp.
+
+Pays.
+
+Ville facultative.
+
+Genre facultatif.
+
+### 2 — Domaine
+
+Web Development
+
+Cybersecurity
+
+Applied AI
+
+Possibilité de choisir un domaine principal.
+
+### 3 — Objectif
+
+Exemples :
+
+* construire un projet ;
+* trouver un emploi ;
+* devenir freelance ;
+* monter en compétences ;
+* développer une activité ;
+* préparer une carrière ;
+* autre.
+
+### 4 — Niveau
+
+* Je débute
+* Je pratique déjà
+* Je suis autonome
+* Je suis avancé
+
+### 5 — Disponibilité
+
+* moins de 2h/semaine ;
+* 2–5h ;
+* 5–10h ;
+* 10–15h ;
+* 15h+.
+
+### 6 — Style d'apprentissage
+
+* pratiquer ;
+* parcours structuré ;
+* groupe ;
+* projet ;
+* mentor.
+
+---
+
+# 30. GENRE
+
+Le genre est facultatif.
+
+Options :
+
+* Homme
+* Femme
+* Autre
+* Préfère ne pas répondre
+
+Ne jamais rendre cette donnée obligatoire.
+
+Si possible, ne pas la placer au début du parcours.
+
+Elle ne doit jamais interrompre le momentum.
+
+---
+
+# 31. QUESTION OBJECTIF
+
+La question doit être formulée naturellement :
+
+> **Qu'aimerais-tu accomplir avec HASHCODE ?**
+
+Ne pas utiliser un wording administratif.
+
+---
+
+# 32. QUESTION DISPONIBILITÉ
+
+Formulation :
+
+> **Combien de temps peux-tu réellement consacrer à ta progression chaque semaine ?**
+
+Le mot "réellement" est important.
+
+L'objectif est de comprendre la disponibilité réelle.
+
+---
+
+# 33. STYLE D'APPRENTISSAGE
+
+Question :
+
+> **Comment progresses-tu le mieux ?**
+
+Choix :
+
+* En pratiquant
+* Avec un parcours
+* Avec un groupe
+* Avec un mentor
+* En construisant un projet
+
+---
+
+# 34. LOGIQUE CONDITIONNELLE
+
+Le moteur doit être réellement adaptatif.
+
+Exemples :
+
+Si :
+
+```text
+domain = cybersecurity
+```
+
+alors proposer des spécialisations pertinentes :
+
+* SOC / Blue Team
+* Pentest / Red Team
+* OSINT
+* carrière
+* certification
+* projet
+
+Si :
+
+```text
+domain = web
+```
+
+proposer :
+
+* frontend ;
+* backend ;
+* architecture ;
+* projet ;
+* freelance ;
+* carrière.
+
+Si :
+
+```text
+domain = ai
+```
+
+proposer :
+
+* LLM ;
+* agents ;
+* automation ;
+* AI engineering ;
+* projet ;
+* business.
+
+---
+
+# 35. CONDITION MENTORAT
+
+Question :
+
+> **As-tu besoin d'un accompagnement personnalisé ?**
+
+Options :
+
+* Non
+* Peut-être
+* Oui
+
+### Si Non
+
+Aucune question supplémentaire de mentorat.
+
+### Si Peut-être
+
+Demander :
+
+> Qu'est-ce qui pourrait te faire envisager un mentor ?
+
+### Si Oui
+
+Demander :
+
+* type de mentorat ;
+* fréquence ;
+* domaine.
+
+---
+
+# 36. TYPE DE MENTORAT
+
+Adapter les choix au domaine.
+
+Exemple Cybersecurity :
+
+* SOC / Blue Team
+* Pentest / Red Team
+* OSINT
+* Carrière
+* Certification
+* Projet
+
+Web :
+
+* Frontend
+* Backend
+* Architecture
+* Projet
+* Freelance
+* Carrière
+
+AI :
+
+* LLM
+* Agents
+* Automation
+* AI Engineering
+* Projet
+* Business
+
+---
+
+# 37. DISPOSITION À INVESTIR
+
+Cette question n'apparaît que si l'utilisateur manifeste un intérêt pour le mentorat.
+
+Formulation :
+
+> **Si HASHCODE proposait un accompagnement personnalisé adapté à tes objectifs, serais-tu prêt à investir dans ton accompagnement ?**
+
+Options :
+
+* Oui
+* Peut-être
+* Pas pour le moment
+
+Si Oui ou Peut-être :
+
+> **Quel niveau d'investissement mensuel pourrais-tu envisager ?**
+
+Options :
+
+* Moins de 2 500 FCFA
+* 2 500–5 000 FCFA
+* 5 000–10 000 FCFA
+* 10 000–20 000 FCFA
+* 20 000–30 000 FCFA
+* Plus de 30 000 FCFA
+* Je ne sais pas encore
+
+Ne jamais demander un montant libre.
+
+Présenter cette étape comme une compréhension des besoins de la communauté, pas comme une vente.
+
+---
+
+# 38. QUESTION OUVERTE
+
+Une seule question ouverte importante :
+
+# **Dans 3 mois, qu'aimerais-tu avoir accompli ?**
+
+Permettre une réponse libre.
+
+Ne pas ajouter plusieurs questions ouvertes.
+
+---
+
+# 39. MICROCOPY
+
+Utiliser de petites phrases pour maintenir le momentum :
+
+Après quelques réponses :
+
+> Parfait.
+
+Puis :
+
+> On commence à cerner ton profil.
+
+Puis :
+
+> Ton profil prend forme.
+
+Puis :
+
+> Encore quelques choix.
+
+Puis :
+
+> Presque terminé.
+
+Ne jamais utiliser un ton infantilisant.
+
+---
+
+# 40. PROGRESSION
+
+Ne jamais afficher :
+
+> 7/13
+
+Préférer :
+
+> Ton profil HASHCODE
+
+avec une progression visuelle.
+
+La progression doit donner une sensation d'avancement sans faire calculer le nombre de questions restantes.
+
+---
+
+# 41. PROFIL FINAL
+
+Après soumission :
+
+# **Ton profil HASHCODE est prêt.**
+
+Afficher une synthèse élégante.
+
+Exemple :
+
+```text
+H
+
+CYBER BUILDER
+
+Niveau
+Débutant+
+
+Objectif
+Trouver un emploi
+
+Rythme
+5–10 h / semaine
+
+Style
+Pratique & projets
+
+Mentorat
+Intéressé
+
+Objectif à 3 mois
+Décrocher mon premier poste en cybersécurité
+```
+
+Cette synthèse doit ressembler à une **carte de profil**, pas à une page de confirmation classique.
+
+---
+
+# 42. NE PAS SURINTERPRÉTER LE PROFIL
+
+Ne pas présenter le résultat comme :
+
+* diagnostic psychologique ;
+* test scientifique ;
+* évaluation définitive.
+
+Il s'agit d'une première orientation basée sur les réponses fournies.
+
+---
+
+# 43. ÉCRAN FINAL
+
+Après l'enregistrement :
+
+# **Bienvenue dans le Reboot.**
+
+Texte :
+
+> Ton profil est bien enregistré.
+
+Puis :
+
+> Nous préparons actuellement la nouvelle expérience HASHCODE.
+
+Puis :
+
+> Les premiers membres du Reboot seront les premiers invités à découvrir le nouveau Registry.
+
+CTA principal :
+
+# **Rejoindre la communauté officielle →**
+
+Ce CTA doit ouvrir le groupe WhatsApp officiel.
+
+Lien :
+
+https://chat.whatsapp.com/JwJGgoQpS46I9r81QPrCs4
+
+Ne jamais afficher l'URL brute.
+
+Utiliser :
+
+```html
+target="_blank"
+rel="noopener noreferrer"
+```
+
+---
+
+# 44. WHATSAPP
+
+Le lien WhatsApp n'est accessible qu'après une soumission réussie du profil.
+
+Le bouton doit être visuellement HASHCODE.
+
+Ne pas utiliser le vert WhatsApp comme couleur principale.
+
+Le vert de marque reste :
+
+```text
+#C5F441
+```
+
+---
+
+# 45. STATUTS
+
+Prévoir :
+
+```text
+PENDING
+APPROVED
+REJECTED
+WAITLIST
+```
+
+Et :
+
+```text
+NOT_INVITED
+INVITED
+JOINED
+```
+
+Après soumission :
+
+```text
+profileStatus = PENDING
+```
+
+La logique pourra ensuite être automatisée.
+
+---
+
+# 46. BASE DE DONNÉES
+
+Utiliser PostgreSQL + Prisma si compatible avec le repository.
+
+Le modèle doit pouvoir contenir :
+
+```text
+Member
+
+id
+firstName
+lastName
+email
+phone
+country
+city
+gender
+
+primaryDomain
+secondaryDomains
+level
+
+goals
+availability
+learningStyle
+
+mentoringInterest
+mentoringTypes
+mentoringFrequency
+budgetRange
+
+threeMonthGoal
+
+profileStatus
+communityStatus
+
+createdAt
+updatedAt
+```
+
+Adapter cette structure au repository existant.
+
+Ne pas créer de doublons.
+
+Utiliser des enums lorsque pertinent.
+
+Ajouter des indexes pertinents.
+
+---
+
+# 47. TAGGING
+
+Préparer un système de tags déterministes.
+
+Exemples :
+
+```text
+CYBER-BEGINNER
+WEB-BUILDER
+AI-EXPLORER
+MENTORING-INTERESTED
+HIGH-AVAILABILITY
+PROJECT-FOCUSED
+EMPLOYMENT-FOCUSED
+```
+
+Ne pas utiliser un LLM externe pour générer ces tags si des règles déterministes suffisent.
+
+---
+
+# 48. ADMIN
+
+Créer une interface `/admin`.
+
+Elle doit permettre de comprendre rapidement la communauté.
+
+Statistiques :
+
+* inscrits ;
+* validés ;
+* en attente ;
+* mentorat ;
+* Web ;
+* Cyber ;
+* AI.
+
+Filtres :
+
+* domaine ;
+* pays ;
+* niveau ;
+* objectif ;
+* mentorat ;
+* budget ;
+* statut.
+
+Liste :
+
+```text
+Nom
+Pays
+Domaine
+Niveau
+Objectif
+Mentorat
+Budget
+Statut
+Date
+```
+
+Cliquer sur un membre permet de voir son profil détaillé.
+
+---
+
+# 49. EXPORT
+
+Prévoir un export CSV sécurisé.
+
+Colonnes :
+
+* nom ;
+* email ;
+* téléphone ;
+* pays ;
+* domaine ;
+* niveau ;
+* objectif ;
+* disponibilité ;
+* mentorat ;
+* budget ;
+* statut ;
+* date.
+
+Protéger cette fonctionnalité par authentification et autorisation.
+
+---
+
+# 50. ANALYTICS
+
+Préparer les événements :
+
+```text
+reboot_page_view
+reboot_cta_clicked
+profiling_started
+profiling_question_answered
+profiling_completed
+profil_generated
+community_cta_clicked
+whatsapp_join_clicked
+```
+
+L'objectif est de mesurer :
+
+```text
+VISITE
+↓
+CTA
+↓
+PROFILAGE
+↓
+COMPLÉTION
+↓
+PROFIL
+↓
+WHATSAPP
+```
+
+Identifier les points d'abandon.
+
+---
+
+# 51. PROGRESSIVE PROFILING
+
+Ne pas chercher à tout demander dès le premier passage.
+
+Le profilage initial doit collecter uniquement ce qui est nécessaire.
+
+Les informations secondaires pourront être complétées plus tard.
+
+Le système doit être conçu pour évoluer vers :
+
+```text
+Profil minimum
+↓
+Première valeur
+↓
+Profil enrichi
+↓
+Personnalisation
+```
+
+---
+
+# 52. MOBILE-FIRST
+
+Le mobile est prioritaire.
+
+Concevoir pour :
+
+* petits écrans ;
+* tactile ;
+* connexion lente ;
+* navigation au pouce.
+
+Les boutons doivent être facilement utilisables.
+
+Le parcours doit être confortable sur téléphone.
+
+---
+
+# 53. PERFORMANCE
+
+Landing légère.
+
+Optimiser :
+
+* images ;
+* fonts ;
+* JavaScript ;
+* animations ;
+* composants client ;
+* requêtes DB.
+
+Éviter les bibliothèques inutiles.
+
+---
+
+# 54. ACCESSIBILITÉ
+
+Respecter les bonnes pratiques WCAG :
+
+* contraste ;
+* focus ;
+* navigation clavier ;
+* labels ;
+* aria ;
+* lecteurs d'écran ;
+* erreurs compréhensibles.
+
+Ne pas utiliser uniquement la couleur pour indiquer un état.
+
+---
+
+# 55. MICRO-INTERACTIONS
+
+Utiliser des transitions légères.
+
+Durées indicatives :
+
+```text
+120ms
+180ms
+240ms
+320ms
+```
+
+Les animations doivent renforcer :
+
+> progression.
+
+Elles ne doivent jamais ralentir l'utilisateur.
+
+---
+
+# 56. ANIMATION DE L'ONBOARDING
+
+Lors du passage à la question suivante :
+
+* translation légère ;
+* changement de contenu fluide ;
+* progression visuelle ;
+* conservation du contexte.
+
+Éviter :
+
+* gros zoom ;
+* blur massif ;
+* animations longues ;
+* effets spectaculaires.
+
+---
+
+# 57. SYSTÈME DE COMPOSANTS
+
+Créer des composants cohérents :
+
+```text
+Button
+Input
+Select
+OptionCard
+QuestionCard
+ProgressIndicator
+Badge
+ProfileCard
+SectionHeader
+Navigation
+Modal
+Toast
+StatusBadge
+StatCard
+DataTable
+FilterBar
+EmptyState
+ErrorState
+SuccessState
+```
+
+Adapter visuellement chaque composant au design HASHCODE.
+
+shadcn/ui peut être utilisé comme fondation technique.
+
+Mais :
+
+> **shadcn/ui n'est PAS l'identité visuelle de HASHCODE.**
+
+---
+
+# 58. QUESTION ENGINE
+
+Construire une structure configurable.
+
+Concept :
+
+```text
+Question {
+  id
+  type
+  title
+  description
+  options
+  required
+  condition
+  mapsTo
+}
+```
+
+Types possibles :
+
+```text
+single_choice
+multi_choice
+text
+email
+country
+```
+
+Les conditions doivent être propres et extensibles.
+
+Ne pas disperser toute la logique dans les composants React.
+
+---
+
+# 59. EXEMPLE DE CONDITION
+
+Conceptuellement :
+
+```text
+show_if:
+  mentoringInterest = "yes"
+```
+
+ou :
+
+```text
+show_if:
+  primaryDomain = "cybersecurity"
+```
+
+ou :
+
+```text
+show_if:
+  goal = "project"
+```
+
+Le moteur doit permettre d'ajouter de nouvelles conditions facilement.
+
+---
+
+# 60. SAUVEGARDE
+
+Pendant le parcours :
+
+* conserver temporairement la progression ;
+* permettre la reprise ;
+* éviter de perdre toutes les réponses en cas de fermeture accidentelle.
+
+Ne pas stocker inutilement des données sensibles dans localStorage.
+
+Minimiser les données temporaires.
+
+---
+
+# 61. DUPLICATION
+
+Éviter les doubles inscriptions.
+
+Si un email existe déjà :
+
+afficher une expérience claire.
+
+Exemple :
+
+> **Tu as déjà commencé ton profil HASHCODE.**
+
+Proposer une reprise ou afficher l'état.
+
+---
+
+# 62. ÉTATS À GÉRER
+
+Chaque écran doit gérer :
+
+```text
+loading
+submitting
+success
+error
+validation
+empty
+offline
+already_submitted
+```
+
+Aucune action ne doit sembler bloquée sans feedback.
+
+---
+
+# 63. SEO
+
+Configurer :
+
+Title :
+
+> HASHCODE REBOOT — Rejoins la nouvelle génération HASHCODE
+
+Description :
+
+> Rejoins HASHCODE, une communauté orientée Web Development, Cybersecurity et Applied AI.
+
+Prévoir :
+
+* Open Graph ;
+* favicon ;
+* metadata ;
+* robots ;
+* sitemap si nécessaire.
+
+---
+
+# 64. CONFIDENTIALITÉ
+
+Informer clairement l'utilisateur :
+
+> Tes réponses servent à mieux comprendre ton profil et à personnaliser ton expérience HASHCODE.
+
+Prévoir :
+
+* politique de confidentialité ;
+* consentement approprié ;
+* suppression des données ;
+* export si nécessaire.
+
+Ne jamais collecter une information sans finalité.
+
+---
+
+# 65. ARCHITECTURE ROUTES
+
+Minimum :
+
+```text
+/
+ /join
+ /success
+ /privacy
+ /admin
+ /admin/members
+```
+
+Utiliser Server Actions ou API selon l'architecture la plus propre.
+
+Ne pas créer une API REST uniquement par habitude.
+
+---
+
+# 66. STACK
+
+Utiliser prioritairement :
+
+```text
+Next.js
+App Router
+TypeScript
+Tailwind CSS
+shadcn/ui
+PostgreSQL
+Prisma
+pnpm
+```
+
+Si le repository utilise déjà certaines technologies compatibles :
+
+**réutiliser l'existant.**
+
+Ne pas migrer inutilement.
+
+---
+
+# 67. INSPECTION DU REPOSITORY
+
+Avant de coder :
+
+1. inspecter le repository ;
+2. inspecter package.json ;
+3. inspecter les routes ;
+4. inspecter les composants ;
+5. inspecter les variables d'environnement ;
+6. inspecter la base de données ;
+7. inspecter Prisma ;
+8. inspecter les conventions existantes ;
+9. identifier ce qui peut être réutilisé ;
+10. identifier les risques.
+
+Ne jamais écraser arbitrairement le travail existant.
+
+---
+
+# 68. PROCESSUS DE DÉVELOPPEMENT
+
+Suivre obligatoirement :
+
+### PHASE 1
+
+Audit du repository.
+
+### PHASE 2
+
+Architecture cible.
+
+### PHASE 3
+
+Design system.
+
+### PHASE 4
+
+Landing.
+
+### PHASE 5
+
+Profilage.
+
+### PHASE 6
+
+Moteur conditionnel.
+
+### PHASE 7
+
+Base de données.
+
+### PHASE 8
+
+Succès + WhatsApp.
+
+### PHASE 9
+
+Admin.
+
+### PHASE 10
+
+Analytics.
+
+### PHASE 11
+
+Sécurité.
+
+### PHASE 12
+
+Tests.
+
+### PHASE 13
+
+Optimisation.
+
+### PHASE 14
+
+Build production.
+
+### PHASE 15
+
+Déploiement.
+
+---
+
+# 69. TESTS OBLIGATOIRES
+
+Tester :
+
+### Profil classique
+
+Identité → Web → objectif → niveau → disponibilité → succès.
+
+### Cyber
+
+Vérifier les spécialisations Cyber.
+
+### Web
+
+Vérifier les spécialisations Web.
+
+### AI
+
+Vérifier les spécialisations AI.
+
+### Sans mentorat
+
+Aucune question de budget.
+
+### Mentorat
+
+Type + fréquence + budget.
+
+### Abandon
+
+Reprise correcte.
+
+### Double inscription
+
+Gestion correcte.
+
+### Erreur serveur
+
+Message propre.
+
+### Mobile
+
+Parcours complet.
+
+### Desktop
+
+Parcours complet.
+
+### Admin
+
+Authentification + filtres + détail + export.
+
+---
+
+# 70. AUDIT UX FINAL
+
+Avant livraison, poser :
+
+```text
+Est-ce que le site ressemble à HASHCODE ?
+Est-il reconnaissable sans le logo ?
+Le lime est-il suffisamment rare ?
+La hiérarchie est-elle claire ?
+Les espaces sont-ils suffisants ?
+Les cartes sont-elles réellement nécessaires ?
+Les coins sont-ils trop arrondis ?
+Les animations servent-elles une fonction ?
+Le parcours semble-t-il rapide ?
+Le profilage semble-t-il naturel ?
+Les questions sont-elles pertinentes ?
+Le mobile est-il excellent ?
+```
+
+---
+
+# 71. AUDIT ANTI-AI
+
+Dernier contrôle obligatoire :
+
+```text
+Cette interface pourrait-elle être le produit de n'importe
+quelle startup générée par une IA ?
+
+Y a-t-il trop de gradients ?
+
+Y a-t-il trop de cartes ?
+
+Y a-t-il trop de border-radius ?
+
+Y a-t-il trop de glow ?
+
+Y a-t-il des clichés cyber ?
+
+Y a-t-il des composants shadcn reconnaissables
+sans personnalisation ?
+
+Y a-t-il des éléments décoratifs inutiles ?
+
+Le design possède-t-il une signature HASHCODE ?
+```
+
+Si la réponse est :
+
+> "Oui, ça ressemble à une interface AI-generated."
+
+Alors refactoriser le design.
+
+---
+
+# 72. RÈGLES D'OR
+
+Retenir ces 11 règles :
+
+1. **Engineered, not decorated.**
+2. Le lime est un accent, pas un fond.
+3. Le contenu domine la décoration.
+4. L'espace vide est intentionnel.
+5. Le mouvement est une partie du langage graphique.
+6. Aucun cliché cyber/AI.
+7. Pas de template SaaS générique.
+8. shadcn est une fondation, jamais une identité.
+9. Chaque question doit avoir une utilité.
+10. Chaque donnée collectée doit avoir une finalité.
+11. L'utilisateur doit avoir l'impression que HASHCODE le comprend, pas qu'il lui prend ses données.
+
+---
+
+# 73. RÈGLE FINALE
+
+Le produit doit être :
+
+**SIMPLE À UTILISER.**
+
+**RICHE EN DONNÉES.**
+
+**RAPIDE.**
+
+**DISTINCTIF.**
+
+**ÉVOLUTIF.**
+
+Mais jamais complexe pour l'utilisateur.
+
+La complexité doit être absorbée par le système.
+
+L'utilisateur ne doit voir que :
+
+> **la prochaine bonne question.**
+
+---
+
+# 74. LIVRABLE FINAL
+
+À la fin, fournir :
+
+1. résumé du travail ;
+2. architecture ;
+3. routes ;
+4. composants ;
+5. design system ;
+6. schéma DB ;
+7. variables d'environnement ;
+8. commandes locales ;
+9. migrations ;
+10. tests réalisés ;
+11. build production ;
+12. procédure de déploiement ;
+13. problèmes restants ;
+14. recommandations V2.
+
+---
+
+# 75. OBJECTIF FINAL
+
+Lorsque le travail est terminé, un utilisateur doit pouvoir :
+
+```text
+Visiter HASHCODE REBOOT
+        ↓
+Comprendre immédiatement la nouvelle vision
+        ↓
+Cliquer sur "Rejoindre le Reboot"
+        ↓
+Construire son profil
+        ↓
+Répondre à uniquement les questions pertinentes
+        ↓
+Terminer en moins de 3 minutes
+        ↓
+Voir son profil HASHCODE
+        ↓
+Être enregistré
+        ↓
+Recevoir son accès à la communauté officielle
+        ↓
+Rejoindre WhatsApp
+```
+
+L'ensemble doit donner une sensation de :
+
+> **nouveau départ + mouvement + progression + appartenance.**
+
+HASHCODE REBOOT ne doit pas être perçu comme un formulaire.
+
+Il doit être perçu comme :
+
+# **LA PREMIÈRE ÉTAPE DU NOUVEAU HASHCODE.**
+
+Commence maintenant par inspecter le repository.
+Ne code rien avant d'avoir compris l'architecture existante.
+Puis implémente progressivement le produit complet.
+Ne demande pas de confirmation pour chaque décision mineure.
+Prends les décisions professionnelles nécessaires.
+
+```
+
+**Ce prompt est volontairement très contraignant sur le design.** C'est important : plus on laisse de liberté esthétique à l'agent, plus il retombe sur ses patterns appris — cartes, gradients, gros radius, glassmorphism, etc.
+
+Pour ton lancement aujourd'hui, je transmettrais **le logo + ce prompt**, puis je laisserais OpenCode faire son premier audit du repo avant toute génération de code.
+```

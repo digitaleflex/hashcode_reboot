@@ -1,0 +1,99 @@
+// HASHCODE REBOOT — Prisma schema
+// SQLite datasource (project constraint). Lists/enums stored as JSON strings
+// and validated at the application layer with Zod + TS union types.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Member {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // --- Identité ---
+  firstName       String
+  lastName        String?
+  email           String   @unique
+  phone           String?
+  country         String
+  city            String?
+  gender          String? // Homme | Femme | Autre | Préfère ne pas répondre | null
+
+  // --- Profil ---
+  primaryDomain     String   // web | cybersecurity | ai
+  secondaryDomains  String   @default("[]") // JSON string[]
+  domainSpecialty   String   @default("[]") // JSON string[] (multi-select)
+  level             String   // beginner | practicing | autonomous | advanced
+
+  // --- Objectifs ---
+  goal            String   // project | employment | freelance | upskill | business | career | other
+  goalProjectStage String? // conditional (if goal=project/entrepreneurship)
+  goalSituation    String?  // conditional (if goal=employment)
+
+  // --- Disponibilité ---
+  availability      String   // <2h | 2-5h | 5-10h | 10-15h | 15h+
+  availabilityTimes String? // moments (light)
+
+  // --- Apprentissage ---
+  learningStyle   String   // practice | path | group | mentor | project
+
+  // --- Mentorat (conditionnel) ---
+  mentoringInterest     String? // no | maybe | yes
+  mentoringMaybeReason  String? // if maybe
+  mentoringTypes        String  @default("[]") // JSON string[] (if yes)
+  mentoringFrequency   String? // if yes
+  mentoringDomain      String? // if yes
+
+  // --- Disposition à investir (conditionnel, only if mentoring interest) ---
+  budgetWillingness String? // yes | maybe | not_now
+  budgetRange       String? // <2500 | 2500-5000 | 5000-10000 | 10000-20000 | 20000-30000 | >30000 | unknown
+
+  // --- Question ouverte ---
+  threeMonthGoal    String?
+
+  // --- Profil généré ---
+  profileArchetype  String? // CYBER BUILDER | WEB BUILDER | AI EXPLORER | ...
+  tags             String  @default("[]") // JSON string[]
+
+  // --- Statuts ---
+  profileStatus    String   @default("PENDING")  // PENDING | APPROVED | REJECTED | WAITLIST
+  communityStatus  String   @default("NOT_INVITED") // NOT_INVITED | INVITED | JOINED
+  accessLane       String   @default("immediate") // immediate | pending (result of auto-controls)
+
+  // --- Admin ---
+  adminNote        String?
+
+  @@index([email])
+  @@index([country])
+  @@index([primaryDomain])
+  @@index([profileStatus])
+  @@index([communityStatus])
+  @@index([createdAt])
+}
+
+/// Funnel analytics events (reboot_page_view, profiling_started, etc.)
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  /// Event name (see lib/analytics.ts EVENT_TYPES)
+  type      String
+  /// Optional session id (generated client-side, stored in localStorage)
+  sessionId String?
+  /// Optional member id (for events after submission)
+  memberId  String?
+  /// Optional question id (for profiling_question_answered)
+  ref       String?
+  /// Optional numeric value (e.g. duration in ms)
+  value     Int?
+
+  @@index([type])
+  @@index([sessionId])
+  @@index([createdAt])
+}
