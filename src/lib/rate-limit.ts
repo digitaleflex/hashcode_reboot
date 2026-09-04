@@ -66,11 +66,11 @@ function memoryRateLimit(key: string, config: RateLimitConfig): RateLimitResult 
   return { ok: false, remaining: 0, retryAfterMs };
 }
 
-/** Try to load @upstash/redis Ratelimit. Returns null if unavailable. */
+/** Try to load @upstash/ratelimit Ratelimit. Returns null if unavailable. */
 function tryLoadUpstashRatelimit(): any | null {
   try {
     // @ts-ignore
-    return require("@upstash/redis");
+    return require("@upstash/ratelimit");
   } catch {
     return null;
   }
