@@ -52,3 +52,6 @@ prompt
 server.log
 # Skills directory
 /skills/
+
+# local SQLite (legacy dev DB — never commit)
+db/*.db
