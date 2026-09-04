@@ -21,6 +21,7 @@ const sora = Sora({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://reboot.joinhashcode.com"),
+  alternates: { canonical: "/" },
   title: "HASHCODE REBOOT — Rejoins la nouvelle génération HASHCODE",
   description:
     "Rejoins HASHCODE, une communauté orientée Web Development, Cybersecurity et Applied AI. Apprendre, construire, pratiquer et progresser ensemble.",
@@ -42,12 +43,21 @@ export const metadata: Metadata = {
     siteName: "HASHCODE REBOOT",
     type: "website",
     locale: "fr_FR",
+    images: [
+      {
+        url: "/logo.png",
+        width: 1200,
+        height: 400,
+        alt: "HASHCODE REBOOT",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "HASHCODE REBOOT",
     description:
       "Une nouvelle génération de la communauté commence. Web Development · Cybersecurity · Applied AI.",
+    images: ["/logo.png"],
   },
   icons: {
     icon: [
@@ -63,6 +73,16 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
+const SITE_URL = "https://reboot.joinhashcode.com";
+
+const organizationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "HASHCODE REBOOT",
+  url: SITE_URL,
+  logo: `${SITE_URL}/logo.png`,
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -73,6 +93,12 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${sora.variable} font-sans antialiased bg-background text-foreground`}
       >
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(organizationJsonLd),
+          }}
+        />
         {children}
         <Toaster />
       </body>

@@ -71,6 +71,60 @@ export async function sendEmail({
   }
 }
 
+/* ------------------------------------------------------------------ */
+/* Templates — charte HASHCODE REBOOT                                  */
+/* LIME #C5F441 (accent rare) · VOID #0A0A0A · SURFACE #141414          */
+/* Texte #F8FAFC · Secondaire #94A3B8 · Police système (email-safe)     */
+/* Mise en page en tableaux, CSS 100% inline, max 600px.                */
+/* Header : wordmark 100% texte (aucune image externe, rend partout). */
+/* ------------------------------------------------------------------ */
+
+const MAIL_FONT =
+  "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+
+/**
+ * Coquille commune : fond VOID, carte SURFACE 600px, liseré lime,
+ * header logo centré, footer sobre. `inner` = lignes <tr> du contenu.
+ */
+function emailShell(preheader: string, inner: string): string {
+  return [
+    `<!doctype html>`,
+    `<html lang="fr">`,
+    `<body style="margin:0;padding:0;background-color:#0A0A0A;">`,
+    `<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;line-height:1px;font-size:1px;">${preheader}</div>`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0;padding:0;background-color:#0A0A0A;">`,
+    `<tr><td align="center" style="padding:32px 16px;">`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="width:100%;max-width:600px;background-color:#141414;border:1px solid #262626;border-radius:12px;overflow:hidden;">`,
+    // Liseré lime — accent rare, signature visuelle.
+    `<tr><td style="background-color:#C5F441;font-size:0;line-height:0;height:3px;">&nbsp;</td></tr>`,
+    // Header wordmark 100% texte — aucun asset externe.
+    `<tr><td align="center" style="padding:28px 32px 0 32px;background-color:#141414;">`,
+    `<div style="font-family:${MAIL_FONT};font-size:24px;font-weight:800;font-style:italic;color:#F8FAFC;letter-spacing:0.5px;line-height:1;text-align:center;">HASHCODE</div>`,
+    `<div style="font-family:${MAIL_FONT};font-size:12px;font-weight:700;letter-spacing:4px;color:#C5F441;line-height:1;text-align:center;margin:6px 0 0 0;padding-left:4px;">REBOOT</div>`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:12px auto 0 auto;">`,
+    `<tr><td width="48" height="2" bgcolor="#C5F441" style="width:48px;height:2px;background-color:#C5F441;font-size:0;line-height:0;">&nbsp;</td></tr>`,
+    `</table>`,
+    `</td></tr>`,
+    inner,
+    // Footer sobre, dans la carte.
+    `<tr><td style="padding:0 32px 28px 32px;background-color:#141414;">`,
+    `<div style="border-top:1px solid #262626;padding-top:16px;">`,
+    `<p style="margin:0;font-family:${MAIL_FONT};font-size:12px;line-height:1.6;color:#94A3B8;text-align:center;">HASHCODE · REBOOT — Une nouvelle génération de la communauté commence.</p>`,
+    `<p style="margin:8px 0 0 0;font-family:${MAIL_FONT};font-size:11px;line-height:1.6;color:#64748B;text-align:center;">Tu reçois cet e-mail car tu t&apos;es inscrit sur reboot.joinhashcode.com.</p>`,
+    `</div>`,
+    `</td></tr>`,
+    `</table>`,
+    `</td></tr>`,
+    `</table>`,
+    `</body>`,
+    `</html>`,
+  ].join("");
+}
+
+function monoLabel(label: string): string {
+  return `<div style="font-family:${MAIL_FONT};font-size:11px;font-weight:700;letter-spacing:2px;color:#C5F441;margin:0 0 12px 0;">${label}</div>`;
+}
+
 export interface WelcomeEmailInput {
   to: string;
   firstName: string;
@@ -91,21 +145,45 @@ export async function sendWelcomeEmail({
     `Bonjour ${name},`,
     "",
     "Bienvenue dans HASHCODE REBOOT. Ton profil est validé, tu fais officiellement partie de la communauté.",
+    "",
     `Ton profil : ${archetype.trim() || "Membre HASHCODE"}.`,
     "",
-    "Prochaine étape : surveille ta boîte mail, tu vas recevoir ton invitation pour rejoindre le groupe WhatsApp.",
+    "Ce qui t'attend : des sessions pratiques, des rencontres avec des passionnés de Web Development, Cybersecurity et Applied AI, et une communauté qui avance ensemble.",
     "",
+    "Prochaine étape : surveille ta boîte mail. Tu vas recevoir ton invitation personnelle pour rejoindre le groupe WhatsApp officiel.",
+    "",
+    "À très vite,",
     "L'équipe HASHCODE",
+    "",
+    "HASHCODE · REBOOT — Une nouvelle génération de la communauté commence.",
   ].join("\n");
-  const html = [
-    `<div style="max-width:560px;margin:0 auto;font-family:Arial,sans-serif;color:#111;line-height:1.6;">`,
-    `<h1 style="font-size:20px;margin:0 0 12px;">Bienvenue dans HASHCODE REBOOT, ${safeName}</h1>`,
-    `<p>Ton profil est validé, tu fais officiellement partie de la communauté.</p>`,
-    `<p>Ton profil : <strong>${safeArchetype}</strong>.</p>`,
-    `<p>Prochaine étape : surveille ta boîte mail, tu vas recevoir ton invitation pour rejoindre le groupe WhatsApp.</p>`,
-    `<p style="margin-top:24px;">L'équipe HASHCODE</p>`,
-    `</div>`,
+  const inner = [
+    `<tr><td style="padding:24px 32px 28px 32px;background-color:#141414;">`,
+    monoLabel("PROFIL VALIDÉ"),
+    `<h1 style="margin:0 0 12px 0;font-family:${MAIL_FONT};font-size:24px;line-height:1.25;font-weight:800;color:#F8FAFC;">Bienvenue dans le Reboot, ${safeName}.</h1>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">Ton profil est validé. Tu fais officiellement partie de la communauté — on est ravis de te compter parmi nous.</p>`,
+    // Carte profil / archétype.
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;background-color:#0A0A0A;border:1px solid #333B1E;border-radius:8px;">`,
+    `<tr><td style="padding:14px 16px;">`,
+    `<div style="font-family:${MAIL_FONT};font-size:11px;font-weight:700;letter-spacing:2px;color:#94A3B8;margin:0 0 4px 0;">TON PROFIL</div>`,
+    `<div style="font-family:${MAIL_FONT};font-size:16px;font-weight:700;color:#C5F441;margin:0;">${safeArchetype}</div>`,
+    `</td></tr>`,
+    `</table>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:14px;line-height:1.65;color:#94A3B8;">Ce qui t&apos;attend : des sessions pratiques, des rencontres avec des passionnés de Web Development, Cybersecurity et Applied AI, et une communauté qui avance ensemble.</p>`,
+    // Encadré prochaine étape.
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0;background-color:#0A0A0A;border:1px solid #262626;border-radius:8px;">`,
+    `<tr><td style="padding:14px 16px;">`,
+    `<div style="font-family:${MAIL_FONT};font-size:13px;font-weight:700;color:#F8FAFC;margin:0 0 4px 0;">Prochaine étape</div>`,
+    `<div style="font-family:${MAIL_FONT};font-size:13px;line-height:1.6;color:#94A3B8;margin:0;">Surveille ta boîte mail : tu vas recevoir ton invitation personnelle pour rejoindre le groupe WhatsApp officiel.</div>`,
+    `</td></tr>`,
+    `</table>`,
+    `<p style="margin:20px 0 0 0;font-family:${MAIL_FONT};font-size:14px;line-height:1.6;color:#F8FAFC;">À très vite,<br /><span style="color:#94A3B8;">L&apos;équipe HASHCODE</span></p>`,
+    `</td></tr>`,
   ].join("");
+  const html = emailShell(
+    "Ton profil est validé — bienvenue dans HASHCODE REBOOT.",
+    inner,
+  );
   return sendEmail({ to, subject, html, text });
 }
 
@@ -128,22 +206,47 @@ export async function sendInvitationEmail({
   const text = [
     `Bonjour ${name},`,
     "",
-    "Ton invitation est prête : rejoins la communauté HASHCODE sur WhatsApp via ce lien :",
+    "Bonne nouvelle : ton invitation est prête. Rejoins la communauté officielle HASHCODE sur WhatsApp :",
     whatsappUrl,
     "",
-    "Présente-toi dans le groupe et partage ton objectif des 3 prochains mois.",
+    "En arrivant, présente-toi brièvement et partage ton objectif des 3 prochains mois. C'est comme ça que les premiers échanges commencent.",
     "",
+    "Si le lien ne s'ouvre pas, copie-le dans ton navigateur.",
+    "",
+    "À tout de suite dans le groupe,",
     "L'équipe HASHCODE",
+    "",
+    "HASHCODE · REBOOT — Une nouvelle génération de la communauté commence.",
   ].join("\n");
-  const html = [
-    `<div style="max-width:560px;margin:0 auto;font-family:Arial,sans-serif;color:#111;line-height:1.6;">`,
-    `<h1 style="font-size:20px;margin:0 0 12px;">Ton invitation est prête, ${safeName}</h1>`,
-    `<p>Rejoins la communauté HASHCODE sur WhatsApp :</p>`,
-    `<p><a href="${safeUrl}" style="display:inline-block;padding:12px 24px;background-color:#111;color:#fff;text-decoration:none;border-radius:8px;">Rejoindre le groupe WhatsApp</a></p>`,
-    `<p>Si le bouton ne fonctionne pas, copie ce lien : <a href="${safeUrl}">${safeUrl}</a></p>`,
-    `<p>Présente-toi dans le groupe et partage ton objectif des 3 prochains mois.</p>`,
-    `<p style="margin-top:24px;">L'équipe HASHCODE</p>`,
-    `</div>`,
+  const inner = [
+    `<tr><td style="padding:24px 32px 28px 32px;background-color:#141414;">`,
+    monoLabel("INVITATION PRÊTE"),
+    `<h1 style="margin:0 0 12px 0;font-family:${MAIL_FONT};font-size:24px;line-height:1.25;font-weight:800;color:#F8FAFC;">Rejoins la communauté officielle, ${safeName}.</h1>`,
+    `<p style="margin:0 0 20px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">Bonne nouvelle : ton invitation est prête. Il ne te reste qu&apos;un pas — rejoindre le groupe WhatsApp officiel.</p>`,
+    // Bouton lime, centré, bulletproof (table + padding sur td pour Outlook).
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;">`,
+    `<tr><td align="center" style="padding:0;">`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">`,
+    `<tr><td align="center" bgcolor="#C5F441" style="background-color:#C5F441;border-radius:8px;padding:14px 32px;">`,
+    `<a href="${safeUrl}" target="_blank" rel="noopener" style="font-family:${MAIL_FONT};font-size:16px;font-weight:800;color:#0A0A0A;text-decoration:none;display:inline-block;">Rejoindre le groupe WhatsApp</a>`,
+    `</td></tr>`,
+    `</table>`,
+    `</td></tr>`,
+    `</table>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:12px;line-height:1.6;color:#94A3B8;text-align:center;word-break:break-all;">Si le bouton ne fonctionne pas, copie ce lien :<br /><a href="${safeUrl}" target="_blank" rel="noopener" style="color:#C5F441;text-decoration:underline;">${safeUrl}</a></p>`,
+    // Conseil d'arrivée.
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0;background-color:#0A0A0A;border:1px solid #262626;border-radius:8px;">`,
+    `<tr><td style="padding:14px 16px;">`,
+    `<div style="font-family:${MAIL_FONT};font-size:13px;font-weight:700;color:#F8FAFC;margin:0 0 4px 0;">En arrivant dans le groupe</div>`,
+    `<div style="font-family:${MAIL_FONT};font-size:13px;line-height:1.6;color:#94A3B8;margin:0;">Présente-toi brièvement et partage ton objectif des 3 prochains mois. C&apos;est comme ça que les premiers échanges commencent.</div>`,
+    `</td></tr>`,
+    `</table>`,
+    `<p style="margin:20px 0 0 0;font-family:${MAIL_FONT};font-size:14px;line-height:1.6;color:#F8FAFC;">À tout de suite dans le groupe,<br /><span style="color:#94A3B8;">L&apos;équipe HASHCODE</span></p>`,
+    `</td></tr>`,
   ].join("");
+  const html = emailShell(
+    "Ton invitation est prête — rejoins le groupe WhatsApp officiel.",
+    inner,
+  );
   return sendEmail({ to, subject, html, text });
 }
