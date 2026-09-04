@@ -86,12 +86,29 @@ export async function PATCH(
   }
   if (typeof body.adminNote === "string") data.adminNote = body.adminNote;
   if (typeof body.accessLane === "string") {
-    if (body.accessLane === "immediate" || body.accessLane === "pending")
-      data.accessLane = body.accessLane;
+    if (body.accessLane !== "immediate" && body.accessLane !== "pending")
+      return NextResponse.json(
+        { error: "accessLane invalide." },
+        { status: 422 },
+      );
+    data.accessLane = body.accessLane;
   }
 
-  const updated = await db.member.update({ where: { id }, data });
-  return NextResponse.json({ member: updated });
+  try {
+    const updated = await db.member.update({ where: { id }, data });
+    return NextResponse.json({ member: updated });
+  } catch (e) {
+    if (
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === "P2025"
+    ) {
+      return NextResponse.json(
+        { error: "Membre introuvable." },
+        { status: 404 },
+      );
+    }
+    throw e;
+  }
 }
 
 /** DELETE /api/members/[id] — permanently delete a member (admin-only). */

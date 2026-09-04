@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -9,9 +10,23 @@ export const runtime = "nodejs";
  * "Partager mon profil" button on the welcome screen.
  */
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  // Anti-abus : 30 partages par IP toutes les 10 minutes.
+  const rl = rateLimit(`share:${rateKey(req)}`, {
+    capacity: 30,
+    refillPerSec: 1 / 20,
+  });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Trop de requêtes. Réessaie dans quelques minutes." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) },
+      },
+    );
+  }
   const { id } = await params;
   const m = await db.member.findUnique({
     where: { id },

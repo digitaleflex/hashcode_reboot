@@ -14,7 +14,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
   const { searchParams } = new URL(req.url);
-  const limit = Math.min(Number(searchParams.get("limit") ?? 20), 100);
+  const rawLimit = searchParams.get("limit");
+  const n = rawLimit === null ? 20 : Number(rawLimit);
+  const limit = Number.isFinite(n)
+    ? Math.min(Math.max(Math.floor(n), 1), 100)
+    : 20;
 
   const events = await db.analyticsEvent.findMany({
     orderBy: { createdAt: "desc" },

@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { isAdminAuthed } from "@/lib/admin-auth";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
+
+const MAX_EXPORT = 2000;
 
 /**
  * GET /api/export/json — JSON export of members (admin-only). Accepts the same
@@ -14,6 +17,20 @@ export const runtime = "nodejs";
 export async function GET(req: NextRequest) {
   if (!isAdminAuthed(req)) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+  }
+  // Anti-abus : 20 exports par IP toutes les 10 minutes.
+  const rl = rateLimit(`export-json:${rateKey(req)}`, {
+    capacity: 20,
+    refillPerSec: 1 / 30,
+  });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Trop de requêtes. Réessaie dans quelques minutes." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) },
+      },
+    );
   }
   const { searchParams } = new URL(req.url);
   const domain = searchParams.get("domain");
@@ -35,13 +52,15 @@ export async function GET(req: NextRequest) {
   if (lane) where.accessLane = lane;
   if (q)
     where.OR = [
-      { firstName: { contains: q } },
-      { email: { contains: q } },
+      { firstName: { contains: q, mode: "insensitive" } },
+      { email: { contains: q, mode: "insensitive" } },
     ];
 
+  const total = await db.member.count({ where });
   const members = await db.member.findMany({
     where,
     orderBy: { createdAt: "desc" },
+    take: MAX_EXPORT,
   });
 
   const decode = <T,>(s: string, fallback: T): T => {
@@ -56,12 +75,16 @@ export async function GET(req: NextRequest) {
     tags: decode<string[]>(m.tags, []),
   }));
 
+  const truncated = total > MAX_EXPORT;
   return NextResponse.json(
     { exportedAt: new Date().toISOString(), count: clean.length, members: clean },
     {
       headers: {
         "Content-Disposition": `attachment; filename="hashcode-reboot-members-${Date.now()}.json"`,
         "Cache-Control": "no-store",
+        ...(truncated
+          ? { "X-Export-Truncated": "1", "X-Export-Total": String(total) }
+          : {}),
       },
     },
   );

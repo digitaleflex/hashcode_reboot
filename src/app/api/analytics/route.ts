@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { EVENT_TYPES } from "@/lib/analytics";
 import { isAdminAuthed } from "@/lib/admin-auth";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -17,6 +18,20 @@ const eventSchema = z.object({
 
 /** POST /api/analytics — record a funnel event. */
 export async function POST(req: NextRequest) {
+  // Anti-abus : 120 événements par IP toutes les 10 minutes.
+  const rl = rateLimit(`analytics:${rateKey(req)}`, {
+    capacity: 120,
+    refillPerSec: 1 / 5,
+  });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { ok: false },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) },
+      },
+    );
+  }
   let body: unknown;
   try {
     body = await req.json();

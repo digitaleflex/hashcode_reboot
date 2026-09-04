@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { profileSchema, answersToCreatePayload } from "@/lib/profiling/validate";
-import { runAutoControls } from "@/lib/profiling/auto-controls";
+import { runAutoControls, WHATSAPP_URL } from "@/lib/profiling/auto-controls";
 import { generateProfile } from "@/lib/profiling/engine";
+import { sendInvitationEmail, sendWelcomeEmail } from "@/lib/mail";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { isAdminAuthed } from "@/lib/admin-auth";
 
@@ -79,17 +80,54 @@ export async function POST(req: NextRequest) {
   const controls = runAutoControls(data);
   const generated = generateProfile(data);
 
-  const created = await db.member.create({
-    data: {
-      ...answersToCreatePayload(data),
-      profileArchetype: generated.archetype,
-      tags: JSON.stringify(generated.tags),
-      profileStatus: controls.profileStatus,
-      communityStatus: controls.communityStatus,
-      accessLane: controls.accessLane,
-    },
-    select: { id: true, accessLane: true, profileStatus: true, communityStatus: true },
-  });
+  const created = await db.member
+    .create({
+      data: {
+        ...answersToCreatePayload(data),
+        profileArchetype: generated.archetype,
+        tags: JSON.stringify(generated.tags),
+        profileStatus: controls.profileStatus,
+        communityStatus: controls.communityStatus,
+        accessLane: controls.accessLane,
+      },
+      select: { id: true, accessLane: true, profileStatus: true, communityStatus: true },
+    })
+    .catch(async (e: unknown) => {
+      // Duplicate-email race: same 200 duplicate shape as the pre-check above.
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === "P2002"
+      ) {
+        const raced = await db.member.findUnique({
+          where: { email: data.email },
+          select: {
+            id: true,
+            accessLane: true,
+            profileStatus: true,
+            communityStatus: true,
+          },
+        });
+        if (raced) {
+          return { ...raced, __duplicate: true as const };
+        }
+      }
+      throw e;
+    });
+
+  if ("__duplicate" in created) {
+    return NextResponse.json(
+      {
+        ok: true,
+        duplicate: true,
+        memberId: created.id,
+        accessLane: created.accessLane,
+        profileStatus: created.profileStatus,
+        communityStatus: created.communityStatus,
+        message: "Tu as déjà commencé ton profil HASHCODE.",
+      },
+      { status: 200 },
+    );
+  }
 
   // Server-side funnel event (member now exists).
   try {
@@ -102,6 +140,28 @@ export async function POST(req: NextRequest) {
     });
   } catch {
     /* analytics must never break the flow */
+  }
+
+  // Emails réels (lane immediate uniquement) : fire-and-forget, jamais bloquant.
+  if (created.accessLane === "immediate") {
+    try {
+      await sendWelcomeEmail({
+        to: data.email,
+        firstName: data.firstName,
+        archetype: generated.archetype,
+      });
+    } catch {
+      /* email must never break the flow */
+    }
+    try {
+      await sendInvitationEmail({
+        to: data.email,
+        firstName: data.firstName,
+        whatsappUrl: WHATSAPP_URL,
+      });
+    } catch {
+      /* email must never break the flow */
+    }
   }
 
   return NextResponse.json(
@@ -133,7 +193,11 @@ export async function GET(req: NextRequest) {
   const status = searchParams.get("status");
   const lane = searchParams.get("lane");
   const q = searchParams.get("q");
-  const limit = Math.min(Number(searchParams.get("limit") ?? 50), 200);
+  const rawLimit = searchParams.get("limit");
+  const n = rawLimit === null ? 50 : Number(rawLimit);
+  const limit = Number.isFinite(n)
+    ? Math.min(Math.max(Math.floor(n), 1), 200)
+    : 50;
 
   const where: Prisma.MemberWhereInput = {};
   if (domain) where.primaryDomain = domain;
@@ -145,8 +209,8 @@ export async function GET(req: NextRequest) {
   if (lane) where.accessLane = lane;
   if (q)
     where.OR = [
-      { firstName: { contains: q } },
-      { email: { contains: q } },
+      { firstName: { contains: q, mode: "insensitive" } },
+      { email: { contains: q, mode: "insensitive" } },
     ];
 
   const members = await db.member.findMany({

@@ -21,6 +21,9 @@ export const ADMIN_COOKIE_NAME = "hashcode-admin";
 export const ADMIN_COOKIE_MAX_AGE = 60 * 60 * 24 * 7; // 7 days
 
 export function getAdminPasscode(): string {
+  if (!process.env.ADMIN_PASSCODE && process.env.NODE_ENV === "production") {
+    throw new Error("ADMIN_PASSCODE manquant");
+  }
   return (
     process.env.ADMIN_PASSCODE ||
     // Dev-only default. Will not be honored in production (env var required).
@@ -55,10 +58,12 @@ export function readAdminCookie(req: NextRequest): string | undefined {
 
 /** Build a Set-Cookie header value for the admin token (login) or clear (logout). */
 export function adminCookieHeader(token: string | null): string {
+  // Local dev runs over http — Secure only in production.
+  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
   if (token === null) {
-    return `${ADMIN_COOKIE_NAME}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`;
+    return `${ADMIN_COOKIE_NAME}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax${secure}`;
   }
-  return `${ADMIN_COOKIE_NAME}=${token}; Path=/; Max-Age=${ADMIN_COOKIE_MAX_AGE}; HttpOnly; SameSite=Lax`;
+  return `${ADMIN_COOKIE_NAME}=${token}; Path=/; Max-Age=${ADMIN_COOKIE_MAX_AGE}; HttpOnly; SameSite=Lax${secure}`;
 }
 
 /** Issue a fresh admin token (used at login). */
