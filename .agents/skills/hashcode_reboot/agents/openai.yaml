@@ -1,0 +1,6 @@
+interface:
+  display_name: "Hashcode Reboot"
+  short_description: "Repo-specific patterns and workflows for hashcode_reboot"
+  default_prompt: "Use the hashcode_reboot repo skill to follow existing architecture, testing, and workflow conventions."
+policy:
+  allow_implicit_invocation: true
