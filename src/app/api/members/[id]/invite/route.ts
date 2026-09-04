@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { isAdminAuthed } from "@/lib/admin-auth";
+import { WHATSAPP_URL } from "@/lib/profiling/auto-controls";
 
 export const runtime = "nodejs";
 
@@ -49,7 +50,7 @@ export async function POST(
   return NextResponse.json({
     ok: true,
     member: updated,
-    whatsappUrl: "https://chat.whatsapp.com/JwJGgoQpS46I9r81QPrCs4",
+    whatsappUrl: WHATSAPP_URL,
     inviteMessage:
       `Bonjour ${member.firstName}, tu fais partie des premiers membres du Reboot HASHCODE. Rejoins la communauté officielle ici :`,
   });

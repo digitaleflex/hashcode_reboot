@@ -11,7 +11,7 @@ import {
 } from "./shared";
 import { ProfileCard } from "./profile-card";
 import type { GeneratedProfile, ProfileAnswers } from "@/lib/profiling/types";
-import { WHATSAPP_URL, REASON_LABELS } from "@/lib/profiling/auto-controls";
+import { DEFAULT_WHATSAPP_URL, REASON_LABELS } from "@/lib/profiling/auto-controls";
 import { countryName, countryFlag } from "@/lib/profiling/countries";
 import { track } from "@/lib/analytics";
 import { Check, Clock, Mail, MessageCircle, Share2, ShieldCheck } from "lucide-react";
@@ -25,6 +25,13 @@ export interface WelcomeResult {
   profile: GeneratedProfile;
   duplicate?: boolean;
 }
+
+/**
+ * Client-side WhatsApp URL: only `NEXT_PUBLIC_*` vars are inlined in the
+ * browser bundle, with fallback on the current invite link when unset.
+ */
+const WHATSAPP_URL =
+  process.env.NEXT_PUBLIC_WHATSAPP_URL ?? DEFAULT_WHATSAPP_URL;
 
 export function Welcome({
   answers,
@@ -134,9 +141,13 @@ export function Welcome({
           </div>
 
           {/* Footer actions */}
-          <div className="mt-8 flex flex-col gap-3">
+          <div className="mt-8 flex flex-col items-center gap-3">
             {isImmediate && (
-              <ExternalCta href={WHATSAPP_URL} size="lg">
+              <ExternalCta
+                href={WHATSAPP_URL}
+                size="lg"
+                className="w-full sm:w-auto mx-auto flex justify-center"
+              >
                 <span
                   className="inline-flex items-center gap-2 w-full justify-center"
                   onClick={handleWhatsAppClick}
