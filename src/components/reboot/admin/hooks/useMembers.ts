@@ -219,6 +219,7 @@ export function useMembers({
 
   const members = serverSorted ? rawList : sortClientSide(rawList, sortKey, sortDir);
   const total = serverSorted ? (queryData?.total as number) : members.length;
+  const recentMembers = (queryData?.members ?? []).slice(0, 5) as MemberRow[];
 
   // Synchroniser la page côté serveur si le backend fournit une page.
   React.useEffect(() => {
@@ -334,6 +335,7 @@ export function useMembers({
     setLoadError: () => {}, // Remplacé par la gestion d'erreur TanStack
     loadMembers: refetch,
     refreshMembers,
+    recentMembers,
     serverSorted,
   };
 }

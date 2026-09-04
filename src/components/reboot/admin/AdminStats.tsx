@@ -320,12 +320,12 @@ export function AdminStats({
           ])}
         />
         <div className="rounded-md border border-border/60 bg-card p-4 sm:p-5">
-          <div className="flex items-center justify-between">
-            <MonoLabel className="text-muted-foreground">Par archétype</MonoLabel>
-            <span className="mono-label text-muted-foreground">
-              {stats?.byArchetype.length ?? 0}
-            </span>
-          </div>
+<div className="flex items-center justify-between">
+             <MonoLabel className="text-muted-foreground">Par archétype</MonoLabel>
+             <span className="mono-label text-muted-foreground">
+               {(stats?.byArchetype ?? []).length}
+             </span>
+           </div>
           <div className="mt-3 space-y-2">
             {(stats?.byArchetype ?? []).length === 0 && (
               <p className="text-xs text-muted-foreground">Aucune donnée.</p>
