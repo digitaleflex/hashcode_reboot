@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   // Anti-abus : 5 envois de test par IP toutes les 10 minutes.
   const rl = rateLimit(`admin-test-email:${rateKey(req)}`, {
     capacity: 5,
-    refillPerSec: 1 / 120,
+    windowMs: 600000, // 10 minutes
   });
   if (!rl.ok) {
     return NextResponse.json(
