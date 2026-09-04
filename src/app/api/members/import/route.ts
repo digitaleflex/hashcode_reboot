@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
 
   const rl = rateLimit(`import:${rateKey(req)}`, {
     capacity: 10,
-    refillPerSec: 1 / 10,
+    windowMs: 600000, // 10 minutes
   });
   if (!rl.ok) {
     return NextResponse.json(

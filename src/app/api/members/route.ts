@@ -15,8 +15,8 @@ export const runtime = "nodejs";
  * the automatic controls (branching), persists. Returns the access lane +
  * generated profile so the client can render the right branch. */
 export async function POST(req: NextRequest) {
-  // Anti-spam: 5 submissions per IP per 10 minutes (capacity 5, refill 1/120s).
-  const rl = rateLimit(rateKey(req), { capacity: 5, refillPerSec: 1 / 120 });
+  // Anti-spam: 5 submissions per IP per 10 minutes.
+  const rl = rateLimit(rateKey(req), { capacity: 5, windowMs: 600000 });
   if (!rl.ok) {
     return NextResponse.json(
       { error: "Trop de soumissions. Réessaie dans quelques minutes." },

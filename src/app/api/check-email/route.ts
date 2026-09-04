@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   // Anti-abus : 30 vérifications par IP toutes les 10 minutes.
   const rl = rateLimit(`check-email:${rateKey(req)}`, {
     capacity: 30,
-    refillPerSec: 1 / 20,
+    windowMs: 600000, // 10 minutes
   });
   if (!rl.ok) {
     return NextResponse.json(

@@ -76,7 +76,7 @@ export async function PATCH(
   // Anti-abus : 20 mises à jour par IP toutes les 10 minutes.
   const rlPatch = rateLimit(`admin-member-write:${rateKey(req)}`, {
     capacity: 20,
-    refillPerSec: 1 / 30,
+    windowMs: 600000, // 10 minutes
   });
   if (!rlPatch.ok) {
     return NextResponse.json(
@@ -175,7 +175,7 @@ export async function DELETE(
   // Anti-abus : 20 suppressions par IP toutes les 10 minutes.
   const rlDelete = rateLimit(`admin-member-delete:${rateKey(req)}`, {
     capacity: 20,
-    refillPerSec: 1 / 30,
+    windowMs: 600000, // 10 minutes
   });
   if (!rlDelete.ok) {
     return NextResponse.json(

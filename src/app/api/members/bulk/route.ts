@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   // Anti-abus : 20 actions bulk par IP toutes les 10 minutes.
   const rl = rateLimit(`admin-bulk:${rateKey(req)}`, {
     capacity: 20,
-    refillPerSec: 1 / 30,
+    windowMs: 600000, // 10 minutes
   });
   if (!rl.ok) {
     return NextResponse.json(

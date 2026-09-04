@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   // Anti-abus : 20 exports par IP toutes les 10 minutes.
   const rl = rateLimit(`export-json:${rateKey(req)}`, {
     capacity: 20,
-    refillPerSec: 1 / 30,
+    windowMs: 600000, // 10 minutes
   });
   if (!rl.ok) {
     return NextResponse.json(
