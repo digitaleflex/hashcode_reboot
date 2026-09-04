@@ -76,6 +76,16 @@ function tryLoadUpstashRatelimit(): any | null {
   }
 }
 
+/** Try to load @upstash/redis Redis client. Returns null if unavailable. */
+function tryLoadUpstashRedis(): any | null {
+  try {
+    // @ts-ignore
+    return require("@upstash/redis");
+  } catch {
+    return null;
+  }
+}
+
 /** Try to load ioredis. Returns null if unavailable. */
 function tryLoadIoredis(): any | null {
   try {
@@ -112,25 +122,6 @@ async function ioredisRateLimit(
   }
 }
 
-/** Upstash Ratelimit wrapper. */
-async function upstashRateLimit(
-  ratelimit: any,
-  key: string,
-  config: RateLimitConfig,
-): Promise<RateLimitResult> {
-  try {
-    const { success, remaining, reset } = await ratelimit.limit(key);
-    if (success) {
-      return { ok: true, remaining, retryAfterMs: 0 };
-    }
-    const retryAfterMs = Math.max(0, reset - Date.now());
-    return { ok: false, remaining, retryAfterMs };
-  } catch (e) {
-    console.warn("[rate-limit] upstash error, falling back to memory:", e);
-    return memoryRateLimit(key, config);
-  }
-}
-
 /** Pre-configured limiters for different endpoint categories. */
 const LOGIN_LIMIT: RateLimitConfig = { capacity: 10, windowMs: 10 * 1000 };
 const WRITE_LIMIT: RateLimitConfig = { capacity: 20, windowMs: 10 * 60 * 1000 };
@@ -150,18 +141,33 @@ export async function rateLimit(
 ): Promise<RateLimitResult> {
   // Try upstash first
   const upstashMod = tryLoadUpstashRatelimit();
-  if (upstashMod) {
+  const upstashRedis = tryLoadUpstashRedis();
+  if (upstashMod && upstashRedis) {
     try {
-      const { Ratelimit, SlidingWindow } = upstashMod;
+      const { Ratelimit } = upstashMod;
+      const { Redis } = upstashRedis;
+      
+      const redisUrl = process.env.UPSTASH_REDIS_URL || process.env.REDIS_URL;
+      const redisToken = process.env.UPSTASH_REDIS_TOKEN;
+      
+      if (!redisUrl || !redisToken) {
+        throw new Error("Upstash credentials missing");
+      }
+      
+      const redis = new Redis({ url: redisUrl, token: redisToken });
+      
       const ratelimit = new Ratelimit({
-        limiter: new SlidingWindow(config.capacity, `${config.windowMs / 1000} s` as any),
-        redis: {
-          url: process.env.UPSTASH_REDIS_URL || process.env.REDIS_URL,
-          token: process.env.UPSTASH_REDIS_TOKEN,
-        },
+        limiter: Ratelimit.slidingWindow(config.capacity, `${config.windowMs / 1000} s` as any),
+        redis,
         analytics: false,
       });
-      return await upstashRateLimit(ratelimit, key, config);
+      
+      const { success, remaining, reset } = await ratelimit.limit(key);
+      if (success) {
+        return { ok: true, remaining, retryAfterMs: 0 };
+      }
+      const retryAfterMs = Math.max(0, reset - Date.now());
+      return { ok: false, remaining, retryAfterMs };
     } catch (e) {
       console.warn("[rate-limit] upstash init failed, trying ioredis:", e);
     }
