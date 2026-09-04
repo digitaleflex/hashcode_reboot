@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { EVENT_TYPES } from "@/lib/analytics";
 import { isAdminAuthed } from "@/lib/admin-auth";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
+import { subDays } from "date-fns";
 
 export const runtime = "nodejs";
 
@@ -60,41 +61,130 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true });
 }
 
-/** GET /api/analytics — funnel summary (admin-only). */
-export async function GET(req: NextRequest) {
-  if (!isAdminAuthed(req)) {
-    return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
-  }
-  const rows = await db.analyticsEvent.groupBy({
-    by: ["type"],
-    _count: true,
-    orderBy: { _count: { type: "desc" } },
-  });
-  const total = await db.analyticsEvent.count();
-  // Sessions with at least one profiling_started event.
-  const startedSessions = await db.analyticsEvent.groupBy({
-    by: ["sessionId"],
-    where: { type: "profiling_started" },
-  });
-  const completedSessions = await db.analyticsEvent.groupBy({
-    by: ["sessionId"],
-    where: { type: "profiling_completed" },
-  });
-  const whatsappClicks = await db.analyticsEvent.count({
-    where: { type: "whatsapp_join_clicked" },
-  });
+interface FunnelData {
+  total: number;
+  events: { type: string; count: number }[];
+  funnel: {
+    sessionsStarted: number;
+    sessionsCompleted: number;
+    whatsappClicks: number;
+    completionRate: number;
+  };
+}
 
-  return NextResponse.json({
+async function computeFunnel(startDate: Date, endDate: Date): Promise<FunnelData> {
+  const where = {
+    createdAt: {
+      gte: startDate,
+      lt: endDate,
+    },
+  };
+
+  const [rows, total, startedSessions, completedSessions, whatsappClicks] = await Promise.all([
+    db.analyticsEvent.groupBy({
+      by: ["type"],
+      _count: true,
+      orderBy: { _count: { type: "desc" } },
+      where,
+    }),
+    db.analyticsEvent.count({ where }),
+    db.analyticsEvent.groupBy({
+      by: ["sessionId"],
+      where: { ...where, type: "profiling_started" },
+    }),
+    db.analyticsEvent.groupBy({
+      by: ["sessionId"],
+      where: { ...where, type: "profiling_completed" },
+    }),
+    db.analyticsEvent.count({ where: { ...where, type: "whatsapp_join_clicked" } }),
+  ]);
+
+  return {
     total,
     events: rows.map((r) => ({ type: r.type, count: r._count })),
     funnel: {
       sessionsStarted: startedSessions.length,
       sessionsCompleted: completedSessions.length,
       whatsappClicks,
-      completionRate:
-        startedSessions.length === 0
-          ? 0
-          : Math.round((completedSessions.length / startedSessions.length) * 100),
+      completionRate: startedSessions.length === 0 ? 0 : Math.round((completedSessions.length / startedSessions.length) * 100),
     },
+  };
+}
+
+function computeChange(current: FunnelData, previous: FunnelData) {
+  const pct = (curr: number, prev: number) => {
+    if (prev === 0) return curr > 0 ? 100 : 0;
+    return Math.round(((curr - prev) / prev) * 100);
+  };
+  return {
+    totalPct: pct(current.total, previous.total),
+    startedPct: pct(current.funnel.sessionsStarted, previous.funnel.sessionsStarted),
+    completedPct: pct(current.funnel.sessionsCompleted, previous.funnel.sessionsCompleted),
+    whatsappPct: pct(current.funnel.whatsappClicks, previous.funnel.whatsappClicks),
+    completionRatePct: current.funnel.completionRate - previous.funnel.completionRate,
+  };
+}
+
+/** GET /api/analytics — funnel summary (admin-only). */
+export async function GET(req: NextRequest) {
+  if (!isAdminAuthed(req)) {
+    return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(req.url);
+  const compare = searchParams.get("compare") === "true";
+  const period = (searchParams.get("period") ?? "month") as "week" | "month";
+
+  if (!compare) {
+    // Original behavior: all-time funnel
+    const [rows, total, startedSessions, completedSessions, whatsappClicks] = await Promise.all([
+      db.analyticsEvent.groupBy({
+        by: ["type"],
+        _count: true,
+        orderBy: { _count: { type: "desc" } },
+      }),
+      db.analyticsEvent.count(),
+      db.analyticsEvent.groupBy({
+        by: ["sessionId"],
+        where: { type: "profiling_started" },
+      }),
+      db.analyticsEvent.groupBy({
+        by: ["sessionId"],
+        where: { type: "profiling_completed" },
+      }),
+      db.analyticsEvent.count({ where: { type: "whatsapp_join_clicked" } }),
+    ]);
+
+    return NextResponse.json({
+      total,
+      events: rows.map((r) => ({ type: r.type, count: r._count })),
+      funnel: {
+        sessionsStarted: startedSessions.length,
+        sessionsCompleted: completedSessions.length,
+        whatsappClicks,
+        completionRate: startedSessions.length === 0 ? 0 : Math.round((completedSessions.length / startedSessions.length) * 100),
+      },
+    });
+  }
+
+  // Compare mode: compute current and previous period funnel
+  const now = new Date();
+  const periodDays = period === "week" ? 7 : 30;
+
+  const currentStart = subDays(now, periodDays);
+  const previousStart = subDays(currentStart, periodDays);
+  const previousEnd = currentStart;
+
+  const [current, previous] = await Promise.all([
+    computeFunnel(currentStart, now),
+    computeFunnel(previousStart, previousEnd),
+  ]);
+
+  const change = computeChange(current, previous);
+
+  return NextResponse.json({
+    current,
+    previous,
+    change,
   });
 }

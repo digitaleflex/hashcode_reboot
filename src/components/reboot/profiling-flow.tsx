@@ -22,6 +22,15 @@ import { OptionCard, MultiOptionCard } from "./option-card";
 import { CountrySelect } from "./country-select";
 import { ProfileCard } from "./profile-card";
 
+function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = React.useState(value);
+  React.useEffect(() => {
+    const handler = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+  return debounced;
+}
+
 const STORAGE_KEY = "hashcode:reboot:profiling";
 
 interface PersistedState {
@@ -39,8 +48,11 @@ export function ProfilingFlow({
 }) {
   const [answers, setAnswers] = React.useState<ProfileAnswers>({
     firstName: "",
+    lastName: "",
     email: "",
+    phone: "",
     country: "",
+    city: "",
   });
   const [answeredIds, setAnsweredIds] = React.useState<string[]>([]);
   const [step, setStep] = React.useState(0); // index into visible list
@@ -50,6 +62,7 @@ export function ProfilingFlow({
   const [showResumePrompt, setShowResumePrompt] = React.useState(false);
   const [phase, setPhase] = React.useState<"questions" | "preview">("questions");
   const [localError, setLocalError] = React.useState<string | null>(null);
+  const [duplicate, setDuplicate] = React.useState(false);
 
   // --- Hydrate from localStorage on mount (resume support) ---
   React.useEffect(() => {
@@ -63,6 +76,12 @@ export function ProfilingFlow({
           setStep(parsed.step ?? 0);
           setHasResume(true);
           setShowResumePrompt(true);
+          // Heuristic: if a draft already contains an email, the user has
+          // already reached the contact step — most likely a returning member
+          // with an existing HASHCODE account. Surface the duplicate copy.
+          if (parsed.answers.email && parsed.answers.email.trim().length > 0) {
+            setDuplicate(true);
+          }
         }
       }
     } catch {
@@ -70,6 +89,18 @@ export function ProfilingFlow({
     }
     setHydrated(true);
   }, []);
+
+  // --- Confirmation de sortie (beforeunload) ---
+  React.useEffect(() => {
+    if (!hydrated || answeredIds.length === 0) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "Tu es sûr de vouloir quitter ?";
+      return "Tes réponses sont sauvegardées, tu peux reprendre plus tard.";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [hydrated, answeredIds.length]);
 
   // --- Persist to localStorage (only non-sensitive profiling answers) ---
   React.useEffect(() => {
@@ -147,6 +178,7 @@ export function ProfilingFlow({
     setPhase("questions");
     setShowResumePrompt(false);
     setHasResume(false);
+    setDuplicate(false);
   }
 
   // --- Submit once all required visible questions are answered ---
@@ -188,6 +220,7 @@ export function ProfilingFlow({
         onRestart={restart}
         progress={progress}
         answeredCount={answeredIds.length}
+        duplicate={duplicate}
       />
     );
   }
@@ -456,11 +489,13 @@ function ResumePrompt({
   onRestart,
   progress,
   answeredCount,
+  duplicate,
 }: {
   onResume: () => void;
   onRestart: () => void;
   progress: number;
   answeredCount: number;
+  duplicate: boolean;
 }) {
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -482,12 +517,16 @@ function ResumePrompt({
         <div className="w-full max-w-md text-center animate-hash-in">
           <HashSymbol className="mx-auto text-lime" size={40} />
           <h2 className="mt-5 font-display font-bold text-2xl tracking-tight">
-            Ton profil est toujours là.
+            {duplicate
+              ? "Tu as déjà un compte HASHCODE."
+              : "Tu avais un brouillon en cours."}
           </h2>
           <p className="mt-2 text-muted-foreground">
-            Tu as déjà répondu à {answeredCount} question
-            {answeredCount > 1 ? "s" : ""}. Tu peux reprendre là où tu
-            t&apos;étais arrêté.
+            {duplicate
+              ? "Reprends là où tu en étais — on a retrouvé ton profil."
+              : `Tu as déjà répondu à ${answeredCount} question${
+                  answeredCount > 1 ? "s" : ""
+                }. Tu peux reprendre là où tu t'étais arrêté.`}
           </p>
           <div className="mt-7 flex flex-col sm:flex-row gap-3 justify-center">
             <RebootButton size="lg" className="group w-full sm:w-auto" onClick={onResume}>
@@ -513,6 +552,7 @@ function QuestionView({
   answers,
   value,
   error,
+  debouncedError,
   onSingle,
   onMultiToggle,
   onTextChange,
@@ -523,6 +563,7 @@ function QuestionView({
   answers: ProfileAnswers;
   value: unknown;
   error: string | null;
+  debouncedError?: string;
   onSingle: (v: string) => void;
   onMultiToggle: (v: string) => void;
   onTextChange: (v: string) => void;
@@ -711,6 +752,8 @@ function TextView({
   maxLength?: number;
   required?: boolean;
 }) {
+  const [blurred, setBlurred] = React.useState(false);
+  const showError = error || (blurred ? "" : "");
   return (
     <div className="space-y-3">
       <input
@@ -720,6 +763,7 @@ function TextView({
         placeholder={placeholder}
         maxLength={maxLength}
         onChange={(e) => onChange(e.target.value)}
+        onBlur={() => setBlurred(true)}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             e.preventDefault();
@@ -728,10 +772,10 @@ function TextView({
         }}
         className={cn(
           "w-full h-14 rounded-md border bg-card px-4 text-base sm:text-lg text-foreground placeholder:text-muted-foreground transition-colors duration-180 focus-lime",
-          error ? "border-destructive" : "border-border focus:border-lime",
+          showError ? "border-destructive" : "border-border focus:border-lime",
         )}
       />
-      {error && <ErrorNote>{error}</ErrorNote>}
+      {showError && <ErrorNote>{showError}</ErrorNote>}
       <div className="flex items-center justify-between gap-3">
         {!required && <span className="text-xs text-muted-foreground">Facultatif</span>}
         <RebootButton
@@ -766,6 +810,8 @@ function LongTextView({
   maxChars?: number;
 }) {
   const len = value.trim().length;
+  const [blurred, setBlurred] = React.useState(false);
+  const showError = error || (blurred ? "" : "");
   return (
     <div className="space-y-3">
       <textarea
@@ -775,9 +821,10 @@ function LongTextView({
         placeholder={placeholder}
         maxLength={maxChars}
         onChange={(e) => onChange(e.target.value)}
+        onBlur={() => setBlurred(true)}
         className={cn(
           "w-full rounded-md border bg-card px-4 py-3 text-base sm:text-lg text-foreground placeholder:text-muted-foreground transition-colors duration-180 focus-lime resize-none leading-relaxed",
-          error ? "border-destructive" : "border-border focus:border-lime",
+          showError ? "border-destructive" : "border-border focus:border-lime",
         )}
       />
       <div className="flex items-center justify-between text-xs">
@@ -797,7 +844,7 @@ function LongTextView({
           </span>
         )}
       </div>
-      {error && <ErrorNote>{error}</ErrorNote>}
+      {showError && <ErrorNote>{showError}</ErrorNote>}
       <RebootButton
         size="lg"
         className="group w-full"

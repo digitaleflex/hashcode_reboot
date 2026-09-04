@@ -8,6 +8,7 @@ import type {
   Availability,
   LearningStyle,
   MentoringInterest,
+  Gender,
 } from "./types";
 import { QUESTIONS } from "./questions";
 
@@ -182,6 +183,13 @@ const MENTORING_LABELS: Record<MentoringInterest, string> = {
   yes: "Intéressé",
 };
 
+const GENDER_LABELS: Record<Gender, string> = {
+  male: "Homme",
+  female: "Femme",
+  other: "Autre",
+  prefer_not_say: "Préfère ne pas dire",
+};
+
 /** Deterministic archetype from domain + level + goal. */
 function archetypeFor(a: ProfileAnswers): { label: string; emoji: string } {
   const d = a.primaryDomain;
@@ -217,6 +225,7 @@ function tagsFor(a: ProfileAnswers): string[] {
   if (a.budgetRange && ["20000-30000", ">30000"].includes(a.budgetRange))
     t.add("HIGH-BUDGET");
   if (a.country) t.add(`COUNTRY:${a.country}`);
+  if (a.gender) t.add(`GENDER:${a.gender}`);
   return Array.from(t);
 }
 
@@ -233,6 +242,7 @@ export function generateProfile(a: ProfileAnswers): GeneratedProfile {
     mentoringLabel: a.mentoringInterest
       ? MENTORING_LABELS[a.mentoringInterest]
       : "—",
+    genderLabel: a.gender ? GENDER_LABELS[a.gender] : undefined,
     tags: tagsFor(a),
   };
 }
@@ -246,4 +256,5 @@ export {
   STYLE_LABELS,
   STYLE_LABELS_SHORT,
   MENTORING_LABELS,
+  GENDER_LABELS,
 };

@@ -11,28 +11,38 @@ export const runtime = "nodejs";
  */
 export async function GET(req: NextRequest) {
   if (!isAdminAuthed(req)) {
-    return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+    return NextResponse.json(
+      { error: "Non autorisé.", code: "UNAUTHORIZED" },
+      { status: 401 },
+    );
   }
-  const { searchParams } = new URL(req.url);
-  const rawLimit = searchParams.get("limit");
-  const n = rawLimit === null ? 20 : Number(rawLimit);
-  const limit = Number.isFinite(n)
-    ? Math.min(Math.max(Math.floor(n), 1), 100)
-    : 20;
+  try {
+    const { searchParams } = new URL(req.url);
+    const rawLimit = searchParams.get("limit");
+    const n = rawLimit === null ? 20 : Number(rawLimit);
+    const limit = Number.isFinite(n)
+      ? Math.min(Math.max(Math.floor(n), 1), 100)
+      : 20;
 
-  const events = await db.analyticsEvent.findMany({
-    orderBy: { createdAt: "desc" },
-    take: limit,
-    select: {
-      id: true,
-      type: true,
-      sessionId: true,
-      memberId: true,
-      ref: true,
-      value: true,
-      createdAt: true,
-    },
-  });
+    const events = await db.analyticsEvent.findMany({
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      select: {
+        id: true,
+        type: true,
+        sessionId: true,
+        memberId: true,
+        ref: true,
+        value: true,
+        createdAt: true,
+      },
+    });
 
-  return NextResponse.json({ events });
+    return NextResponse.json({ events });
+  } catch {
+    return NextResponse.json(
+      { error: "Erreur interne.", code: "INTERNAL_ERROR" },
+      { status: 500 },
+    );
+  }
 }

@@ -193,6 +193,22 @@ export const QUESTIONS: Question[] = [
     microcopy: "Parfait. C'est parti.",
   },
   {
+    id: "gender",
+    type: "single_choice",
+    title: "Comment te définis-tu en tant que genre ?",
+    description: "C'est optionnel et confidentiel.",
+    options: [
+      { value: "male", label: "Homme" },
+      { value: "female", label: "Femme" },
+      { value: "other", label: "Autre" },
+      { value: "prefer_not_say", label: "Préfère ne pas dire" },
+    ],
+    required: false,
+    mapsTo: "gender",
+    group: "profil",
+    microcopy: "C'est optionnel et confidentiel.",
+  },
+  {
     id: "country",
     type: "country",
     title: "Tu vis dans quel pays ?",

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { isAdminAuthed } from "@/lib/admin-auth";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { WHATSAPP_URL } from "@/lib/profiling/auto-controls";
 
 export const runtime = "nodejs";
@@ -16,6 +17,20 @@ export async function POST(
 ) {
   if (!isAdminAuthed(req)) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+  }
+  // Anti-abus : 20 invitations par IP toutes les 10 minutes.
+  const rl = rateLimit(`admin-invite:${rateKey(req)}`, {
+    capacity: 20,
+    refillPerSec: 1 / 30,
+  });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Trop de requêtes. Réessaie dans quelques minutes." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) },
+      },
+    );
   }
   const { id } = await params;
   const member = await db.member.findUnique({

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { isAdminAuthed } from "@/lib/admin-auth";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { WHATSAPP_URL } from "@/lib/profiling/auto-controls";
 import { sendInvitationEmail, sendWelcomeEmail } from "@/lib/mail";
 
@@ -15,6 +16,20 @@ const testEmailSchema = z.object({
 export async function POST(req: NextRequest) {
   if (!isAdminAuthed(req)) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+  }
+  // Anti-abus : 5 envois de test par IP toutes les 10 minutes.
+  const rl = rateLimit(`admin-test-email:${rateKey(req)}`, {
+    capacity: 5,
+    refillPerSec: 1 / 120,
+  });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Trop de requêtes. Réessaie dans quelques minutes." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) },
+      },
+    );
   }
 
   let body: unknown;
@@ -61,5 +76,8 @@ export async function POST(req: NextRequest) {
   }
 
   const expected = kind === "both" ? 2 : 1;
-  return NextResponse.json({ ok: sent.length === expected, sent });
+  const ok = sent.length === expected;
+  // Traçabilité d'usage sans PII : kind + résultat uniquement, jamais l'email.
+  console.log(`[admin-test-email] kind=${kind} ok=${ok}`);
+  return NextResponse.json({ ok, sent });
 }

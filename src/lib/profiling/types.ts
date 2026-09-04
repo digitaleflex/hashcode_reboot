@@ -131,4 +131,5 @@ export interface GeneratedProfile {
   styleLabel: string;
   mentoringLabel: string;
   tags: string[];
+  genderLabel?: string;
 }

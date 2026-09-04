@@ -4,7 +4,6 @@ import * as React from "react";
 import { Landing } from "@/components/reboot/landing";
 import { ProfilingFlow } from "@/components/reboot/profiling-flow";
 import { Welcome, type WelcomeResult } from "@/components/reboot/welcome";
-import { AdminDashboard } from "@/components/reboot/admin-dashboard";
 import { AdminLogin } from "@/components/reboot/admin-login";
 import { HashSymbol, Logo } from "@/components/brand/logo";
 import { MonoLabel, RebootButton } from "@/components/reboot/shared";
@@ -103,15 +102,18 @@ export default function Home() {
         setPhase("result");
         return;
       }
-      // Duplicate → present existing access lane.
+      // Duplicate → le serveur ne renvoie plus aucun champ membre
+      // (anti-énumération) : on affiche le profil LOCAL recalculé,
+      // même motif soft-fail que ci-dessus.
       if (data.duplicate) {
         const gen = generateProfile(finalAnswers);
+        const controls = runAutoControls(finalAnswers);
         setResult({
-          memberId: data.memberId!,
-          accessLane: data.accessLane ?? "pending",
-          profileStatus: data.profileStatus ?? "PENDING",
-          communityStatus: data.communityStatus ?? "NOT_INVITED",
-          reasons: [],
+          memberId: "local",
+          accessLane: controls.accessLane,
+          profileStatus: controls.profileStatus,
+          communityStatus: controls.communityStatus,
+          reasons: controls.reasons,
           profile: gen,
           duplicate: true,
         });
@@ -164,12 +166,13 @@ export default function Home() {
       }
       if (data.duplicate) {
         const gen = generateProfile(retryAnswers);
+        const controls = runAutoControls(retryAnswers);
         setResult({
-          memberId: data.memberId!,
-          accessLane: data.accessLane ?? "pending",
-          profileStatus: data.profileStatus ?? "PENDING",
-          communityStatus: data.communityStatus ?? "NOT_INVITED",
-          reasons: [],
+          memberId: "local",
+          accessLane: controls.accessLane,
+          profileStatus: controls.profileStatus,
+          communityStatus: controls.communityStatus,
+          reasons: controls.reasons,
           profile: gen,
           duplicate: true,
         });
@@ -212,7 +215,13 @@ export default function Home() {
       />
     );
 
-  if (phase === "admin") return <AdminDashboard onExit={reset} />;
+  if (phase === "admin") {
+    // Redirect to /admin route for proper React Query hydration
+    if (typeof window !== "undefined") {
+      window.location.href = "/admin";
+    }
+    return null;
+  }
 
   if (phase === "profiling")
     return (

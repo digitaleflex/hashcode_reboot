@@ -36,7 +36,7 @@ export function CookieConsent() {
   if (!visible) return null;
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 sm:left-6 sm:right-auto sm:max-w-md z-50 animate-hash-slide-up">
+    <div className="fixed bottom-[84px] sm:bottom-6 left-4 right-4 sm:left-6 sm:right-auto sm:max-w-md z-50 animate-hash-slide-up">
       <div className="relative rounded-lg border border-border bg-card/95 backdrop-blur-sm p-4 sm:p-5 shadow-2xl">
         <div className="flex items-start gap-3">
           <span className="shrink-0 size-8 rounded-md border border-lime/40 bg-lime/5 text-lime flex items-center justify-center mt-0.5">
@@ -49,25 +49,26 @@ export function CookieConsent() {
               (entonnoir) et améliorer l&apos;expérience. Aucune publicité,
               aucune revente.
             </p>
-            <div className="mt-3 flex items-center gap-2">
-              <RebootButton size="sm" onClick={() => choose("accepted")}>
+            <div className="mt-3 flex flex-col sm:flex-row sm:items-center gap-2">
+              <RebootButton size="md" onClick={() => choose("accepted")} className="w-full sm:w-auto">
                 Accepter
               </RebootButton>
               <RebootButton
-                size="sm"
+                size="md"
                 variant="ghost"
                 onClick={() => choose("declined")}
+                className="w-full sm:w-auto"
               >
                 Refuser
               </RebootButton>
             </div>
           </div>
           <button
-            onClick={() => setVisible(false)}
-            className="shrink-0 text-muted-foreground hover:text-foreground transition-colors focus-lime"
-            aria-label="Fermer"
+            onClick={() => choose("declined")}
+            className="shrink-0 min-h-[44px] min-w-[44px] -m-2 p-2 flex items-start justify-center text-muted-foreground hover:text-foreground transition-colors focus-lime rounded-md"
+            aria-label="Fermer et refuser"
           >
-            <X className="size-4" />
+            <X className="size-4 mt-2" />
           </button>
         </div>
       </div>

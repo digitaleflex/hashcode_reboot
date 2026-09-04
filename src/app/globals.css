@@ -102,6 +102,8 @@
   }
   html {
     color-scheme: dark;
+    scroll-behavior: smooth;
+    scroll-padding-top: 80px;
   }
   body {
     @apply bg-background text-foreground antialiased;
@@ -111,6 +113,12 @@
     background: var(--primary);
     color: var(--primary-foreground);
   }
+}
+
+/* Contenu hors-écran : le navigateur peut sauter le rendu (perf mobile) */
+.cv-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 600px;
 }
 
 /* ============================================================
@@ -216,12 +224,32 @@
   );
 }
 
-/* Monospace numeric / labels */
+/* Labels discrets — éditorial, pas robotique :
+   12.5px, tracking doux 0.08em, casse naturelle (pas de uppercase forcé).
+   Réserver le uppercase explicite aux rares eyebrows via .eyebrow-mono. */
 .mono-label {
   font-family: var(--font-geist-mono);
-  font-size: 11px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+  font-size: 12.5px;
+  line-height: 1.5;
+  letter-spacing: 0.08em;
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
+
+/* Vrai eyebrow mono — un seul par écran, lime, capitalisation douce */
+.eyebrow-mono {
+  font-family: var(--font-geist-mono);
+  font-size: 12.5px;
+  line-height: 1.5;
+  letter-spacing: 0.08em;
+  font-weight: 500;
+}
+
+/* Petit texte utilitaire lisible (remplace les text-[9px]/[11px] uppercase) */
+.soft-note {
+  font-size: 13px;
+  line-height: 1.55;
+  letter-spacing: 0.01em;
   color: var(--muted-foreground);
 }
 
@@ -348,3 +376,110 @@
 .animate-hash-draw {
   animation: hash-draw 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
+
+/* Carrousel mobile — swipe natif fluide, snap obligatoire */
+.carousel-track {
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scroll-padding-inline: 20px;
+  overscroll-behavior-x: contain;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Accessibilité : coupe les animations si l'utilisateur les réduit */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .carousel-track {
+    scroll-behavior: auto !important;
+  }
+  .animate-hash-in,
+  .animate-hash-pulse,
+  .animate-hash-roll,
+  .animate-bounce-slow,
+  .animate-hash-slide-up,
+  .animate-hash-draw,
+  .animate-hash-sweep::after {
+    animation: none !important;
+  }
+}
+
+/* Mobile : allège le grain pour économiser la peinture (l'aura est déjà desktop-only) */
+@media (max-width: 639px) {
+  .bg-noise::after {
+    opacity: 0;
+  }
+}
+
+/* ============================================================
+   ADMIN SCOPE — Phase 1A : Inter + JetBrains Mono, Sora hors admin
+   S'applique uniquement sous <div class="admin-scope"> (admin/layout).
+   Ne touche pas aux tokens globaux ci-dessus.
+   ============================================================ */
+.admin-scope {
+  --font-sans: var(--font-admin-sans);
+  --font-mono: var(--font-admin-mono);
+  --font-display: var(--font-admin-sans);
+  font-family: var(--font-admin-sans);
+}
+
+/* Mono labels admin : 11px min, tracking resserré, medium */
+.admin-scope .mono-label {
+  font-family: var(--font-admin-mono);
+  font-size: 11px;
+  line-height: 1.4;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+/* Chiffres tabulaires admin (KPI, funnel, table, dates) */
+.admin-scope .admin-num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* Sora hors admin : display -> Inter, jamais italic en admin */
+.admin-scope .font-display {
+  font-family: var(--font-admin-sans);
+  font-style: normal;
+  letter-spacing: -0.01em;
+}
+
+/* Garde-fou : aucun texte < 11px dans le scope admin */
+  .admin-scope .text-\[9px\],
+  .admin-scope .text-\[10px\],
+  .admin-scope .text-\[8px\] {
+    font-size: 11px;
+  }
+
+  /* Sidebar widths — 64px collapsed, 240px expanded */
+  .admin-scope .sidebar {
+    width: 64px;
+    transition: width 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .admin-scope .sidebar-expanded {
+    width: 240px;
+  }
+  .admin-scope .sidebar-collapsed {
+    width: 64px;
+  }
+
+  /* Pulse block skeleton */
+  .admin-scope .pulse-block {
+    @apply bg-card animate-pulse;
+  }
+
+  /* Skeleton grid for tables */
+  .admin-scope .skeleton {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+  }

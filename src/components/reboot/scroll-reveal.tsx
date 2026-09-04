@@ -20,8 +20,18 @@ export function ScrollReveal({
   const [inView, setInView] = React.useState(false);
 
   React.useEffect(() => {
+    // Respecte les utilisateurs qui réduisent les animations : affiche direct.
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setInView(true);
+      return;
+    }
     const el = ref.current;
     if (!el) return;
+    // Fallback si IntersectionObserver indisponible (vieux navigateurs / no-JS partiel)
+    if (typeof IntersectionObserver === "undefined") {
+      setInView(true);
+      return;
+    }
     const obs = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting) {
@@ -39,8 +49,10 @@ export function ScrollReveal({
     <div
       ref={ref}
       className={cn(
-        "transition-all duration-500 ease-out",
-        inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4",
+        "transition-all duration-500 ease-out motion-reduce:transition-none motion-reduce:transform-none",
+        inView
+          ? "opacity-100 translate-y-0 motion-reduce:opacity-100"
+          : "opacity-0 translate-y-4 motion-reduce:opacity-100 motion-reduce:translate-y-0",
         className,
       )}
       style={{ transitionDelay: `${delay}ms` }}

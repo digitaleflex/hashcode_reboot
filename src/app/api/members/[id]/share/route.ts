@@ -8,6 +8,12 @@ export const runtime = "nodejs";
  * GET /api/members/[id]/share — generate a public shareable profile summary
  * (no sensitive data, just the public profile card fields). Used by the
  * "Partager mon profil" button on the welcome screen.
+ *
+ * Vie privée : inchangé volontairement. L'id est un cuid indrôlable (pas
+ * d'énumération séquentielle possible) et seuls les champs publics de la
+ * carte profil sont exposés — jamais email, téléphone, ville ni statuts
+ * internes. La chaîne est donc cassée à la source : connaître un lien share
+ * ne révèle rien d'exploitable et ne permet pas de lister les membres.
  */
 export async function GET(
   req: NextRequest,

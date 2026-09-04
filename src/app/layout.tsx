@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Sora } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { Providers } from "./providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,45 +20,52 @@ const sora = Sora({
   weight: ["400", "500", "600", "700", "800"],
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#0A0A0A",
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://reboot.joinhashcode.com"),
   alternates: { canonical: "/" },
-  title: "HASHCODE REBOOT — Rejoins la nouvelle génération HASHCODE",
+  title: "HASHCODE REBOOT — Rejoins la communauté dev, cyber & IA",
   description:
-    "Rejoins HASHCODE, une communauté orientée Web Development, Cybersecurity et Applied AI. Apprendre, construire, pratiquer et progresser ensemble.",
+    "Où que tu sois. Crée ton profil en 2 min, reçois ton accès WhatsApp et commence avec ton premier challenge cette semaine.",
   keywords: [
     "HASHCODE",
     "Reboot",
     "communauté tech",
+    "communauté développeurs",
     "Web Development",
     "Cybersecurity",
     "Applied AI",
-    "Bénin",
-    "développeur",
+    "apprendre à coder",
   ],
   authors: [{ name: "HASHCODE" }],
   openGraph: {
-    title: "HASHCODE REBOOT",
+    title: "HASHCODE REBOOT — Dev, cyber & IA. Où que tu sois.",
     description:
-      "Une nouvelle génération de la communauté commence. Web Development · Cybersecurity · Applied AI.",
+      "Crée ton profil en 2 min, reçois ton accès WhatsApp et commence avec ton premier challenge cette semaine.",
     siteName: "HASHCODE REBOOT",
     type: "website",
     locale: "fr_FR",
     images: [
       {
-        url: "/logo.png",
+        url: "/og-cover.png",
         width: 1200,
-        height: 400,
-        alt: "HASHCODE REBOOT",
+        height: 630,
+        alt: "HASHCODE REBOOT — Rejoins la communauté dev, cyber & IA, où que tu sois",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "HASHCODE REBOOT",
+    title: "HASHCODE REBOOT — Dev, cyber & IA. Où que tu sois.",
     description:
-      "Une nouvelle génération de la communauté commence. Web Development · Cybersecurity · Applied AI.",
-    images: ["/logo.png"],
+      "Crée ton profil en 2 min, reçois ton accès WhatsApp et commence avec ton premier challenge cette semaine.",
+    images: ["/og-cover.png"],
   },
   icons: {
     icon: [
@@ -99,8 +107,10 @@ export default function RootLayout({
             __html: JSON.stringify(organizationJsonLd),
           }}
         />
-        {children}
-        <Toaster />
+        <Providers>
+          {children}
+          <Toaster />
+        </Providers>
       </body>
     </html>
   );

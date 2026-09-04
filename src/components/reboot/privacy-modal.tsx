@@ -79,9 +79,12 @@ export function PrivacyModal({
             </ul>
             <p className="mt-2">
               Pour exercer un droit, écris à{" "}
-              <span className="text-lime font-mono">
+              <a
+                href="mailto:privacy@joinhashcode.com"
+                className="min-h-[44px] inline-flex items-center text-lime font-mono underline underline-offset-4 hover:text-lime/80 focus-lime rounded"
+              >
                 privacy@joinhashcode.com
-              </span>{" "}
+              </a>{" "}
               depuis l&apos;email de ton profil.
             </p>
           </Section>
@@ -95,8 +98,8 @@ export function PrivacyModal({
           </Section>
 
           <div className="pt-3 border-t border-border/60">
-            <p className="text-xs text-muted-foreground mono-label">
-              HASHCODE · REBOOT — v1.0 · Édition Bénin
+            <p className="soft-note">
+              Hashcode · Reboot — v1.0 · Édition 2026
             </p>
           </div>
         </div>

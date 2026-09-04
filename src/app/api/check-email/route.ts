@@ -27,21 +27,11 @@ export async function GET(req: NextRequest) {
   }
   const existing = await db.member.findUnique({
     where: { email },
-    select: {
-      id: true,
-      accessLane: true,
-      profileStatus: true,
-      communityStatus: true,
-      firstName: true,
-    },
+    select: { id: true },
   });
+  // Anti-énumération : on garde { exists } pour l'UX reprise, mais on ne
+  // renvoie AUCUNE donnée membre (ni id, ni prénom, ni statuts) — un attaquant
+  // ne peut plus moissonner la base email par email.
   if (!existing) return NextResponse.json({ exists: false });
-  return NextResponse.json({
-    exists: true,
-    memberId: existing.id,
-    firstName: existing.firstName,
-    accessLane: existing.accessLane,
-    profileStatus: existing.profileStatus,
-    communityStatus: existing.communityStatus,
-  });
+  return NextResponse.json({ exists: true });
 }
