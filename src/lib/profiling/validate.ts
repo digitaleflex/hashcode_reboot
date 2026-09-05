@@ -95,71 +95,9 @@ export const profileSchema = z
     }
   });
 
-export type ParsedProfile = z.infer<typeof profileSchema>;
 
-/** Convert Prisma Member row → ProfileAnswers-shaped object (for resume / admin). */
-export function memberToAnswers(_m: {
-  firstName: string;
-  lastName: string | null;
-  email: string;
-  phone: string | null;
-  country: string;
-  city: string | null;
-  gender: string | null;
-  primaryDomain: string;
-  secondaryDomains: string;
-  domainSpecialty: string | null;
-  level: string;
-  goal: string;
-  goalProjectStage: string | null;
-  goalSituation: string | null;
-  availability: string;
-  availabilityTimes: string | null;
-  learningStyle: string;
-  mentoringInterest: string | null;
-  mentoringMaybeReason: string | null;
-  mentoringTypes: string;
-  mentoringFrequency: string | null;
-  mentoringDomain: string | null;
-  budgetWillingness: string | null;
-  budgetRange: string | null;
-  threeMonthGoal: string | null;
-}): ProfileAnswers {
-  const parse = <T,>(s: string, fallback: T): T => {
-    try {
-      return JSON.parse(s) as T;
-    } catch {
-      return fallback;
-    }
-  };
-  return {
-    firstName: _m.firstName,
-    lastName: _m.lastName ?? undefined,
-    email: _m.email,
-    phone: _m.phone ?? undefined,
-    country: _m.country,
-    city: _m.city ?? undefined,
-    gender: (_m.gender as ProfileAnswers["gender"]) ?? undefined,
-    primaryDomain: _m.primaryDomain as ProfileAnswers["primaryDomain"],
-    secondaryDomains: parse<string[]>(_m.secondaryDomains, []),
-    domainSpecialty: parse<string[]>(_m.domainSpecialty, []),
-    level: _m.level as ProfileAnswers["level"],
-    goal: _m.goal as ProfileAnswers["goal"],
-    goalProjectStage: _m.goalProjectStage ?? undefined,
-    goalSituation: _m.goalSituation ?? undefined,
-    availability: _m.availability as ProfileAnswers["availability"],
-    availabilityTimes: _m.availabilityTimes ?? undefined,
-    learningStyle: _m.learningStyle as ProfileAnswers["learningStyle"],
-    mentoringInterest: (_m.mentoringInterest as ProfileAnswers["mentoringInterest"]) ?? undefined,
-    mentoringMaybeReason: _m.mentoringMaybeReason ?? undefined,
-    mentoringTypes: parse<string[]>(_m.mentoringTypes, []),
-    mentoringFrequency: _m.mentoringFrequency ?? undefined,
-    mentoringDomain: _m.mentoringDomain ?? undefined,
-    budgetWillingness: (_m.budgetWillingness as ProfileAnswers["budgetWillingness"]) ?? undefined,
-    budgetRange: (_m.budgetRange as ProfileAnswers["budgetRange"]) ?? undefined,
-    threeMonthGoal: _m.threeMonthGoal ?? undefined,
-  };
-}
+
+
 
 /** Map ProfileAnswers → Prisma create payload (handles JSON encoding). */
 export function answersToCreatePayload(a: ProfileAnswers) {

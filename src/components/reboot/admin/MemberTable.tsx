@@ -19,7 +19,8 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { countryFlag, countryName } from "@/lib/profiling/countries";
-import { StickyNote } from "lucide-react";
+import { StickyNote, Loader2, X, Search } from "lucide-react";
+import { MemberTableSkeleton } from "./skeletons/MemberTableSkeleton";
 import type {
   MemberRow,
   SortDir,
@@ -56,26 +57,34 @@ const BUDGET_LABEL: Record<string, string> = {
   unknown: "NSP",
 };
 
-export function MemberTableSkeleton({ rows = 6 }: { rows?: number }) {
-  return (
-    <div
-      aria-hidden
-      className="rounded-md border border-border/60 overflow-hidden bg-card/30 p-3 space-y-2.5"
-    >
-      {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="flex items-center gap-3">
-          <div className="admin-skeleton admin-skeleton-avatar" />
-          <div className="flex-1 space-y-2">
-            <div className="admin-skeleton admin-skeleton-line w-2/5" />
-            <div className="admin-skeleton admin-skeleton-line w-3/5" />
-          </div>
-          <div className="admin-skeleton admin-skeleton-pill hidden sm:block" />
-        </div>
-      ))}
-      <span className="sr-only">Chargement des membres…</span>
-    </div>
-  );
-}
+const FILTER_LABELS: Record<string, Record<string, string>> = {
+  domain: { web: "Web", cybersecurity: "Cyber", ai: "IA" },
+  level: { beginner: "Débutant", practicing: "Pratique", autonomous: "Autonome", advanced: "Avancé" },
+  status: { APPROVED: "Validé", PENDING: "En attente", WAITLIST: "Waitlist", REJECTED: "Rejeté", INVITED: "Invité" },
+  lane: { immediate: "Accès immédiat", pending: "En traitement" },
+  mentoring: { yes: "Mentorat oui", maybe: "Mentorat peut-être", no: "Mentorat non" },
+  budget: {
+    "<2500": "< 2.5k",
+    "2500-5000": "2.5–5k",
+    "5000-10000": "5–10k",
+    "10000-20000": "10–20k",
+    "20000-30000": "20–30k",
+    ">30000": "> 30k",
+    unknown: "NSP",
+  },
+};
+
+const FILTER_KEY_LABEL: Record<string, string> = {
+  domain: "Domaine",
+  level: "Niveau",
+  status: "Statut",
+  lane: "Voie",
+  mentoring: "Mentorat",
+  budget: "Budget",
+  country: "Pays",
+};
+
+const BULK_LIMIT = 10;
 
 export function MemberTable({
   members,
@@ -86,10 +95,12 @@ export function MemberTable({
   sortDir,
   filters,
   searchQuery,
+  isSearching,
   recentMembers,
   selectedIds,
   bulkAction,
   bulkResult,
+  bulkProgress,
   confirmBulkDelete,
   loading,
   serverSorted,
@@ -105,6 +116,7 @@ export function MemberTable({
   onDismissBulkResult,
   onConfirmBulkDeleteChange,
   onPageChange,
+  onPageSizeChange,
 }: {
   members: MemberRow[];
   total: number;
@@ -114,10 +126,12 @@ export function MemberTable({
   sortDir: SortDir;
   filters: Record<string, string>;
   searchQuery: string;
+  isSearching?: boolean;
   recentMembers: MemberRow[];
   selectedIds: Set<string>;
   bulkAction: string | null;
   bulkResult: string | null;
+  bulkProgress?: { done: number; total: number } | null;
   confirmBulkDelete: boolean;
   loading: boolean;
   serverSorted: boolean;
@@ -133,6 +147,7 @@ export function MemberTable({
   onDismissBulkResult: () => void;
   onConfirmBulkDeleteChange: (v: boolean) => void;
   onPageChange: (p: number) => void;
+  onPageSizeChange?: (s: number) => void;
 }) {
   // Fallback tri client si backend absent (legacy sans total/tri serveur).
   const displayed = React.useMemo(() => {
@@ -156,24 +171,68 @@ export function MemberTable({
   }, [members, serverSorted, sortKey, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const [jumpValue, setJumpValue] = React.useState("");
+  const activeFilterEntries = Object.entries(filters);
+  const selectedCount = selectedIds.size;
+  const needsChunking = selectedCount > BULK_LIMIT;
+  const isBulkError = bulkResult
+    ? /^(Erreur|Échec|Trop)/i.test(bulkResult.trim())
+    : false;
+
+  // Recherche : loupe cliquable (focus du champ).
+  const searchRef = React.useRef<HTMLInputElement>(null);
+
+  // Confirm suppression : désarme dès que la sélection change ou se vide
+  // (wording unique conservé ci-dessous, pas de surprise au clic réflexe).
+  const confirmRef = React.useRef(confirmBulkDelete);
+  confirmRef.current = confirmBulkDelete;
+  const onConfirmRef = React.useRef(onConfirmBulkDeleteChange);
+  onConfirmRef.current = onConfirmBulkDeleteChange;
+  const selectedSig = React.useMemo(
+    () => [...selectedIds].sort().join(","),
+    [selectedIds],
+  );
+  const prevSigRef = React.useRef(selectedSig);
+  React.useEffect(() => {
+    if (prevSigRef.current !== selectedSig) {
+      prevSigRef.current = selectedSig;
+      if (confirmRef.current) onConfirmRef.current(false);
+    }
+  }, [selectedSig]);
+
+  // Initial loading — skeleton unifié, même gabarit que la table réelle.
+  if (loading && displayed.length === 0 && page === 1 && !searchQuery && activeFilterEntries.length === 0) {
+    return (
+      <>
+        <section aria-label="Filtres des membres" className="mt-8">
+          <div className="flex items-center justify-between mb-3">
+            <MonoLabel className="text-muted-foreground">Filtres</MonoLabel>
+          </div>
+          <MemberTableSkeleton />
+        </section>
+      </>
+    );
+  }
 
   return (
     <>
       {/* Filter bar */}
-      <section className="mt-8">
+      <section aria-label="Filtres des membres" className="mt-8">
         <div className="flex items-center justify-between mb-3">
           <MonoLabel className="text-muted-foreground">Filtres</MonoLabel>
-          {Object.keys(filters).length > 0 && (
+          {activeFilterEntries.length > 0 && (
             <button
+              type="button"
               onClick={onClearFilters}
-              className="text-xs text-muted-foreground hover:text-lime transition-colors focus-lime mono-label"
+              className="text-xs text-muted-foreground hover:text-lime transition-colors focus-lime mono-label min-h-[32px] px-2"
             >
-              ✕ Réinitialiser
+              Réinitialiser ({activeFilterEntries.length})
             </button>
           )}
         </div>
         <div className="flex flex-wrap gap-2 p-3 rounded-md border border-border/60 bg-card/40">
           <FilterSelect
+            label="Domaine"
             placeholder="Domaine"
             value={filters.domain ?? "all"}
             onChange={(v) => onFilter("domain", v)}
@@ -184,6 +243,7 @@ export function MemberTable({
             ]}
           />
           <FilterSelect
+            label="Niveau"
             placeholder="Niveau"
             value={filters.level ?? "all"}
             onChange={(v) => onFilter("level", v)}
@@ -195,6 +255,7 @@ export function MemberTable({
             ]}
           />
           <FilterSelect
+            label="Statut"
             placeholder="Statut"
             value={filters.status ?? "all"}
             onChange={(v) => onFilter("status", v)}
@@ -206,6 +267,7 @@ export function MemberTable({
             ]}
           />
           <FilterSelect
+            label="Voie"
             placeholder="Voie"
             value={filters.lane ?? "all"}
             onChange={(v) => onFilter("lane", v)}
@@ -215,6 +277,7 @@ export function MemberTable({
             ]}
           />
           <FilterSelect
+            label="Mentorat"
             placeholder="Mentorat"
             value={filters.mentoring ?? "all"}
             onChange={(v) => onFilter("mentoring", v)}
@@ -225,6 +288,7 @@ export function MemberTable({
             ]}
           />
           <FilterSelect
+            label="Budget"
             placeholder="Budget"
             value={filters.budget ?? "all"}
             onChange={(v) => onFilter("budget", v)}
@@ -240,23 +304,76 @@ export function MemberTable({
           />
           {/* Search box — searches first name + email */}
           <div className="relative flex-1 min-w-[180px]">
+            <label htmlFor="member-search" className="sr-only">
+              Rechercher un membre par nom ou email
+            </label>
+            <button
+              type="button"
+              onClick={() => searchRef.current?.focus()}
+              aria-label="Rechercher"
+              tabIndex={-1}
+              className="absolute left-2 top-1/2 -translate-y-1/2 size-7 inline-flex items-center justify-center rounded-sm text-muted-foreground hover:text-foreground transition-colors focus-lime"
+            >
+              <Search className="size-4" aria-hidden />
+            </button>
             <input
-              type="text"
+              id="member-search"
+              ref={searchRef}
+              type="search"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder="Rechercher (nom, email)…"
-              className="w-full h-9 rounded-md border border-border bg-card pl-3 pr-8 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-lime focus:border-lime/60"
+              autoComplete="off"
+              className="w-full h-9 rounded-md border border-border bg-card pl-9 pr-16 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-lime focus:border-lime/60 [&::-webkit-search-cancel-button]:hidden"
             />
-            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">
-              ⌕
+            <span className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              {isSearching ? (
+                <Loader2 className="size-4 text-lime animate-spin" aria-hidden />
+              ) : null}
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => onSearchChange("")}
+                  aria-label="Effacer la recherche"
+                  className="size-7 inline-flex items-center justify-center rounded-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors focus-lime"
+                >
+                  <X className="size-3.5" aria-hidden />
+                </button>
+              )}
+            </span>
+            <span className="sr-only" role="status">
+              {isSearching ? "Recherche en cours…" : ""}
             </span>
           </div>
         </div>
+
+        {/* Pastilles filtres actifs */}
+        {activeFilterEntries.length > 0 && (
+          <div className="mt-2 flex flex-wrap items-center gap-1.5" aria-label="Filtres actifs">
+            {activeFilterEntries.map(([k, v]) => (
+              <span
+                key={k}
+                className="inline-flex items-center gap-1.5 rounded-full border border-lime/40 bg-lime/[0.06] pl-3 pr-1.5 py-1 text-xs text-foreground"
+              >
+                <span className="text-muted-foreground">{FILTER_KEY_LABEL[k] ?? k} :</span>
+                <span className="font-medium">{FILTER_LABELS[k]?.[v] ?? v}</span>
+                <button
+                  type="button"
+                  onClick={() => onFilter(k, "all")}
+                  aria-label={`Retirer le filtre ${FILTER_KEY_LABEL[k] ?? k}`}
+                  className="size-6 inline-flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-lime/10 transition-colors focus-lime"
+                >
+                  <X className="size-3" aria-hidden />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Recent activity feed */}
       {recentMembers.length > 0 && (
-        <section className="mt-6">
+        <section aria-label="Activité récente" className="mt-6">
           <div className="flex items-center justify-between mb-3">
             <MonoLabel className="text-muted-foreground">Activité récente</MonoLabel>
             <span className="mono-label text-muted-foreground">
@@ -267,8 +384,10 @@ export function MemberTable({
             {recentMembers.map((m) => (
               <button
                 key={m.id}
+                type="button"
                 onClick={() => onSelectMember(m.id)}
-                className="row-sweep w-full flex items-center gap-3 p-3.5 hover:bg-elevated/40 transition-colors text-left group"
+                aria-label={`Voir ${m.firstName} ${m.lastName ?? ""}`}
+                className="row-sweep w-full flex items-center gap-3 p-3.5 hover:bg-elevated/40 transition-colors text-left group min-h-[64px]"
               >
                 <span
                   className={cn(
@@ -286,7 +405,7 @@ export function MemberTable({
                     <span className="text-sm font-medium text-foreground group-hover:text-lime transition-colors truncate">
                       {m.firstName} {m.lastName ?? ""}
                     </span>
-                    <span className="mono-label text-muted-foreground shrink-0">
+                    <span className="mono-label text-muted-foreground shrink-0 hidden sm:inline">
                       {DOMAIN_LABEL[m.primaryDomain] ?? m.primaryDomain} ·{" "}
                       {LEVEL_LABEL[m.level] ?? m.level}
                     </span>
@@ -295,7 +414,7 @@ export function MemberTable({
                     {m.email}
                   </div>
                 </div>
-                <div className="shrink-0 flex items-center gap-2">
+                <div className="shrink-0 hidden sm:flex items-center gap-2">
                   <Tag active={m.accessLane === "immediate"}>
                     {m.accessLane === "immediate" ? "Immédiat" : "En traitement"}
                   </Tag>
@@ -315,108 +434,179 @@ export function MemberTable({
       )}
 
       {/* Member table */}
-      <section className="mt-6">
+      <section aria-label="Liste des membres" className="mt-6">
         {/* Bulk action bar — appears when rows are selected */}
         {selectedIds.size > 0 && (
-          <div className="mb-3 rounded-md border border-lime/40 bg-lime/[0.06] p-3 flex flex-wrap items-center gap-2 animate-hash-in">
-            <span className="mono-label text-lime">
-              {selectedIds.size} sélectionné{selectedIds.size > 1 ? "s" : ""}
+          <div
+            className="mb-3 rounded-md border border-lime/40 bg-lime/[0.06] p-3 flex flex-wrap items-center gap-2 animate-hash-in"
+            role="region"
+            aria-label="Actions groupées"
+          >
+            <span className="mono-label text-lime tabular-nums">
+              {selectedCount} sélectionné{selectedCount > 1 ? "s" : ""} / {BULK_LIMIT} par lot
             </span>
-            <span className="text-border">·</span>
+            {needsChunking && (
+              <span className="text-xs text-amber-200 bg-amber-500/10 border border-amber-500/40 rounded-sm px-2 py-1">
+                Traitement par lots de {BULK_LIMIT} — {Math.ceil(selectedCount / BULK_LIMIT)} lots.
+              </span>
+            )}
+            <span className="text-border" aria-hidden>
+              ·
+            </span>
             <button
+              type="button"
               onClick={() => onBulk("approve")}
               disabled={!!bulkAction}
-              className="text-xs px-2.5 py-1 rounded-sm border border-border bg-card text-foreground hover:border-lime/60 hover:text-lime transition-colors focus-lime disabled:opacity-50"
+              className="min-h-[36px] text-xs px-2.5 py-1 rounded-sm border border-border bg-card text-foreground hover:border-lime/60 hover:text-lime transition-colors focus-lime disabled:opacity-50"
             >
               {bulkAction === "approve" ? "En cours…" : "Valider"}
             </button>
             <button
+              type="button"
               onClick={() => onBulk("invite")}
               disabled={!!bulkAction}
-              className="text-xs px-2.5 py-1 rounded-sm border border-border bg-card text-foreground hover:border-lime/60 hover:text-lime transition-colors focus-lime disabled:opacity-50"
+              className="min-h-[36px] text-xs px-2.5 py-1 rounded-sm border border-border bg-card text-foreground hover:border-lime/60 hover:text-lime transition-colors focus-lime disabled:opacity-50"
             >
               {bulkAction === "invite" ? "En cours…" : "Inviter"}
             </button>
             <button
+              type="button"
               onClick={() => onBulk("waitlist")}
               disabled={!!bulkAction}
-              className="text-xs px-2.5 py-1 rounded-sm border border-border bg-card text-foreground hover:border-amber-500/60 hover:text-amber-300 transition-colors focus-lime disabled:opacity-50"
+              className="min-h-[36px] text-xs px-2.5 py-1 rounded-sm border border-border bg-card text-foreground hover:border-amber-500/60 hover:text-amber-300 transition-colors focus-lime disabled:opacity-50"
             >
               {bulkAction === "waitlist" ? "En cours…" : "Waitlist"}
             </button>
             <button
+              type="button"
               onClick={() => onBulk("reject")}
               disabled={!!bulkAction}
-              className="text-xs px-2.5 py-1 rounded-sm border border-border bg-card text-foreground hover:border-destructive/60 hover:text-destructive transition-colors focus-lime disabled:opacity-50"
+              className="min-h-[36px] text-xs px-2.5 py-1 rounded-sm border border-border bg-card text-foreground hover:border-destructive/60 hover:text-destructive transition-colors focus-lime disabled:opacity-50"
             >
               {bulkAction === "reject" ? "En cours…" : "Rejeter"}
             </button>
             {!confirmBulkDelete ? (
               <button
+                type="button"
                 onClick={() => onConfirmBulkDeleteChange(true)}
                 disabled={!!bulkAction}
-                className="text-xs px-2.5 py-1 rounded-sm border border-destructive/40 bg-destructive/5 text-destructive hover:bg-destructive/15 transition-colors focus-lime disabled:opacity-50"
+                className="min-h-[36px] text-xs px-2.5 py-1 rounded-sm border border-destructive/40 bg-destructive/5 text-destructive hover:bg-destructive/15 transition-colors focus-lime disabled:opacity-50"
               >
                 Supprimer
               </button>
             ) : (
-              <span className="inline-flex items-center gap-2 rounded-sm border border-destructive/40 bg-destructive/5 px-2 py-1">
+              <span className="inline-flex flex-wrap items-center gap-2 rounded-sm border border-destructive/40 bg-destructive/5 px-2 py-1">
                 <span className="text-xs text-foreground">
-                  Supprimer {selectedIds.size} membre(s) ?
+                  Supprimer définitivement {selectedCount} membre{selectedCount > 1 ? "s" : ""} ?
                 </span>
                 <button
+                  type="button"
                   onClick={() => onBulk("delete")}
                   disabled={!!bulkAction}
-                  className="text-xs px-2 py-0.5 rounded-sm bg-destructive text-white hover:bg-destructive/90 transition-colors focus-lime disabled:opacity-50"
+                  className="min-h-[32px] text-xs px-2 py-0.5 rounded-sm bg-destructive text-white hover:bg-destructive/90 transition-colors focus-lime disabled:opacity-50"
                 >
-                  {bulkAction === "delete" ? "Suppression…" : "Confirmer"}
+                  {bulkAction === "delete" ? "Suppression…" : "Oui, supprimer"}
                 </button>
                 <button
+                  type="button"
                   onClick={() => onConfirmBulkDeleteChange(false)}
                   disabled={!!bulkAction}
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors focus-lime"
+                  className="min-h-[32px] text-xs text-muted-foreground hover:text-foreground transition-colors focus-lime px-1"
                 >
                   Annuler
                 </button>
               </span>
             )}
             <button
+              type="button"
               onClick={onCancelSelection}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors focus-lime mono-label ml-auto"
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors focus-lime mono-label ml-auto min-h-[32px] px-2"
             >
-              ✕ Annuler
+              Annuler la sélection
             </button>
-            {bulkResult && (
+            {bulkProgress && (
+              <span className="w-full" role="status" aria-label={`Progression ${bulkProgress.done} sur ${bulkProgress.total}`}>
+                <span className="flex justify-between text-xs text-muted-foreground mb-1">
+                  <span>
+                    Lot {bulkProgress.done}/{bulkProgress.total}…
+                  </span>
+                  <span className="tabular-nums">
+                    {Math.round((bulkProgress.done / Math.max(1, bulkProgress.total)) * 100)}%
+                  </span>
+                </span>
+                <span className="block h-1.5 rounded-full bg-secondary overflow-hidden">
+                  <span
+                    className="block h-full bg-lime transition-all duration-300"
+                    style={{
+                      width: `${(bulkProgress.done / Math.max(1, bulkProgress.total)) * 100}%`,
+                    }}
+                  />
+                </span>
+              </span>
+            )}
+            {bulkResult && !bulkProgress && (
               <span
-                className="w-full flex items-center justify-between gap-2 text-xs text-muted-foreground"
+                className={cn(
+                  "w-full flex items-center justify-between gap-2 text-xs rounded-sm px-2.5 py-2 border",
+                  isBulkError
+                    ? "text-destructive border-destructive/40 bg-destructive/5"
+                    : "text-lime border-lime/40 bg-lime/5",
+                )}
                 role="status"
               >
                 <span>{bulkResult}</span>
                 <button
+                  type="button"
                   onClick={onDismissBulkResult}
-                  className="text-muted-foreground hover:text-foreground transition-colors focus-lime shrink-0"
+                  className="text-muted-foreground hover:text-foreground transition-colors focus-lime shrink-0 min-h-[28px] min-w-[28px] inline-flex items-center justify-center"
                   aria-label="Fermer le message"
                 >
-                  ✕
+                  <X className="size-3.5" aria-hidden />
                 </button>
               </span>
             )}
           </div>
         )}
-        <div className="rounded-md border border-border/60 overflow-hidden bg-card/30">
-          <Table>
+        {/* Hors sélection : résultat persistant */}
+        {selectedIds.size === 0 && bulkResult && !bulkProgress && (
+          <div
+            className={cn(
+              "mb-3 flex items-center justify-between gap-2 text-xs rounded-md px-3 py-2.5 border animate-hash-in",
+              isBulkError
+                ? "text-destructive border-destructive/40 bg-destructive/5"
+                : "text-lime border-lime/40 bg-lime/5",
+            )}
+            role="status"
+          >
+            <span>{bulkResult}</span>
+            <button
+              type="button"
+              onClick={onDismissBulkResult}
+              className="shrink-0 min-h-[28px] min-w-[28px] inline-flex items-center justify-center rounded-sm text-muted-foreground hover:text-foreground transition-colors focus-lime"
+              aria-label="Fermer le message"
+            >
+              <X className="size-3.5" aria-hidden />
+            </button>
+          </div>
+        )}
+        <div className="rounded-md border border-border/60 bg-card/30 overflow-x-auto scroll-slim max-w-full">
+          <Table className="min-w-[760px]">
             <TableHeader>
               <TableRow className="hover:bg-transparent border-border/60 bg-secondary/30">
-                <TableHead className="w-8">
+                <TableHead className="w-12 sticky left-0 z-10 bg-secondary">
                   <input
                     type="checkbox"
                     checked={members.length > 0 && selectedIds.size === members.length}
                     onChange={onToggleSelectAll}
-                    className="size-3.5 accent-lime cursor-pointer"
-                    aria-label="Sélectionner tout"
+                    className="size-5 min-h-[20px] min-w-[20px] accent-lime cursor-pointer focus-lime"
+                    aria-label={
+                      selectedIds.size === members.length
+                        ? "Tout désélectionner"
+                        : `Tout sélectionner (${members.length})`
+                    }
                   />
                 </TableHead>
-                <TableHead className="mono-label">
+                <TableHead className="mono-label" aria-sort={sortKey === "firstName" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}>
                   <SortHeader
                     label="Nom"
                     active={sortKey === "firstName"}
@@ -425,7 +615,7 @@ export function MemberTable({
                   />
                 </TableHead>
                 <TableHead className="mono-label">Pays</TableHead>
-                <TableHead className="mono-label">
+                <TableHead className="mono-label" aria-sort={sortKey === "primaryDomain" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}>
                   <SortHeader
                     label="Domaine"
                     active={sortKey === "primaryDomain"}
@@ -433,7 +623,7 @@ export function MemberTable({
                     onClick={() => onToggleSort("primaryDomain")}
                   />
                 </TableHead>
-                <TableHead className="mono-label">
+                <TableHead className="mono-label" aria-sort={sortKey === "level" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}>
                   <SortHeader
                     label="Niveau"
                     active={sortKey === "level"}
@@ -441,10 +631,10 @@ export function MemberTable({
                     onClick={() => onToggleSort("level")}
                   />
                 </TableHead>
-                <TableHead className="mono-label hidden md:table-cell">Objectif</TableHead>
-                <TableHead className="mono-label hidden md:table-cell">Mentorat</TableHead>
-                <TableHead className="mono-label hidden lg:table-cell">Budget</TableHead>
-                <TableHead className="mono-label">
+                <TableHead className="mono-label">Objectif</TableHead>
+                <TableHead className="mono-label">Mentorat</TableHead>
+                <TableHead className="mono-label">Budget</TableHead>
+                <TableHead className="mono-label" aria-sort={sortKey === "profileStatus" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}>
                   <SortHeader
                     label="Statut"
                     active={sortKey === "profileStatus"}
@@ -452,8 +642,8 @@ export function MemberTable({
                     onClick={() => onToggleSort("profileStatus")}
                   />
                 </TableHead>
-                <TableHead className="mono-label hidden sm:table-cell">Voie</TableHead>
-                <TableHead className="mono-label text-right">
+                <TableHead className="mono-label">Voie</TableHead>
+                <TableHead className="mono-label text-right" aria-sort={sortKey === "createdAt" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}>
                   <SortHeader
                     label="Date"
                     active={sortKey === "createdAt"}
@@ -465,27 +655,35 @@ export function MemberTable({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {loading && displayed.length === 0 && (
+              {loading && displayed.length > 0 && (
                 <TableRow className="hover:bg-transparent border-0">
-                  <TableCell colSpan={11} className="p-3">
-                    <div aria-hidden className="space-y-2.5">
-                      {Array.from({ length: 6 }).map((_, i) => (
-                        <div
-                          key={i}
-                          className="admin-skeleton admin-skeleton-row"
-                        />
-                      ))}
-                      <span className="sr-only">
-                        Chargement des membres…
-                      </span>
-                    </div>
+                  <TableCell colSpan={11} className="p-2">
+                    <p className="flex items-center gap-2 text-xs text-muted-foreground" role="status">
+                      <Loader2 className="size-3.5 animate-spin text-lime" aria-hidden />
+                      Actualisation…
+                    </p>
                   </TableCell>
                 </TableRow>
               )}
               {displayed.length === 0 && !loading && (
-                <TableRow>
-                  <TableCell colSpan={11} className="text-center text-muted-foreground py-10">
-                    Aucun membre pour ces filtres.
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={11} className="text-center py-10">
+                    <p className="text-sm text-foreground font-medium">Aucun membre pour ces filtres.</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Essaie d’élargir la recherche ou de réinitialiser.
+                    </p>
+                    {(activeFilterEntries.length > 0 || searchQuery) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClearFilters();
+                          onSearchChange("");
+                        }}
+                        className="mt-3 inline-flex items-center min-h-[44px] px-4 rounded-md border border-border bg-card text-sm text-foreground hover:border-lime/60 hover:text-lime transition-colors focus-lime"
+                      >
+                        Réinitialiser filtres et recherche
+                      </button>
+                    )}
                   </TableCell>
                 </TableRow>
               )}
@@ -493,12 +691,20 @@ export function MemberTable({
                 <TableRow
                   key={m.id}
                   onClick={() => onSelectMember(m.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onSelectMember(m.id);
+                    }
+                  }}
+                  tabIndex={0}
+                  aria-label={`Voir ${m.firstName} ${m.lastName ?? ""} — ${m.profileStatus}`}
                   className={cn(
-                    "row-sweep cursor-pointer border-border/40 hover:bg-elevated/50 transition-colors group",
+                    "row-sweep cursor-pointer border-border/40 hover:bg-elevated/50 transition-colors group focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lime/60",
                     selectedIds.has(m.id) && "bg-lime/[0.04]",
                   )}
                 >
-                  <TableCell className="w-8 py-3">
+                  <TableCell className="w-12 py-3 sticky left-0 z-10 bg-card">
                     <input
                       type="checkbox"
                       checked={selectedIds.has(m.id)}
@@ -507,8 +713,8 @@ export function MemberTable({
                         onToggleSelect(m.id);
                       }}
                       onClick={(e) => e.stopPropagation()}
-                      className="size-3.5 accent-lime cursor-pointer"
-                      aria-label={`Sélectionner ${m.firstName}`}
+                      className="size-5 min-h-[20px] min-w-[20px] accent-lime cursor-pointer focus-lime"
+                      aria-label={`Sélectionner ${m.firstName} ${m.lastName ?? ""}`}
                     />
                   </TableCell>
                   <TableCell className="font-medium py-3">
@@ -518,11 +724,11 @@ export function MemberTable({
                       </span>
                       {m.adminNote && (
                         <span
-                          className="shrink-0 inline-flex items-center justify-center size-4 rounded-sm border border-amber-500/50 bg-amber-500/10 text-amber-300"
-                          title="Note interne"
+                          className="shrink-0 inline-flex items-center justify-center size-5 rounded-sm border border-amber-500/50 bg-amber-500/10 text-amber-300"
+                          title="Note interne présente"
                           aria-label="Note interne présente"
                         >
-                          <StickyNote className="size-2.5" />
+                          <StickyNote className="size-3" aria-hidden />
                         </span>
                       )}
                     </div>
@@ -535,10 +741,10 @@ export function MemberTable({
                   </TableCell>
                   <TableCell>{DOMAIN_LABEL[m.primaryDomain] ?? m.primaryDomain}</TableCell>
                   <TableCell>{LEVEL_LABEL[m.level] ?? m.level}</TableCell>
-                  <TableCell className="hidden md:table-cell">
+                  <TableCell>
                     {GOAL_LABEL[m.goal] ?? m.goal}
                   </TableCell>
-                  <TableCell className="hidden md:table-cell">
+                  <TableCell>
                     {m.mentoringInterest === "yes"
                       ? "Oui"
                       : m.mentoringInterest === "maybe"
@@ -547,13 +753,13 @@ export function MemberTable({
                           ? "Non"
                           : "—"}
                   </TableCell>
-                  <TableCell className="hidden lg:table-cell">
+                  <TableCell>
                     {m.budgetRange ? BUDGET_LABEL[m.budgetRange] ?? m.budgetRange : "—"}
                   </TableCell>
                   <TableCell>
                     <StatusBadge status={m.profileStatus} />
                   </TableCell>
-                  <TableCell className="hidden sm:table-cell">
+                  <TableCell>
                     <Tag active={m.accessLane === "immediate"}>
                       {m.accessLane === "immediate" ? "Immédiat" : "En traitement"}
                     </Tag>
@@ -569,16 +775,17 @@ export function MemberTable({
             </TableBody>
           </Table>
         </div>
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <p className="text-xs text-muted-foreground">
-            {total} membre{total > 1 ? "s" : ""} · Page {page}/{totalPages} · Clique sur
+            {total} membre{total > 1 ? "s" : ""} · Page {page}/{totalPages} · {selectedCount} sélectionné{selectedCount > 1 ? "s" : ""} · Clique sur
             une ligne pour voir le détail et changer le statut.
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
+              type="button"
               onClick={() => onPageChange(page - 1)}
               disabled={page <= 1 || loading}
-              className="text-xs px-3 py-1.5 rounded-md border border-border bg-card text-foreground hover:border-lime/60 hover:text-lime transition-colors focus-lime disabled:opacity-50"
+              className="min-h-[44px] text-xs px-3 py-1.5 rounded-md border border-border bg-card text-foreground hover:border-lime/60 hover:text-lime transition-colors focus-lime disabled:opacity-50"
             >
               ← Précédent
             </button>
@@ -586,12 +793,64 @@ export function MemberTable({
               {page}/{totalPages}
             </span>
             <button
+              type="button"
               onClick={() => onPageChange(page + 1)}
               disabled={page >= totalPages || loading}
-              className="text-xs px-3 py-1.5 rounded-md border border-border bg-card text-foreground hover:border-lime/60 hover:text-lime transition-colors focus-lime disabled:opacity-50"
+              className="min-h-[44px] text-xs px-3 py-1.5 rounded-md border border-border bg-card text-foreground hover:border-lime/60 hover:text-lime transition-colors focus-lime disabled:opacity-50"
             >
               Suivant →
             </button>
+            <form
+              className="flex items-center gap-1.5"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const n = Number(jumpValue);
+                if (Number.isFinite(n)) onPageChange(Math.floor(n));
+                setJumpValue("");
+              }}
+            >
+              <label htmlFor="page-jump" className="sr-only">
+                Aller à la page
+              </label>
+              <input
+                id="page-jump"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                placeholder={`1–${totalPages}`}
+                value={jumpValue}
+                onChange={(e) => setJumpValue(e.target.value)}
+                className="h-9 w-20 rounded-md border border-border bg-card px-2 text-xs text-foreground placeholder:text-muted-foreground focus-lime text-center tabular-nums"
+              />
+              <button
+                type="submit"
+                className="min-h-[36px] text-xs px-2.5 rounded-md border border-border bg-card text-foreground hover:border-lime/60 hover:text-lime transition-colors focus-lime"
+              >
+                Aller
+              </button>
+            </form>
+            {onPageSizeChange && (
+              <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span className="sr-only">Lignes par page</span>
+                <Select
+                  value={String(pageSize)}
+                  onValueChange={(v) => onPageSizeChange(Number(v))}
+                >
+                  <SelectTrigger
+                    aria-label="Lignes par page"
+                    className="h-9 w-[96px] rounded-md text-xs"
+                  >
+                    <SelectValue placeholder="50 / page" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border-border">
+                    {[10, 25, 50, 100].map((n) => (
+                      <SelectItem key={n} value={String(n)}>
+                        {n} / page
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
+            )}
           </div>
         </div>
       </section>
@@ -613,7 +872,7 @@ export function StatusBadge({ status }: { status: string }) {
   const tones: Record<string, string> = {
     lime: "border-lime/50 text-lime bg-lime/5",
     muted: "border-border text-muted-foreground",
-    warn: "border-amber-500/50 text-amber-300 bg-amber-500/5",
+    warn: "border-amber-500/50 text-amber-200 bg-amber-500/5",
     destructive: "border-destructive/50 text-destructive bg-destructive/5",
   };
   return (
@@ -629,11 +888,13 @@ export function StatusBadge({ status }: { status: string }) {
 }
 
 function FilterSelect({
+  label,
   placeholder,
   value,
   onChange,
   options,
 }: {
+  label: string;
   placeholder: string;
   value: string;
   onChange: (v: string) => void;
@@ -643,8 +904,9 @@ function FilterSelect({
   return (
     <Select value={value} onValueChange={onChange}>
       <SelectTrigger
+        aria-label={label}
         className={cn(
-          "h-9 w-auto gap-2 rounded-full px-4 text-sm min-w-32 transition-colors",
+          "h-9 w-auto gap-2 rounded-full px-4 text-sm min-w-32 transition-colors min-h-[36px]",
           active
             ? "border-lime/60 bg-lime/10 text-lime"
             : "border-border bg-card text-muted-foreground hover:text-foreground",
@@ -680,19 +942,23 @@ function SortHeader({
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
+      aria-label={
+        active
+          ? `${label}, tri ${dir === "asc" ? "croissant" : "décroissant"} — inverser`
+          : `${label}, trier`
+      }
       className={cn(
-        "inline-flex items-center gap-1 hover:text-lime transition-colors focus-lime",
+        "inline-flex items-center gap-1 min-h-[32px] hover:text-lime transition-colors focus-lime rounded-sm px-1 -ml-1",
         active && "text-lime",
         align === "right" && "flex-row-reverse",
       )}
     >
       {label}
-      {active && (
-        <span className="text-[11px]" aria-hidden>
-          {dir === "asc" ? "↑" : "↓"}
-        </span>
-      )}
+      <span className={cn("text-[11px]", !active && "text-muted-foreground/50")} aria-hidden>
+        {active ? (dir === "asc" ? "↑" : "↓") : "↕"}
+      </span>
     </button>
   );
 }

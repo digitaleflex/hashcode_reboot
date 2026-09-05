@@ -460,5 +460,3 @@ export function getQuestionOptions(
   const q = QUESTIONS.find((q) => q.id === questionId);
   return q?.options ?? [];
 }
-
-export { DOMAINS, GOALS, LEVELS, AVAILABILITY, LEARNING };
