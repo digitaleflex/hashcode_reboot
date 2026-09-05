@@ -244,7 +244,7 @@ export function MemberTable({
               type="text"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Rechercher (nom, email)…"
+              placeholder="Recherche (prénom, email, ou email:nom@domain.com)"
               className="w-full h-9 rounded-md border border-border bg-card pl-3 pr-8 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-lime focus:border-lime/60"
             />
             <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">
