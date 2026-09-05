@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { isAdminAuthed } from "@/lib/admin-auth";
+import { requireAdminRole } from "@/lib/admin-auth";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
@@ -25,8 +25,11 @@ interface ImportError {
 
 /** POST /api/members/import — bulk CSV import (admin-only). */
 export async function POST(req: NextRequest) {
-  if (!isAdminAuthed(req)) {
-    return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+  if (!requireAdminRole(req, "operator")) {
+    return NextResponse.json(
+      { error: "Opérateur requis.", code: "FORBIDDEN" },
+      { status: 403 },
+    );
   }
 
   const rl = await rateLimit(`import:${rateKey(req)}`, {
