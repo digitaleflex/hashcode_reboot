@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { isAdminAuthed } from "@/lib/admin-auth";
-import { rateLimit, rateKey } from "@/lib/rate-limit";
+import { requireAdminRole } from "@/lib/admin-auth";
+import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { WHATSAPP_URL } from "@/lib/profiling/auto-controls";
 
 export const runtime = "nodejs";
@@ -15,11 +15,14 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  if (!isAdminAuthed(req)) {
-    return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+  if (!requireAdminRole(req, "operator")) {
+    return NextResponse.json(
+      { error: "Opérateur requis.", code: "FORBIDDEN" },
+      { status: 403 },
+    );
   }
   // Anti-abus : 20 invitations par IP toutes les 10 minutes.
-  const rl = rateLimit(`admin-invite:${rateKey(req)}`, {
+  const rl = await rateLimit(`admin-invite:${rateKey(req)}`, {
     capacity: 20,
     windowMs: 600000, // 10 minutes
   });
@@ -28,7 +31,7 @@ export async function POST(
       { error: "Trop de requêtes. Réessaie dans quelques minutes." },
       {
         status: 429,
-        headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) },
+        headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) },
       },
     );
   }
@@ -53,9 +56,9 @@ export async function POST(
   try {
     await db.analyticsEvent.create({
       data: {
-        type: "community_cta_clicked",
+        type: "admin_invite",
         memberId: id,
-        ref: "admin-invite",
+        ref: `member.invite:${id}`,
       },
     });
   } catch {

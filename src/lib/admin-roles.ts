@@ -14,7 +14,7 @@
  * Parsing is defensive: a malformed, expired, or unsigned token yields null
  * (never throws) and is treated as "no access".
  */
-import { verifyAdminToken, getAdminRoleFromToken } from "@/lib/admin-auth";
+import { verifyAdminToken, getAdminRoleFromToken, readRole } from "@/lib/admin-auth";
 
 export enum Role {
   viewer = "viewer",

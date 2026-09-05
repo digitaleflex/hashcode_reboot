@@ -125,10 +125,6 @@ export function SectionHeader({
   );
 }
 
-/** Hairline divider. */
-export function Hairline({ className }: { className?: string }) {
-  return <div className={cn("h-px w-full bg-border", className)} />;
-}
 
 /** External link that opens WhatsApp/community safely. */
 export function ExternalCta({
@@ -218,14 +214,5 @@ export function RebootTitle({
         REBOOT
       </span>
     </h1>
-  );
-}
-
-/** Small inline H motif used as a bullet/connector. */
-export function HashBullet({ className }: { className?: string }) {
-  return (
-    <span className={cn("text-lime inline-block", className)} aria-hidden>
-      ✦
-    </span>
   );
 }

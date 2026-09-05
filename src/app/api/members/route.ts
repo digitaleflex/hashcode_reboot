@@ -6,7 +6,7 @@ import { profileSchema, answersToCreatePayload } from "@/lib/profiling/validate"
 import { runAutoControls, WHATSAPP_URL } from "@/lib/profiling/auto-controls";
 import { generateProfile } from "@/lib/profiling/engine";
 import { sendInvitationEmail, sendWelcomeEmail } from "@/lib/mail";
-import { rateLimit, rateKey } from "@/lib/rate-limit";
+import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { isAdminAuthed } from "@/lib/admin-auth";
 
 export const runtime = "nodejs";
@@ -16,13 +16,13 @@ export const runtime = "nodejs";
  * generated profile so the client can render the right branch. */
 export async function POST(req: NextRequest) {
   // Anti-spam: 5 submissions per IP per 10 minutes.
-  const rl = rateLimit(rateKey(req), { capacity: 5, windowMs: 600000 });
+  const rl = await rateLimit(rateKey(req), { capacity: 5, windowMs: 600000 });
   if (!rl.ok) {
     return NextResponse.json(
       { error: "Trop de soumissions. Réessaie dans quelques minutes." },
       {
         status: 429,
-        headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) },
+        headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) },
       },
     );
   }
@@ -274,6 +274,7 @@ export async function GET(req: NextRequest) {
     }
 
     const where: Prisma.MemberWhereInput = {};
+    where.deletedAt = null; // exclude soft-deleted members
     if (domain) where.primaryDomain = domain;
     if (country) where.country = country;
     if (level) where.level = level;
@@ -281,11 +282,24 @@ export async function GET(req: NextRequest) {
     if (budget) where.budgetRange = budget;
     if (status) where.profileStatus = status;
     if (lane) where.accessLane = lane;
-    if (q)
-      where.OR = [
-        { firstName: { contains: q, mode: "insensitive" } },
-        { email: { contains: q, mode: "insensitive" } },
-      ];
+    if (q) {
+      // Support `email:user@example.com` syntax for email-only search
+      const emailPrefix = q.match(/^email:(.+)$/i);
+      if (emailPrefix) {
+        const emailQuery = emailPrefix[1].trim();
+        if (emailQuery) {
+          where.OR = [
+            { email: { contains: emailQuery, mode: "insensitive" } },
+          ];
+        }
+      } else {
+        where.OR = [
+          { firstName: { contains: q, mode: "insensitive" } },
+          { lastName: { contains: q, mode: "insensitive" } },
+          { email: { contains: q, mode: "insensitive" } },
+        ];
+      }
+    }
 
     const [total, members] = await Promise.all([
       db.member.count({ where }),

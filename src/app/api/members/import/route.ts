@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { isAdminAuthed } from "@/lib/admin-auth";
-import { rateLimit, rateKey } from "@/lib/rate-limit";
+import { requireAdminRole } from "@/lib/admin-auth";
+import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -25,18 +25,21 @@ interface ImportError {
 
 /** POST /api/members/import — bulk CSV import (admin-only). */
 export async function POST(req: NextRequest) {
-  if (!isAdminAuthed(req)) {
-    return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+  if (!requireAdminRole(req, "operator")) {
+    return NextResponse.json(
+      { error: "Opérateur requis.", code: "FORBIDDEN" },
+      { status: 403 },
+    );
   }
 
-  const rl = rateLimit(`import:${rateKey(req)}`, {
+  const rl = await rateLimit(`import:${rateKey(req)}`, {
     capacity: 10,
     windowMs: 600000, // 10 minutes
   });
   if (!rl.ok) {
     return NextResponse.json(
       { error: "Trop d'imports. Réessaie plus tard.", code: "RATE_LIMITED" },
-      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+      { status: 429, headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) } },
     );
   }
 
@@ -143,11 +146,12 @@ export async function POST(req: NextRequest) {
           mentoringInterest: null,
           budgetRange: null,
           profileStatus: "PENDING",
-          communityStatus: "PENDING",
-          accessLane: "PENDING",
-          country: r.country || "FR",
+          communityStatus: "NOT_INVITED",
+          accessLane: "immediate",
+          country: r.country || "",
+          availability: "5-10h",
+          learningStyle: "practice",
         })),
-        skipDuplicates: true,
       });
       created = createResult.count;
     }

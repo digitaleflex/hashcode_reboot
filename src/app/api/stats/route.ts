@@ -18,12 +18,13 @@ interface StatsAggregate {
   byCountry: { country: string; count: number }[];
   byLevel: { level: string; count: number }[];
   byAvailability: { availability: string; count: number }[];
-  byBudget: { budget: string; count: number }[];
+  byBudget: { budget: string | null; count: number }[];
   byArchetype: { archetype: string; count: number }[];
 }
 
 async function computeStats(startDate: Date, endDate: Date): Promise<StatsAggregate> {
   const whereCreated = {
+    deletedAt: null, // exclude soft-deleted members
     createdAt: {
       gte: startDate,
       lt: endDate,
@@ -116,20 +117,20 @@ export async function GET(req: NextRequest) {
       byBudget,
       byArchetype,
     ] = await Promise.all([
-      db.member.count(),
-      db.member.count({ where: { profileStatus: "APPROVED" } }),
-      db.member.count({ where: { profileStatus: "PENDING" } }),
-      db.member.count({ where: { profileStatus: "WAITLIST" } }),
-      db.member.count({ where: { profileStatus: "REJECTED" } }),
-      db.member.count({ where: { primaryDomain: "web" } }),
-      db.member.count({ where: { primaryDomain: "cybersecurity" } }),
-      db.member.count({ where: { primaryDomain: "ai" } }),
-      db.member.count({ where: { mentoringInterest: "yes" } }),
-      db.member.groupBy({ by: ["country"], _count: true, orderBy: { _count: { country: "desc" } }, take: 12 }),
-      db.member.groupBy({ by: ["level"], _count: true }),
-      db.member.groupBy({ by: ["availability"], _count: true }),
-      db.member.groupBy({ by: ["budgetRange"], _count: true }),
-      db.member.groupBy({ by: ["profileArchetype"], _count: true, orderBy: { _count: { profileArchetype: "desc" } } }),
+      db.member.count({ where: { deletedAt: null } }),
+      db.member.count({ where: { deletedAt: null, profileStatus: "APPROVED" } }),
+      db.member.count({ where: { deletedAt: null, profileStatus: "PENDING" } }),
+      db.member.count({ where: { deletedAt: null, profileStatus: "WAITLIST" } }),
+      db.member.count({ where: { deletedAt: null, profileStatus: "REJECTED" } }),
+      db.member.count({ where: { deletedAt: null, primaryDomain: "web" } }),
+      db.member.count({ where: { deletedAt: null, primaryDomain: "cybersecurity" } }),
+      db.member.count({ where: { deletedAt: null, primaryDomain: "ai" } }),
+      db.member.count({ where: { deletedAt: null, mentoringInterest: "yes" } }),
+      db.member.groupBy({ by: ["country"], _count: true, orderBy: { _count: { country: "desc" } }, take: 12, where: { deletedAt: null } }),
+      db.member.groupBy({ by: ["level"], _count: true, where: { deletedAt: null } }),
+      db.member.groupBy({ by: ["availability"], _count: true, where: { deletedAt: null } }),
+      db.member.groupBy({ by: ["budgetRange"], _count: true, where: { deletedAt: null } }),
+      db.member.groupBy({ by: ["profileArchetype"], _count: true, orderBy: { _count: { profileArchetype: "desc" } }, where: { deletedAt: null } }),
     ]);
 
     return NextResponse.json({

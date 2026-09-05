@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ROUTES, checkDb, checkMail } from "@/lib/health";
-import { rateLimit, rateKey } from "@/lib/rate-limit";
-import { isAdminAuthed } from "@/lib/admin-auth";
+import { checkDb, checkMail } from "@/lib/health";
+import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-/** GET /api/health — sonde publique minimale ; détails réservés à l'admin. */
+/** GET /api/health — sonde publique minimale.
+ * Réponse identique pour public et admin : pas de fuite d'info infra
+ * (DB latency, mail service, route manifest) — fix info disclosure. */
 export async function GET(req: NextRequest) {
   // Anti-abus : 30 sondes par IP toutes les 10 minutes.
-  const rl = rateLimit(`health:${rateKey(req)}`, {
+  const rl = await rateLimit(`health:${rateKey(req)}`, {
     capacity: 30,
     windowMs: 600000, // 10 minutes
   });
@@ -18,7 +19,7 @@ export async function GET(req: NextRequest) {
       { error: "Trop de requêtes. Réessaie dans quelques minutes." },
       {
         status: 429,
-        headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) },
+        headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) },
       },
     );
   }
@@ -28,21 +29,14 @@ export async function GET(req: NextRequest) {
   const status =
     !dbCheck.ok ? "down" : mail.status === "valid" ? "ok" : "degraded";
   const code = dbCheck.ok ? 200 : 503;
-  // Réponse publique volontairement réduite (pas de détail infra exposé).
-  // Les checks détaillés (db/mail/routes) sont servis uniquement à l'admin.
-  if (!isAdminAuthed(req)) {
-    return NextResponse.json({ status, latencyMs }, { status: code });
-  }
+  // Réponse volontairement réduite (pas de détail infra exposé, ni pour l'admin).
   return NextResponse.json(
+    { status, latencyMs },
     {
-      status,
-      checks: {
-        db: { ok: dbCheck.ok, latencyMs: dbCheck.latencyMs },
-        mail: { status: mail.status, detail: mail.detail },
-        routes: { expected: ROUTES.length, list: ROUTES },
+      status: code,
+      headers: {
+        "Cache-Control": "no-store, must-revalidate",
       },
-      latencyMs,
     },
-    { status: code },
   );
 }

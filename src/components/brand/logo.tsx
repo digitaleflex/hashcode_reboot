@@ -104,17 +104,3 @@ export function Logo({
     </span>
   );
 }
-
-/** Compact footer/wordmark used in subtle placements. */
-export function LogoWordmark({ className }: { className?: string }) {
-  return (
-    <span
-      className={cn(
-        "font-display font-bold italic tracking-tight text-foreground",
-        className,
-      )}
-    >
-      HASHCODE
-    </span>
-  );
-}

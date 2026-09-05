@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { isAdminAuthed } from "@/lib/admin-auth";
-import { rateLimit, rateKey } from "@/lib/rate-limit";
+import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     );
   }
   // Anti-abus : 20 exports par IP toutes les 10 minutes.
-  const rl = rateLimit(`export:${rateKey(req)}`, {
+  const rl = await rateLimit(`export:${rateKey(req)}`, {
     capacity: 20,
     windowMs: 600000, // 10 minutes
   });
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
       { error: "Trop de requêtes. Réessaie dans quelques minutes.", code: "RATE_LIMITED" },
       {
         status: 429,
-        headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) },
+        headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) },
       },
     );
   }
@@ -44,6 +44,7 @@ export async function GET(req: NextRequest) {
     const q = searchParams.get("q");
 
     const where: Prisma.MemberWhereInput = {};
+    where.deletedAt = null; // exclude soft-deleted members
     if (domain) where.primaryDomain = domain;
     if (country) where.country = country;
     if (level) where.level = level;

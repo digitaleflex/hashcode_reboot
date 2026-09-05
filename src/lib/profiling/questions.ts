@@ -98,6 +98,8 @@ const BUDGET_RANGES = [
   { value: "unknown", label: "Je ne sais pas encore" },
 ];
 
+import type { QuestionOption } from "./types";
+
 /** Domain-specific specialties (conditional on primaryDomain). */
 const DOMAIN_SPECIALTIES: Record<string, QuestionOption[]> = {
   cybersecurity: [
@@ -460,5 +462,3 @@ export function getQuestionOptions(
   const q = QUESTIONS.find((q) => q.id === questionId);
   return q?.options ?? [];
 }
-
-export { DOMAINS, GOALS, LEVELS, AVAILABILITY, LEARNING };

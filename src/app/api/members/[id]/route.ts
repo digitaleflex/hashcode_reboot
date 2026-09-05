@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { isAdminAuthed } from "@/lib/admin-auth";
-import { rateLimit, rateKey } from "@/lib/rate-limit";
+import { isAdminAuthed, requireAdminRole } from "@/lib/admin-auth";
+import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { audit } from "@/lib/admin-audit";
 
 export const runtime = "nodejs";
 
@@ -67,14 +68,14 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  if (!isAdminAuthed(req)) {
+  if (!requireAdminRole(req, "operator")) {
     return NextResponse.json(
-      { error: "Non autorisé.", code: "UNAUTHORIZED" },
-      { status: 401 },
+      { error: "Opérateur requis.", code: "FORBIDDEN" },
+      { status: 403 },
     );
   }
   // Anti-abus : 20 mises à jour par IP toutes les 10 minutes.
-  const rlPatch = rateLimit(`admin-member-write:${rateKey(req)}`, {
+  const rlPatch = await rateLimit(`admin-member-write:${rateKey(req)}`, {
     capacity: 20,
     windowMs: 600000, // 10 minutes
   });
@@ -84,7 +85,7 @@ export async function PATCH(
       {
         status: 429,
         headers: {
-          "Retry-After": String(Math.ceil(rlPatch.retryAfterMs / 1000)),
+          "Retry-After": retryAfterHeader(rlPatch.retryAfterMs),
         },
       },
     );
@@ -136,8 +137,8 @@ export async function PATCH(
     try {
       await db.analyticsEvent.create({
         data: {
-          type: "community_cta_clicked",
-          ref: `admin-patch:${id}`,
+          type: "admin_member_update",
+          ref: `member.update:${id}`,
         },
       });
     } catch {
@@ -166,14 +167,14 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  if (!isAdminAuthed(req)) {
+  if (!requireAdminRole(req, "operator")) {
     return NextResponse.json(
-      { error: "Non autorisé.", code: "UNAUTHORIZED" },
-      { status: 401 },
+      { error: "Opérateur requis.", code: "FORBIDDEN" },
+      { status: 403 },
     );
   }
   // Anti-abus : 20 suppressions par IP toutes les 10 minutes.
-  const rlDelete = rateLimit(`admin-member-delete:${rateKey(req)}`, {
+  const rlDelete = await rateLimit(`admin-member-delete:${rateKey(req)}`, {
     capacity: 20,
     windowMs: 600000, // 10 minutes
   });
@@ -183,7 +184,7 @@ export async function DELETE(
       {
         status: 429,
         headers: {
-          "Retry-After": String(Math.ceil(rlDelete.retryAfterMs / 1000)),
+          "Retry-After": retryAfterHeader(rlDelete.retryAfterMs),
         },
       },
     );
@@ -200,11 +201,13 @@ export async function DELETE(
         { status: 404 },
       );
     }
-    // Cascade: delete the member's analytics events referencing them — atomique.
-    await db.$transaction([
-      db.analyticsEvent.deleteMany({ where: { memberId: id } }),
-      db.member.delete({ where: { id } }),
-    ]);
+    // Soft delete : on marque le membre plutôt que de le supprimer (RGPD :
+    // les données restent récupérables tant que deletedAt est nul).
+    await db.member.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+    await audit("member.soft-delete", "member", id, { soft: true });
     // Record an audit event (member-less, ref carries the action — memberId, pas
     // d'email en clair). RGPD : les lignes analytics historiques existantes
     // contenant encore des emails doivent être purgées manuellement en base.

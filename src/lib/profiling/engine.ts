@@ -35,18 +35,6 @@ export function getVisibleQuestions(answers: ProfileAnswers): Question[] {
   return QUESTIONS.filter((q) => !q.condition || q.condition(answers));
 }
 
-/** Index of the current question within the visible list. */
-export function getCurrentIndex(
-  answers: ProfileAnswers,
-  answeredIds: Set<string>,
-): number {
-  const visible = getVisibleQuestions(answers);
-  // First visible question not yet answered.
-  const firstUnanswered = visible.findIndex((q) => !answeredIds.has(q.id));
-  if (firstUnanswered === -1) return visible.length; // all done
-  return firstUnanswered;
-}
-
 /** Progress 0..1 across the visible question set. */
 export function getProgress(
   answers: ProfileAnswers,
@@ -58,14 +46,6 @@ export function getProgress(
   // Never reach 100% until truly done — cap at 0.96 mid-flow.
   const ratio = answered / visible.length;
   return Math.min(ratio, 0.96);
-}
-
-export function isProfilingComplete(
-  answers: ProfileAnswers,
-  answeredIds: Set<string>,
-): boolean {
-  const visible = getVisibleQuestions(answers);
-  return visible.every((q) => !q.required || answeredIds.has(q.id));
 }
 
 /** Validate an answer for a given question. Returns error message or null. */
@@ -169,13 +149,6 @@ const STYLE_LABELS: Record<LearningStyle, string> = {
   project: "Construction de projet",
 };
 
-const STYLE_LABELS_SHORT: Record<LearningStyle, string> = {
-  practice: "Pratique",
-  path: "Parcours",
-  group: "Groupe",
-  mentor: "Mentor",
-  project: "Projet",
-};
 
 const MENTORING_LABELS: Record<MentoringInterest, string> = {
   no: "Pas pour le moment",
@@ -248,13 +221,3 @@ export function generateProfile(a: ProfileAnswers): GeneratedProfile {
 }
 
 export { EMAIL_RE, DISPOSABLE_DOMAINS };
-export {
-  DOMAIN_LABELS,
-  LEVEL_LABELS,
-  GOAL_LABELS,
-  AVAIL_LABELS,
-  STYLE_LABELS,
-  STYLE_LABELS_SHORT,
-  MENTORING_LABELS,
-  GENDER_LABELS,
-};

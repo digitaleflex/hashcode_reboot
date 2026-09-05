@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { rateLimit, rateKey } from "@/lib/rate-limit";
+import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -20,7 +20,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   // Anti-abus : 30 partages par IP toutes les 10 minutes.
-  const rl = rateLimit(`share:${rateKey(req)}`, {
+  const rl = await rateLimit(`share:${rateKey(req)}`, {
     capacity: 30,
     windowMs: 600000, // 10 minutes
   });
@@ -29,7 +29,7 @@ export async function GET(
       { error: "Trop de requêtes. Réessaie dans quelques minutes." },
       {
         status: 429,
-        headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) },
+        headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) },
       },
     );
   }
