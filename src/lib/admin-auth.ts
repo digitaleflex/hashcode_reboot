@@ -45,37 +45,45 @@ export function getAdminPasscode(): string {
   );
 }
 
-/** Token = base64url(expiryEpochMs).base64url(signature).base64url(role) */
-function signExpiry(passcode: string, expiryStr: string): string {
-  return createHmac("sha256", passcode).update(expiryStr, "utf8").digest("base64url");
+/** 
+ * Token = base64url(expiryEpochMs).base64url(role).base64url(signature)
+ * where signature = HMAC-SHA256(passcode, `${expiryB64}.${roleB64}`)
+ */
+function sign(passcode: string, data: string): string {
+    return createHmac("sha256", passcode).update(data, "utf8").digest("base64url");
 }
 
 /** Verify the admin cookie value: format + signature + expiration. Never throws. */
 export function verifyAdminToken(token: string | undefined | null): boolean {
-  if (!token) return false;
-  try {
-    const dot = token.indexOf(".");
-    if (dot <= 0 || dot === token.length - 1) return false;
-    const expB64 = token.slice(0, dot);
-    const rest = token.slice(dot + 1);
-    const secondDot = rest.indexOf(".");
-    const sigB64 = secondDot >= 0 ? rest.slice(0, secondDot) : rest;
-    const roleB64 = secondDot >= 0 ? rest.slice(secondDot + 1) : null;
-    const expiryStr = Buffer.from(expB64, "base64url").toString("utf8");
-    if (!/^\d+$/.test(expiryStr)) return false;
-    const expiry = Number(expiryStr);
-    if (!Number.isSafeInteger(expiry) || expiry <= Date.now()) return false;
-    const expectedSig = signExpiry(getAdminPasscode(), expiryStr);
-    const a = Buffer.from(sigB64, "utf8");
-    const b = Buffer.from(expectedSig, "utf8");
-    if (a.length !== b.length) return false;
-    return timingSafeEqual(a, b);
-  } catch {
-    // If ADMIN_PASSCODE is not configured (e.g. production without env var),
-    // getAdminPasscode() throws. We catch it and return false instead of
-    // crashing the whole page render.
-    return false;
-  }
+    if (!token) return false;
+    try {
+        const firstDot = token.indexOf(".");
+        if (firstDot <= 0) return false;
+        const secondDot = token.indexOf(".", firstDot + 1);
+        if (secondDot <= firstDot + 1 || secondDot === token.length - 1) return false;
+        
+        const expB64 = token.slice(0, firstDot);
+        const roleB64 = token.slice(firstDot + 1, secondDot);
+        const sigB64 = token.slice(secondDot + 1);
+        
+        const expiryStr = Buffer.from(expB64, "base64url").toString("utf8");
+        if (!/^\d+$/.test(expiryStr)) return false;
+        const expiry = Number(expiryStr);
+        if (!Number.isSafeInteger(expiry) || expiry <= Date.now()) return false;
+        
+        const dataToSign = `${expB64}.${roleB64}`;
+        const expectedSig = sign(getAdminPasscode(), dataToSign);
+        
+        const a = Buffer.from(sigB64, "utf8");
+        const b = Buffer.from(expectedSig, "utf8");
+        if (a.length !== b.length) return false;
+        return timingSafeEqual(a, b);
+    } catch {
+        // If ADMIN_PASSCODE is not configured (e.g. production without env var),
+        // getAdminPasscode() throws. We catch it and return false instead of
+        // crashing the whole page render.
+        return false;
+    }
 }
 
 /** Read the admin cookie from a request. */
@@ -95,12 +103,12 @@ export function adminCookieHeader(token: string | null): string {
 
 /** Issue a fresh admin token, expiring 12h from now (used at login). */
 export function issueAdminToken(role: "viewer" | "operator" = "operator"): string {
-  const expiryStr = String(Date.now() + ADMIN_SESSION_MS);
-  const expB64 = Buffer.from(expiryStr, "utf8").toString("base64url");
-  const sigB64 = signExpiry(getAdminPasscode(), expiryStr);
-  // Tiered role token for RBAC; if token is invalid/missing role, default to operator
-  const roleB64 = Buffer.from(role, "utf8").toString("base64url");
-  return `${expB64}.${sigB64}.${roleB64}`;
+    const expiryStr = String(Date.now() + ADMIN_SESSION_MS);
+    const expB64 = Buffer.from(expiryStr, "utf8").toString("base64url");
+    const roleB64 = Buffer.from(role, "utf8").toString("base64url");
+    const dataToSign = `${expB64}.${roleB64}`;
+    const sigB64 = sign(getAdminPasscode(), dataToSign);
+    return `${expB64}.${roleB64}.${sigB64}`;
 }
 
 /** Check if the current request is from an authenticated admin. */
