@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { isAdminAuthed } from "@/lib/admin-auth";
+import { requireAdminRole, checkCSRF } from "@/lib/admin-auth";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { WHATSAPP_URL } from "@/lib/profiling/auto-controls";
 import { sendInvitationEmail, sendWelcomeEmail } from "@/lib/mail";
@@ -12,10 +12,14 @@ const testEmailSchema = z.object({
   kind: z.enum(["welcome", "invite", "both"]),
 });
 
-/** POST /api/admin/test-email — envoi réel de test (admin-only). */
+/** POST /api/admin/test-email — envoi réel de test (admin-operator only). */
 export async function POST(req: NextRequest) {
-  if (!isAdminAuthed(req)) {
-    return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+  if (!requireAdminRole(req, "operator")) {
+    return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
+  }
+  // CSRF protection: ensure same-origin request
+  if (!checkCSRF(req)) {
+    return NextResponse.json({ error: "CSRF validation failed." }, { status: 403 });
   }
   // Anti-abus : 5 envois de test par IP toutes les 10 minutes.
   const rl = await rateLimit(`admin-test-email:${rateKey(req)}`, {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHmac, randomUUID } from "node:crypto";
-import { isAdminAuthed, getAdminPasscode } from "@/lib/admin-auth";
+import { isAdminAuthed, getAdminPasscode, requireAdminRole, checkCSRF } from "@/lib/admin-auth";
 
 /**
  * Admin keys management: GET list active kids, POST rotate kid.
@@ -18,8 +18,8 @@ function hashPasscode(passcode: string): string {
 }
 
 export async function GET(req: NextRequest) {
-  if (!isAdminAuthed(req)) {
-    return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+  if (!requireAdminRole(req, "operator")) {
+    return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
   }
 
   // List all non-revoked, non-expired keys (active)
@@ -44,8 +44,12 @@ export async function GET(req: NextRequest) {
 
 /** POST /api/admin/keys — rotate admin key. Generates new kid+passcodeHash and revokes old keys. */
 export async function POST(req: NextRequest) {
-  if (!isAdminAuthed(req)) {
-    return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+  if (!requireAdminRole(req, "operator")) {
+    return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
+  }
+  // CSRF protection: ensure same-origin request
+  if (!checkCSRF(req)) {
+    return NextResponse.json({ error: "CSRF validation failed." }, { status: 403 });
   }
 
   let body: { passcode?: string } | null = null;
