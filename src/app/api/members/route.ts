@@ -274,6 +274,7 @@ export async function GET(req: NextRequest) {
     }
 
     const where: Prisma.MemberWhereInput = {};
+    where.deletedAt = null; // exclude soft-deleted members
     if (domain) where.primaryDomain = domain;
     if (country) where.country = country;
     if (level) where.level = level;
@@ -281,11 +282,24 @@ export async function GET(req: NextRequest) {
     if (budget) where.budgetRange = budget;
     if (status) where.profileStatus = status;
     if (lane) where.accessLane = lane;
-    if (q)
-      where.OR = [
-        { firstName: { contains: q, mode: "insensitive" } },
-        { email: { contains: q, mode: "insensitive" } },
-      ];
+    if (q) {
+      // Support `email:user@example.com` syntax for email-only search
+      const emailPrefix = q.match(/^email:(.+)$/i);
+      if (emailPrefix) {
+        const emailQuery = emailPrefix[1].trim();
+        if (emailQuery) {
+          where.OR = [
+            { email: { contains: emailQuery, mode: "insensitive" } },
+          ];
+        }
+      } else {
+        where.OR = [
+          { firstName: { contains: q, mode: "insensitive" } },
+          { lastName: { contains: q, mode: "insensitive" } },
+          { email: { contains: q, mode: "insensitive" } },
+        ];
+      }
+    }
 
     const [total, members] = await Promise.all([
       db.member.count({ where }),
