@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { isAdminAuthed } from "@/lib/admin-auth";
+import { requireAdminRole } from "@/lib/admin-auth";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { WHATSAPP_URL } from "@/lib/profiling/auto-controls";
 
@@ -15,8 +15,11 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  if (!isAdminAuthed(req)) {
-    return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+  if (!requireAdminRole(req, "operator")) {
+    return NextResponse.json(
+      { error: "Opérateur requis.", code: "FORBIDDEN" },
+      { status: 403 },
+    );
   }
   // Anti-abus : 20 invitations par IP toutes les 10 minutes.
   const rl = await rateLimit(`admin-invite:${rateKey(req)}`, {
@@ -53,9 +56,9 @@ export async function POST(
   try {
     await db.analyticsEvent.create({
       data: {
-        type: "community_cta_clicked",
+        type: "admin_invite",
         memberId: id,
-        ref: "admin-invite",
+        ref: `member.invite:${id}`,
       },
     });
   } catch {

@@ -28,5 +28,12 @@ export async function GET(req: NextRequest) {
   const total = await db.member.count({
     where: { profileStatus: { in: ["APPROVED", "PENDING"] } },
   });
-  return NextResponse.json({ count: total });
+  return NextResponse.json(
+    { count: total },
+    {
+      headers: {
+        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+      },
+    },
+  );
 }

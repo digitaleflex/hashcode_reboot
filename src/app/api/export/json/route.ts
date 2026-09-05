@@ -47,6 +47,7 @@ export async function GET(req: NextRequest) {
     const q = searchParams.get("q");
 
     const where: Prisma.MemberWhereInput = {};
+    where.deletedAt = null; // exclude soft-deleted members
     if (domain) where.primaryDomain = domain;
     if (country) where.country = country;
     if (level) where.level = level;

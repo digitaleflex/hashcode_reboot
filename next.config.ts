@@ -48,9 +48,6 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
-  bodyParser: {
-    sizeLimit: "1mb",
-  },
 
   async headers() {
     return [

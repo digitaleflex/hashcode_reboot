@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { isAdminAuthed } from "@/lib/admin-auth";
+import { requireAdminRole } from "@/lib/admin-auth";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { audit } from "@/lib/admin-audit";
 
 export const runtime = "nodejs";
 
@@ -16,10 +17,10 @@ const bulkSchema = z.object({
  * (admin-only). Used by the admin bulk-action bar.
  */
 export async function POST(req: NextRequest) {
-  if (!isAdminAuthed(req)) {
+  if (!requireAdminRole(req, "operator")) {
     return NextResponse.json(
-      { error: "Non autorisé.", code: "UNAUTHORIZED" },
-      { status: 401 },
+      { error: "Opérateur requis.", code: "FORBIDDEN" },
+      { status: 403 },
     );
   }
   // Anti-abus : 20 actions bulk par IP toutes les 10 minutes.
@@ -57,12 +58,12 @@ export async function POST(req: NextRequest) {
   try {
     let affected = 0;
     if (action === "delete") {
-      // Cascade analytics events, then members — atomique.
-      const [, deletedMembers] = await db.$transaction([
-        db.analyticsEvent.deleteMany({ where: { memberId: { in: ids } } }),
-        db.member.deleteMany({ where: { id: { in: ids } } }),
-      ]);
-      affected = deletedMembers.count;
+      // Soft delete : marque les membres plutôt que suppression physique.
+      const result = await db.member.updateMany({
+        where: { id: { in: ids } },
+        data: { deletedAt: new Date() },
+      });
+      affected = result.count;
     } else {
       const data: Record<string, string> = {};
       if (action === "approve") {
@@ -83,12 +84,17 @@ export async function POST(req: NextRequest) {
       affected = r.count;
     }
 
+    await audit("member.bulk-soft-delete", "member", ids.join(","), {
+      count: affected,
+      action,
+    });
+
     // Audit event.
     try {
       await db.analyticsEvent.create({
         data: {
-          type: "community_cta_clicked",
-          ref: `admin-bulk-${action}:${affected}`,
+          type: "admin_bulk_action",
+          ref: `${action}/${affected}`,
         },
       });
     } catch {

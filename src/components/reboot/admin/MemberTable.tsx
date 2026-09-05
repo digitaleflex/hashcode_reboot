@@ -322,9 +322,9 @@ export function MemberTable({
               type="search"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Rechercher (nom, email)…"
+placeholder="Recherche (prénom, email, ou email:nom@domain.com)"
               autoComplete="off"
-              className="w-full h-9 rounded-md border border-border bg-card pl-9 pr-16 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-lime focus:border-lime/60 [&::-webkit-search-cancel-button]:hidden"
+              className="w-full h-9 rounded-md border border-border bg-card pl-3 pr-8 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-lime focus:border-lime/60"
             />
             <span className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
               {isSearching ? (
