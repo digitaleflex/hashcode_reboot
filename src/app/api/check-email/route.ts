@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { timingSafeEqual } from "node:crypto";
 
 export const runtime = "nodejs";
 
 /** GET /api/check-email?email=... — used for "already started" detection
  * before submitting, so the UI can offer a resume / status view. */
 export async function GET(req: NextRequest) {
-  // Anti-abus : 30 vérifications par IP toutes les 10 minutes.
+  // Anti-abus : 10 vérifications par IP toutes les 10 minutes (réduit de 30).
   const rl = await rateLimit(`check-email:${rateKey(req)}`, {
-    capacity: 30,
+    capacity: 10,  // Réduit de 30 pour ralentir l'énumération
     windowMs: 600000, // 10 minutes
   });
   if (!rl.ok) {
@@ -22,7 +23,12 @@ export async function GET(req: NextRequest) {
     );
   }
   const email = new URL(req.url).searchParams.get("email")?.trim().toLowerCase();
+
+  // Timing normalization: always do a dummy hash comparison for invalid emails
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+    const dummy = Buffer.from("dummy");
+    const dummy2 = Buffer.from("dummy");
+    timingSafeEqual(dummy, dummy2); // Normalize timing for invalid emails
     return NextResponse.json({ exists: false });
   }
   const existing = await db.member.findUnique({
