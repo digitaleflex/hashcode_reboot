@@ -55,15 +55,16 @@ function NavItem({
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
-      title={collapsed ? label : undefined}
-      aria-label={label}
-      aria-current={active ? "page" : undefined}
+      title={collapsed ? label : `Aller à ${label}`}
+      aria-label={`Aller à ${label}`}
+      aria-current={active ? "true" : undefined}
       className={cn(
-        "group flex w-full items-center gap-3 rounded-sm px-3 py-2.5 text-left transition-colors duration-150",
+        "group flex w-full items-center gap-3 rounded-sm px-3 py-2.5 text-left transition-colors duration-150 min-h-[44px]",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-inset",
         active
-          ? "bg-lime/10 text-lime"
+          ? "bg-lime/10 text-lime ring-1 ring-inset ring-lime/40"
           : "text-muted-foreground hover:bg-lime/5 hover:text-foreground",
         collapsed && "justify-center px-0",
       )}
@@ -73,6 +74,7 @@ function NavItem({
           "size-4 shrink-0 transition-colors",
           active ? "text-lime" : "text-muted-foreground group-hover:text-foreground",
         )}
+        aria-hidden
       />
       {!collapsed && (
         <span className="text-sm font-medium truncate">{label}</span>
@@ -91,25 +93,36 @@ interface AdminSidebarProps {
 export function AdminSidebar({ activeSection = "section-stats", onNavigate }: AdminSidebarProps) {
   const { collapsed, toggle } = useCollapsed();
   const [mobileOpen, setMobileOpen] = React.useState(false);
+  const mobileCloseRef = React.useRef<HTMLButtonElement>(null);
+  const mobileOpenRef = React.useRef<HTMLButtonElement>(null);
 
   function handleNav(sectionId: string) {
+    // Source unique de scroll : le parent. Évite le double scrollIntoView.
     onNavigate?.(sectionId);
     setMobileOpen(false);
-    if (typeof document !== "undefined") {
-      const el = document.getElementById(sectionId);
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
+    // Le focus revient au bouton d’ouverture (FAB) à la fermeture.
+    requestAnimationFrame(() => mobileOpenRef.current?.focus());
+  }
+
+  function closeMobile(returnFocus = true) {
+    setMobileOpen(false);
+    if (returnFocus) {
+      requestAnimationFrame(() => mobileOpenRef.current?.focus());
     }
   }
 
-  // Close drawer on Esc
+  // Close drawer on Esc + rend le focus au bouton d’ouverture.
   React.useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape" && mobileOpen) setMobileOpen(false);
+      if (e.key === "Escape" && mobileOpen) closeMobile(true);
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
+  }, [mobileOpen]);
+
+  // Focus le bouton fermer à l’ouverture du tiroir mobile.
+  React.useEffect(() => {
+    if (mobileOpen) mobileCloseRef.current?.focus();
   }, [mobileOpen]);
 
   // Lock body scroll when mobile drawer open
@@ -124,7 +137,7 @@ export function AdminSidebar({ activeSection = "section-stats", onNavigate }: Ad
     };
   }, [mobileOpen]);
 
-  const sidebarContent = (
+  const desktopContent = (
     <div className="flex flex-col h-full">
       {/* Logo + collapse toggle */}
       <div className={cn("flex items-center border-b border-border/60 h-14 shrink-0", collapsed ? "justify-center px-0" : "px-4")}>
@@ -132,15 +145,16 @@ export function AdminSidebar({ activeSection = "section-stats", onNavigate }: Ad
           <span className="mono-label text-lime text-sm truncate">HASHCODE</span>
         )}
         <button
+          type="button"
           onClick={toggle}
           aria-label={collapsed ? "Ouvrir le menu" : "Réduire le menu"}
           aria-expanded={!collapsed}
           className={cn(
-            "size-8 flex items-center justify-center rounded-sm text-muted-foreground hover:text-foreground hover:bg-lime/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-inset ml-auto shrink-0",
+            "min-h-[32px] min-w-[32px] size-8 flex items-center justify-center rounded-sm text-muted-foreground hover:text-foreground hover:bg-lime/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-inset ml-auto shrink-0",
             collapsed && "ml-0",
           )}
         >
-          {collapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
+          {collapsed ? <ChevronRight className="size-4" aria-hidden /> : <ChevronLeft className="size-4" aria-hidden />}
         </button>
       </div>
 
@@ -162,61 +176,94 @@ export function AdminSidebar({ activeSection = "section-stats", onNavigate }: Ad
       {/* Footer */}
       {!collapsed && (
         <div className="px-4 py-3 border-t border-border/60 shrink-0">
-          <p className="text-[10px] text-muted-foreground mono-label">v2.0 · Admin</p>
+          <p className="text-muted-foreground mono-label">v2.0 · Admin</p>
         </div>
       )}
     </div>
   );
 
+  const mobileContent = (
+    <div className="flex flex-col h-full">
+      <div className="flex items-center border-b border-border/60 h-14 shrink-0 px-4">
+        <span className="mono-label text-lime text-sm truncate">HASHCODE</span>
+      </div>
+      <nav aria-label="Navigation admin" className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
+        {ITEMS.map((item) => (
+          <NavItem
+            key={item.id}
+            id={item.id}
+            label={item.label}
+            icon={item.icon}
+            active={activeSection === item.id}
+            collapsed={false}
+            onClick={() => handleNav(item.id)}
+          />
+        ))}
+      </nav>
+      <div className="px-4 py-3 border-t border-border/60 shrink-0">
+        <p className="text-muted-foreground mono-label">v2.0 · Admin</p>
+      </div>
+    </div>
+  );
+
   return (
     <>
-      {/* Desktop sidebar */}
+      {/* Desktop sidebar — calée sous le header (h-14) */}
       <aside
         aria-label="Menu de navigation admin"
         className={cn(
-          "hidden md:flex flex-col bg-card border-r border-border/60 sticky top-0 h-screen shrink-0 transition-[width] duration-200 ease-in-out z-40",
+          "hidden md:flex flex-col bg-card border-r border-border/60 sticky top-14 h-[calc(100vh-3.5rem)] shrink-0 transition-[width] duration-200 ease-in-out z-30",
           collapsed ? "w-16" : "w-60",
         )}
       >
-        {sidebarContent}
+        {desktopContent}
       </aside>
 
       {/* Mobile overlay + drawer */}
       {mobileOpen && (
         <div
           className="md:hidden fixed inset-0 z-40 bg-black/50"
-          onClick={() => setMobileOpen(false)}
+          onClick={() => closeMobile(false)}
           aria-hidden="true"
         />
       )}
       <aside
+        id="admin-mobile-nav"
         role="dialog"
         aria-labelledby="sidebar-title"
         aria-modal="true"
+        aria-hidden={!mobileOpen}
+        inert={!mobileOpen}
         className={cn(
-          "md:hidden flex flex-col bg-card border-r border-border/60 fixed top-0 left-0 h-full z-50 transition-transform duration-200 ease-in-out",
-          mobileOpen ? "translate-x-0 w-64" : "-translate-x-full",
+          "md:hidden flex flex-col bg-card border-r border-border/60 fixed top-0 left-0 h-full z-50 transition-transform duration-200 ease-in-out w-64",
+          mobileOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
         <span id="sidebar-title" className="sr-only">Menu de navigation admin</span>
         <button
-          className="absolute top-3 right-3 size-8 flex items-center justify-center rounded-sm text-muted-foreground hover:text-foreground hover:bg-lime/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-inset"
-          onClick={() => setMobileOpen(false)}
+          ref={mobileCloseRef}
+          type="button"
+          className="absolute top-3 right-3 size-8 min-h-[32px] min-w-[32px] flex items-center justify-center rounded-sm text-muted-foreground hover:text-foreground hover:bg-lime/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-inset"
+          onClick={() => closeMobile(true)}
           aria-label="Fermer le menu"
         >
-          <ChevronLeft className="size-4" />
+          <ChevronLeft className="size-4" aria-hidden />
         </button>
-        {sidebarContent}
+        {mobileContent}
       </aside>
 
-      {/* Mobile hamburger — shown when drawer is closed */}
+      {/* Mobile — bouton menu en bas à droite, hors zone de pagination */}
       {!mobileOpen && (
         <button
-          className="md:hidden fixed bottom-4 left-4 z-30 size-10 flex items-center justify-center rounded-full bg-lime text-background shadow-md hover:bg-lime/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-offset-2"
+          ref={mobileOpenRef}
+          type="button"
+          className="md:hidden fixed bottom-5 right-5 z-30 min-h-[48px] min-w-[48px] size-12 flex items-center justify-center rounded-full bg-lime text-black shadow-lg hover:bg-lime/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-offset-2"
           onClick={() => setMobileOpen(true)}
           aria-label="Ouvrir le menu de navigation"
+          aria-expanded={mobileOpen}
+          aria-controls="admin-mobile-nav"
         >
-          <LayoutDashboard className="size-5" />
+          <LayoutDashboard className="size-5" aria-hidden />
         </button>
       )}
     </>
