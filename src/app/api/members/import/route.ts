@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { isAdminAuthed } from "@/lib/admin-auth";
-import { rateLimit, rateKey } from "@/lib/rate-limit";
+import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   if (!rl.ok) {
     return NextResponse.json(
       { error: "Trop d'imports. Réessaie plus tard.", code: "RATE_LIMITED" },
-      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+      { status: 429, headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) } },
     );
   }
 

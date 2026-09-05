@@ -1,12 +1,9 @@
 /**
- * Rate limiter with Redis support and in-memory fallback.
+ * In-memory rate limiter.
  *
- * - If @upstash/redis is installed, uses Ratelimit + SlidingWindow.
- * - Otherwise, falls back to ioredis pattern with INCR + EXPIRE.
- * - If Redis is unavailable (try/catch fails), falls back to in-memory.
- * - Fail-closed: if Redis is down, the in-memory limiter still works.
- * - Key format: `${ip}-${passcode}` for login, `${ip}` for bulk/PATCH/DELETE/export.
- * - Limits: login = SlidingWindow(10, '10 s'), bulk/PATCH/DELETE/export = SlidingWindow(20, '10 min').
+ * Sliding-window token bucket per key.
+ * Key format: `${ip}` (or `${ip}-${passcode}` for login).
+ * Limits: login = 10 req / 10 s, write = 20 req / 10 min.
  */
 
 import { rateKey } from "./rate-limit-key";
@@ -24,7 +21,7 @@ interface RateLimitResult {
   retryAfterMs: number;
 }
 
-/** In-memory bucket for fallback. */
+/** In-memory bucket. */
 interface Bucket {
   tokens: number;
   last: number;
@@ -43,8 +40,7 @@ if (typeof setInterval !== "undefined") {
 }
 
 /**
- * In-memory rate limiter (fallback when Redis is unavailable).
- * Uses a sliding window algorithm.
+ * In-memory sliding-window rate limiter.
  */
 function memoryRateLimit(key: string, config: RateLimitConfig): RateLimitResult {
   const now = Date.now();
@@ -62,44 +58,11 @@ function memoryRateLimit(key: string, config: RateLimitConfig): RateLimitResult 
     b.tokens -= 1;
     return { ok: true, remaining: Math.floor(b.tokens), retryAfterMs: 0 };
   }
-  const retryAfterMs = Math.ceil((1 - b.tokens) / refillPerSec * 1000);
+  let retryAfterMs = Math.ceil((1 - b.tokens) / refillPerSec * 1000);
+  if (!Number.isFinite(retryAfterMs) || retryAfterMs < 0) {
+    retryAfterMs = config.windowMs > 0 ? config.windowMs : 1000;
+  }
   return { ok: false, remaining: 0, retryAfterMs };
-}
-
-/** Try to load ioredis. Returns null if unavailable. */
-function tryLoadIoredis(): any | null {
-  try {
-    // @ts-ignore
-    return require("ioredis");
-  } catch {
-    return null;
-  }
-}
-
-/** Redis-backed rate limiter using ioredis INCR + EXPIRE pattern. */
-async function ioredisRateLimit(
-  client: any,
-  key: string,
-  config: RateLimitConfig,
-): Promise<RateLimitResult> {
-  try {
-    const now = Date.now();
-    const windowSec = Math.ceil(config.windowMs / 1000);
-    const current = await client.incr(key);
-    if (current === 1) {
-      await client.expire(key, windowSec);
-    }
-    const remaining = Math.max(0, config.capacity - current);
-    if (current <= config.capacity) {
-      return { ok: true, remaining, retryAfterMs: 0 };
-    }
-    const ttl = await client.ttl(key);
-    const retryAfterMs = ttl > 0 ? ttl * 1000 : config.windowMs;
-    return { ok: false, remaining: 0, retryAfterMs };
-  } catch (e) {
-    console.warn("[rate-limit] ioredis error, falling back to memory:", e);
-    return memoryRateLimit(key, config);
-  }
 }
 
 /** Pre-configured limiters for different endpoint categories. */
@@ -108,59 +71,23 @@ const WRITE_LIMIT: RateLimitConfig = { capacity: 20, windowMs: 10 * 60 * 1000 };
 
 /**
  * Main rate-limit function.
- *
- * - For login: key = `${ip}-${passcode}`, limit = 10 req / 10 s.
- * - For bulk/PATCH/DELETE/export: key = `${ip}`, limit = 20 req / 10 min.
- *
  * @param key - Rate-limit key (IP or IP-passcode).
  * @param config - Capacity and window configuration.
  */
-/** Upstash disabled — requires UPSTASH_REDIS_URL + UPSTASH_REDIS_TOKEN.
- * To re-enable: uncomment the block below and restore the upstash imports.
- * See git history commit 7460fb6 for the working upstash path. */
 export async function rateLimit(
   key: string,
   config: RateLimitConfig,
 ): Promise<RateLimitResult> {
-  // --- Upstash path (DISABLED — uncomment to re-enable) ---
-  // const upstashMod = tryLoadUpstashRatelimit();
-  // const upstashRedis = tryLoadUpstashRedis();
-  // if (upstashMod && upstashRedis) {
-  //   try {
-  //     const { Ratelimit } = upstashMod;
-  //     const { Redis } = upstashRedis;
-  //     const redisUrl = process.env.UPSTASH_REDIS_URL || process.env.REDIS_URL;
-  //     const redisToken = process.env.UPSTASH_REDIS_TOKEN;
-  //     if (!redisUrl || !redisToken) throw new Error("Upstash credentials missing");
-  //     const redis = new Redis({ url: redisUrl, token: redisToken });
-  //     const ratelimit = new Ratelimit({
-  //       limiter: Ratelimit.slidingWindow(config.capacity, `${config.windowMs / 1000} s` as any),
-  //       redis,
-  //       analytics: false,
-  //     });
-  //     const { success, remaining, reset } = await ratelimit.limit(key);
-  //     if (success) return { ok: true, remaining, retryAfterMs: 0 };
-  //     const retryAfterMs = Math.max(0, reset - Date.now());
-  //     return { ok: false, remaining, retryAfterMs };
-  //   } catch (e) {
-  //     console.warn("[rate-limit] upstash init failed, trying ioredis:", e);
-  //   }
-  // }
-  // --- End upstash path ---
-
-  // Try ioredis
-  const ioredis = tryLoadIoredis();
-  if (ioredis) {
-    try {
-      const client = new ioredis(process.env.REDIS_URL || "redis://localhost:6379");
-      return await ioredisRateLimit(client, key, config);
-    } catch (e) {
-      console.warn("[rate-limit] ioredis init failed, falling back to memory:", e);
-    }
-  }
-
-  // Fallback to in-memory
   return memoryRateLimit(key, config);
+}
+
+/** Build a valid HTTP `Retry-After` header value (seconds).
+ * Per RFC 7231 §7.1.3: must be a non-negative integer (delta-seconds).
+ * Guards against NaN/Infinity/negative numbers. */
+export function retryAfterHeader(retryAfterMs: number, fallbackMs = 1000): string {
+  let sec = Math.ceil(retryAfterMs / 1000);
+  if (!Number.isFinite(sec) || sec < 0) sec = Math.ceil(fallbackMs / 1000);
+  return String(sec);
 }
 
 /** Re-export rateKey from the shared key module. */

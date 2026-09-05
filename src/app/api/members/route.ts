@@ -6,7 +6,7 @@ import { profileSchema, answersToCreatePayload } from "@/lib/profiling/validate"
 import { runAutoControls, WHATSAPP_URL } from "@/lib/profiling/auto-controls";
 import { generateProfile } from "@/lib/profiling/engine";
 import { sendInvitationEmail, sendWelcomeEmail } from "@/lib/mail";
-import { rateLimit, rateKey } from "@/lib/rate-limit";
+import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { isAdminAuthed } from "@/lib/admin-auth";
 
 export const runtime = "nodejs";
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
       { error: "Trop de soumissions. Réessaie dans quelques minutes." },
       {
         status: 429,
-        headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) },
+        headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) },
       },
     );
   }

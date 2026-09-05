@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminCookieHeader, issueAdminToken, getAdminPasscode } from "@/lib/admin-auth";
-import { rateLimit, rateKey, RATE_LIMITS } from "@/lib/rate-limit";
+import { rateLimit, rateKey, RATE_LIMITS, retryAfterHeader } from "@/lib/rate-limit";
 import { db } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
       { error: "Trop de tentatives. Réessaie dans quelques minutes.", code: "RATE_LIMITED" },
       {
         status: 429,
-        headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) },
+        headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) },
       },
     );
   }
