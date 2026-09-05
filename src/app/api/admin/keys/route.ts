@@ -12,18 +12,6 @@ import { db } from "@/lib/db";
  * - A kid is considered "active" if it exists and is not revoked (revokedAt = null).
  */
 
-function checkCSRF(req: NextRequest): boolean {
-  const origin = req.headers.get("origin");
-  const host = req.headers.get("host");
-  if (!origin || !host) return false;
-  try {
-    const originUrl = new URL(origin);
-    return originUrl.host === host;
-  } catch {
-    return false;
-  }
-}
-
 function hashPasscode(passcode: string): string {
   // TODO: Replace with bcrypt when available (npm install bcrypt @types/bcrypt).
   // Current HMAC-SHA256 is NOT a standard password hashing algorithm.
@@ -76,7 +64,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const passcode = (body.passcode ?? "").trim();
+  const passcode = (body?.passcode ?? "").trim();
   if (!passcode || passcode.length < 16) {
     return NextResponse.json(
       { error: "Passcode requis (>= 16 caractères).", code: "INVALID_PAYLOAD" },
