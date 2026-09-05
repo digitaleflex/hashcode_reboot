@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
-import { isAdminAuthed, getAdminPasscode, requireAdminRole, checkCSRF } from "@/lib/admin-auth";
+import { randomUUID } from "node:crypto";
+import { requireAdminRole, checkCSRF } from "@/lib/admin-auth";
+import { hashPasscodeForStorage } from "@/lib/admin-passcode";
+import { audit } from "@/lib/admin-audit";
 import { db } from "@/lib/db";
 
 /**
@@ -11,13 +13,6 @@ import { db } from "@/lib/db";
  * - ADMIN_KEYS env var is no longer the source of truth for active keys.
  * - A kid is considered "active" if it exists and is not revoked (revokedAt = null).
  */
-
-function hashPasscode(passcode: string): string {
-  // TODO: Replace with bcrypt when available (npm install bcrypt @types/bcrypt).
-  // Current HMAC-SHA256 is NOT a standard password hashing algorithm.
-  // This is a placeholder until bcrypt is added to the project.
-  return createHmac("sha256", getAdminPasscode()).update(passcode).digest("base64url");
-}
 
 export async function GET(req: NextRequest) {
   if (!requireAdminRole(req, "operator")) {
@@ -73,7 +68,7 @@ export async function POST(req: NextRequest) {
   }
 
   const newKid = `kid-${randomUUID().slice(0, 8)}`;
-  const passcodeHash = hashPasscode(passcode);
+  const passcodeHash = await hashPasscodeForStorage(passcode);
 
   // Revoke ALL existing keys by setting revokedAt
   await db.adminKey.updateMany({
@@ -92,9 +87,11 @@ export async function POST(req: NextRequest) {
     },
   });
 
+  // Audit trail
+  await audit("admin.key-rotate", "admin_key", newKid, { previousKeysRevoked: true });
+
   return NextResponse.json({
     kid: newKid,
-    passcodeHash,
     message: "Nouvelle clé admin générée. La clé précédente a été révoquée.",
   });
 }
