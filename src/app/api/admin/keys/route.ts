@@ -5,21 +5,14 @@ import { isAdminAuthed, getAdminPasscode } from "@/lib/admin-auth";
 /**
  * Admin keys management: GET list active kids, POST rotate kid.
  *
- * - ADMIN_KEYS env holds a comma-separated list of active kid identifiers.
- * - If ADMIN_KEYS is not set, a simulated base set is returned.
- * - Rotation generates a new kid+passcodeHash, invalidates the old one.
+ * - Admin keys are now stored persistently in the AdminKey model.
+ * - Rotation generates a new kid+passcodeHash and revokes old keys.
+ * - ADMIN_KEYS env var is no longer the source of truth for active keys.
+ * - A kid is considered "active" if it exists and is not revoked (revokedAt = null).
  */
 
-function getActiveKids(): string[] {
-  const env = process.env.ADMIN_KEYS;
-  if (env && env.trim().length > 0) {
-    return env.split(",").map((k) => k.trim()).filter(Boolean);
-  }
-  // Simulated base set when ADMIN_KEYS not configured.
-  return ["kid-default-001", "kid-default-002"];
-}
+import { db } from "@/lib/db";
 
-/** Generate a HMAC-SHA256 hash of a passcode for storage. */
 function hashPasscode(passcode: string): string {
   return createHmac("sha256", getAdminPasscode()).update(passcode).digest("base64url");
 }
@@ -29,7 +22,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
-  const kids = getActiveKids();
+  // List all non-revoked, non-expired keys (active)
+  const keys = await db.adminKey.findMany({
+    where: {
+      revokedAt: null,
+      expiresAt: null, // null = never expires
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  // Return only the kid identifiers (no hash for security)
+  const kids = keys.map((k) => k.kid);
+
   return NextResponse.json({
     kids,
     total: kids.length,
@@ -38,7 +42,7 @@ export async function GET(req: NextRequest) {
   });
 }
 
-/** POST /api/admin/keys — rotate admin key. Generates new kid+passcodeHash. */
+/** POST /api/admin/keys — rotate admin key. Generates new kid+passcodeHash and revokes old keys. */
 export async function POST(req: NextRequest) {
   if (!isAdminAuthed(req)) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
@@ -65,11 +69,26 @@ export async function POST(req: NextRequest) {
   const newKid = `kid-${randomUUID().slice(0, 8)}`;
   const passcodeHash = hashPasscode(passcode);
 
-  // Invalidate old keys by rotating ADMIN_KEYS env value would be done
-  // at deploy/rotation level. Here we simulate by returning the new kid.
+  // Revoke ALL existing keys by setting revokedAt
+  await db.adminKey.updateMany({
+    where: { revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
+
+  // Store the new key as active
+  await db.adminKey.create({
+    data: {
+      kid: newKid,
+      passcodeHash,
+      createdAt: new Date(),
+      expiresAt: null, // null = never expires
+      revokedAt: null,
+    },
+  });
+
   return NextResponse.json({
     kid: newKid,
     passcodeHash,
-    message: "Nouvelle clé générée. Mettez à jour ADMIN_KEYS en production.",
+    message: "Nouvelle clé admin générée. La clé précédente a été révoquée.",
   });
 }
