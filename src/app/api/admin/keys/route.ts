@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createHmac, randomUUID } from "node:crypto";
-import { isAdminAuthed, getAdminPasscode } from "@/lib/admin-auth";
+import { randomUUID } from "node:crypto";
+import { isAdminAuthed } from "@/lib/admin-auth";
+import { hashPasscode } from "@/lib/passcode";
 
 /**
  * Admin keys management: GET list active kids, POST rotate kid.
@@ -17,11 +18,6 @@ function getActiveKids(): string[] {
   }
   // Simulated base set when ADMIN_KEYS not configured.
   return ["kid-default-001", "kid-default-002"];
-}
-
-/** Generate a HMAC-SHA256 hash of a passcode for storage. */
-function hashPasscode(passcode: string): string {
-  return createHmac("sha256", getAdminPasscode()).update(passcode).digest("base64url");
 }
 
 export async function GET(req: NextRequest) {
@@ -63,7 +59,7 @@ export async function POST(req: NextRequest) {
   }
 
   const newKid = `kid-${randomUUID().slice(0, 8)}`;
-  const passcodeHash = hashPasscode(passcode);
+  const passcodeHash = await hashPasscode(passcode);
 
   // Invalidate old keys by rotating ADMIN_KEYS env value would be done
   // at deploy/rotation level. Here we simulate by returning the new kid.
@@ -72,4 +68,4 @@ export async function POST(req: NextRequest) {
     passcodeHash,
     message: "Nouvelle clé générée. Mettez à jour ADMIN_KEYS en production.",
   });
-}
+}
