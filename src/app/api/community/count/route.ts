@@ -12,7 +12,7 @@ export const runtime = "nodejs";
 export async function GET(req: NextRequest) {
   // Anti-abus : 30 lectures par IP toutes les 10 minutes.
   // refillPerSec = 1/20 req/sec = 3 req/min = 30 req/10min (window)
-  const rl = rateLimit(`community-count:${rateKey(req)}`, {
+  const rl = await rateLimit(`community-count:${rateKey(req)}`, {
     capacity: 30,
     windowMs: 600000, // 10 minutes
   });

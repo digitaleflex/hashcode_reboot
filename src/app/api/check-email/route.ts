@@ -8,7 +8,7 @@ export const runtime = "nodejs";
  * before submitting, so the UI can offer a resume / status view. */
 export async function GET(req: NextRequest) {
   // Anti-abus : 30 vérifications par IP toutes les 10 minutes.
-  const rl = rateLimit(`check-email:${rateKey(req)}`, {
+  const rl = await rateLimit(`check-email:${rateKey(req)}`, {
     capacity: 30,
     windowMs: 600000, // 10 minutes
   });

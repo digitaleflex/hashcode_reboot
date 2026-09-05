@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
   // Anti-brute-force : 10 tentatives par IP toutes les 10 secondes.
   // Key = `${ip}` for login (passcode not yet known at rate-limit stage).
   const ip = rateKey(req);
-  const rl = rateLimit(`admin-login:${ip}`, RATE_LIMITS.login);
+  const rl = await rateLimit(`admin-login:${ip}`, RATE_LIMITS.login);
   if (!rl.ok) {
     return NextResponse.json(
       { error: "Trop de tentatives. Réessaie dans quelques minutes.", code: "RATE_LIMITED" },

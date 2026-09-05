@@ -21,7 +21,7 @@ const eventSchema = z.object({
 export async function POST(req: NextRequest) {
   // Anti-abus : 120 événements par IP toutes les 10 minutes.
   // refillPerSec = 1/5 req/sec = 12 req/min = 120 req/10min (window)
-  const rl = rateLimit(`analytics:${rateKey(req)}`, {
+  const rl = await rateLimit(`analytics:${rateKey(req)}`, {
     capacity: 120,
     windowMs: 600000, // 10 minutes
   });

@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
-  const rl = rateLimit(`import:${rateKey(req)}`, {
+  const rl = await rateLimit(`import:${rateKey(req)}`, {
     capacity: 10,
     windowMs: 600000, // 10 minutes
   });

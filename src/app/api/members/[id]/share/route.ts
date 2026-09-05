@@ -20,7 +20,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   // Anti-abus : 30 partages par IP toutes les 10 minutes.
-  const rl = rateLimit(`share:${rateKey(req)}`, {
+  const rl = await rateLimit(`share:${rateKey(req)}`, {
     capacity: 30,
     windowMs: 600000, // 10 minutes
   });

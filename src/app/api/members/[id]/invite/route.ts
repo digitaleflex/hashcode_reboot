@@ -19,7 +19,7 @@ export async function POST(
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
   // Anti-abus : 20 invitations par IP toutes les 10 minutes.
-  const rl = rateLimit(`admin-invite:${rateKey(req)}`, {
+  const rl = await rateLimit(`admin-invite:${rateKey(req)}`, {
     capacity: 20,
     windowMs: 600000, // 10 minutes
   });

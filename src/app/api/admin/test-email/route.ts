@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
   // Anti-abus : 5 envois de test par IP toutes les 10 minutes.
-  const rl = rateLimit(`admin-test-email:${rateKey(req)}`, {
+  const rl = await rateLimit(`admin-test-email:${rateKey(req)}`, {
     capacity: 5,
     windowMs: 600000, // 10 minutes
   });

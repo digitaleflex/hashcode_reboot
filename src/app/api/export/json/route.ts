@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     );
   }
   // Anti-abus : 20 exports par IP toutes les 10 minutes.
-  const rl = rateLimit(`export-json:${rateKey(req)}`, {
+  const rl = await rateLimit(`export-json:${rateKey(req)}`, {
     capacity: 20,
     windowMs: 600000, // 10 minutes
   });
