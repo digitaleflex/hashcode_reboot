@@ -7,10 +7,12 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { countryFlag, countryName } from "@/lib/profiling/countries";
-import { Check, Copy, Trash2 } from "lucide-react";
+import { Check, Copy, Trash2, ExternalLink, Loader2 } from "lucide-react";
 import { fetchJson, isAbortError, withRetryAfter } from "./lib/fetchJson";
 
 const DOMAIN_LABEL: Record<string, string> = {
@@ -209,13 +211,29 @@ export function MemberDetailDialog({
     }
   }
 
+  const memberName =
+    member && typeof member === "object"
+      ? `${(member as { firstName?: string }).firstName ?? ""} ${(member as { lastName?: string | null }).lastName ?? ""}`.trim()
+      : "";
+
   return (
     <Dialog open={!!id} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="bg-card border-border max-w-lg max-h-[85vh] overflow-y-auto scroll-slim">
         <DialogHeader>
           <DialogTitle className="font-display tracking-tight">
-            Détail du membre
+            {memberName ? `Membre — ${memberName}` : "Détail du membre"}
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            Détails, statuts, invitation WhatsApp, note interne et suppression.
+          </DialogDescription>
+          {memberName && (
+            <a
+              href="#member-danger-zone"
+              className="text-xs text-muted-foreground hover:text-destructive transition-colors focus-lime w-fit"
+            >
+              Aller à la suppression
+            </a>
+          )}
         </DialogHeader>
         {dialogError && (
           <p
@@ -225,7 +243,22 @@ export function MemberDetailDialog({
             <span className="text-destructive">{dialogError}</span>
           </p>
         )}
-        {loading && <p className="text-sm text-muted-foreground">Chargement…</p>}
+        {loading && <MemberDetailSkeleton />}
+        {!loading && !member && !dialogError && (
+          <div className="py-8 text-center">
+            <p className="text-sm text-foreground font-medium">Membre introuvable.</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Il a peut-être été supprimé. Ferme et réessaie.
+            </p>
+            <button
+              type="button"
+              onClick={onClose}
+              className="mt-4 inline-flex items-center min-h-[44px] px-4 rounded-md border border-border bg-card text-sm hover:border-lime/60 hover:text-lime transition-colors focus-lime"
+            >
+              Fermer
+            </button>
+          </div>
+        )}
         {!loading && member && (
           <MemberDetail
             member={member}
@@ -239,6 +272,28 @@ export function MemberDetailDialog({
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function MemberDetailSkeleton() {
+  return (
+    <div role="status" aria-label="Chargement du membre" className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="space-y-2">
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="h-5 w-full" />
+          </div>
+        ))}
+      </div>
+      <Skeleton className="h-24 w-full rounded-md" />
+      <div className="flex gap-2">
+        <Skeleton className="h-9 w-24 rounded-md" />
+        <Skeleton className="h-9 w-24 rounded-md" />
+        <Skeleton className="h-9 w-24 rounded-md" />
+      </div>
+      <span className="sr-only">Chargement du membre…</span>
+    </div>
   );
 }
 
@@ -292,11 +347,18 @@ function MemberDetail({
   const [inviteState, setInviteState] = React.useState<"idle" | "sending" | "sent">(
     "idle",
   );
+  const [invitePreview, setInvitePreview] = React.useState<{
+    inviteMessage: string;
+    whatsappUrl: string;
+  } | null>(null);
+  const [inviteCopyError, setInviteCopyError] = React.useState<string | null>(null);
   const [noteDraft, setNoteDraft] = React.useState(m.adminNote ?? "");
   const [noteSaved, setNoteSaved] = React.useState(false);
+  const [noteSaving, setNoteSaving] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
   const [copiedField, setCopiedField] = React.useState<string | null>(null);
+  const [copyError, setCopyError] = React.useState<string | null>(null);
 
   // Sync note draft when member changes (e.g. after patch refresh).
   React.useEffect(() => {
@@ -306,25 +368,28 @@ function MemberDetail({
   }, [m.id, m.adminNote]);
 
   async function copyField(field: string, value: string) {
+    setCopyError(null);
     try {
       await navigator.clipboard.writeText(value);
       setCopiedField(field);
       setTimeout(() => setCopiedField(null), 1500);
     } catch {
-      /* ignore */
+      setCopyError("Copie impossible — sélectionne et copie manuellement.");
     }
   }
 
   async function handleInviteClick() {
     setInviteState("sending");
+    setInviteCopyError(null);
     const res = await onInvite();
     if (res) {
+      setInvitePreview(res);
       const text = `${res.inviteMessage} ${res.whatsappUrl}`;
       try {
         await navigator.clipboard.writeText(text);
         setInviteState("sent");
-        setTimeout(() => setInviteState("idle"), 2500);
       } catch {
+        setInviteCopyError("Message préparé mais copie automatique impossible — copie manuellement ci-dessous.");
         setInviteState("idle");
       }
     } else {
@@ -332,9 +397,35 @@ function MemberDetail({
     }
   }
 
+  async function copyInviteAgain() {
+    if (!invitePreview) return;
+    try {
+      await navigator.clipboard.writeText(
+        `${invitePreview.inviteMessage} ${invitePreview.whatsappUrl}`,
+      );
+      setInviteState("sent");
+      setTimeout(() => setInviteState("idle"), 2000);
+    } catch {
+      setInviteCopyError("Copie impossible — sélectionne le texte ci-dessous.");
+    }
+  }
+
   async function saveNote() {
+    setNoteSaving(true);
     const ok = await onPatch({ adminNote: noteDraft.trim() || null });
+    setNoteSaving(false);
     if (ok) {
+      setNoteSaved(true);
+      setTimeout(() => setNoteSaved(false), 2000);
+    }
+  }
+
+  async function deleteSavedNote() {
+    setNoteSaving(true);
+    const ok = await onPatch({ adminNote: null });
+    setNoteSaving(false);
+    if (ok) {
+      setNoteDraft("");
       setNoteSaved(true);
       setTimeout(() => setNoteSaved(false), 2000);
     }
@@ -349,23 +440,27 @@ function MemberDetail({
     }
   }
 
+  const savedNote = m.adminNote ?? "";
+  const draftDirty = noteDraft.trim() !== savedNote.trim();
+
   const rows: [string, React.ReactNode][] = [
     ["Identité", `${m.firstName} ${m.lastName ?? ""}`.trim()],
     [
       "Email",
       // eslint-disable-next-line react/jsx-key
       <span className="inline-flex items-center gap-1.5">
-        <span className="font-mono text-xs">{m.email}</span>
+        <span className="font-mono text-xs break-all">{m.email}</span>
         <button
+          type="button"
           onClick={() => copyField("email", m.email)}
-          className="text-muted-foreground hover:text-lime transition-colors focus-lime"
+          className="shrink-0 size-7 inline-flex items-center justify-center rounded-sm text-muted-foreground hover:text-lime hover:bg-lime/5 transition-colors focus-lime"
           title="Copier l'email"
-          aria-label="Copier l'email"
+          aria-label={copiedField === "email" ? "Email copié" : "Copier l'email"}
         >
           {copiedField === "email" ? (
-            <Check className="size-3 text-lime" />
+            <Check className="size-3.5 text-lime" aria-hidden />
           ) : (
-            <Copy className="size-3" />
+            <Copy className="size-3.5" aria-hidden />
           )}
         </button>
       </span>,
@@ -376,15 +471,16 @@ function MemberDetail({
         <span className="inline-flex items-center gap-1.5">
           <span className="font-mono text-xs">{m.phone}</span>
           <button
+            type="button"
             onClick={() => copyField("phone", m.phone!)}
-            className="text-muted-foreground hover:text-lime transition-colors focus-lime"
+            className="shrink-0 size-7 inline-flex items-center justify-center rounded-sm text-muted-foreground hover:text-lime hover:bg-lime/5 transition-colors focus-lime"
             title="Copier le téléphone"
-            aria-label="Copier le téléphone"
+            aria-label={copiedField === "phone" ? "Téléphone copié" : "Copier le téléphone"}
           >
             {copiedField === "phone" ? (
-              <Check className="size-3 text-lime" />
+              <Check className="size-3.5 text-lime" aria-hidden />
             ) : (
-              <Copy className="size-3" />
+              <Copy className="size-3.5" aria-hidden />
             )}
           </button>
         </span>
@@ -541,7 +637,7 @@ function MemberDetail({
 
         {/* Send-invitation action — copies WhatsApp URL + personal message to clipboard */}
         <div className="pt-2">
-          <MonoLabel className="text-muted-foreground">Invitation</MonoLabel>
+          <MonoLabel className="text-muted-foreground">Invitation WhatsApp</MonoLabel>
           <div className="mt-2">
             <RebootButton
               size="sm"
@@ -552,54 +648,117 @@ function MemberDetail({
               disabled={inviteState === "sending"}
               className={cn(inviteState === "sent" && "border-lime/60 text-lime")}
             >
-              {inviteState === "sending"
-                ? "Préparation…"
-                : inviteState === "sent"
-                  ? "Message copié ✓"
-                  : "Préparer l'invitation (copier le message)"}
+              {inviteState === "sending" ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                  Préparation…
+                </>
+              ) : inviteState === "sent" ? (
+                <>
+                  <Check className="size-4" aria-hidden />
+                  Message copié
+                </>
+              ) : (
+                "Préparer l’invitation"
+              )}
             </RebootButton>
             <p className="mt-1.5 text-xs text-muted-foreground">
-              Marque le profil comme validé + invité, et copie un message
-              personnel prêt à coller dans WhatsApp.
+              Valide le profil et prépare un message personnel prêt à coller dans WhatsApp.
             </p>
+            <p className="sr-only" role="status">
+              {inviteState === "sent" ? "Message d’invitation copié." : ""}
+              {inviteCopyError ?? ""}
+            </p>
+            {inviteCopyError && (
+              <p className="mt-2 text-xs text-amber-200" role="alert">
+                {inviteCopyError}
+              </p>
+            )}
+            {invitePreview && (
+              <div className="mt-3 rounded-md border border-border/60 bg-background/60 p-3">
+                <p className="text-xs font-medium text-foreground">Aperçu du message</p>
+                <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap break-words">
+                  {invitePreview.inviteMessage}
+                </p>
+                <p className="mt-1.5 text-xs font-mono text-lime break-all">
+                  {invitePreview.whatsappUrl}
+                </p>
+                <div className="mt-2.5 flex flex-wrap gap-2">
+                  <a
+                    href={invitePreview.whatsappUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 min-h-[44px] px-3.5 rounded-md bg-lime text-black text-sm font-medium hover:bg-lime/90 transition-colors focus-lime"
+                  >
+                    Ouvrir WhatsApp
+                    <ExternalLink className="size-3.5" aria-hidden />
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => void copyInviteAgain()}
+                    className="inline-flex items-center gap-1.5 min-h-[44px] px-3.5 rounded-md border border-border bg-card text-sm text-foreground hover:border-lime/60 hover:text-lime transition-colors focus-lime"
+                  >
+                    <Copy className="size-3.5" aria-hidden />
+                    Copier à nouveau
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Admin notes — internal, not shown to member */}
         <div className="pt-2">
-          <div className="flex items-center justify-between">
-            <MonoLabel className="text-muted-foreground">Note interne</MonoLabel>
+          <div className="flex items-center justify-between gap-2">
+            <label htmlFor="admin-note" className="mono-label text-muted-foreground">
+              Note interne — visible admin uniquement
+            </label>
             {noteSaved && (
-              <span className="mono-label text-lime">Enregistré ✓</span>
+              <span className="mono-label text-lime" role="status">Enregistré</span>
             )}
           </div>
           <textarea
+            id="admin-note"
             value={noteDraft}
             onChange={(e) => setNoteDraft(e.target.value)}
-            placeholder="Contexte, priorité, prochain suivi… (visible admin uniquement)"
+            placeholder="Contexte, priorité, prochain suivi…"
             rows={3}
             className="mt-2 w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-lime focus:border-lime/60 resize-none scroll-slim"
           />
-          <div className="mt-2 flex items-center gap-2">
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <RebootButton
               size="sm"
               variant="outline"
               onClick={() => {
                 void saveNote();
               }}
-              disabled={noteDraft.trim() === (m.adminNote ?? "")}
+              disabled={!draftDirty || noteSaving}
             >
-              Enregistrer la note
+              {noteSaving ? "Enregistrement…" : "Enregistrer la note"}
             </RebootButton>
-            {m.adminNote && (
+            {draftDirty && savedNote && (
               <button
-                onClick={() => setNoteDraft("")}
-                className="text-xs text-muted-foreground hover:text-destructive transition-colors focus-lime mono-label"
+                type="button"
+                onClick={() => setNoteDraft(savedNote)}
+                className="min-h-[44px] px-2 text-xs text-muted-foreground hover:text-foreground transition-colors focus-lime mono-label"
               >
-                Effacer
+                Effacer le brouillon
+              </button>
+            )}
+            {savedNote && !draftDirty && (
+              <button
+                type="button"
+                onClick={() => void deleteSavedNote()}
+                disabled={noteSaving}
+                className="min-h-[44px] px-2 text-xs text-muted-foreground hover:text-destructive transition-colors focus-lime mono-label disabled:opacity-50"
+              >
+                Supprimer la note
               </button>
             )}
           </div>
+          {copyError && (
+            <p className="mt-2 text-xs text-amber-200" role="alert">{copyError}</p>
+          )}
         </div>
 
         <p className="text-xs text-muted-foreground">
@@ -608,14 +767,15 @@ function MemberDetail({
       </div>
 
       {/* Danger zone — delete member */}
-      <div className="mt-5 pt-4 border-t border-destructive/30">
-        <MonoLabel className="text-destructive/80">Zone de danger</MonoLabel>
+      <div id="member-danger-zone" className="mt-5 pt-4 border-t border-destructive/30 scroll-mt-24">
+        <MonoLabel className="text-destructive/80">Suppression</MonoLabel>
         {!confirmDelete ? (
           <button
+            type="button"
             onClick={() => setConfirmDelete(true)}
-            className="mt-2 text-xs text-muted-foreground hover:text-destructive transition-colors focus-lime inline-flex items-center gap-1.5"
+            className="mt-2 min-h-[44px] text-xs text-muted-foreground hover:text-destructive transition-colors focus-lime inline-flex items-center gap-1.5 px-1"
           >
-            <Trash2 className="size-3.5" />
+            <Trash2 className="size-3.5" aria-hidden />
             Supprimer ce membre
           </button>
         ) : (
@@ -623,21 +783,23 @@ function MemberDetail({
             <p className="text-sm text-foreground">
               Supprimer définitivement{" "}
               <span className="font-medium">{m.firstName}</span> ? Cette action
-              efface aussi ses événements analytics. Irréversible.
+              efface aussi ses événements. Irréversible.
             </p>
-            <div className="mt-3 flex items-center gap-2">
+            <div className="mt-3 flex flex-wrap items-center gap-2">
               <button
+                type="button"
                 onClick={() => {
                   void handleDelete();
                 }}
                 disabled={deleting}
-                className="text-xs px-3 py-1.5 rounded-md bg-destructive text-white hover:bg-destructive/90 transition-colors focus-lime disabled:opacity-50"
+                className="min-h-[44px] text-xs px-3 py-1.5 rounded-md bg-destructive text-white hover:bg-destructive/90 transition-colors focus-lime disabled:opacity-50"
               >
-                {deleting ? "Suppression…" : "Confirmer la suppression"}
+                {deleting ? "Suppression…" : "Oui, supprimer définitivement"}
               </button>
               <button
+                type="button"
                 onClick={() => setConfirmDelete(false)}
-                className="text-xs px-3 py-1.5 rounded-md border border-border text-muted-foreground hover:text-foreground transition-colors focus-lime"
+                className="min-h-[44px] text-xs px-3 py-1.5 rounded-md border border-border text-muted-foreground hover:text-foreground transition-colors focus-lime"
               >
                 Annuler
               </button>
