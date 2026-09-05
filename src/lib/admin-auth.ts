@@ -131,6 +131,14 @@ function extractRoleFromToken(token: string): string | null {
   }
 }
 
+/** Public helper: read role from a token. Returns null if invalid. */
+export function readRole(token: string | null | undefined): "viewer" | "operator" | null {
+  if (!token) return null;
+  const roleStr = extractRoleFromToken(token);
+  if (roleStr === "viewer" || roleStr === "operator") return roleStr;
+  return null;
+}
+
 /** Return the role from the admin token if valid, otherwise null. */
 export function getAdminRoleFromToken(token: string | undefined | null): "viewer" | "operator" | null {
   if (!token) return null;
