@@ -30,5 +30,13 @@ export async function GET(req: NextRequest) {
     !dbCheck.ok ? "down" : mail.status === "valid" ? "ok" : "degraded";
   const code = dbCheck.ok ? 200 : 503;
   // Réponse volontairement réduite (pas de détail infra exposé, ni pour l'admin).
-  return NextResponse.json({ status, latencyMs }, { status: code });
+  return NextResponse.json(
+    { status, latencyMs },
+    {
+      status: code,
+      headers: {
+        "Cache-Control": "no-store, must-revalidate",
+      },
+    },
+  );
 }

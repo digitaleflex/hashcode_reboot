@@ -143,11 +143,12 @@ export async function POST(req: NextRequest) {
           mentoringInterest: null,
           budgetRange: null,
           profileStatus: "PENDING",
-          communityStatus: "PENDING",
-          accessLane: "PENDING",
-          country: r.country || "FR",
+          communityStatus: "NOT_INVITED",
+          accessLane: "immediate",
+          country: r.country || "",
+          availability: "5-10h",
+          learningStyle: "practice",
         })),
-        skipDuplicates: true,
       });
       created = createResult.count;
     }

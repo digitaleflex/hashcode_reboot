@@ -18,7 +18,7 @@ interface StatsAggregate {
   byCountry: { country: string; count: number }[];
   byLevel: { level: string; count: number }[];
   byAvailability: { availability: string; count: number }[];
-  byBudget: { budget: string; count: number }[];
+  byBudget: { budget: string | null; count: number }[];
   byArchetype: { archetype: string; count: number }[];
 }
 
