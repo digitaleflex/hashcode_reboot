@@ -4,6 +4,7 @@ import * as React from "react";
 import { MonoLabel } from "../shared";
 import { cn } from "@/lib/utils";
 import { fetchJson, isAbortError } from "./lib/fetchJson";
+import { ActivityLogSkeleton } from "./skeletons/ActivityLogSkeleton";
 
 const EVENT_LABELS: Record<
   string,
@@ -25,31 +26,12 @@ const EVENT_LABELS: Record<
 const EVENT_TONES: Record<string, string> = {
   lime: "text-lime",
   sky: "text-sky-400",
-  amber: "text-amber-300",
+  amber: "text-amber-200",
   muted: "text-muted-foreground",
   destructive: "text-destructive",
 };
 
-export function ActivityLogSkeleton({ rows = 6 }: { rows?: number }) {
-  return (
-    <div
-      aria-hidden
-      className="rounded-md border border-border/60 bg-card/40 divide-y divide-border/40"
-    >
-      {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="flex items-center gap-3 p-3">
-          <div className="admin-skeleton admin-skeleton-dot" />
-          <div className="flex-1 space-y-2">
-            <div className="admin-skeleton admin-skeleton-line w-1/3" />
-            <div className="admin-skeleton admin-skeleton-line w-1/2" />
-          </div>
-          <div className="admin-skeleton admin-skeleton-line w-16" />
-        </div>
-      ))}
-      <span className="sr-only">Chargement de l’activité…</span>
-    </div>
-  );
-}
+export { ActivityLogSkeleton };
 
 export function ActivityLog() {
   const [events, setEvents] = React.useState<
@@ -58,45 +40,50 @@ export function ActivityLog() {
   const [loading, setLoading] = React.useState(true);
   const [expanded, setExpanded] = React.useState(false);
 
+  const load = React.useCallback(async (showMore: boolean, signal?: AbortSignal) => {
+    try {
+      const { res, data } = await fetchJson(
+        `/api/admin/activity?limit=${showMore ? 50 : 12}`,
+        { cache: "no-store", signal },
+      );
+      if (signal?.aborted) return;
+      if (res.ok)
+        setEvents(
+          (data?.events ?? []) as {
+            id: string;
+            type: string;
+            ref: string | null;
+            createdAt: string;
+          }[],
+        );
+    } catch (e) {
+      if (isAbortError(e)) return;
+      /* activity optionnel — pas d'erreur dure */
+    }
+  }, []);
+
   React.useEffect(() => {
     const ctrl = new AbortController();
     let mounted = true;
     setLoading(true);
     (async () => {
-      try {
-        const { res, data } = await fetchJson(
-          `/api/admin/activity?limit=${expanded ? 50 : 12}`,
-          { cache: "no-store", signal: ctrl.signal },
-        );
-        if (ctrl.signal.aborted) return;
-        if (mounted && res.ok)
-          setEvents(
-            (data?.events ?? []) as {
-              id: string;
-              type: string;
-              ref: string | null;
-              createdAt: string;
-            }[],
-          );
-      } catch (e) {
-        if (isAbortError(e)) return;
-        /* activity optionnel — pas d'erreur dure */
-      } finally {
-        if (mounted) setLoading(false);
-      }
+      await load(expanded, ctrl.signal);
+      if (mounted) setLoading(false);
     })();
     return () => {
       mounted = false;
       ctrl.abort();
     };
-  }, [expanded]);
+  }, [expanded, load]);
 
   return (
-    <section className="mt-6">
+    <section aria-label="Journal d'activité" className="mt-6">
       <div className="flex items-center justify-between mb-3">
         <MonoLabel className="text-muted-foreground">Journal d&apos;activité</MonoLabel>
-        <span className="mono-label text-muted-foreground">
-          {events.length} événement{events.length > 1 ? "s" : ""}
+        <span className="mono-label text-muted-foreground tabular-nums" role="status">
+          {loading && events.length === 0
+            ? "Chargement…"
+            : `${events.length} événement${events.length > 1 ? "s" : ""}`}
         </span>
       </div>
       {loading && events.length === 0 ? (
@@ -104,7 +91,22 @@ export function ActivityLog() {
       ) : (
       <div className="rounded-md border border-border/60 bg-card/40 divide-y divide-border/40 max-h-96 overflow-y-auto scroll-slim">
         {!loading && events.length === 0 && (
-          <p className="p-4 text-xs text-muted-foreground">Aucun événement.</p>
+          <div className="p-5 text-center">
+            <p className="text-sm text-foreground font-medium">Aucun événement pour l’instant.</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Les inscriptions et actions apparaîtront ici.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setLoading(true);
+                void load(expanded).finally(() => setLoading(false));
+              }}
+              className="mt-3 inline-flex items-center min-h-[44px] px-4 rounded-md border border-border bg-card text-sm text-foreground hover:border-lime/60 hover:text-lime transition-colors focus-lime"
+            >
+              Actualiser
+            </button>
+          </div>
         )}
         {events.map((ev) => {
           const meta = EVENT_LABELS[ev.type] ?? {
@@ -129,14 +131,14 @@ export function ActivityLog() {
                 aria-hidden
               />
               <div className="flex-1 min-w-0">
-                <div className="flex items-baseline gap-2">
+                <div className="flex items-baseline gap-2 flex-wrap">
                   <span
                     className={cn("text-sm font-medium", EVENT_TONES[meta.tone])}
                   >
                     {meta.label}
                   </span>
                   {isAdminAction && (
-                    <span className="mono-label text-amber-300 text-[11px]">ADMIN</span>
+                    <span className="mono-label text-amber-200">ADMIN</span>
                   )}
                 </div>
                 {ev.ref && (
@@ -145,7 +147,7 @@ export function ActivityLog() {
                   </div>
                 )}
               </div>
-              <span className="shrink-0 mono-label text-muted-foreground tabular-nums admin-num text-[11px]">
+              <span className="shrink-0 mono-label text-muted-foreground tabular-nums admin-num">
                 {new Date(ev.createdAt).toLocaleString("fr-FR", {
                   day: "2-digit",
                   month: "short",
@@ -158,12 +160,16 @@ export function ActivityLog() {
         })}
       </div>
       )}
-      <button
-        onClick={() => setExpanded((e) => !e)}
-        className="mt-2 text-xs text-muted-foreground hover:text-lime transition-colors focus-lime mono-label"
-      >
-        {expanded ? "↑ Voir moins" : "↓ Voir plus (50)"}
-      </button>
+      {events.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setExpanded((e) => !e)}
+          aria-expanded={expanded}
+          className="mt-2 min-h-[44px] px-2 -ml-2 text-xs text-muted-foreground hover:text-lime transition-colors focus-lime mono-label"
+        >
+          {expanded ? "Voir moins" : "Voir plus (50)"}
+        </button>
+      )}
     </section>
   );
 }

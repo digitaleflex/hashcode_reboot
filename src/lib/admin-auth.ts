@@ -124,7 +124,7 @@ function extractRoleFromToken(token: string): string | null {
     const rest = token.slice(dot + 1);
     const secondDot = rest.indexOf(".");
     if (secondDot < 0) return null;
-    const roleB64 = rest.slice(secondDot + 1);
+    const roleB64 = rest.slice(0, secondDot);
     return Buffer.from(roleB64, "base64url").toString("utf8");
   } catch {
     return null;
@@ -139,4 +139,34 @@ export function getAdminRoleFromToken(token: string | undefined | null): "viewer
   if (!roleStr) return null;
   if (roleStr === "viewer" || roleStr === "operator") return roleStr as "viewer" | "operator";
   return null;
+}
+
+/** Check if the request origin matches the host (CSRF protection). */
+export function checkCSRF(req: NextRequest): boolean {
+  const origin = req.headers.get("origin");
+  const host = req.headers.get("host");
+  if (!origin || !host) return false;
+  try {
+    const originUrl = new URL(origin);
+    return originUrl.host === host;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Require admin authentication with a specific role.
+ * Returns true if authenticated AND has the required role (or higher).
+ * operator role can access both viewer and operator resources.
+ */
+export function requireAdminRole(
+  req: NextRequest,
+  allowedRole: "viewer" | "operator" = "operator",
+): boolean {
+  if (!isAdminAuthed(req)) return false;
+  const token = readAdminCookie(req);
+  const role = getAdminRoleFromToken(token);
+  if (!role) return false;
+  // operator can access everything, viewer can only access viewer-level resources
+  return role === "operator" || role === allowedRole;
 }

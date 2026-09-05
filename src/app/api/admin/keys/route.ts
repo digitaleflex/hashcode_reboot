@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createHmac, randomUUID } from "node:crypto";
-import { isAdminAuthed, getAdminPasscode } from "@/lib/admin-auth";
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
+import { isAdminAuthed, getAdminPasscode, requireAdminRole, checkCSRF } from "@/lib/admin-auth";
+import { db } from "@/lib/db";
 
 /**
  * Admin keys management: GET list active kids, POST rotate kid.
@@ -11,15 +12,28 @@ import { isAdminAuthed, getAdminPasscode } from "@/lib/admin-auth";
  * - A kid is considered "active" if it exists and is not revoked (revokedAt = null).
  */
 
-import { db } from "@/lib/db";
+function checkCSRF(req: NextRequest): boolean {
+  const origin = req.headers.get("origin");
+  const host = req.headers.get("host");
+  if (!origin || !host) return false;
+  try {
+    const originUrl = new URL(origin);
+    return originUrl.host === host;
+  } catch {
+    return false;
+  }
+}
 
 function hashPasscode(passcode: string): string {
+  // TODO: Replace with bcrypt when available (npm install bcrypt @types/bcrypt).
+  // Current HMAC-SHA256 is NOT a standard password hashing algorithm.
+  // This is a placeholder until bcrypt is added to the project.
   return createHmac("sha256", getAdminPasscode()).update(passcode).digest("base64url");
 }
 
 export async function GET(req: NextRequest) {
-  if (!isAdminAuthed(req)) {
-    return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+  if (!requireAdminRole(req, "operator")) {
+    return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
   }
 
   // List all non-revoked, non-expired keys (active)
@@ -44,8 +58,12 @@ export async function GET(req: NextRequest) {
 
 /** POST /api/admin/keys — rotate admin key. Generates new kid+passcodeHash and revokes old keys. */
 export async function POST(req: NextRequest) {
-  if (!isAdminAuthed(req)) {
-    return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+  if (!requireAdminRole(req, "operator")) {
+    return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
+  }
+  // CSRF protection: ensure same-origin request
+  if (!checkCSRF(req)) {
+    return NextResponse.json({ error: "CSRF validation failed." }, { status: 403 });
   }
 
   let body: { passcode?: string } | null = null;

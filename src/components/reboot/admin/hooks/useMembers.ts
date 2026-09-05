@@ -142,6 +142,9 @@ export function useMembers({
     return () => clearTimeout(t);
   }, [searchQuery]);
 
+  // Feedback recherche : vrai pendant la frappe avant stabilisation.
+  const isSearching = searchQuery !== debouncedSearchQuery;
+
   // Persistance URL sans useSearchParams (éviter Suspense) : replaceState.
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -298,6 +301,7 @@ export function useMembers({
   }
 
   function setPageSize(s: number) {
+    // Pagination serveur inchangée (1–200) — densité gérée côté UI, 50 par défaut.
     const v = Math.min(Math.max(Math.floor(s) || 50, 1), 200);
     setPageSizeState(v);
     setPageState(1);
@@ -323,6 +327,7 @@ export function useMembers({
     searchQuery,
     setSearchQuery,
     debouncedSearchQuery,
+    isSearching,
     sortKey,
     sortDir,
     toggleSort,

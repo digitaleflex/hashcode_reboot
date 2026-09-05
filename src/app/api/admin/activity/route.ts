@@ -1,19 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { isAdminAuthed } from "@/lib/admin-auth";
+import { requireAdminRole } from "@/lib/admin-auth";
 
 export const runtime = "nodejs";
 
 /**
- * GET /api/admin/activity — recent admin/system events (admin-only).
+ * GET /api/admin/activity — recent admin/system events (admin-operator only).
  * Returns the latest N AnalyticsEvents (sorted desc) with timestamps + refs,
  * so the admin can see a chronological feed of what happened.
  */
 export async function GET(req: NextRequest) {
-  if (!isAdminAuthed(req)) {
+  if (!requireAdminRole(req, "operator")) {
     return NextResponse.json(
-      { error: "Non autorisé.", code: "UNAUTHORIZED" },
-      { status: 401 },
+      { error: "Accès refusé.", code: "FORBIDDEN" },
+      { status: 403 },
     );
   }
   try {

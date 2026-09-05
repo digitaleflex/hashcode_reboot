@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminCookieHeader, issueAdminToken, getAdminPasscode } from "@/lib/admin-auth";
+import { adminCookieHeader, issueAdminToken, getAdminPasscode, checkCSRF } from "@/lib/admin-auth";
 import { rateLimit, rateKey, RATE_LIMITS, retryAfterHeader } from "@/lib/rate-limit";
 import { db } from "@/lib/db";
 
@@ -17,6 +17,10 @@ async function auditLogin(ref: string) {
 
 /** POST /api/admin/login — verify passcode, issue admin cookie. */
 export async function POST(req: NextRequest) {
+  // CSRF protection: ensure same-origin request (defense in depth alongside SameSite=Lax)
+  if (!checkCSRF(req)) {
+    return NextResponse.json({ error: "CSRF validation failed." }, { status: 403 });
+  }
   // Read body once.
   let body: { passcode?: string };
   try {

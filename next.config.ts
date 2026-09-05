@@ -11,8 +11,8 @@ const SECURITY_HEADERS = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live",
-      "style-src 'self' 'unsafe-inline'",
+      "script-src 'self' https://vercel.live",
+      "style-src 'self'",
       "img-src 'self' data: blob: https:",
       "font-src 'self' data:",
       "connect-src 'self' https: wss:",
@@ -48,6 +48,9 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
+  bodyParser: {
+    sizeLimit: "1mb",
+  },
 
   async headers() {
     return [
