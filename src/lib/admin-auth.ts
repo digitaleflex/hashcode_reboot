@@ -57,21 +57,24 @@ function sign(passcode: string, data: string): string {
 export function verifyAdminToken(token: string | undefined | null): boolean {
     if (!token) return false;
     try {
-        const firstDot = token.indexOf(".");
-        if (firstDot <= 0) return false;
-        const secondDot = token.indexOf(".", firstDot + 1);
-        if (secondDot <= firstDot + 1 || secondDot === token.length - 1) return false;
+        const parts = token.split(".");
+        // Old format: exp.role.sig (3 parts)
+        // New format: exp.role.identity.sig (4 parts)
+        if (parts.length < 3) return false;
         
-        const expB64 = token.slice(0, firstDot);
-        const roleB64 = token.slice(firstDot + 1, secondDot);
-        const sigB64 = token.slice(secondDot + 1);
+        const expB64 = parts[0];
+        const roleB64 = parts[1];
+        // parts[2] could be identity (new) or sig (old)
+        // parts[3] is sig (new) or undefined (old)
+        const identityB64 = parts.length === 4 ? parts[2] : "";
+        const sigB64 = parts.length === 4 ? parts[3] : parts[2];
         
         const expiryStr = Buffer.from(expB64, "base64url").toString("utf8");
         if (!/^\d+$/.test(expiryStr)) return false;
         const expiry = Number(expiryStr);
         if (!Number.isSafeInteger(expiry) || expiry <= Date.now()) return false;
         
-        const dataToSign = `${expB64}.${roleB64}`;
+        const dataToSign = identityB64 ? `${expB64}.${roleB64}.${identityB64}` : `${expB64}.${roleB64}`;
         const expectedSig = sign(getAdminPasscode(), dataToSign);
         
         const a = Buffer.from(sigB64, "utf8");
@@ -102,13 +105,14 @@ export function adminCookieHeader(token: string | null): string {
 }
 
 /** Issue a fresh admin token, expiring 12h from now (used at login). */
-export function issueAdminToken(role: "viewer" | "operator" = "operator"): string {
+export function issueAdminToken(role: "viewer" | "operator" = "operator", identity?: string): string {
     const expiryStr = String(Date.now() + ADMIN_SESSION_MS);
     const expB64 = Buffer.from(expiryStr, "utf8").toString("base64url");
     const roleB64 = Buffer.from(role, "utf8").toString("base64url");
-    const dataToSign = `${expB64}.${roleB64}`;
+    const idB64 = identity ? Buffer.from(identity, "utf8").toString("base64url") : "";
+    const dataToSign = `${expB64}.${roleB64}.${idB64}`;
     const sigB64 = sign(getAdminPasscode(), dataToSign);
-    return `${expB64}.${roleB64}.${sigB64}`;
+    return `${expB64}.${roleB64}.${idB64}.${sigB64}`;
 }
 
 /** Check if the current request is from an authenticated admin. */
@@ -139,6 +143,21 @@ export function readRole(token: string | null | undefined): "viewer" | "operator
   return null;
 }
 
+/** Extract admin identity from token. Returns null if token is invalid or has no identity. */
+export function getAdminIdentityFromToken(token: string | null | undefined): string | null {
+    if (!token) return null;
+    try {
+        const parts = token.split(".");
+        if (parts.length < 4) return null; // old format tokens don't have identity
+        const idB64 = parts[2];
+        if (!idB64) return null;
+        const decoded = Buffer.from(idB64, "base64url").toString("utf8");
+        return decoded || null;
+    } catch {
+        return null;
+    }
+}
+
 /** Return the role from the admin token if valid, otherwise null. */
 export function getAdminRoleFromToken(token: string | undefined | null): "viewer" | "operator" | null {
   if (!token) return null;
@@ -160,6 +179,12 @@ export function checkCSRF(req: NextRequest): boolean {
   } catch {
     return false;
   }
+}
+
+/** Get the admin identity from the current request's cookie. Returns "unknown" if not found. */
+export function getAdminIdentity(req: NextRequest): string {
+    const token = readAdminCookie(req);
+    return getAdminIdentityFromToken(token) ?? "unknown";
 }
 
 /**
