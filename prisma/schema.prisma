@@ -69,6 +69,7 @@ model Member {
 
   // --- Admin ---
   adminNote        String?
+  deletedAt        DateTime? // null = active, set = soft-deleted
 
   @@index([email])
   @@index([country])
@@ -76,6 +77,7 @@ model Member {
   @@index([profileStatus])
   @@index([communityStatus])
   @@index([createdAt])
+  @@index([deletedAt])
 }
 
 // Clés admin persistées (rotation, expiration, invalidation)
@@ -91,6 +93,27 @@ model AdminKey {
   @@index([kid])
   @@index([revokedAt])
   @@index([expiresAt])
+}
+
+/// Audit log for admin actions (write-only from API routes)
+model AuditLog {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+
+  /// Who performed the action ("admin:operator", "system", "ip:xxx")
+  actor      String?
+  /// Action name (e.g. "member.soft-delete", "admin.login", "member.update")
+  action     String
+  /// Type of affected entity (e.g. "member", "admin_key", "system")
+  entityType String
+  /// ID of the affected entity
+  entityId   String?
+  /// JSON metadata with context
+  metadata   String?
+
+  @@index([action])
+  @@index([createdAt])
+  @@index([entityType, entityId])
 }
 
 /// Funnel analytics events (reboot_page_view, profiling_started, etc.)
