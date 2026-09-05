@@ -124,7 +124,7 @@ function extractRoleFromToken(token: string): string | null {
     const rest = token.slice(dot + 1);
     const secondDot = rest.indexOf(".");
     if (secondDot < 0) return null;
-    const roleB64 = rest.slice(secondDot + 1);
+    const roleB64 = rest.slice(0, secondDot);
     return Buffer.from(roleB64, "base64url").toString("utf8");
   } catch {
     return null;
