@@ -258,3 +258,62 @@ describe("rateKey: IP extraction (unit)", () => {
     assert.equal(rateKey({ ip: undefined, headers: { get: () => null } }), "anon");
   });
 });
+
+// ────────────────────────────────────────────────────────────────
+// 4) Admin key — scrypt passcode hashing & verification (unit)
+// ────────────────────────────────────────────────────────────────
+
+describe("admin-key: scrypt passcode hashing & verification (unit)", () => {
+  const { hashPasscode, verifyPasscode } = require("../src/lib/passcode.js");
+
+  test("generates hash containing required algorithm, cost parameters, salt, and key", async () => {
+    const hash = await hashPasscode("test-passcode-12345");
+    assert.ok(typeof hash === "string");
+    assert.ok(hash.startsWith("$scrypt$N=32768,r=8,p=1$"));
+    const parts = hash.split("$");
+    assert.equal(parts.length, 5);
+    assert.equal(parts[1], "scrypt");
+    assert.equal(parts[2], "N=32768,r=8,p=1");
+    assert.ok(parts[3].length > 0, "salt must be non-empty");
+    assert.ok(parts[4].length > 0, "derived key must be non-empty");
+  });
+
+  test("same passcode produces different hashes on consecutive calls due to random salt", async () => {
+    const passcode = "super-secret-passcode-16-chars";
+    const hash1 = await hashPasscode(passcode);
+    const hash2 = await hashPasscode(passcode);
+    assert.notEqual(hash1, hash2, "hashes must differ due to unique random salts");
+  });
+
+  test("verifies correct passcode successfully", async () => {
+    const passcode = "correct-horse-battery-staple";
+    const hash = await hashPasscode(passcode);
+    const isValid = await verifyPasscode(passcode, hash);
+    assert.equal(isValid, true);
+  });
+
+  test("rejects incorrect passcode", async () => {
+    const passcode = "correct-passcode-16-chars";
+    const hash = await hashPasscode(passcode);
+    const isValid = await verifyPasscode("wrong-passcode-16-chars", hash);
+    assert.equal(isValid, false);
+  });
+
+  test("rejects malformed / tampered hash strings safely without throwing", async () => {
+    const passcode = "valid-passcode-16-chars";
+    assert.equal(await verifyPasscode(passcode, undefined), false);
+    assert.equal(await verifyPasscode(passcode, null), false);
+    assert.equal(await verifyPasscode(passcode, ""), false);
+    assert.equal(await verifyPasscode(passcode, "invalid-hash-format"), false);
+    assert.equal(await verifyPasscode(passcode, "$pbkdf2$N=1000$salt$key"), false);
+    assert.equal(await verifyPasscode(passcode, "$scrypt$N=invalid,r=8,p=1$salt$key"), false);
+
+    // Tampered derived key
+    const validHash = await hashPasscode(passcode);
+    const parts = validHash.split("$");
+    const tamperedKey = parts[4].slice(0, -2) + "XX";
+    const tamperedHash = `${parts[0]}.${parts[1]}.${parts[2]}.${parts[3]}.${tamperedKey}`;
+    assert.equal(await verifyPasscode(passcode, tamperedHash), false);
+  });
+});
+
