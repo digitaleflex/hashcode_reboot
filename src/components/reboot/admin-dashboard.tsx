@@ -13,14 +13,22 @@ import { MemberTable } from "./admin/MemberTable";
 import { MemberDetailDialog } from "./admin/MemberDetailDialog";
 import { ActivityLog } from "./admin/ActivityLog";
 import { ImportCsvDialog } from "./admin/ImportCsvDialog";
+import { ChangePasscodeDialog } from "./admin/ChangePasscodeDialog";
+import { PendingApprovalsBanner } from "./admin/PendingApprovalsBanner";
 import {
   AdminStatsSkeleton,
   MemberTableSkeleton,
   ActivityLogSkeleton,
 } from "./admin/skeletons";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  useAdminKeyboardShortcuts,
+  ShortcutHelp,
+  type ShortcutMap,
+} from "./admin/hooks/useKeyboardShortcuts";
 
 // Réexports mécaniques (Phase 3 split + Phase 1A sidebar, sans changement comportemental).
+export { PendingApprovalsBanner } from "./admin/PendingApprovalsBanner";
 export { AdminStats } from "./admin/AdminStats";
 export { MemberTable } from "./admin/MemberTable";
 export { MemberDetailDialog } from "./admin/MemberDetailDialog";
@@ -29,6 +37,7 @@ export { AdminSidebar } from "./admin/AdminSidebar";
 export { useMembers } from "./admin/hooks/useMembers";
 export { fetchJson, isAbortError, withRetryAfter } from "./admin/lib/fetchJson";
 export { ImportCsvDialog } from "./admin/ImportCsvDialog";
+export { ChangePasscodeDialog } from "./admin/ChangePasscodeDialog";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function readInitialSelectedId(): string | null {
@@ -99,6 +108,35 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
   const [exporting, setExporting] = React.useState<"csv" | "json" | null>(null);
   const [exportError, setExportError] = React.useState<string | null>(null);
   const [activeSection, setActiveSection] = React.useState("section-stats");
+
+  // Keyboard shortcuts
+  const shortcuts = React.useMemo<ShortcutMap>(
+    () => ({
+      r: {
+        handler: () => {
+          void refresh();
+        },
+        description: "rafraîchir",
+      },
+      e: {
+        handler: () => {
+          const input = document.querySelector<HTMLInputElement>(
+            'input[placeholder*="Recherche"]',
+          );
+          input?.focus();
+        },
+        description: "recherche",
+      },
+      // Key is lowercase "escape" because the hook lowercases e.key before lookup.
+      escape: {
+        handler: () => setSelectedId(null),
+        description: "fermer",
+      },
+    }),
+    [refresh, setSelectedId],
+  );
+
+  useAdminKeyboardShortcuts(shortcuts);
 
   const loading = membersLoading || statsLoading;
   const loadError = membersError ?? statsError;
@@ -464,6 +502,7 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
             </span>
           </div>
           <div className="flex items-center gap-2">
+            <ShortcutHelp shortcuts={shortcuts} />
             <RebootButton
               size="sm"
               variant="outline"
@@ -498,6 +537,10 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
                 </span>
               </RebootButton>
             </span>
+            <ChangePasscodeDialog
+              onSessionExpired={handleSessionExpired}
+              onChanged={() => { void refresh(); }}
+            />
             <span className="hidden md:inline-block" title="Exporter en JSON">
               <RebootButton
                 size="sm"
@@ -577,6 +620,11 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
                   Fermer
                 </button>
               </div>
+            )}
+
+            {/* ── Pending approvals banner ──────────────────────────────── */}
+            {stats && (
+              <PendingApprovalsBanner pendingCount={stats.pendingCount ?? 0} />
             )}
 
             {/* ── Section: Stats ─────────────────────────────────────── */}
