@@ -17,6 +17,7 @@ export interface Stats {
     waitlist: number;
     rejected: number;
   };
+  pendingCount: number;
   domains: { web: number; cyber: number; ai: number };
   mentoring: number;
   byCountry: { country: string; count: number }[];
