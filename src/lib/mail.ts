@@ -251,3 +251,107 @@ export async function sendInvitationEmail({
   );
   return sendEmail({ to, subject, html, text });
 }
+
+/* ── Waitlist Email ─────────────────────────────────────────────────────── */
+
+export interface WaitlistEmailInput {
+  to: string;
+  firstName: string;
+}
+
+export async function sendWaitlistEmail({
+  to,
+  firstName,
+}: WaitlistEmailInput): Promise<SendEmailResult> {
+  const name = firstName.trim() || "bienvenue";
+  const safeName = escapeHtml(name);
+  const subject = "Merci pour ton inscription — HASHCODE REBOOT";
+  const text = [
+    `Bonjour ${name},`,
+    "",
+    "Merci pour ton inscription à HASHCODE REBOOT. Ton profil est en cours de validation par notre équipe.",
+    "",
+    "Nous-reviewons chaque candidature pour garantir la qualité de la communauté. Tu recevras un email dès que ton profil sera validé.",
+    "",
+    "Ce qui t'attend :",
+    "- Une communauté de passionnés Web, Cyber et AI",
+    "- Des sessions pratiques et du networking",
+    "- Des ressources exclusives",
+    "",
+    "À très vite,",
+    "L'équipe HASHCODE",
+  ].join("\n");
+  const inner = [
+    `<tr><td style="padding:24px 32px 28px 32px;background-color:#141414;">`,
+    monoLabel("INSCRIPTION REÇUE"),
+    `<h1 style="margin:0 0 12px 0;font-family:${MAIL_FONT};font-size:24px;line-height:1.25;font-weight:800;color:#F8FAFC;">Merci ${safeName}, ton inscription est confirmée.</h1>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">Ton profil est en cours de validation par notre équipe. Nous-reviewons chaque candidature pour garantir la qualité de la communauté.</p>`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;background-color:#0A0A0A;border:1px solid #262626;border-radius:8px;">`,
+    `<tr><td style="padding:14px 16px;">`,
+    `<div style="font-family:${MAIL_FONT};font-size:13px;font-weight:700;color:#F8FAFC;margin:0 0 4px 0;">Ce qui t'attend</div>`,
+    `<div style="font-family:${MAIL_FONT};font-size:13px;line-height:1.6;color:#94A3B8;margin:0;">• Une communauté de passionnés Web, Cyber et AI<br/>• Des sessions pratiques et du networking<br/>• Des ressources exclusives</div>`,
+    `</td></tr></table>`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0;background-color:#0A0A0A;border:1px solid #333B1E;border-radius:8px;">`,
+    `<tr><td style="padding:14px 16px;">`,
+    `<div style="font-family:${MAIL_FONT};font-size:13px;font-weight:700;color:#C5F441;margin:0 0 4px 0;">Prochaine étape</div>`,
+    `<div style="font-family:${MAIL_FONT};font-size:13px;line-height:1.6;color:#94A3B8;margin:0;">Tu recevras un email dès que ton profil sera validé. Reste connecté.</div>`,
+    `</td></tr></table>`,
+    `<p style="margin:20px 0 0 0;font-family:${MAIL_FONT};font-size:14px;line-height:1.6;color:#F8FAFC;">À très vite,<br /><span style="color:#94A3B8;">L'équipe HASHCODE</span></p>`,
+    `</td></tr>`,
+  ].join("");
+  const html = emailShell(
+    "Ton inscription est confirmée — ton profil est en cours de validation.",
+    inner,
+  );
+  return sendEmail({ to, subject, html, text });
+}
+
+/* ── Engagement Email ───────────────────────────────────────────────────── */
+
+export interface EngagementEmailInput {
+  to: string;
+  firstName: string;
+}
+
+export async function sendEngagementEmail({
+  to,
+  firstName,
+}: EngagementEmailInput): Promise<SendEmailResult> {
+  const name = firstName.trim() || "member";
+  const safeName = escapeHtml(name);
+  const subject = "On t'attend sur HASHCODE — rejoins le groupe";
+  const text = [
+    `Bonjour ${name},`,
+    "",
+    "Il y a quelques jours, tu as reçu ton invitation pour rejoindre le groupe WhatsApp officiel de HASHCODE.",
+    "",
+    "Tu l'as peut-être manquée ? La communauté est active et on t'attend pour les prochaines sessions.",
+    "",
+    "Rejoins le groupe ici :",
+    process.env.WHATSAPP_URL ?? "https://chat.whatsapp.com/join",
+    "",
+    "À tout de suite dans le groupe,",
+    "L'équipe HASHCODE",
+  ].join("\n");
+  const inner = [
+    `<tr><td style="padding:24px 32px 28px 32px;background-color:#141414;">`,
+    monoLabel("TU N'AS PAS ENCORE REJOINT"),
+    `<h1 style="margin:0 0 12px 0;font-family:${MAIL_FONT};font-size:24px;line-height:1.25;font-weight:800;color:#F8FAFC;">On t'attend ${safeName}, la communauté est prête.</h1>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">Il y a quelques jours, tu as reçu ton invitation pour rejoindre le groupe WhatsApp officiel de HASHCODE. Tu l'as peut-être manquée ? La communauté est active et on t'attend pour les prochaines sessions.</p>`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;">`,
+    `<tr><td align="center" style="padding:0;">`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">`,
+    `<tr><td align="center" bgcolor="#C5F441" style="background-color:#C5F441;border-radius:8px;padding:14px 32px;">`,
+    `<a href="${escapeHtml(process.env.WHATSAPP_URL ?? "https://chat.whatsapp.com/join")}" target="_blank" rel="noopener" style="font-family:${MAIL_FONT};font-size:16px;font-weight:800;color:#0A0A0A;text-decoration:none;display:inline-block;">Rejoindre maintenant</a>`,
+    `</td></tr></table>`,
+    `</td></tr></table>`,
+    `<p style="margin:0;font-family:${MAIL_FONT};font-size:13px;line-height:1.6;color:#94A3B8;text-align:center;">La communauté avance sans toi — retrouve les derniers membres et partage ton objectif.</p>`,
+    `<p style="margin:20px 0 0 0;font-family:${MAIL_FONT};font-size:14px;line-height:1.6;color:#F8FAFC;">À tout de suite,<br /><span style="color:#94A3B8;">L'équipe HASHCODE</span></p>`,
+    `</td></tr>`,
+  ].join("");
+  const html = emailShell(
+    "On t'attend — rejoins le groupe WhatsApp officiel.",
+    inner,
+  );
+  return sendEmail({ to, subject, html, text });
+}
