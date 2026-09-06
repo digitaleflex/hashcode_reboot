@@ -42,6 +42,7 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get("status");
     const lane = searchParams.get("lane");
     const q = searchParams.get("q");
+    const fieldsParam = searchParams.get("fields");
 
     const where: Prisma.MemberWhereInput = {};
     where.deletedAt = null; // exclude soft-deleted members
@@ -65,7 +66,7 @@ export async function GET(req: NextRequest) {
       take: MAX_EXPORT,
     });
 
-    const headers = [
+    const ALL_HEADERS = [
       "id",
       "createdAt",
       "firstName",
@@ -99,6 +100,16 @@ export async function GET(req: NextRequest) {
       "adminNote",
     ];
 
+    // Support optional column filtering via `fields` query param (comma-separated).
+    let headers = ALL_HEADERS;
+    if (fieldsParam) {
+      const requested = fieldsParam
+        .split(",")
+        .map((f) => f.trim())
+        .filter(Boolean);
+      headers = ALL_HEADERS.filter((h) => requested.includes(h));
+    }
+
     const esc = (v: unknown): string => {
       const s = v === null || v === undefined ? "" : String(v);
       // RFC 4180 quoting.
@@ -106,43 +117,45 @@ export async function GET(req: NextRequest) {
       return s;
     };
 
-    const rows = members.map((m) =>
-      [
-        m.id,
-        m.createdAt.toISOString(),
-        m.firstName,
-        m.lastName,
-        m.email,
-        m.phone,
-        m.country,
-        m.city,
-        m.gender,
-        m.primaryDomain,
-        m.domainSpecialty,
-        m.level,
-        m.goal,
-        m.goalProjectStage,
-        m.goalSituation,
-        m.availability,
-        m.learningStyle,
-        m.mentoringInterest,
-        m.mentoringMaybeReason,
-        m.mentoringTypes,
-        m.mentoringFrequency,
-        m.mentoringDomain,
-        m.budgetWillingness,
-        m.budgetRange,
-        m.threeMonthGoal,
-        m.profileArchetype,
-        m.tags,
-        m.profileStatus,
-        m.communityStatus,
-        m.accessLane,
-        m.adminNote,
-      ]
-        .map(esc)
-        .join(","),
-    );
+    // Build a map of field → value for each member.
+    const fieldMap = (m: (typeof members)[number]): Record<string, unknown> => ({
+      id: m.id,
+      createdAt: m.createdAt.toISOString(),
+      firstName: m.firstName,
+      lastName: m.lastName,
+      email: m.email,
+      phone: m.phone,
+      country: m.country,
+      city: m.city,
+      gender: m.gender,
+      primaryDomain: m.primaryDomain,
+      domainSpecialty: m.domainSpecialty,
+      level: m.level,
+      goal: m.goal,
+      goalProjectStage: m.goalProjectStage,
+      goalSituation: m.goalSituation,
+      availability: m.availability,
+      learningStyle: m.learningStyle,
+      mentoringInterest: m.mentoringInterest,
+      mentoringMaybeReason: m.mentoringMaybeReason,
+      mentoringTypes: m.mentoringTypes,
+      mentoringFrequency: m.mentoringFrequency,
+      mentoringDomain: m.mentoringDomain,
+      budgetWillingness: m.budgetWillingness,
+      budgetRange: m.budgetRange,
+      threeMonthGoal: m.threeMonthGoal,
+      profileArchetype: m.profileArchetype,
+      tags: m.tags,
+      profileStatus: m.profileStatus,
+      communityStatus: m.communityStatus,
+      accessLane: m.accessLane,
+      adminNote: m.adminNote,
+    });
+
+    const rows = members.map((m) => {
+      const row = fieldMap(m);
+      return headers.map((h) => esc(row[h])).join(",");
+    });
 
     const csv = [headers.map(esc).join(","), ...rows].join("\r\n");
 

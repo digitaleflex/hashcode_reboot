@@ -391,6 +391,14 @@ export function AdminStats({
             BUDGET_LABEL[b.budget] ?? b.budget ?? "—",
             b.count,
           ])}
+          onRowClick={onFilter}
+          filterKey="budget"
+          filterValues={Object.fromEntries(
+            (stats?.byBudget ?? []).map((b) => [
+              BUDGET_LABEL[b.budget] ?? b.budget ?? "—",
+              b.budget,
+            ]),
+          )}
         />
         <div className="rounded-md border border-border/60 bg-card p-4 sm:p-5">
 <div className="flex items-center justify-between">
@@ -407,8 +415,8 @@ export function AdminStats({
               const total =
                 (stats?.byArchetype ?? []).reduce((s, x) => s + x.count, 0) || 1;
               const pct = Math.round((a.count / total) * 100);
-              return (
-                <div key={a.archetype} className="group flex items-center gap-3">
+              const content = (
+                <>
                   <span className="text-xs text-foreground truncate w-32 font-mono">
                     {a.archetype}
                   </span>
@@ -423,7 +431,19 @@ export function AdminStats({
                   <span className="mono-label text-muted-foreground w-12 text-right tabular-nums">
                     {a.count} · {pct}%
                   </span>
-                </div>
+                </>
+              );
+              return (
+                <button
+                  key={a.archetype}
+                  type="button"
+                  onClick={() => onFilter("archetype", a.archetype)}
+                  title={`Filtrer : ${a.archetype}`}
+                  aria-label={`Filtrer la liste : ${a.archetype} (${a.count})`}
+                  className="group w-full flex items-center gap-3 rounded-sm px-1 py-0.5 text-left transition-colors hover:bg-lime/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-inset min-h-[28px]"
+                >
+                  {content}
+                </button>
               );
             })}
           </div>

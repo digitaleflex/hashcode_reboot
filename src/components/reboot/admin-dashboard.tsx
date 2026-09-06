@@ -4,7 +4,7 @@ import * as React from "react";
 import { Logo } from "@/components/brand/logo";
 import { RebootButton, MonoLabel } from "./shared";
 import { cn } from "@/lib/utils";
-import { Download, RefreshCw, ArrowLeft, LogOut, FileJson, AlertCircle, Command } from "lucide-react";
+import { Download, RefreshCw, ArrowLeft, LogOut, FileJson, AlertCircle, Command, ChevronRight } from "lucide-react";
 import { fetchJson, isAbortError, withRetryAfter } from "./admin/lib/fetchJson";
 import { useMembers } from "./admin/hooks/useMembers";
 import { AdminSidebar } from "./admin/AdminSidebar";
@@ -15,12 +15,14 @@ import { MemberDetailDialog } from "./admin/MemberDetailDialog";
 import { ActivityLog } from "./admin/ActivityLog";
 import { ImportCsvDialog } from "./admin/ImportCsvDialog";
 import { ChangePasscodeDialog } from "./admin/ChangePasscodeDialog";
+import { ExportDialog } from "./admin/ExportDialog";
 import { PendingApprovalsBanner } from "./admin/PendingApprovalsBanner";
 import {
   AdminStatsSkeleton,
   MemberTableSkeleton,
   ActivityLogSkeleton,
 } from "./admin/skeletons";
+import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useAdminKeyboardShortcuts,
@@ -99,6 +101,9 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
   const [statsLoading, setStatsLoading] = React.useState(true);
   const [statsError, setStatsError] = React.useState<string | null>(null);
 
+  // ── Toast ───────────────────────────────────────────────────────────────
+  const { toast } = useToast();
+
   // ── UI state ─────────────────────────────────────────────────────────────
   const [selectedId, setSelectedId] = React.useState<string | null>(() =>
     readInitialSelectedId(),
@@ -108,6 +113,7 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
   const [confirmBulkDelete, setConfirmBulkDelete] = React.useState(false);
   const [exporting, setExporting] = React.useState<"csv" | "json" | null>(null);
   const [exportError, setExportError] = React.useState<string | null>(null);
+  const [exportDialogOpen, setExportDialogOpen] = React.useState(false);
   const [activeSection, setActiveSection] = React.useState("section-stats");
   const [paletteOpen, setPaletteOpen] = React.useState(false);
 
@@ -123,14 +129,15 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
-  // Keyboard shortcuts
+  // ── Keyboard shortcuts ──────────────────────────────────────────────────────
+  const [helpOpen, setHelpOpen] = React.useState(false);
   const shortcuts = React.useMemo<ShortcutMap>(
     () => ({
       r: {
         handler: () => {
           void refresh();
         },
-        description: "rafraîchir",
+        description: "Rafraîchir les données",
       },
       e: {
         handler: () => {
@@ -139,12 +146,15 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
           );
           input?.focus();
         },
-        description: "recherche",
+        description: "Rechercher un membre",
       },
-      // Key is lowercase "escape" because the hook lowercases e.key before lookup.
       escape: {
         handler: () => setSelectedId(null),
-        description: "fermer",
+        description: "Fermer la fenêtre de détails",
+      },
+      "?": {
+        handler: () => setHelpOpen(true),
+        description: "Ouvrir l'aide des raccourcis",
       },
     }),
     [refresh, setSelectedId],
@@ -368,6 +378,10 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
           ? `${affected} membre(s) — action "${action}" partielle (${missing} introuvable(s)).`
           : `${affected} membre(s) — action "${action}" appliquée`,
       );
+      toast({
+        title: `${affected} membre(s) traité(s)`,
+        description: `Action « ${action} » appliquée avec succès.`,
+      });
       setConfirmBulkDelete(false);
       await refresh();
     } catch (e) {
@@ -407,7 +421,7 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
    }
 
   // ── Export ───────────────────────────────────────────────────────────────
-  async function handleExport(kind: "csv" | "json") {
+  async function handleExport(kind: "csv" | "json", columns?: string[]) {
     if (exporting) return;
     setExporting(kind);
     setExportError(null);
@@ -416,7 +430,10 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
       const params = new URLSearchParams({
         ...filters,
         ...(q ? { q } : {}),
-      }).toString();
+      });
+      if (columns && columns.length > 0) {
+        params.set("fields", columns.join(","));
+      }
       const url =
         kind === "csv"
           ? `/api/export?${params}`
@@ -481,6 +498,11 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
         setExportError(
           `Export tronqué à 2000 lignes${totalHdr ? ` sur ${totalHdr}` : ""}. Affine les filtres.`,
         );
+      } else {
+        toast({
+          title: `Export ${kind.toUpperCase()} terminé`,
+          description: "Le fichier a été téléchargé.",
+        });
       }
     } catch (e) {
       if (isAbortError(e)) return;
@@ -491,6 +513,13 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
   }
 
   // ── Sidebar navigation ────────────────────────────────────────────────────
+  const SECTION_LABELS: Record<string, string> = {
+    "section-stats": "Vue d'ensemble",
+    "section-members": "Membres",
+    "section-activity": "Activité",
+    "section-exports": "Exports",
+  };
+
   function navigateToSection(sectionId: string) {
     setActiveSection(sectionId);
     if (typeof document !== "undefined") {
@@ -508,14 +537,23 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
           <div className="flex items-center gap-3">
             <Logo variant="compact" size="sm" />
             <span className="hidden sm:inline text-border">/</span>
-            <MonoLabel className="text-lime hidden sm:inline">Admin</MonoLabel>
+            <MonoLabel className="text-muted-foreground hidden sm:inline">Admin</MonoLabel>
+            <ChevronRight className="size-3 text-muted-foreground hidden sm:inline" aria-hidden />
+            <button
+              type="button"
+              onClick={() => navigateToSection(activeSection)}
+              className="hidden sm:inline text-sm text-foreground hover:text-lime transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-inset rounded-sm px-1"
+              aria-label={`Retour à ${SECTION_LABELS[activeSection] ?? activeSection}`}
+            >
+              {SECTION_LABELS[activeSection] ?? activeSection}
+            </button>
             <span className="hidden md:inline-flex items-center gap-1.5 ml-2 px-2 py-0.5 rounded-sm border border-lime/40 bg-lime/5">
               <span className="size-1.5 rounded-full bg-lime animate-hash-pulse" />
               <span className="mono-label text-lime">Session active</span>
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <ShortcutHelp shortcuts={shortcuts} />
+            <ShortcutHelp shortcuts={shortcuts} open={helpOpen} onOpenChange={setHelpOpen} />
             <span title="Palette de commandes (Ctrl+K)">
               <RebootButton
                 size="sm"
@@ -548,9 +586,7 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
               <RebootButton
                 size="sm"
                 variant="outline"
-                onClick={() => {
-                  void handleExport("csv");
-                }}
+                onClick={() => setExportDialogOpen(true)}
                 disabled={exporting !== null}
               >
                 <Download className="size-4" />
@@ -748,25 +784,27 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
                     <RebootButton
                       size="sm"
                       variant="outline"
-                      onClick={() => {
-                        void handleExport("csv");
-                      }}
+                      onClick={() => setExportDialogOpen(true)}
                       disabled={exporting !== null}
                     >
                       <Download className="size-4" aria-hidden="true" />
                       <span>{exporting === "csv" ? "Export…" : "CSV"}</span>
                     </RebootButton>
-                    <RebootButton
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        void handleExport("json");
-                      }}
-                      disabled={exporting !== null}
-                    >
-                      <FileJson className="size-4" aria-hidden="true" />
-                      <span>{exporting === "json" ? "Export…" : "JSON"}</span>
-                    </RebootButton>
+                    <span className="hidden md:inline-block" title="Exporter en JSON">
+                      <RebootButton
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          void handleExport("json");
+                        }}
+                        disabled={exporting !== null}
+                      >
+                        <FileJson className="size-4" />
+                        <span className="hidden lg:inline">
+                          {exporting === "json" ? "Export…" : "JSON"}
+                        </span>
+                      </RebootButton>
+                    </span>
                   </div>
                 </div>
               </div>
@@ -791,6 +829,16 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
         }}
         onDelete={deleteMember}
         onSessionExpired={handleSessionExpired}
+      />
+
+      {/* ── Export Dialog ─────────────────────────────────────────────────── */}
+      <ExportDialog
+        open={exportDialogOpen}
+        onOpenChange={setExportDialogOpen}
+        onExport={(kind, columns) => {
+          void handleExport(kind, columns);
+        }}
+        exporting={exporting}
       />
 
       {/* ── Command Palette (Ctrl+K) ─────────────────────────────────────── */}
