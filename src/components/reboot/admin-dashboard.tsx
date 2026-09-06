@@ -4,10 +4,11 @@ import * as React from "react";
 import { Logo } from "@/components/brand/logo";
 import { RebootButton, MonoLabel } from "./shared";
 import { cn } from "@/lib/utils";
-import { Download, RefreshCw, ArrowLeft, LogOut, FileJson, AlertCircle } from "lucide-react";
+import { Download, RefreshCw, ArrowLeft, LogOut, FileJson, AlertCircle, Command } from "lucide-react";
 import { fetchJson, isAbortError, withRetryAfter } from "./admin/lib/fetchJson";
 import { useMembers } from "./admin/hooks/useMembers";
 import { AdminSidebar } from "./admin/AdminSidebar";
+import { CommandPalette } from "./admin/CommandPalette";
 import { AdminStats, type Stats, type FunnelData } from "./admin/AdminStats";
 import { MemberTable } from "./admin/MemberTable";
 import { MemberDetailDialog } from "./admin/MemberDetailDialog";
@@ -15,7 +16,11 @@ import { ActivityLog } from "./admin/ActivityLog";
 import { ImportCsvDialog } from "./admin/ImportCsvDialog";
 import { ChangePasscodeDialog } from "./admin/ChangePasscodeDialog";
 import { PendingApprovalsBanner } from "./admin/PendingApprovalsBanner";
-import { AdminStatsSkeleton } from "./admin/skeletons";
+import {
+  AdminStatsSkeleton,
+  MemberTableSkeleton,
+  ActivityLogSkeleton,
+} from "./admin/skeletons";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useAdminKeyboardShortcuts,
@@ -23,7 +28,7 @@ import {
   type ShortcutMap,
 } from "./admin/hooks/useKeyboardShortcuts";
 
-// Réexports mécaniques
+// Réexports mécaniques (Phase 3 split + Phase 1A sidebar, sans changement comportemental).
 export { PendingApprovalsBanner } from "./admin/PendingApprovalsBanner";
 export { AdminStats } from "./admin/AdminStats";
 export { MemberTable } from "./admin/MemberTable";
@@ -59,35 +64,34 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
     else onExit();
   }, [onExit, onSessionExpired]);
 
-  // ── Members (hook) ───────────────────────────────────────────────────────
-  const membersApi = useMembers({ onSessionExpired: handleSessionExpired });
-  const {
-    members,
-    total,
-    page,
-    pageSize,
-    setPage,
-    setPageSize,
-    filters,
-    setFilters,
-    setFilter,
-    searchQuery,
-    setSearchQuery,
-    debouncedSearchQuery,
-    sortKey,
-    sortDir,
-    toggleSort,
-    selectedIds,
-    setSelectedIds,
-    toggleSelect,
-    toggleSelectAll,
-    recentMembers,
-    loading: membersLoading,
-    loadError: membersError,
-    setLoadError: setMembersError,
-    refreshMembers,
-    serverSorted,
-  } = membersApi;
+   // ── Members (hook) ───────────────────────────────────────────────────────
+   const membersApi = useMembers({ onSessionExpired: handleSessionExpired });
+   const {
+     members,
+     total,
+     page,
+     pageSize,
+     setPage,
+     filters,
+     setFilters,
+     setFilter,
+     searchQuery,
+     setSearchQuery,
+     debouncedSearchQuery,
+     sortKey,
+     sortDir,
+     toggleSort,
+     selectedIds,
+     setSelectedIds,
+     toggleSelect,
+     toggleSelectAll,
+     recentMembers,
+     loading: membersLoading,
+     loadError: membersError,
+     setLoadError,
+     refreshMembers,
+     serverSorted,
+   } = membersApi;
 
   // ── Stats / funnel ───────────────────────────────────────────────────────
   const [stats, setStats] = React.useState<Stats | null>(null);
@@ -101,15 +105,23 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
   );
   const [bulkAction, setBulkAction] = React.useState<string | null>(null);
   const [bulkResult, setBulkResult] = React.useState<string | null>(null);
-  const [bulkProgress, setBulkProgress] = React.useState<{
-    done: number;
-    total: number;
-  } | null>(null);
   const [confirmBulkDelete, setConfirmBulkDelete] = React.useState(false);
   const [exporting, setExporting] = React.useState<"csv" | "json" | null>(null);
   const [exportError, setExportError] = React.useState<string | null>(null);
-  const [exportWarning, setExportWarning] = React.useState<string | null>(null);
   const [activeSection, setActiveSection] = React.useState("section-stats");
+  const [paletteOpen, setPaletteOpen] = React.useState(false);
+
+  // ── Command Palette : Ctrl+K / Cmd+K global ────────────────────────────────
+  React.useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((prev) => !prev);
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
 
   // Keyboard shortcuts
   const shortcuts = React.useMemo<ShortcutMap>(
@@ -141,14 +153,7 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
   useAdminKeyboardShortcuts(shortcuts);
 
   const loading = membersLoading || statsLoading;
-  const isSearching =
-    searchQuery !== debouncedSearchQuery || (membersLoading && !!searchQuery.trim());
-
-  // Désarme la confirmation suppression dès que la sélection change (anti-clic réflexe).
-  const selectedCount = selectedIds.size;
-  React.useEffect(() => {
-    setConfirmBulkDelete(false);
-  }, [selectedCount]);
+  const loadError = membersError ?? statsError;
 
   // ── Refs for sidebar sections ────────────────────────────────────────────
   const statsRef = React.useRef<HTMLDivElement>(null);
@@ -156,8 +161,7 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
   const activityRef = React.useRef<HTMLDivElement>(null);
   const exportsRef = React.useRef<HTMLDivElement>(null);
 
-  // ── IntersectionObserver — scrollspy stabilisé avec hystérésis ───────────
-  // Source unique de scroll : navigateToSection. L’observateur ne fait que lire.
+  // ── IntersectionObserver — update activeSection on scroll ─────────────────
   React.useEffect(() => {
     if (typeof window === "undefined") return;
     const sectionRefs = [
@@ -167,45 +171,31 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
       { id: "section-exports", ref: exportsRef },
     ];
 
-    // Mémorise le ratio par section pour éviter le sautillement entre callbacks.
-    const ratios = new Map<string, number>();
-    let ticking = false;
+    const observers: IntersectionObserver[] = [];
+
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
-          const id =
-            (entry.target as HTMLElement).dataset.section ?? entry.target.id;
-          ratios.set(id, entry.isIntersecting ? entry.intersectionRatio : 0);
+          if (entry.isIntersecting) {
+            const id = (entry.target as HTMLElement).dataset.section ?? "section-stats";
+            setActiveSection(id);
+          }
         }
-        if (ticking) return;
-        ticking = true;
-        requestAnimationFrame(() => {
-          // Choisit la section la plus visible, avec seuil minimal (hystérésis).
-          let bestId: string | null = null;
-          let bestRatio = 0.05;
-          for (const [id, ratio] of ratios) {
-            if (ratio > bestRatio) {
-              bestRatio = ratio;
-              bestId = id;
-            }
-          }
-          if (bestId) {
-            setActiveSection((prev) => (prev === bestId ? prev : bestId));
-          }
-          ticking = false;
-        });
       },
-      { threshold: [0, 0.15, 0.3, 0.5], rootMargin: "-72px 0px -55% 0px" },
+      { threshold: 0.3, rootMargin: "-80px 0px -40% 0px" },
     );
 
     for (const { id, ref } of sectionRefs) {
       if (ref.current) {
         ref.current.dataset.section = id;
         observer.observe(ref.current);
+        observers.push(observer);
       }
     }
 
-    return () => observer.disconnect();
+    return () => {
+      for (const obs of observers) obs.disconnect();
+    };
   }, []);
 
   // ── URL persistence for selectedId (no useSearchParams / Suspense) ──────────
@@ -303,60 +293,29 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
     };
   }, [loadStats, loadFunnel]);
 
-  // ── Refresh global (bouton header) ───────────────────────────────────────
-  async function refresh() {
-    setStatsLoading(true);
-    setStatsError(null);
-    setMembersError(null);
-    setExportWarning(null);
-    const ctrl = new AbortController();
-    try {
-      await Promise.all([
-        loadStats(ctrl.signal),
-        refreshMembers(),
-        loadFunnel(ctrl.signal),
-      ]);
-    } catch (e) {
-      if (isAbortError(e)) return;
-      if (e instanceof Error && e.message === "unauthorized") return;
-      const msg =
-        e instanceof Error
-          ? e.message
-          : "Erreur de chargement des données. Vérifie ta connexion puis rafraîchis.";
-      setStatsError(msg);
-    } finally {
-      setStatsLoading(false);
-    }
-  }
-
-  // ── Réessais locaux par bloc (erreurs non fusionnées) ─────────────────────
-  async function retryStats() {
-    setStatsLoading(true);
-    setStatsError(null);
-    const ctrl = new AbortController();
-    try {
-      await Promise.all([loadStats(ctrl.signal), loadFunnel(ctrl.signal)]);
-    } catch (e) {
-      if (isAbortError(e)) return;
-      if (e instanceof Error && e.message === "unauthorized") return;
-      setStatsError(
-        e instanceof Error
-          ? e.message
-          : "Erreur de chargement des stats. Vérifie ta connexion puis réessaie.",
-      );
-    } finally {
-      setStatsLoading(false);
-    }
-  }
-
-  async function retryMembers() {
-    // Les erreurs membres viennent de useMembers (TanStack) ; on relance ce bloc seul.
-    try {
-      await refreshMembers();
-    } catch {
-      /* l’erreur reste affichée par le bloc membres */
-    }
-  }
+   // ── Refresh ───────────────────────────────────────────────────────────────
+   async function refresh() {
+     setStatsLoading(true);
+     setStatsError(null);
+     const ctrl = new AbortController();
+     try {
+       await Promise.all([
+         loadStats(ctrl.signal),
+         refreshMembers(),
+         loadFunnel(ctrl.signal),
+       ]);
+     } catch (e) {
+       if (isAbortError(e)) return;
+       if (e instanceof Error && e.message === "unauthorized") return;
+       const msg =
+         e instanceof Error
+           ? e.message
+           : "Erreur de chargement des données. Vérifie ta connexion puis rafraîchis.";
+       setStatsError(msg);
+     } finally {
+       setStatsLoading(false);
+     }
+   }
 
   // ── Logout ────────────────────────────────────────────────────────────────
   const queryClient = useQueryClient();
@@ -370,15 +329,7 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
     onExit();
   }
 
-  // ── Bulk action (lots de 10, progression, messages métier) ─────────────────
-  const BULK_LABEL: Record<string, string> = {
-    approve: "validation",
-    invite: "invitation",
-    waitlist: "mise en waitlist",
-    reject: "rejet",
-    delete: "suppression",
-  };
-
+  // ── Bulk action ───────────────────────────────────────────────────────────
   async function runBulk(
     action: "approve" | "invite" | "waitlist" | "reject" | "delete",
   ) {
@@ -387,118 +338,79 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
       setConfirmBulkDelete(true);
       return;
     }
-    const ids = Array.from(selectedIds);
-    const label = BULK_LABEL[action] ?? action;
     setBulkAction(action);
     setBulkResult(null);
-    setBulkProgress(null);
     try {
-      // Découpe front en lots de 10 (limite serveur) avec progression.
-      const chunks: string[][] = [];
-      for (let i = 0; i < ids.length; i += 10) chunks.push(ids.slice(i, i + 10));
-      if (chunks.length > 1) setBulkProgress({ done: 0, total: chunks.length });
-
-      let affectedTotal = 0;
-      let missingTotal = 0;
-      for (let i = 0; i < chunks.length; i++) {
-        const { res, data, error, code, retryAfterSec } = await fetchJson(
-          "/api/members/bulk",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ids: chunks[i], action }),
-          },
-        );
-        if (res.status === 401 || code === "UNAUTHORIZED") {
-          handleSessionExpired();
-          return;
-        }
-        if (!res.ok || !data?.ok) {
-          const base = error ?? "Échec de l’action groupée.";
-          setBulkResult(
-            `Erreur — ${res.status === 429 || code === "RATE_LIMITED" ? withRetryAfter(base, retryAfterSec) : base}`,
-          );
-          return;
-        }
-        affectedTotal += (data.affected as number) ?? 0;
-        missingTotal += (data.missing as number) ?? 0;
-        if (chunks.length > 1) setBulkProgress({ done: i + 1, total: chunks.length });
-      }
-
-      if (action === "delete") {
-        setBulkResult(
-          missingTotal > 0
-            ? `${affectedTotal} membre${affectedTotal > 1 ? "s" : ""} supprimé${affectedTotal > 1 ? "s" : ""} (${missingTotal} introuvable${missingTotal > 1 ? "s" : ""}).`
-            : `${affectedTotal} membre${affectedTotal > 1 ? "s" : ""} supprimé${affectedTotal > 1 ? "s" : ""}.`,
-        );
-      } else if (missingTotal > 0) {
-        setBulkResult(
-          `${affectedTotal} membre${affectedTotal > 1 ? "s" : ""} traité${affectedTotal > 1 ? "s" : ""} — ${label} partielle (${missingTotal} introuvable${missingTotal > 1 ? "s" : ""}).`,
-        );
-      } else {
-        const successMsg =
-          action === "approve"
-            ? `${affectedTotal} membre${affectedTotal > 1 ? "s" : ""} validé${affectedTotal > 1 ? "s" : ""} et invité${affectedTotal > 1 ? "s" : ""}.`
-            : action === "invite"
-              ? `${affectedTotal} invitation${affectedTotal > 1 ? "s" : ""} envoyée${affectedTotal > 1 ? "s" : ""}.`
-              : action === "waitlist"
-                ? `${affectedTotal} membre${affectedTotal > 1 ? "s" : ""} placé${affectedTotal > 1 ? "s" : ""} en waitlist.`
-                : `${affectedTotal} membre${affectedTotal > 1 ? "s" : ""} rejeté${affectedTotal > 1 ? "s" : ""}.`;
-        setBulkResult(successMsg);
-      }
-      // Vide la sélection après succès pour éviter les rejouements.
-      setSelectedIds(new Set());
-      setConfirmBulkDelete(false);
-      await refresh();
-    } catch (e) {
-      if (isAbortError(e)) return;
-      setBulkResult("Échec de l’action groupée. Vérifie ta connexion puis réessaie.");
-    } finally {
-      setBulkAction(null);
-      setBulkProgress(null);
-    }
-  }
-
-  // ── Delete member ──────────────────────────────────────────────────────────
-  async function deleteMember(id: string) {
-    try {
-      const { res, error, code, retryAfterSec } = await fetchJson(
-        `/api/members/${id}`,
-        { method: "DELETE" },
+      const { res, data, error, code, retryAfterSec } = await fetchJson(
+        "/api/members/bulk",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: Array.from(selectedIds), action }),
+        },
       );
       if (res.status === 401 || code === "UNAUTHORIZED") {
         handleSessionExpired();
         return;
       }
-      if (!res.ok) {
-        const base = error ?? "Échec de la suppression.";
-        setMembersError(
-          res.status === 429 || code === "RATE_LIMITED"
-            ? withRetryAfter(base, retryAfterSec)
-            : base,
+      if (!res.ok || !data?.ok) {
+        const base = error ?? "Échec de l'action bulk.";
+        setBulkResult(
+          `Erreur: ${res.status === 429 || code === "RATE_LIMITED" ? withRetryAfter(base, retryAfterSec) : base}`,
         );
         return;
       }
-      setSelectedId(null);
+      const affected = (data.affected as number) ?? 0;
+      const partial = (data.partial as boolean) ?? false;
+      const missing = (data.missing as number) ?? 0;
+      setBulkResult(
+        partial
+          ? `${affected} membre(s) — action "${action}" partielle (${missing} introuvable(s)).`
+          : `${affected} membre(s) — action "${action}" appliquée`,
+      );
+      setConfirmBulkDelete(false);
       await refresh();
     } catch (e) {
       if (isAbortError(e)) return;
-      setMembersError("Échec de la suppression.");
+      setBulkResult("Échec de l'action bulk.");
+    } finally {
+      setBulkAction(null);
     }
   }
 
-  // ── Export (avertissement avant si total > 2000) ──────────────────────────
+   // ── Delete member ──────────────────────────────────────────────────────────
+   async function deleteMember(id: string) {
+     try {
+       const { res, error, code, retryAfterSec } = await fetchJson(
+         `/api/members/${id}`,
+         { method: "DELETE" },
+       );
+       if (res.status === 401 || code === "UNAUTHORIZED") {
+         handleSessionExpired();
+         return;
+       }
+       if (!res.ok) {
+         const base = error ?? "Échec de la suppression.";
+         setStatsError(
+           res.status === 429 || code === "RATE_LIMITED"
+             ? withRetryAfter(base, retryAfterSec)
+             : base,
+         );
+         return;
+       }
+       setSelectedId(null);
+       await refresh();
+     } catch (e) {
+       if (isAbortError(e)) return;
+       setStatsError("Échec de la suppression.");
+     }
+   }
+
+  // ── Export ───────────────────────────────────────────────────────────────
   async function handleExport(kind: "csv" | "json") {
     if (exporting) return;
     setExporting(kind);
     setExportError(null);
-    setExportWarning(null);
-    // Avertissement pré-export via le total déjà connu (liste filtrée).
-    if (total > 2000) {
-      setExportWarning(
-        `Vue actuelle : ${total} membres. L’export sera limité aux 2000 premiers. Affine les filtres pour un export complet.`,
-      );
-    }
     try {
       const q = debouncedSearchQuery.trim() || searchQuery.trim();
       const params = new URLSearchParams({
@@ -521,7 +433,7 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
         if (code === "UNAUTHORIZED" || res.status === 401) handleSessionExpired();
         setExportError(
           code === "UNAUTHORIZED"
-            ? "Session expirée. Reconnecte-toi — tes filtres sont conservés dans l’adresse."
+            ? "Session expirée. Reconnecte-toi."
             : "Non autorisé.",
         );
         return;
@@ -566,8 +478,8 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
       a.remove();
       setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
       if (truncated) {
-        setExportWarning(
-          `Export limité à 2000 lignes${totalHdr ? ` sur ${totalHdr}` : ""}. Le fichier contient les 2000 premiers — affine les filtres pour le reste.`,
+        setExportError(
+          `Export tronqué à 2000 lignes${totalHdr ? ` sur ${totalHdr}` : ""}. Affine les filtres.`,
         );
       }
     } catch (e) {
@@ -588,28 +500,33 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
   }
 
   // ── Render ───────────────────────────────────────────────────────────────
-  const isFiltered = Object.keys(filters).length > 0 || !!searchQuery.trim();
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Top bar */}
       <header className="sticky top-0 z-40 bg-background/90 backdrop-blur-sm border-b border-border/60">
-        <div className="mx-auto max-w-7xl px-5 sm:px-8 h-14 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-3 min-w-0">
+        <div className="mx-auto max-w-7xl px-5 sm:px-8 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-3">
             <Logo variant="compact" size="sm" />
-            <span className="hidden sm:inline text-border" aria-hidden>
-              /
-            </span>
+            <span className="hidden sm:inline text-border">/</span>
             <MonoLabel className="text-lime hidden sm:inline">Admin</MonoLabel>
-            <span
-              className="hidden md:inline-flex items-center gap-1.5 ml-2 px-2 py-1 rounded-sm border border-lime/40 bg-lime/5"
-              title="Session valable 12h. Après expiration, reconnecte-toi — tes filtres restent dans l’adresse."
-            >
-              <span className="size-1.5 rounded-full bg-lime animate-hash-pulse" aria-hidden />
-              <span className="mono-label text-lime">Session 12h</span>
+            <span className="hidden md:inline-flex items-center gap-1.5 ml-2 px-2 py-0.5 rounded-sm border border-lime/40 bg-lime/5">
+              <span className="size-1.5 rounded-full bg-lime animate-hash-pulse" />
+              <span className="mono-label text-lime">Session active</span>
             </span>
           </div>
           <div className="flex items-center gap-2">
             <ShortcutHelp shortcuts={shortcuts} />
+            <span title="Palette de commandes (Ctrl+K)">
+              <RebootButton
+                size="sm"
+                variant="outline"
+                onClick={() => setPaletteOpen(true)}
+                aria-label="Ouvrir la palette de commandes (Ctrl+K)"
+              >
+                <Command className="size-4" aria-hidden />
+                <span className="hidden sm:inline mono-label">Ctrl K</span>
+              </RebootButton>
+            </span>
             <RebootButton
               size="sm"
               variant="outline"
@@ -618,14 +535,13 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
               }}
               disabled={loading}
             >
-              <RefreshCw className={cn("size-4", loading && "animate-spin")} aria-hidden />
+              <RefreshCw className={cn("size-4", loading && "animate-spin")} />
               <span className="hidden sm:inline">Rafraîchir</span>
-              <span className="sr-only sm:hidden">Rafraîchir</span>
             </RebootButton>
             <span
               title={
-                isFiltered
-                  ? `Exporter la vue filtrée (${total} membres${total > 2000 ? ", limité à 2000" : ""})`
+                Object.keys(filters).length || searchQuery
+                  ? "Exporter la vue filtrée"
                   : "Exporter tous les membres"
               }
             >
@@ -637,13 +553,12 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
                 }}
                 disabled={exporting !== null}
               >
-                <Download className="size-4" aria-hidden />
+                <Download className="size-4" />
                 <span className="hidden sm:inline">
                   {exporting === "csv"
                     ? "Export…"
-                    : `CSV${isFiltered ? " (filtré)" : ""}`}
+                    : `CSV${Object.keys(filters).length || searchQuery ? " (filtré)" : ""}`}
                 </span>
-                <span className="sr-only sm:hidden">Exporter CSV</span>
               </RebootButton>
             </span>
             <ChangePasscodeDialog
@@ -659,11 +574,10 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
                 }}
                 disabled={exporting !== null}
               >
-                <FileJson className="size-4" aria-hidden />
+                <FileJson className="size-4" />
                 <span className="hidden lg:inline">
                   {exporting === "json" ? "Export…" : "JSON"}
                 </span>
-                <span className="sr-only lg:hidden">Exporter JSON</span>
               </RebootButton>
             </span>
             <span title="Se déconnecter">
@@ -674,15 +588,13 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
                   void logout();
                 }}
               >
-                <LogOut className="size-4" aria-hidden />
+                <LogOut className="size-4" />
                 <span className="hidden sm:inline">Déconnexion</span>
-                <span className="sr-only sm:hidden">Se déconnecter</span>
               </RebootButton>
             </span>
             <RebootButton size="sm" variant="ghost" onClick={onExit}>
-              <ArrowLeft className="size-4" aria-hidden />
+              <ArrowLeft className="size-4" />
               <span className="hidden sm:inline">Site</span>
-              <span className="sr-only sm:hidden">Retour au site</span>
             </RebootButton>
           </div>
         </div>
@@ -694,57 +606,44 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
         <AdminSidebar
           activeSection={activeSection}
           onNavigate={navigateToSection}
+          onOpenPalette={() => setPaletteOpen(true)}
         />
 
         {/* ── Scrollable sections ────────────────────────────────────── */}
         <div className="flex-1 min-w-0">
           <main className="mx-auto max-w-7xl w-full px-5 sm:px-8 py-8 space-y-8">
-            {/* Export : erreur (rouge) vs avertissement (ambre) distincts */}
+            {/* Error banners */}
+            {loadError && (
+              <div className="mb-6 rounded-md border border-destructive/40 bg-destructive/5 p-4 flex items-center justify-between gap-4 animate-hash-in">
+                <div className="flex items-center gap-3">
+                  <AlertCircle className="size-5 text-destructive shrink-0" />
+                  <p className="text-sm text-foreground">{loadError}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    void refresh();
+                  }}
+                  className="text-xs px-3 py-1.5 rounded-md border border-border bg-card text-foreground hover:border-lime/60 hover:text-lime transition-colors focus-lime whitespace-nowrap"
+                >
+                  Réessayer
+                </button>
+              </div>
+            )}
             {exportError && (
               <div
                 className="mb-6 rounded-md border border-destructive/40 bg-destructive/5 p-4 flex items-center justify-between gap-4 animate-hash-in"
                 role="alert"
               >
                 <div className="flex items-center gap-3">
-                  <AlertCircle className="size-5 text-destructive shrink-0" aria-hidden />
+                  <AlertCircle className="size-5 text-destructive shrink-0" />
                   <p className="text-sm text-foreground">{exportError}</p>
                 </div>
                 <button
-                  type="button"
                   onClick={() => setExportError(null)}
-                  className="min-h-[36px] text-xs px-3 py-1.5 rounded-md border border-border bg-card text-foreground hover:border-lime/60 hover:text-lime transition-colors focus-lime whitespace-nowrap"
+                  className="text-xs px-3 py-1.5 rounded-md border border-border bg-card text-foreground hover:border-lime/60 hover:text-lime transition-colors focus-lime whitespace-nowrap"
                 >
                   Fermer
                 </button>
-              </div>
-            )}
-            {exportWarning && (
-              <div
-                className="mb-6 rounded-md border border-amber-500/40 bg-amber-500/[0.07] p-4 flex flex-wrap items-center justify-between gap-3 animate-hash-in"
-                role="status"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <AlertCircle className="size-5 text-amber-300 shrink-0" aria-hidden />
-                  <p className="text-sm text-foreground">{exportWarning}</p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {total > 2000 && (
-                    <button
-                      type="button"
-                      onClick={() => navigateToSection("section-members")}
-                      className="min-h-[36px] text-xs px-3 py-1.5 rounded-md border border-amber-500/50 bg-card text-foreground hover:border-amber-400 hover:text-amber-200 transition-colors focus-lime whitespace-nowrap"
-                    >
-                      Voir les filtres
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setExportWarning(null)}
-                    className="min-h-[36px] text-xs px-3 py-1.5 rounded-md border border-border bg-card text-foreground hover:border-amber-400 hover:text-amber-200 transition-colors focus-lime whitespace-nowrap"
-                  >
-                    Compris
-                  </button>
-                </div>
               </div>
             )}
 
@@ -761,33 +660,14 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
               aria-label="Vue d'ensemble"
               className="scroll-mt-20"
             >
-              {statsError && (
-                <div
-                  className="mb-4 rounded-md border border-destructive/40 bg-destructive/5 p-4 flex items-center justify-between gap-4"
-                  role="alert"
-                >
-                  <p className="text-sm text-foreground">{statsError}</p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void retryStats();
-                    }}
-                    className="min-h-[36px] text-xs px-3 py-1.5 rounded-md border border-border bg-card text-foreground hover:border-lime/60 hover:text-lime transition-colors focus-lime whitespace-nowrap"
-                  >
-                    Réessayer les stats
-                  </button>
-                </div>
-              )}
               {statsLoading ? (
                 <AdminStatsSkeleton />
               ) : (
                 <AdminStats
                   stats={stats}
                   funnel={funnel}
-                  filters={filters}
                   onFilter={setFilter}
                   onClearFilters={() => setFilters({})}
-                  onSeeQueue={() => navigateToSection("section-members")}
                 />
               )}
             </section>
@@ -800,23 +680,6 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
               aria-label="Membres"
               className="scroll-mt-20"
             >
-              {membersError && (
-                <div
-                  className="mb-4 rounded-md border border-destructive/40 bg-destructive/5 p-4 flex items-center justify-between gap-4"
-                  role="alert"
-                >
-                  <p className="text-sm text-foreground">{membersError}</p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void retryMembers();
-                    }}
-                    className="min-h-[36px] text-xs px-3 py-1.5 rounded-md border border-border bg-card text-foreground hover:border-lime/60 hover:text-lime transition-colors focus-lime whitespace-nowrap"
-                  >
-                    Réessayer la liste
-                  </button>
-                </div>
-              )}
               <MemberTable
                 members={members}
                 total={total}
@@ -826,14 +689,12 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
                 sortDir={sortDir}
                 filters={filters}
                 searchQuery={searchQuery}
-                isSearching={isSearching}
                 recentMembers={recentMembers}
                 selectedIds={selectedIds}
                 bulkAction={bulkAction}
                 bulkResult={bulkResult}
-                bulkProgress={bulkProgress}
                 confirmBulkDelete={confirmBulkDelete}
-                loading={membersLoading}
+                loading={loading}
                 serverSorted={serverSorted}
                 onToggleSort={toggleSort}
                 onToggleSelect={toggleSelect}
@@ -852,7 +713,6 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
                 onDismissBulkResult={() => setBulkResult(null)}
                 onConfirmBulkDeleteChange={setConfirmBulkDelete}
                 onPageChange={setPage}
-                onPageSizeChange={setPageSize}
               />
             </section>
 
@@ -880,10 +740,7 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
                   <div className="min-w-0">
                     <MonoLabel className="text-muted-foreground">Exports & Import</MonoLabel>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {isFiltered
-                        ? `Vue filtrée : ${total} membre${total > 1 ? "s" : ""}${total > 2000 ? " — export limité aux 2000 premiers" : ""}.`
-                        : `Tous les membres : ${total} au total${total > 2000 ? " — export limité aux 2000 premiers" : ""}.`}
-                      {" "}CSV et JSON. Import CSV pour ajouter des membres.
+                      Exporte la vue filtrée ou tous les membres. CSV et JSON. Importe un CSV pour ajouter des membres.
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -919,7 +776,7 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
           {/* Footer */}
           <footer className="border-t border-border/60 py-4">
             <p className="text-center text-xs text-muted-foreground">
-              HASHCODE REBOOT · Admin — accès réservé. Session 12h. Les exports contiennent des données membres.
+              HASHCODE REBOOT · Admin — accès réservé. Les exports contiennent des données membres.
             </p>
           </footer>
         </div>
@@ -934,6 +791,23 @@ export function AdminDashboard({ onExit, onSessionExpired }: DashboardProps) {
         }}
         onDelete={deleteMember}
         onSessionExpired={handleSessionExpired}
+      />
+
+      {/* ── Command Palette (Ctrl+K) ─────────────────────────────────────── */}
+      <CommandPalette
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        onNavigate={navigateToSection}
+        onSetFilter={setFilter}
+        onExport={(kind) => {
+          void handleExport(kind);
+        }}
+        onLogout={() => {
+          void logout();
+        }}
+        onRefresh={() => {
+          void refresh();
+        }}
       />
     </div>
   );

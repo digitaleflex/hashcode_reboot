@@ -531,9 +531,9 @@ function MemberDetail({
         </div>
       )}
 
-      {/* Member journey timeline — visual recap of the member's path */}
+      {/* Member journey timeline — activation path recap (steps are not strictly sequential) */}
       <div className="pt-4 border-t border-border/60">
-        <MonoLabel className="text-muted-foreground">Parcours</MonoLabel>
+        <MonoLabel className="text-muted-foreground">Parcours d&apos;activation</MonoLabel>
         <div className="mt-4 space-y-3">
           <TimelineStep
             done

@@ -71,7 +71,11 @@ async function computeStats(startDate: Date, endDate: Date): Promise<StatsAggreg
     byLevel: byLevel.map((l) => ({ level: l.level, count: l._count })),
     byAvailability: byAvailability.map((a) => ({ availability: a.availability, count: a._count })),
     byBudget: byBudget.map((b) => ({ budget: b.budgetRange, count: b._count })),
-    byArchetype: byArchetype.filter((a) => a.profileArchetype).map((a) => ({ archetype: a.profileArchetype, count: a._count })),
+    byArchetype: byArchetype.flatMap((a) =>
+      a.profileArchetype
+        ? [{ archetype: String(a.profileArchetype), count: a._count }]
+        : [],
+    ),
   };
 }
 
@@ -141,7 +145,11 @@ export async function GET(req: NextRequest) {
       byLevel: byLevel.map((l) => ({ level: l.level, count: l._count })),
       byAvailability: byAvailability.map((a) => ({ availability: a.availability, count: a._count })),
       byBudget: byBudget.map((b) => ({ budget: b.budgetRange, count: b._count })),
-      byArchetype: byArchetype.filter((a) => a.profileArchetype).map((a) => ({ archetype: a.profileArchetype, count: a._count })),
+byArchetype: byArchetype.flatMap((a) =>
+      a.profileArchetype
+        ? [{ archetype: String(a.profileArchetype), count: a._count }]
+        : [],
+    ),
     });
   }
 

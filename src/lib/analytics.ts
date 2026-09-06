@@ -46,7 +46,11 @@ export function getOrCreateSessionId(): string {
   }
 }
 
-/** Fire-and-forget client tracker. Never blocks the UI. */
+/**
+ * Fire-and-forget client tracker. Never blocks the UI.
+ * Retries up to 3 times with exponential backoff.
+ * Analytics errors are logged but never break the user experience.
+ */
 export function track(event: TrackEvent): void {
   if (typeof window === "undefined") return;
   const payload = {
@@ -65,12 +69,33 @@ export function track(event: TrackEvent): void {
       });
       navigator.sendBeacon("/api/analytics", blob);
     } else {
-      fetch("/api/analytics", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        keepalive: true,
-      }).catch(() => {});
+      // Retry fetch up to 3 times with progressive delays
+      const maxRetries = 3;
+      const delayMs = [0, 100, 300];
+
+      async function attemptFetch(tryNum: number): Promise<void> {
+        try {
+          await fetch("/api/analytics", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+            keepalive: true,
+          });
+        } catch (error) {
+          if (tryNum < maxRetries - 1) {
+            const delay = delayMs[tryNum + 1] || 500;
+            setTimeout(() => attemptFetch(tryNum + 1), delay);
+          } else {
+            // Log after all retries exhausted — must not break UX
+            console.warn(
+              `Analytics event "${event.type}" failed after ${maxRetries} retries`,
+              error
+            );
+          }
+        }
+      }
+
+      attemptFetch(0);
     }
   } catch {
     /* analytics must never break UX */
