@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { LayoutDashboard, Users, Activity, FileJson, ChevronLeft, ChevronRight } from "lucide-react";
+import { LayoutDashboard, Users, Activity, FileJson, ChevronLeft, ChevronRight, Command } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const SIDEBAR_KEY = "hashcode-admin-sidebar";
@@ -88,7 +88,7 @@ interface AdminSidebarProps {
   activeSection?: string;
   /** Called when user clicks a nav item with the target section id */
   onNavigate?: (sectionId: string) => void;
-  /** Called when user clicks the command palette button */
+  /** Called when user clicks the "Commandes" button — opens the Command Palette (Ctrl+K). */
   onOpenPalette?: () => void;
 }
 
@@ -146,25 +146,6 @@ export function AdminSidebar({ activeSection = "section-stats", onNavigate, onOp
         {!collapsed && (
           <span className="mono-label text-lime text-sm truncate">HASHCODE</span>
         )}
-        {!collapsed && (
-          <span className="mono-label text-lime text-sm truncate">HASHCODE</span>
-        )}
-        <button
-          type="button"
-          onClick={toggle}
-          aria-label={collapsed ? "Ouvrir le menu" : "Réduire le menu"}
-          aria-expanded={!collapsed}
-          className={cn(
-            "min-h-[32px] min-w-[32px] size-8 flex items-center justify-center rounded-sm text-muted-foreground hover:text-foreground hover:bg-lime/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-inset ml-auto shrink-0",
-            collapsed && "ml-0",
-          )}
-        >
-          {collapsed ? <ChevronRight className="size-4" aria-hidden /> : <ChevronLeft className="size-4" aria-hidden />}
-        </button>
-      </div>
-        {!collapsed && (
-          <span className="mono-label text-lime text-sm truncate">HASHCODE</span>
-        )}
         <button
           type="button"
           onClick={toggle}
@@ -193,18 +174,18 @@ export function AdminSidebar({ activeSection = "section-stats", onNavigate, onOp
           />
         ))}
 
-        {/* Command Palette Button in Nav */}
         {onOpenPalette && (
           <button
             type="button"
             onClick={onOpenPalette}
+            title={collapsed ? "Commandes (Ctrl+K)" : undefined}
+            aria-label="Ouvrir la palette de commandes (Ctrl+K)"
             className={cn(
-              "group flex w-full items-center gap-3 rounded-sm px-3 py-2.5 text-left transition-colors duration-150 min-h-[44px]",
+              "group flex w-full items-center gap-3 rounded-sm px-3 py-2.5 text-left transition-colors duration-150 min-h-[44px] mt-2 border-t border-border/40 pt-3",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-inset",
               "text-muted-foreground hover:bg-lime/5 hover:text-foreground",
               collapsed && "justify-center px-0",
             )}
-            aria-label="Ouvrir la palette de commandes"
           >
             <Command
               className={cn(
@@ -214,7 +195,12 @@ export function AdminSidebar({ activeSection = "section-stats", onNavigate, onOp
               aria-hidden
             />
             {!collapsed && (
-              <span className="text-sm font-medium truncate">Commandes Ctrl+K</span>
+              <span className="text-sm font-medium truncate flex-1">Commandes</span>
+            )}
+            {!collapsed && (
+              <kbd className="mono-label text-muted-foreground border border-border rounded-sm px-1.5 py-0.5 text-[10px]">
+                Ctrl K
+              </kbd>
             )}
           </button>
         )}
@@ -246,6 +232,24 @@ export function AdminSidebar({ activeSection = "section-stats", onNavigate, onOp
             onClick={() => handleNav(item.id)}
           />
         ))}
+
+        {onOpenPalette && (
+          <button
+            type="button"
+            onClick={() => {
+              onOpenPalette();
+              setMobileOpen(false);
+            }}
+            aria-label="Ouvrir la palette de commandes"
+            className="group flex w-full items-center gap-3 rounded-sm px-3 py-2.5 text-left transition-colors duration-150 min-h-[44px] mt-2 border-t border-border/40 pt-3 text-muted-foreground hover:bg-lime/5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-inset"
+          >
+            <Command className="size-4 shrink-0 text-muted-foreground group-hover:text-foreground" aria-hidden />
+            <span className="text-sm font-medium truncate flex-1">Commandes</span>
+            <kbd className="mono-label text-muted-foreground border border-border rounded-sm px-1.5 py-0.5 text-[10px]">
+              Ctrl K
+            </kbd>
+          </button>
+        )}
       </nav>
       <div className="px-4 py-3 border-t border-border/60 shrink-0">
         <p className="text-muted-foreground mono-label">v2.0 · Admin</p>

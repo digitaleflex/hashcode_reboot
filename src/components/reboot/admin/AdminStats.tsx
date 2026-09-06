@@ -202,6 +202,17 @@ export function AdminStats({
   // Original behavior when not comparing
   return (
     <>
+      {/* Empty state — no data at all */}
+      {!stats && (
+        <div className="rounded-md border border-border/60 bg-card/40 p-8 text-center">
+          <p className="text-sm font-medium text-foreground">Aucune donnée disponible.</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Les statistiques apparaîtront dès la première inscription.
+          </p>
+        </div>
+      )}
+      {stats && (
+        <>
       {/* Cap — file d’attente explicite, même à zéro */}
       {pendingCount > 0 ? (
         <div
@@ -346,6 +357,14 @@ export function AdminStats({
             `${countryFlag(c.country)} ${countryName(c.country)}`,
             c.count,
           ])}
+          onRowClick={onFilter}
+          filterKey="country"
+          filterValues={Object.fromEntries(
+            (stats?.byCountry ?? []).map((c) => [
+              `${countryFlag(c.country)} ${countryName(c.country)}`,
+              c.country,
+            ]),
+          )}
         />
         <Breakdown
           title="Par niveau"
@@ -353,6 +372,14 @@ export function AdminStats({
             LEVEL_LABEL[l.level] ?? l.level,
             l.count,
           ])}
+          onRowClick={onFilter}
+          filterKey="level"
+          filterValues={Object.fromEntries(
+            (stats?.byLevel ?? []).map((l) => [
+              LEVEL_LABEL[l.level] ?? l.level,
+              l.level,
+            ]),
+          )}
         />
       </section>
 
@@ -403,11 +430,15 @@ export function AdminStats({
         </div>
       </section>
 
-      {/* Funnel analytics — connected steps with arrows */}
+      {/* Activation path — NOT a strict funnel: WhatsApp clicks can precede
+          profile completion, so steps are not strictly sequential. */}
       <section className="mt-6">
         <div className="flex items-center justify-between mb-3">
-          <MonoLabel className="text-muted-foreground">Funnel</MonoLabel>
-          <span className="mono-label text-muted-foreground">
+          <MonoLabel className="text-muted-foreground">Parcours d&apos;activation</MonoLabel>
+          <span
+            className="mono-label text-muted-foreground"
+            title="Sessions complétées / sessions démarrées. Les étapes ne sont pas strictement séquentielles."
+          >
             {funnel?.funnel.completionRate ?? 0}% complétion
           </span>
         </div>
@@ -462,6 +493,27 @@ export function AdminStats({
           )}
         </div>
       </section>
+
+      {/* Insight → Action : mentorat (uniquement si calculable depuis stats) */}
+      {stats.mentoring > 0 && (
+        <div className="mt-4 rounded-md border border-sky-400/40 bg-sky-400/[0.05] p-4 flex flex-wrap items-center gap-3">
+          <span className="flex items-center gap-2 text-sm text-foreground">
+            <span className="size-2 rounded-full bg-sky-400" aria-hidden />
+            <strong className="font-semibold tabular-nums">{stats.mentoring}</strong>
+            <span className="text-muted-foreground">intéressé(s) par le mentorat — leads à qualifier.</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => onFilter("mentoring", "yes")}
+            className="ml-auto inline-flex items-center gap-1.5 min-h-[44px] px-4 rounded-md border border-sky-400/50 bg-card text-sm text-foreground hover:border-sky-300 hover:text-sky-200 transition-colors focus-lime"
+          >
+            Filtrer
+            <ArrowRight className="size-4" aria-hidden />
+          </button>
+        </div>
+      )}
+        </>
+      )}
     </>
   );
 }
@@ -523,7 +575,16 @@ function StatCard({
         {value}
       </div>
       <span className="mt-1 block text-[11px] text-muted-foreground">
-        {active ? "Filtre actif — cliquer pour voir" : "Cliquer pour filtrer"}
+        {active ? (
+          <span className="inline-flex items-center gap-1 text-lime">
+            <span className="size-1.5 rounded-full bg-lime" aria-hidden />
+            Filtre actif — cliquer pour voir
+          </span>
+        ) : onClick ? (
+          <span className="inline-flex items-center gap-1 group-hover:text-lime transition-colors">
+            → Voir la liste
+          </span>
+        ) : null}
       </span>
     </button>
   );
@@ -532,9 +593,18 @@ function StatCard({
 function Breakdown({
   title,
   rows,
+  onRowClick,
+  filterKey,
+  filterValues,
 }: {
   title: string;
   rows: [string, number][];
+  /** Optional: make rows actionable (Insight → Action). Value = filter value to apply. */
+  onRowClick?: (filterKey: string, filterValue: string) => void;
+  /** Filter key used when a row is clicked (requires onRowClick). */
+  filterKey?: string;
+  /** Map of row label → filter value. Rows without an entry stay non-clickable. */
+  filterValues?: Record<string, string>;
 }) {
   const max = Math.max(1, ...rows.map((r) => r[1]));
   const total = rows.reduce((s, r) => s + r[1], 0);
@@ -550,8 +620,10 @@ function Breakdown({
         )}
         {rows.slice(0, 8).map(([label, count]) => {
           const pct = Math.round((count / total) * 100) || 0;
-          return (
-            <div key={label} className="group flex items-center gap-3">
+          const filterValue = filterValues?.[label];
+          const clickable = Boolean(onRowClick && filterKey && filterValue);
+          const content = (
+            <>
               <span className="text-xs text-foreground truncate w-24 sm:w-32">
                 {label}
               </span>
@@ -565,6 +637,25 @@ function Breakdown({
                 {count}
                 <span className="opacity-50 ml-1">{pct}%</span>
               </span>
+            </>
+          );
+          if (clickable) {
+            return (
+              <button
+                key={label}
+                type="button"
+                onClick={() => onRowClick!(filterKey!, filterValue!)}
+                title={`Filtrer : ${label}`}
+                aria-label={`Filtrer la liste : ${label} (${count})`}
+                className="group w-full flex items-center gap-3 rounded-sm px-1 py-0.5 text-left transition-colors hover:bg-lime/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-inset min-h-[28px]"
+              >
+                {content}
+              </button>
+            );
+          }
+          return (
+            <div key={label} className="group flex items-center gap-3">
+              {content}
             </div>
           );
         })}

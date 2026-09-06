@@ -157,6 +157,11 @@ export function MemberTable({
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
+  // Progressive disclosure : filtres avancés repliés par défaut (L1 = domaine/niveau/statut + recherche).
+  const [advancedOpen, setAdvancedOpen] = React.useState(false);
+  const ADVANCED_KEYS = ["lane", "mentoring", "budget"] as const;
+  const activeAdvancedCount = ADVANCED_KEYS.filter((k) => filters[k]).length;
+
   return (
     <>
       {/* Filter bar */}
@@ -205,39 +210,63 @@ export function MemberTable({
               ["REJECTED", "Rejeté"],
             ]}
           />
-          <FilterSelect
-            placeholder="Voie"
-            value={filters.lane ?? "all"}
-            onChange={(v) => onFilter("lane", v)}
-            options={[
-              ["immediate", "Accès immédiat"],
-              ["pending", "En traitement"],
-            ]}
-          />
-          <FilterSelect
-            placeholder="Mentorat"
-            value={filters.mentoring ?? "all"}
-            onChange={(v) => onFilter("mentoring", v)}
-            options={[
-              ["yes", "Oui"],
-              ["maybe", "Peut-être"],
-              ["no", "Non"],
-            ]}
-          />
-          <FilterSelect
-            placeholder="Budget"
-            value={filters.budget ?? "all"}
-            onChange={(v) => onFilter("budget", v)}
-            options={[
-              ["<2500", "< 2.5k"],
-              ["2500-5000", "2.5–5k"],
-              ["5000-10000", "5–10k"],
-              ["10000-20000", "10–20k"],
-              ["20000-30000", "20–30k"],
-              [">30000", "> 30k"],
-              ["unknown", "NSP"],
-            ]}
-          />
+          {/* Advanced filters — collapsed by default (progressive disclosure L2) */}
+          {advancedOpen && (
+            <>
+              <FilterSelect
+                placeholder="Voie"
+                value={filters.lane ?? "all"}
+                onChange={(v) => onFilter("lane", v)}
+                options={[
+                  ["immediate", "Accès immédiat"],
+                  ["pending", "En traitement"],
+                ]}
+              />
+              <FilterSelect
+                placeholder="Mentorat"
+                value={filters.mentoring ?? "all"}
+                onChange={(v) => onFilter("mentoring", v)}
+                options={[
+                  ["yes", "Oui"],
+                  ["maybe", "Peut-être"],
+                  ["no", "Non"],
+                ]}
+              />
+              <FilterSelect
+                placeholder="Budget"
+                value={filters.budget ?? "all"}
+                onChange={(v) => onFilter("budget", v)}
+                options={[
+                  ["<2500", "< 2.5k"],
+                  ["2500-5000", "2.5–5k"],
+                  ["5000-10000", "5–10k"],
+                  ["10000-20000", "10–20k"],
+                  ["20000-30000", "20–30k"],
+                  [">30000", "> 30k"],
+                  ["unknown", "NSP"],
+                ]}
+              />
+            </>
+          )}
+          <button
+            type="button"
+            onClick={() => setAdvancedOpen((prev) => !prev)}
+            aria-expanded={advancedOpen}
+            className={cn(
+              "h-9 px-3 rounded-full border text-sm transition-colors min-w-32 inline-flex items-center justify-center gap-1.5",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-inset",
+              activeAdvancedCount > 0
+                ? "border-lime/60 bg-lime/10 text-lime"
+                : "border-border bg-card text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {advancedOpen ? "− Moins de filtres" : "+ Filtres avancés"}
+            {activeAdvancedCount > 0 && (
+              <span className="mono-label text-[10px] border border-lime/50 rounded-sm px-1">
+                {activeAdvancedCount}
+              </span>
+            )}
+          </button>
           {/* Search box — searches first name + email */}
           <div className="relative flex-1 min-w-[180px]">
             <input
