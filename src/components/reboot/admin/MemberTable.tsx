@@ -17,11 +17,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { countryFlag, countryName } from "@/lib/profiling/countries";
 import { StickyNote } from "lucide-react";
@@ -546,27 +541,25 @@ export function MemberTable({
                     />
                   </TableCell>
                   <TableCell className="font-medium py-3">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-foreground group-hover:text-lime transition-colors">
-                            {m.firstName} {m.lastName ?? ""}
+                    <div className="relative group/name">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-foreground group-hover:text-lime transition-colors">
+                          {m.firstName} {m.lastName ?? ""}
+                        </span>
+                        {m.adminNote && (
+                          <span
+                            className="shrink-0 inline-flex items-center justify-center size-4 rounded-sm border border-amber-500/50 bg-amber-500/10 text-amber-300"
+                            title="Note interne"
+                            aria-label="Note interne présente"
+                          >
+                            <StickyNote className="size-2.5" />
                           </span>
-                          {m.adminNote && (
-                            <span
-                              className="shrink-0 inline-flex items-center justify-center size-4 rounded-sm border border-amber-500/50 bg-amber-500/10 text-amber-300"
-                              title="Note interne"
-                              aria-label="Note interne présente"
-                            >
-                              <StickyNote className="size-2.5" />
-                            </span>
-                          )}
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" align="start" className="max-w-xs">
-                        <p className="text-sm font-semibold">{m.firstName} {m.lastName ?? ""}</p>
-                        <p className="text-xs text-muted-foreground">{m.email}</p>
-                        <div className="mt-1 flex items-center gap-2 text-xs">
+                        )}
+                      </div>
+                      <div className="absolute z-50 hidden group-hover/name:block top-full left-0 mt-1 w-56 rounded-md border border-border bg-card p-3 shadow-lg text-left pointer-events-none">
+                        <p className="text-sm font-semibold text-foreground">{m.firstName} {m.lastName ?? ""}</p>
+                        <p className="text-xs text-muted-foreground font-mono mt-0.5">{m.email}</p>
+                        <div className="mt-1.5 flex items-center gap-2 text-xs text-muted-foreground">
                           <span>{DOMAIN_LABEL[m.primaryDomain] ?? m.primaryDomain}</span>
                           <span className="text-border">·</span>
                           <span>{LEVEL_LABEL[m.level] ?? m.level}</span>
@@ -574,12 +567,12 @@ export function MemberTable({
                           <span>{m.profileStatus}</span>
                         </div>
                         {m.budgetRange && (
-                          <p className="mt-0.5 text-xs text-muted-foreground">
+                          <p className="mt-1 text-xs text-muted-foreground">
                             Budget : {BUDGET_LABEL[m.budgetRange] ?? m.budgetRange}
                           </p>
                         )}
-                      </TooltipContent>
-                    </Tooltip>
+                      </div>
+                    </div>
                     <div className="text-[13px] leading-5 text-muted-foreground truncate max-w-[180px] font-mono admin-num">
                       {m.email}
                     </div>
