@@ -13,15 +13,18 @@ async function getCookieHeader(): Promise<string | undefined> {
 }
 
 export default async function AdminPage() {
+  let isAuthed = false;
   try {
     const token = (await getCookieHeader()) ?? "";
-    const isAuthed = verifyAdminToken(token);
-    if (!isAuthed) {
-      redirect("/?admin=1");
-    }
-    return <DashboardClient />;
+    isAuthed = verifyAdminToken(token);
   } catch {
     // If anything fails (e.g., ADMIN_PASSCODE missing), deny access
     redirect("/?admin=1");
   }
+
+  if (!isAuthed) {
+    redirect("/?admin=1");
+  }
+
+  return <DashboardClient />;
 }

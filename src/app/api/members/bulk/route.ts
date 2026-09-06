@@ -17,12 +17,12 @@ const bulkSchema = z.object({
  * (admin-only). Used by the admin bulk-action bar.
  */
 export async function POST(req: NextRequest) {
-if (!requireAdminRole(req,"operator")) {
-      return NextResponse.json(
-        { error: "Opérateur requis.", code: "FORBIDDEN" },
-        { status: 403 },
-      );
-    }
+  if (!requireAdminRole(req, "operator")) {
+    return NextResponse.json(
+      { error: "Opérateur requis.", code: "FORBIDDEN" },
+      { status: 403 },
+    );
+  }
   // Anti-abus : 20 actions bulk par IP toutes les 10 minutes.
   const rl = await rateLimit(`admin-bulk:${rateKey(req)}`, {
     capacity: 20,

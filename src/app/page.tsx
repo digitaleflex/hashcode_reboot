@@ -61,6 +61,12 @@ export default function Home() {
     }
   }, []);
 
+  React.useEffect(() => {
+    if (phase === "admin" && window.location.pathname !== "/admin") {
+      window.location.assign("/admin");
+    }
+  }, [phase]);
+
   function handleJoin() {
     track({ type: "reboot_cta_clicked" });
     setPhase("profiling");
@@ -216,10 +222,7 @@ export default function Home() {
     );
 
   if (phase === "admin") {
-    // Redirect to /admin route for proper React Query hydration
-    if (typeof window !== "undefined") {
-      window.location.href = "/admin";
-    }
+    // Redirect is performed in an effect so render stays pure.
     return null;
   }
 

@@ -25,12 +25,12 @@ interface ImportError {
 
 /** POST /api/members/import — bulk CSV import (admin-only). */
 export async function POST(req: NextRequest) {
-if (!requireAdminRole(req,"operator")) {
-      return NextResponse.json(
-        { error: "Opérateur requis.", code: "FORBIDDEN" },
-        { status: 403 },
-      );
-    }
+  if (!requireAdminRole(req, "operator")) {
+    return NextResponse.json(
+      { error: "Opérateur requis.", code: "FORBIDDEN" },
+      { status: 403 },
+    );
+  }
 
   const rl = await rateLimit(`import:${rateKey(req)}`, {
     capacity: 10,

@@ -79,7 +79,7 @@ export function validateAnswer(
   switch (question.type) {
     case "single_choice": {
       if (!raw || typeof raw !== "string") return "Choisis une option.";
-      const options = getOptionsFor(question, {});
+      const options = getOptionsFor(question);
       if (options.length && !options.some((o) => o.value === raw))
         return "Option invalide.";
       return null;
@@ -122,7 +122,7 @@ export function validateAnswer(
 }
 
 /** Internal helper used by validateAnswer. Kept here to avoid import cycle. */
-function getOptionsFor(_q: Question, _a: ProfileAnswers) {
+function getOptionsFor(_q: Question) {
   return _q.options ?? [];
 }
 

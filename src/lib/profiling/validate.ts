@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { ProfileAnswers } from "./types";
+import type { Domain, ProfileAnswers } from "./types";
 
 /**
  * Strict server-side validation. Never trust the browser.
@@ -134,19 +134,19 @@ export function memberToAnswers(_m: {
   };
   return {
     firstName: _m.firstName,
-    lastName: _m.lastName ?? null,
+    lastName: _m.lastName ?? "",
     email: _m.email,
-    phone: _m.phone ?? null,
+    phone: _m.phone ?? "",
     country: _m.country,
-    city: _m.city ?? null,
+    city: _m.city ?? "",
     gender: (_m.gender as ProfileAnswers["gender"]) ?? undefined,
     primaryDomain: _m.primaryDomain as ProfileAnswers["primaryDomain"],
     secondaryDomains: parse<Domain[]>(_m.secondaryDomains, []),
-    domainSpecialty: _m.domainSpecialty ?? null,
+    domainSpecialty: parse<string[]>(_m.domainSpecialty ?? "[]", []),
     level: _m.level as ProfileAnswers["level"],
     goal: _m.goal as ProfileAnswers["goal"],
-    goalProjectStage: _m.goalProjectStage ?? null,
-    goalSituation: _m.goalSituation ?? null,
+    goalProjectStage: _m.goalProjectStage ?? undefined,
+    goalSituation: _m.goalSituation ?? undefined,
     availability: _m.availability as ProfileAnswers["availability"],
     availabilityTimes: _m.availabilityTimes ?? undefined,
     learningStyle: _m.learningStyle as ProfileAnswers["learningStyle"],

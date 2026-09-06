@@ -31,7 +31,7 @@ export function AdminLogin({
   const captchaRef = React.useRef<HTMLInputElement>(null);
 
   // Cooldown 429 : décompte avec cleanup.
-  const cooldownTotal = React.useRef(0);
+  const [cooldownTotal, setCooldownTotal] = React.useState(0);
   React.useEffect(() => {
     if (cooldownSec <= 0) return;
     const t = setTimeout(() => setCooldownSec((s) => Math.max(0, s - 1)), 1000);
@@ -40,7 +40,7 @@ export function AdminLogin({
 
   // Annonce la fin du cooldown aux lecteurs d'écran.
   React.useEffect(() => {
-    if (cooldownSec === 0 && cooldownTotal.current > 0) {
+    if (cooldownSec === 0 && cooldownTotal > 0) {
       setNotice("Pause terminée. Tu peux réessayer.");
     }
   }, [cooldownSec]);
@@ -92,7 +92,7 @@ export function AdminLogin({
           const raw = res.headers.get("Retry-After");
           const parsed = raw !== null ? Number(raw) : NaN;
           const sec = Number.isFinite(parsed) ? parsed : 60;
-          cooldownTotal.current = sec;
+          setCooldownTotal(sec);
           setCooldownSec(sec);
           setError(
             `${data?.error ?? "Trop de tentatives."} Pause anti-abus de ${sec} secondes avant de réessayer. Tes saisies sont conservées.`,
@@ -134,8 +134,8 @@ export function AdminLogin({
   }
 
   const cooldownPct =
-    cooldownTotal.current > 0
-      ? Math.max(0, Math.min(100, (cooldownSec / cooldownTotal.current) * 100))
+    cooldownTotal > 0
+      ? Math.max(0, Math.min(100, (cooldownSec / cooldownTotal) * 100))
       : 0;
   const describedBy = [
     cooldownSec > 0 ? "login-cooldown-text" : null,
@@ -259,7 +259,7 @@ export function AdminLogin({
               >
                 <p id="login-cooldown-text" className="text-xs leading-relaxed text-foreground tabular-nums">
                   Pause anti-abus : réessaie dans {cooldownSec}s
-                  {cooldownTotal.current > 0 ? ` (sur ${cooldownTotal.current}s)` : ""}.
+                  {cooldownTotal > 0 ? ` (sur ${cooldownTotal}s)` : ""}.
                   Inutile de recharger la page.
                 </p>
                 <div
@@ -267,7 +267,7 @@ export function AdminLogin({
                   role="progressbar"
                   aria-label="Temps de pause restant"
                   aria-valuemin={0}
-                  aria-valuemax={cooldownTotal.current || 100}
+                  aria-valuemax={cooldownTotal || 100}
                   aria-valuenow={cooldownSec}
                   aria-valuetext={`${cooldownSec} secondes restantes`}
                 >

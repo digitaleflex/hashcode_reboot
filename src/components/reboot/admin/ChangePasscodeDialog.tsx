@@ -79,17 +79,17 @@ export function ChangePasscodeDialog({
     }
   }
 
-  return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <RebootButton
-        size="sm"
-        variant="outline"
-        onClick={() => setOpen(true)}
-        title="Changer le passcode admin"
-      >
-        <KeyRound className="size-4" />
-        <span className="hidden sm:inline">Passcode</span>
-      </RebootButton>
+   return (
+     <Dialog open={open} onOpenChange={handleOpenChange}>
+       <button
+         type="button"
+         onClick={() => setOpen(true)}
+         title="Changer le passcode admin"
+         className="inline-flex items-center justify-center gap-2 rounded-md border border-border hover:border-lime/60 hover:text-lime transition-colors duration-180 min-h-[44px] cursor-pointer text-sm px-4 bg-transparent text-foreground border border-border"
+       >
+         <KeyRound className="size-4" />
+         <span className="hidden sm:inline">Passcode</span>
+       </button>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Changer le passcode admin</DialogTitle>

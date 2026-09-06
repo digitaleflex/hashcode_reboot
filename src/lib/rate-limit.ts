@@ -19,14 +19,6 @@ const redis = new Redis({
   token: process.env.KV_REST_API_TOKEN!
 });
 
-const rateLimitRedis = new Ratelimit({
-  redis,
-  // Use sliding window algorithm for smooth rate limiting
-  limiter: Ratelimit.slidingWindow(10, "10 s"),
-  // Fallback to in-memory if Redis fails
-  ephemeralCache: new Map(),
-});
-
 /** Configuration for a rate limit. */
 interface RateLimitConfig {
   capacity: number;
@@ -90,15 +82,21 @@ function memoryRateLimit(key: string, config: RateLimitConfig): RateLimitResult 
  * @param config - Capacity and window configuration.
  */
 export async function redisRateLimit(key: string, config: RateLimitConfig): Promise<RateLimitResult> {
-  const result = await rateLimitRedis.limit(
-    key,
-    config.capacity,
-    config.windowMs / 1000
-  );
+  // Upstash's current API accepts the identifier only; create the limiter
+  // from the caller's configuration instead of passing unsupported arguments.
+  const limiter = new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(
+      config.capacity,
+      `${Math.max(1, Math.ceil(config.windowMs / 1000))} s`,
+    ),
+    ephemeralCache: new Map(),
+  });
+  const result = await limiter.limit(key);
   return {
     ok: result.success,
     remaining: result.remaining,
-    retryAfterMs: result.reset - Date.now()
+    retryAfterMs: Math.max(0, result.reset - Date.now()),
   };
 }
 

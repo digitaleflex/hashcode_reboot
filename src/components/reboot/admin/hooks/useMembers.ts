@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchJson } from "../lib/fetchJson";
+import { fetchJson, withRetryAfter } from "../lib/fetchJson";
 
 export interface MemberRow {
   id: string;
@@ -122,7 +122,7 @@ export function useMembers({
 }: {
   onSessionExpired: () => void;
 }) {
-  const initial = React.useMemo(readInitialUrl, []);
+  const initial = React.useMemo(() => readInitialUrl(), []);
   const [filters, setFilters] = React.useState<Record<string, string>>(initial.filters);
   const [searchQuery, setSearchQuery] = React.useState(initial.search);
   const [debouncedSearchQuery, setDebouncedSearchQuery] = React.useState(

@@ -45,7 +45,7 @@ export interface ProfileAnswers {
   // Profil
   primaryDomain?: Domain;
   secondaryDomains?: Domain[];
-  domainSpecialty?: string;
+  domainSpecialty?: string[];
   level?: Level;
 
   // Objectifs
