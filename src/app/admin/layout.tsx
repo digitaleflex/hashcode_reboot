@@ -10,12 +10,9 @@ import { SessionReminder } from "./session-reminder";
 import { adminMono, adminSans } from "./fonts";
 import {
   ChevronRight,
-  RefreshCw,
-  ArrowLeft,
   LogOut,
-  Download,
-  FileJson,
   Command,
+  Settings,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -58,46 +55,6 @@ export default function AdminLayout({
   const activeSectionId = SECTION_MAP[pathname] || "section-stats";
   const currentSectionLabel = SECTION_LABELS[activeSectionId];
 
-  const handleRefresh = React.useCallback(() => {
-    router.refresh();
-  }, [router]);
-
-  const handleExport = React.useCallback(
-    async (type: "csv" | "json") => {
-      try {
-        const url = type === "csv" ? "/api/export" : "/api/export/json";
-        const response = await fetch(url);
-
-        if (!response.ok) {
-          throw new Error("Export failed");
-        }
-
-        const blob = await response.blob();
-        const downloadUrl = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = downloadUrl;
-        a.download = `hashcode-admin-export-${type}-${new Date().toISOString()}.${type}`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(downloadUrl);
-
-        toast({
-          title: "Export terminé",
-          description: `Les données ont été exportées au format ${type.toUpperCase()}.`,
-        });
-      } catch (error) {
-        console.error("Export error:", error);
-        toast({
-          title: "Erreur d'exportation",
-          description: "Impossible d'exporter les données.",
-          variant: "destructive",
-        });
-      }
-    },
-    [toast],
-  );
-
   const handleLogout = React.useCallback(async () => {
     try {
       const response = await fetch("/api/admin/logout", { method: "POST" });
@@ -108,8 +65,7 @@ export default function AdminLayout({
       } else {
         throw new Error("Logout failed");
       }
-    } catch (error) {
-      console.error("Logout error:", error);
+    } catch {
       toast({
         title: "Erreur de déconnexion",
         description: "Impossible de se déconnecter.",
@@ -128,112 +84,68 @@ export default function AdminLayout({
     [router],
   );
 
-  const onSetFilter = React.useCallback((key: string, value: string) => {
-    // Placeholder for setting filters. The layout doesn't directly handle filters.
-    console.log(`Setting filter: ${key} = ${value}`);
-  }, []);
-
   const openPalette = React.useCallback(() => setIsPaletteOpen(true), []);
   const closePalette = React.useCallback(() => setIsPaletteOpen(false), []);
+  const onSetFilter = React.useCallback((key: string, value: string) => {
+    // Filters handled by members page
+  }, []);
 
   return (
     <div
       className={`${adminSans.variable} ${adminMono.variable} admin-scope min-h-screen flex flex-col`}
     >
-      {/* Header */}
-      <header className="sticky top-0 z-40 flex h-14 items-center gap-4 border-b border-border/60 bg-card px-4 shrink-0">
-        <div className="flex items-center gap-2">
-          <Logo className="size-6 text-lime shrink-0" />
-          <MonoLabel className="text-sm">Admin</MonoLabel>
-          {currentSectionLabel && (
-            <>
-              <ChevronRight className="size-4 text-muted-foreground" />
-              <span className="text-sm font-medium">{currentSectionLabel}</span>
-            </>
-          )}
-        </div>
-
-        <div className="ml-auto flex items-center gap-2">
-          {/* Session active badge */}
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-lime-400 opacity-75"></span>
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-lime-500"></span>
-            </span>
-            <span>Session active</span>
+      <header className="sticky top-0 z-40 h-14 border-b border-border/60 bg-card/80 backdrop-blur-sm">
+        <div className="h-full px-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <Logo className="size-6 text-lime shrink-0" />
+            <span className="text-sm font-medium">Admin</span>
+            <ChevronRight className="size-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">{currentSectionLabel}</span>
           </div>
 
-          <RebootButton
-            variant="ghost"
-            className="size-8"
-            onClick={openPalette}
-            aria-label="Ouvrir la palette de commandes (Ctrl+K)"
-          >
-            <Command className="size-4" />
-          </RebootButton>
+          <div className="flex items-center gap-1">
+            <RebootButton
+              variant="outline"
+              size="sm"
+              onClick={openPalette}
+              className="gap-2"
+            >
+              <Command className="size-4" />
+              <span className="hidden sm:inline mono-label text-xs">Ctrl K</span>
+            </RebootButton>
 
-          <RebootButton
-            variant="ghost"
-            className="size-8"
-            onClick={handleRefresh}
-            aria-label="Rafraîchir la page"
-          >
-            <RefreshCw className="size-4" />
-          </RebootButton>
+            <ChangePasscodeDialog
+              onSessionExpired={handleLogout}
+              onChanged={() => toast({ title: "Passcode changé avec succès." })}
+            />
 
-          <RebootButton
-            variant="ghost"
-            className="size-8"
-            onClick={() => handleExport("csv")}
-            aria-label="Exporter en CSV"
-          >
-            <Download className="size-4" />
-          </RebootButton>
-
-          <ChangePasscodeDialog onSessionExpired={handleLogout} onChanged={() => toast({ title: "Passcode changé avec succès." })} />
-
-          <RebootButton
-            variant="ghost"
-            className={cn("size-8", "hidden md:flex")}
-            onClick={() => handleExport("json")}
-            aria-label="Exporter en JSON"
-          >
-            <FileJson className="size-4" />
-          </RebootButton>
-
-          <RebootButton
-            variant="ghost"
-            className="size-8"
-            onClick={handleLogout}
-            aria-label="Déconnexion"
-          >
-            <LogOut className="size-4" />
-          </RebootButton>
-
-          <RebootButton
-            variant="ghost"
-            className="size-8"
-            onClick={() => router.push("/")}
-            aria-label="Retour au site"
-          >
-            <ArrowLeft className="size-4" />
-          </RebootButton>
+            <RebootButton
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              className="gap-2"
+            >
+              <LogOut className="size-4" />
+              <span className="hidden sm:inline mono-label text-xs">Déconnexion</span>
+            </RebootButton>
+          </div>
         </div>
       </header>
 
-      <div className="flex-1 flex flex-row min-h-0">
+      <div className="flex-1 flex min-h-0">
         <AdminSidebar
           activeSection={activeSectionId}
           onNavigate={onNavigate}
           onOpenPalette={openPalette}
         />
-        <main className="flex-1 flex flex-col overflow-auto bg-muted/20">
-          <div className="flex-1 p-6">
+        <main className="flex-1 min-w-0 overflow-auto bg-muted/10">
+          <div className="mx-auto max-w-7xl w-full px-5 sm:px-8 py-8">
             {children}
           </div>
-          <footer className="px-6 py-4 border-t border-border/60 text-muted-foreground text-sm flex items-center justify-between shrink-0">
-            <p>HASHCODE REBOOT © {new Date().getFullYear()}</p>
-            <p className="mono-label">Admin v2.0</p>
+          <footer className="px-5 sm:px-8 py-4 border-t border-border/60">
+            <p className="text-center text-xs text-muted-foreground mono-label">
+              HASHCODE REBOOT · Admin — accès réservé
+            </p>
           </footer>
         </main>
       </div>
@@ -244,9 +156,9 @@ export default function AdminLayout({
         onOpenChange={closePalette}
         onNavigate={onNavigate}
         onSetFilter={onSetFilter}
-        onExport={handleExport}
+        onExport={() => router.push("/admin/exports")}
         onLogout={handleLogout}
-        onRefresh={handleRefresh}
+        onRefresh={() => router.refresh()}
       />
     </div>
   );
