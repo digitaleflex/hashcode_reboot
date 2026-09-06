@@ -1,54 +1,31 @@
 /**
- * In-memory rate limiter.
+ * Redis-backed rate limiter with in-memory fallback.
  *
  * Sliding-window token bucket per key.
  * Key format: `${ip}` (or `${ip}-${passcode}` for login).
  * Limits: login = 10 req / 10 s, write = 20 req / 10 min.
  *
- * ⚠️ CRITICAL LIMITATION:
- * This is a SINGLE-INSTANCE in-memory rate limiter. In multi-instance deployments
- * (Vercel edge functions, load balancer), each instance has its own Map, meaning
- * rate limits are not shared across instances. An attacker can overwhelm a single
- * instance and bypass rate limiting entirely.
- *
- * 🔧 REDIS-BACKED ALTERNATIVE:
- * For production multi-instance deployments, use @upstash/ratelimit with Upstash Redis:
- *   npm install @upstash/ratelimit @upstash/redis
- *
- * Example implementation:
- * ```typescript
- * import { RateLimiter } from "@upstash/ratelimit";
- * import { Redis } from "@upstash/redis";
- * 
- * const redis = new Redis({
- *   url: process.env.UPSTASH_REDIS_REST_URL!,
- *   token: process.env.UPSTASH_REDIS_REST_TOKEN!,
- * });
- * 
- * const rateLimitRedis = new RateLimiter({
- *   redis,
- *   // Use a distributed lock to ensure atomic operations
- *   distributedLock: true,
- *   // Optional: fallback to memory if Redis fails
- *   fallbackToMemory: true,
- * });
- * 
- * export async function redisRateLimit(key: string, config: RateLimitConfig): Promise<RateLimitResult> {
- *   const result = await rateLimitRedis.limit(
- *     key,
- *     config.capacity,
- *     config.windowMs / 1000
- *   );
- *   return {
- *     ok: result.success,
- *     remaining: result.remaining,
- *     retryAfterMs: result.reset - Date.now(),
- *   };
- * }
- * ```
+ * Uses Upstash Redis for distributed rate limiting across Vercel edge functions
+ * and load balancer instances. Falls back to in-memory if Redis is unavailable.
  */
 
 import { rateKey } from "./rate-limit-key";
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
+
+// Redis-backed rate limiter with in-memory fallback
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!
+});
+
+const rateLimitRedis = new Ratelimit({
+  redis,
+  // Use sliding window algorithm for smooth rate limiting
+  limiter: Ratelimit.slidingWindow(10, "10 s"),
+  // Fallback to in-memory if Redis fails
+  ephemeralCache: new Map(),
+});
 
 /** Configuration for a rate limit. */
 interface RateLimitConfig {
@@ -63,7 +40,7 @@ interface RateLimitResult {
   retryAfterMs: number;
 }
 
-/** In-memory bucket. */
+/** In-memory bucket (fallback). */
 interface Bucket {
   tokens: number;
   last: number;
@@ -82,7 +59,7 @@ if (typeof setInterval !== "undefined") {
 }
 
 /**
- * In-memory sliding-window rate limiter.
+ * In-memory sliding-window rate limiter (fallback).
  */
 function memoryRateLimit(key: string, config: RateLimitConfig): RateLimitResult {
   const now = Date.now();
@@ -107,12 +84,27 @@ function memoryRateLimit(key: string, config: RateLimitConfig): RateLimitResult 
   return { ok: false, remaining: 0, retryAfterMs };
 }
 
-/** Pre-configured limiters for different endpoint categories. */
-const LOGIN_LIMIT: RateLimitConfig = { capacity: 10, windowMs: 10 * 1000 };
-const WRITE_LIMIT: RateLimitConfig = { capacity: 20, windowMs: 10 * 60 * 1000 };
+/**
+ * Redis-backed rate limiter.
+ * @param key - Rate-limit key (IP or IP-passcode).
+ * @param config - Capacity and window configuration.
+ */
+export async function redisRateLimit(key: string, config: RateLimitConfig): Promise<RateLimitResult> {
+  const result = await rateLimitRedis.limit(
+    key,
+    config.capacity,
+    config.windowMs / 1000
+  );
+  return {
+    ok: result.success,
+    remaining: result.remaining,
+    retryAfterMs: result.reset - Date.now()
+  };
+}
 
 /**
  * Main rate-limit function.
+ * Uses Redis when available, falls back to in-memory.
  * @param key - Rate-limit key (IP or IP-passcode).
  * @param config - Capacity and window configuration.
  */
@@ -120,7 +112,13 @@ export async function rateLimit(
   key: string,
   config: RateLimitConfig,
 ): Promise<RateLimitResult> {
-  return memoryRateLimit(key, config);
+  try {
+    return await redisRateLimit(key, config);
+  } catch (error) {
+    // Fallback to in-memory if Redis fails
+    console.warn("Redis rate limit failed, falling back to in-memory:", error);
+    return memoryRateLimit(key, config);
+  }
 }
 
 /** Build a valid HTTP `Retry-After` header value (seconds).
@@ -137,6 +135,6 @@ export { rateKey };
 
 /** Pre-configured limiters for different endpoint categories. */
 export const RATE_LIMITS = {
-  login: LOGIN_LIMIT,
-  write: WRITE_LIMIT,
+  login: { capacity: 10, windowMs: 10 * 1000 },
+  write: { capacity: 20, windowMs: 10 * 60 * 1000 },
 } as const;
