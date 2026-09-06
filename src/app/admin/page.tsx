@@ -1,30 +1,5 @@
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { verifyAdminToken } from "@/lib/admin-auth";
-import { DashboardClient } from "./dashboard-client";
 
-/** Fallback cookie parser for server components */
-async function getCookieHeader(): Promise<string | undefined> {
-  const store = await headers();
-  const h = store.get("cookie");
-  if (!h) return undefined;
-  const match = h.match(/(?:^|; )\s*hashcode-admin\s*=\s*([^;]+)/);
-  return match ? decodeURIComponent(match[1]) : undefined;
-}
-
-export default async function AdminPage() {
-  let isAuthed = false;
-  try {
-    const token = (await getCookieHeader()) ?? "";
-    isAuthed = verifyAdminToken(token);
-  } catch {
-    // If anything fails (e.g., ADMIN_PASSCODE missing), deny access
-    redirect("/?admin=1");
-  }
-
-  if (!isAuthed) {
-    redirect("/?admin=1");
-  }
-
-  return <DashboardClient />;
+export default function AdminPage() {
+  redirect("/admin/stats");
 }

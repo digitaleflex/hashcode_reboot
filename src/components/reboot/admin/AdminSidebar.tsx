@@ -3,14 +3,15 @@
 import * as React from "react";
 import { LayoutDashboard, Users, Activity, FileJson, ChevronLeft, ChevronRight, Command } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { usePathname } from "next/navigation";
 
 const SIDEBAR_KEY = "hashcode-admin-sidebar";
 
 const ITEMS = [
-  { id: "section-stats", label: "Vue d'ensemble", icon: LayoutDashboard },
-  { id: "section-members", label: "Membres", icon: Users },
-  { id: "section-activity", label: "Activité", icon: Activity },
-  { id: "section-exports", label: "Exports", icon: FileJson },
+  { path: "/admin/stats", id: "section-stats", label: "Vue d'ensemble", icon: LayoutDashboard },
+  { path: "/admin/members", id: "section-members", label: "Membres", icon: Users },
+  { path: "/admin/activity", id: "section-activity", label: "Activité", icon: Activity },
+  { path: "/admin/exports", id: "section-exports", label: "Exports", icon: FileJson },
 ] as const;
 
 function useCollapsed() {
@@ -84,25 +85,26 @@ function NavItem({
 }
 
 interface AdminSidebarProps {
-  /** Currently active section id, e.g. "section-members" */
   activeSection?: string;
-  /** Called when user clicks a nav item with the target section id */
   onNavigate?: (sectionId: string) => void;
-  /** Called when user clicks the "Commandes" button — opens the Command Palette (Ctrl+K). */
   onOpenPalette?: () => void;
 }
 
-export function AdminSidebar({ activeSection = "section-stats", onNavigate, onOpenPalette }: AdminSidebarProps) {
+export function AdminSidebar({ activeSection, onNavigate, onOpenPalette }: AdminSidebarProps) {
+  const pathname = usePathname();
   const { collapsed, toggle } = useCollapsed();
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const mobileCloseRef = React.useRef<HTMLButtonElement>(null);
   const mobileOpenRef = React.useRef<HTMLButtonElement>(null);
 
+  const activeSectionId = activeSection ?? ITEMS.find(i => pathname.startsWith(i.path))?.id ?? "section-stats";
+
   function handleNav(sectionId: string) {
-    // Source unique de scroll : le parent. Évite le double scrollIntoView.
-    onNavigate?.(sectionId);
+    const item = ITEMS.find(i => i.id === sectionId);
+    if (item) {
+      window.location.href = item.path;
+    }
     setMobileOpen(false);
-    // Le focus revient au bouton d’ouverture (FAB) à la fermeture.
     requestAnimationFrame(() => mobileOpenRef.current?.focus());
   }
 
@@ -113,7 +115,6 @@ export function AdminSidebar({ activeSection = "section-stats", onNavigate, onOp
     }
   }
 
-  // Close drawer on Esc + rend le focus au bouton d’ouverture.
   React.useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape" && mobileOpen) closeMobile(true);
@@ -122,12 +123,10 @@ export function AdminSidebar({ activeSection = "section-stats", onNavigate, onOp
     return () => document.removeEventListener("keydown", onKey);
   }, [mobileOpen]);
 
-  // Focus le bouton fermer à l’ouverture du tiroir mobile.
   React.useEffect(() => {
     if (mobileOpen) mobileCloseRef.current?.focus();
   }, [mobileOpen]);
 
-  // Lock body scroll when mobile drawer open
   React.useEffect(() => {
     if (mobileOpen) {
       document.body.style.overflow = "hidden";
@@ -141,7 +140,6 @@ export function AdminSidebar({ activeSection = "section-stats", onNavigate, onOp
 
   const desktopContent = (
     <div className="flex flex-col h-full">
-      {/* Logo + collapse toggle */}
       <div className={cn("flex items-center border-b border-border/60 h-14 shrink-0", collapsed ? "justify-center px-0" : "px-4")}>
         {!collapsed && (
           <span className="mono-label text-lime text-sm truncate">HASHCODE</span>
@@ -160,7 +158,6 @@ export function AdminSidebar({ activeSection = "section-stats", onNavigate, onOp
         </button>
       </div>
 
-      {/* Nav */}
       <nav aria-label="Navigation admin" className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
         {ITEMS.map((item) => (
           <NavItem
@@ -168,7 +165,7 @@ export function AdminSidebar({ activeSection = "section-stats", onNavigate, onOp
             id={item.id}
             label={item.label}
             icon={item.icon}
-            active={activeSection === item.id}
+            active={activeSectionId === item.id}
             collapsed={collapsed}
             onClick={() => handleNav(item.id)}
           />
@@ -206,7 +203,6 @@ export function AdminSidebar({ activeSection = "section-stats", onNavigate, onOp
         )}
       </nav>
 
-      {/* Footer */}
       {!collapsed && (
         <div className="px-4 py-3 border-t border-border/60 shrink-0">
           <p className="text-muted-foreground mono-label">v2.0 · Admin</p>
@@ -227,7 +223,7 @@ export function AdminSidebar({ activeSection = "section-stats", onNavigate, onOp
             id={item.id}
             label={item.label}
             icon={item.icon}
-            active={activeSection === item.id}
+            active={activeSectionId === item.id}
             collapsed={false}
             onClick={() => handleNav(item.id)}
           />
@@ -259,7 +255,6 @@ export function AdminSidebar({ activeSection = "section-stats", onNavigate, onOp
 
   return (
     <>
-      {/* Desktop sidebar — calée sous le header (h-14) */}
       <aside
         aria-label="Menu de navigation admin"
         className={cn(
@@ -270,7 +265,6 @@ export function AdminSidebar({ activeSection = "section-stats", onNavigate, onOp
         {desktopContent}
       </aside>
 
-      {/* Mobile overlay + drawer */}
       {mobileOpen && (
         <div
           className="md:hidden fixed inset-0 z-40 bg-black/50"
@@ -303,7 +297,6 @@ export function AdminSidebar({ activeSection = "section-stats", onNavigate, onOp
         {mobileContent}
       </aside>
 
-      {/* Mobile — bouton menu en bas à droite, hors zone de pagination */}
       {!mobileOpen && (
         <button
           ref={mobileOpenRef}
