@@ -1,6 +1,12 @@
 "use client";
 
 import * as React from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type ShortcutHandler = () => void;
 
@@ -19,7 +25,7 @@ export type ShortcutMap = Record<string, Shortcut>;
  *   r     → refresh
  *   e     → focus search
  *   Esc   → close detail dialog
- *   ?     → (placeholder for future help dialog)
+ *   ?     → open shortcut help dialog
  */
 export function useAdminKeyboardShortcuts(
   shortcuts: ShortcutMap,
@@ -54,21 +60,57 @@ export function useAdminKeyboardShortcuts(
   }, [shortcuts, enabled]);
 }
 
-/** Inline shortcut help display (renders kbd tags). */
-export function ShortcutHelp({ shortcuts }: { shortcuts: ShortcutMap }) {
+/** Dialog-based shortcut help — triggered via ? shortcut or button click. */
+export function ShortcutHelp({
+  shortcuts,
+  open,
+  onOpenChange,
+}: {
+  shortcuts: ShortcutMap;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
+  const [internalOpen, setInternalOpen] = React.useState(false);
+  const isOpen = open ?? internalOpen;
+  const setOpen = onOpenChange ?? setInternalOpen;
+
+  // Expose a global event so the dashboard can open it from the ? shortcut.
+  React.useEffect(() => {
+    function onOpenEvent() {
+      setOpen(true);
+    }
+    window.addEventListener("hashcode:open-shortcut-help", onOpenEvent);
+    return () =>
+      window.removeEventListener("hashcode:open-shortcut-help", onOpenEvent);
+  }, [setOpen]);
+
   const entries = Object.entries(shortcuts);
-  if (entries.length === 0) return null;
 
   return (
-    <div className="hidden md:flex items-center gap-1.5 text-xs text-muted-foreground">
-      {entries.map(([key, shortcut]) => (
-        <React.Fragment key={key}>
-          <kbd className="px-1 py-0.5 rounded-sm border border-border bg-card font-mono text-[10px] uppercase">
-            {key === "escape" ? "Esc" : key}
-          </kbd>
-          <span className="mr-1">{shortcut.description}</span>
-        </React.Fragment>
-      ))}
-    </div>
+    <Dialog open={isOpen} onOpenChange={setOpen}>
+      <DialogContent className="bg-card border-border/60 max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-foreground">
+            Raccourcis clavier
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-2">
+          {entries.map(([key, shortcut]) => (
+            <div key={key} className="flex items-center justify-between py-1.5">
+              <span className="text-sm text-foreground">{shortcut.description}</span>
+              <kbd className="px-2 py-1 rounded-sm border border-border bg-card font-mono text-xs uppercase text-muted-foreground">
+                {key === "escape" ? "Esc" : key === "?" ? "?" : key.toUpperCase()}
+              </kbd>
+            </div>
+          ))}
+          <div className="flex items-center justify-between py-1.5 border-t border-border/40 mt-2 pt-2">
+            <span className="text-sm text-foreground">Palette de commandes</span>
+            <kbd className="px-2 py-1 rounded-sm border border-border bg-card font-mono text-xs uppercase text-muted-foreground">
+              Ctrl K
+            </kbd>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
