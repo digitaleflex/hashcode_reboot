@@ -24,12 +24,12 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  if (!isAdminAuthed(req)) {
-    return NextResponse.json(
-      { error: "Non autorisé.", code: "UNAUTHORIZED" },
-      { status: 401 },
-    );
-  }
+if (!requireAdminRole(req,"operator")) {
+      return NextResponse.json(
+        { error: "Opérateur requis.", code: "FORBIDDEN" },
+        { status: 403 },
+      );
+    }
   try {
     const { id } = await params;
     const member = await db.member.findUnique({ where: { id } });

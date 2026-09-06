@@ -56,30 +56,10 @@ export async function POST(req: NextRequest) {
     // Constant-time comparison: single pass handling both length mismatch and XOR
     const expected = getAdminPasscode();
     const minLen = Math.min(passcode.length, expected.length);
-    let diff = 0;
-
-    // XOR up to the common length
-    for (let i = 0; i < minLen; i++) {
-      diff |= passcode.charCodeAt(i) ^ expected.charCodeAt(i);
-    }
-
-    // Penalize length mismatch: XOR extra chars from the longer side,
-    // ensuring execution time is proportional to max(lenA, lenB)
-    if (passcode.length !== expected.length) {
-      const longer = passcode.length > expected.length ? passcode : expected;
-      for (let i = minLen; i < longer.length; i++) {
-        diff |= longer.charCodeAt(i) ^ 0x00;
-      }
-      diff |= 1; // Ensure diff is non-zero
-    }
-
-    if (diff !== 0) {
-      await auditLogin("failure");
-      return NextResponse.json(
-        { error: "Passcode invalide.", code: "UNAUTHORIZED" },
-        { status: 401 },
-      );
-    }
+    let diff=0;
+    for(let i=0;i<minLen;i++) diff|=passcode.charCodeAt(i)^expected.charCodeAt(i);
+    if(passcode.length!==expected.length){ const longer=passcode.length>expected.length?passcode:expected; for(let i=minLen;i<longer.length;i++) diff|=longer.charCodeAt(i)^0x00; diff|=1; }
+    if(diff!==0) { await auditLogin("failure"); return NextResponse.json( { error: "Passcode invalide.", code: "UNAUTHORIZED" }, { status: 401 } ) }
 
     const token = issueAdminToken("operator", ip);
     await auditLogin("success");

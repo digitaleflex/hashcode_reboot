@@ -88,9 +88,11 @@ interface AdminSidebarProps {
   activeSection?: string;
   /** Called when user clicks a nav item with the target section id */
   onNavigate?: (sectionId: string) => void;
+  /** Called when user clicks the command palette button */
+  onOpenPalette?: () => void;
 }
 
-export function AdminSidebar({ activeSection = "section-stats", onNavigate }: AdminSidebarProps) {
+export function AdminSidebar({ activeSection = "section-stats", onNavigate, onOpenPalette }: AdminSidebarProps) {
   const { collapsed, toggle } = useCollapsed();
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const mobileCloseRef = React.useRef<HTMLButtonElement>(null);
@@ -144,6 +146,25 @@ export function AdminSidebar({ activeSection = "section-stats", onNavigate }: Ad
         {!collapsed && (
           <span className="mono-label text-lime text-sm truncate">HASHCODE</span>
         )}
+        {!collapsed && (
+          <span className="mono-label text-lime text-sm truncate">HASHCODE</span>
+        )}
+        <button
+          type="button"
+          onClick={toggle}
+          aria-label={collapsed ? "Ouvrir le menu" : "Réduire le menu"}
+          aria-expanded={!collapsed}
+          className={cn(
+            "min-h-[32px] min-w-[32px] size-8 flex items-center justify-center rounded-sm text-muted-foreground hover:text-foreground hover:bg-lime/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-inset ml-auto shrink-0",
+            collapsed && "ml-0",
+          )}
+        >
+          {collapsed ? <ChevronRight className="size-4" aria-hidden /> : <ChevronLeft className="size-4" aria-hidden />}
+        </button>
+      </div>
+        {!collapsed && (
+          <span className="mono-label text-lime text-sm truncate">HASHCODE</span>
+        )}
         <button
           type="button"
           onClick={toggle}
@@ -171,6 +192,32 @@ export function AdminSidebar({ activeSection = "section-stats", onNavigate }: Ad
             onClick={() => handleNav(item.id)}
           />
         ))}
+
+        {/* Command Palette Button in Nav */}
+        {onOpenPalette && (
+          <button
+            type="button"
+            onClick={onOpenPalette}
+            className={cn(
+              "group flex w-full items-center gap-3 rounded-sm px-3 py-2.5 text-left transition-colors duration-150 min-h-[44px]",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-inset",
+              "text-muted-foreground hover:bg-lime/5 hover:text-foreground",
+              collapsed && "justify-center px-0",
+            )}
+            aria-label="Ouvrir la palette de commandes"
+          >
+            <Command
+              className={cn(
+                "size-4 shrink-0 transition-colors",
+                "text-muted-foreground group-hover:text-foreground",
+              )}
+              aria-hidden
+            />
+            {!collapsed && (
+              <span className="text-sm font-medium truncate">Commandes Ctrl+K</span>
+            )}
+          </button>
+        )}
       </nav>
 
       {/* Footer */}

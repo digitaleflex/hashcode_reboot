@@ -15,12 +15,12 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  if (!requireAdminRole(req, "operator")) {
-    return NextResponse.json(
-      { error: "Opérateur requis.", code: "FORBIDDEN" },
-      { status: 403 },
-    );
-  }
+if (!requireAdminRole(req,"operator")) {
+      return NextResponse.json(
+        { error: "Opérateur requis.", code: "FORBIDDEN" },
+        { status: 403 },
+      );
+    }
   // Anti-abus : 20 invitations par IP toutes les 10 minutes.
   const rl = await rateLimit(`admin-invite:${rateKey(req)}`, {
     capacity: 20,
