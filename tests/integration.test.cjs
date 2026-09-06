@@ -21,6 +21,7 @@
 const { test, describe, before, after } = require("node:test");
 const assert = require("node:assert/strict");
 const { spawn } = require("node:child_process");
+const path = require("node:path");
 const { setTimeout: wait } = require("node:timers/promises");
 const http = require("node:http");
 
@@ -35,7 +36,11 @@ function httpRequest(method, path, opts = {}) {
   const { body, headers = {}, cookies = {} } = opts;
   return new Promise((resolve, reject) => {
     const url = new URL(path, BASE_URL);
-    const reqHeaders = { "Content-Type": "application/json", ...headers };
+    const reqHeaders = {
+      "Content-Type": "application/json",
+      Origin: BASE_URL,
+      ...headers,
+    };
     if (Object.keys(cookies).length) {
       reqHeaders["Cookie"] = Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join("; ");
     }
@@ -89,7 +94,8 @@ async function waitForServer() {
 
 function startServer() {
   const env = { ...process.env, NODE_ENV: "development", ADMIN_PASSCODE: TEST_PASSPHRASE };
-  server = spawn("npx", ["next", "dev", "-p", String(PORT), "-H", "127.0.0.1"], {
+  const nextCli = path.join(process.cwd(), "node_modules", "next", "dist", "bin", "next");
+  server = spawn(process.execPath, [nextCli, "dev", "-p", String(PORT), "-H", "127.0.0.1"], {
     env, stdio: ["ignore", "pipe", "pipe"], detached: false,
   });
   server.stderr?.on("data", () => {});
@@ -234,8 +240,9 @@ describe("POST /api/admin/logout", () => {
     await wait(11_000);
     const login = await httpRequest("POST", "/api/admin/login", { body: { passcode: TEST_PASSPHRASE } });
     const jar = parseSetCookies(login.setCookie);
-    await httpRequest("POST", "/api/admin/logout", { cookies: jar });
-    const verify = await httpRequest("GET", "/api/admin/verify", { cookies: jar });
+    const logout = await httpRequest("POST", "/api/admin/logout", { cookies: jar });
+    const clearedJar = parseSetCookies(logout.setCookie);
+    const verify = await httpRequest("GET", "/api/admin/verify", { cookies: clearedJar });
     assert.equal(verify.json?.authed, false, "must not be authed after logout");
   });
 });
