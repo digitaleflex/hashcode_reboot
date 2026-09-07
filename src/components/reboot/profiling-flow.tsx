@@ -26,6 +26,7 @@ import {
   getEncryptedItem,
   removeEncryptedItem,
 } from "@/lib/storage-crypto";
+import { EmailVerifyCard } from "./email-verify-card";
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debounced, setDebounced] = React.useState(value);
@@ -42,6 +43,7 @@ interface PersistedState {
   answers: ProfileAnswers;
   answeredIds: string[];
   step: number; // index within visible list at save time
+  verifiedEmail?: string; // email vérifié par OTP (si déjà fait)
 }
 
 export function ProfilingFlow({
@@ -68,6 +70,10 @@ export function ProfilingFlow({
   const [phase, setPhase] = React.useState<"questions" | "preview">("questions");
   const [localError, setLocalError] = React.useState<string | null>(null);
   const [duplicate, setDuplicate] = React.useState(false);
+  // Vérification email OTP : l'email est collecté en Q2, le code est demandé
+  // juste après puis exigé avant la soumission finale (maybeFinish).
+  const [verifiedEmail, setVerifiedEmail] = React.useState<string>("");
+  const [verifyOpen, setVerifyOpen] = React.useState(false);
   const lastQuestionRef = React.useRef<string | null>(null);
 
   // --- Hydrate from localStorage on mount (resume support) ---
@@ -84,6 +90,9 @@ export function ProfilingFlow({
             setStep(parsed.step ?? 0);
             setHasResume(true);
             setShowResumePrompt(true);
+            if (typeof parsed.verifiedEmail === "string") {
+              setVerifiedEmail(parsed.verifiedEmail.trim().toLowerCase());
+            }
             if (parsed.answers.email && parsed.answers.email.trim().length > 0) {
               setDuplicate(true);
             }
@@ -96,6 +105,35 @@ export function ProfilingFlow({
     })();
     return () => { cancelled = true; };
   }, []);
+
+  // Save partial answers server-side on abandon — enables relance emails.
+  // Déclaré avant les effets qui l'utilisent (règle react-hooks/immutability).
+  function saveDraft() {
+    const email = answers.email;
+    if (!email || !email.trim()) return; // email not captured yet
+    const payload = {
+      email,
+      answers,
+      lastQuestionId: lastQuestionRef.current ?? undefined,
+    };
+    try {
+      if (navigator.sendBeacon) {
+        const blob = new Blob([JSON.stringify(payload)], {
+          type: "application/json",
+        });
+        navigator.sendBeacon("/api/profiling/draft", blob);
+      } else {
+        void fetch("/api/profiling/draft", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          keepalive: true,
+        });
+      }
+    } catch {
+      /* best-effort — draft saving must never break UX */
+    }
+  }
 
   // --- Confirmation de sortie (beforeunload) + drop-off tracking ---
   React.useEffect(() => {
@@ -132,34 +170,6 @@ export function ProfilingFlow({
     return () => document.removeEventListener("visibilitychange", handler);
   }, [hydrated, answeredIds.length, answers, lastQuestionRef]);
 
-  // Save partial answers server-side on abandon — enables relance emails.
-  function saveDraft() {
-    const email = answers.email;
-    if (!email || !email.trim()) return; // email not captured yet
-    const payload = {
-      email,
-      answers,
-      lastQuestionId: lastQuestionRef.current ?? undefined,
-    };
-    try {
-      if (navigator.sendBeacon) {
-        const blob = new Blob([JSON.stringify(payload)], {
-          type: "application/json",
-        });
-        navigator.sendBeacon("/api/profiling/draft", blob);
-      } else {
-        void fetch("/api/profiling/draft", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-          keepalive: true,
-        });
-      }
-    } catch {
-      /* best-effort — draft saving must never break UX */
-    }
-  }
-
   // --- Persist to localStorage (encrypted, resume support) ---
   React.useEffect(() => {
     if (!hydrated) return;
@@ -167,9 +177,9 @@ export function ProfilingFlow({
       void removeEncryptedItem(STORAGE_KEY);
       return;
     }
-    const data: PersistedState = { answers, answeredIds, step };
+    const data: PersistedState = { answers, answeredIds, step, verifiedEmail };
     void setEncryptedItem(STORAGE_KEY, JSON.stringify(data));
-  }, [answers, answeredIds, step, hydrated]);
+  }, [answers, answeredIds, step, verifiedEmail, hydrated]);
 
   const visible = React.useMemo(
     () => getVisibleQuestions(answers),
@@ -203,6 +213,20 @@ export function ProfilingFlow({
     markAnswered(q);
     setLocalError(null);
 
+    // Après l'email (Q2) → on avance ET on ouvre la vérification OTP.
+    // L'email change invalide la vérification précédente.
+    if (q.id === "email") {
+      const emailNow = (
+        value !== undefined ? String(value) : String(answers.email ?? "")
+      ).trim().toLowerCase();
+      setDirection(1);
+      setStep((s) => Math.min(s + 1, visible.length));
+      if (emailNow && emailNow !== verifiedEmail.trim().toLowerCase()) {
+        setVerifyOpen(true);
+      }
+      return;
+    }
+
     // Strategic interlude: after threeMonthGoal → show profile preview before contact.
     if (q.id === "threeMonthGoal") {
       setPhase("preview");
@@ -230,7 +254,7 @@ export function ProfilingFlow({
     setShowResumePrompt(false);
   }
   function restart() {
-    localStorage.removeItem(STORAGE_KEY);
+    void removeEncryptedItem(STORAGE_KEY);
     setAnswers({ firstName: "", lastName: "", email: "", phone: "", country: "", city: "" });
     setAnsweredIds([]);
     setStep(0);
@@ -238,16 +262,26 @@ export function ProfilingFlow({
     setShowResumePrompt(false);
     setHasResume(false);
     setDuplicate(false);
+    setVerifiedEmail("");
+    setVerifyOpen(false);
   }
 
   // --- Submit once all required visible questions are answered ---
   function maybeFinish() {
+    // Garde-fou : l'email doit être vérifié par OTP avant soumission.
+    const emailNow = String(answers.email ?? "").trim().toLowerCase();
+    if (emailNow && emailNow !== verifiedEmail.trim().toLowerCase()) {
+      const emailIdx = visible.findIndex((q) => q.id === "email");
+      if (emailIdx >= 0) setStep(emailIdx);
+      setVerifyOpen(true);
+      return;
+    }
     const allRequiredAnswered = visible.every(
       (q) => !q.required || answeredSet.has(q.id),
     );
     if (allRequiredAnswered) {
       // Clear local storage after successful completion.
-      localStorage.removeItem(STORAGE_KEY);
+      void removeEncryptedItem(STORAGE_KEY);
       onComplete(answers);
     } else {
       // Some required question wasn't answered — find the first unanswered
@@ -415,6 +449,18 @@ export function ProfilingFlow({
           />
         </motion.div>
       </AnimatePresence>
+      {verifyOpen && String(answers.email ?? "").trim() && (
+        <EmailVerifyCard
+          email={String(answers.email).trim()}
+          firstName={String(answers.firstName ?? "").trim()}
+          onVerified={(em) => {
+            setVerifiedEmail(em.trim().toLowerCase());
+            setVerifyOpen(false);
+            track({ type: "email_verified" });
+          }}
+          onLater={() => setVerifyOpen(false)}
+        />
+      )}
     </ProfilingShell>
   );
 }

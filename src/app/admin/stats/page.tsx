@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { AdminStats, type Stats, type FunnelData } from "@/components/reboot/admin/AdminStats";
+import { EmailEngagement, type EmailStatsData } from "@/components/reboot/admin/EmailEngagement";
 import { AdminStatsSkeleton } from "@/components/reboot/admin/skeletons";
 import { PendingApprovalsBanner } from "@/components/reboot/admin/PendingApprovalsBanner";
 import { fetchJson, isAbortError, withRetryAfter } from "@/components/reboot/admin/lib/fetchJson";
@@ -10,6 +11,7 @@ import { AlertCircle } from "lucide-react";
 export default function AdminStatsPage() {
   const [stats, setStats] = React.useState<Stats | null>(null);
   const [funnel, setFunnel] = React.useState<FunnelData | null>(null);
+  const [emailStats, setEmailStats] = React.useState<EmailStatsData | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -17,9 +19,10 @@ export default function AdminStatsPage() {
     setLoading(true);
     setError(null);
     try {
-      const [statsResult, funnelResult] = await Promise.all([
+      const [statsResult, funnelResult, emailResult] = await Promise.all([
         fetchJson("/api/stats", { cache: "no-store", signal }),
         fetchJson("/api/analytics", { cache: "no-store", signal }).catch(() => null),
+        fetchJson("/api/email-stats", { cache: "no-store", signal }).catch(() => null),
       ]);
 
       if (signal?.aborted) return;
@@ -42,6 +45,9 @@ export default function AdminStatsPage() {
 
       if (funnelResult?.res?.ok) {
         setFunnel(funnelResult.data);
+      }
+      if (emailResult?.res?.ok) {
+        setEmailStats(emailResult.data);
       }
     } catch (e) {
       if (isAbortError(e)) return;
@@ -95,6 +101,8 @@ export default function AdminStatsPage() {
           />
         )}
       </section>
+
+      <EmailEngagement data={emailStats} loading={loading} />
     </div>
   );
 }

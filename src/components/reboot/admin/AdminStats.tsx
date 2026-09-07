@@ -588,32 +588,6 @@ export function AdminStats({
         </section>
       )}
 
-      {/* Email engagement metrics */}
-      {stats.email && stats.email.sent > 0 && (
-        <section className="mt-6">
-          <div className="flex items-center justify-between mb-3">
-            <MonoLabel className="text-muted-foreground">Emails</MonoLabel>
-            <span className="text-xs text-muted-foreground mono-label">
-              {stats.email.sent} envoyé{stats.email.sent > 1 ? "s" : ""}
-            </span>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <div className="rounded-md border border-border/60 bg-card/40 p-4 text-center">
-              <div className="text-2xl font-bold tabular-nums text-foreground">{stats.email.sent}</div>
-              <div className="text-xs text-muted-foreground mt-1">Envoyés</div>
-            </div>
-            <div className="rounded-md border border-border/60 bg-card/40 p-4 text-center">
-              <div className="text-2xl font-bold tabular-nums text-foreground">{stats.email.openRate}%</div>
-              <div className="text-xs text-muted-foreground mt-1">Ouverts</div>
-            </div>
-            <div className="rounded-md border border-border/60 bg-card/40 p-4 text-center">
-              <div className="text-2xl font-bold tabular-nums text-foreground">{stats.email.clickRate}%</div>
-              <div className="text-xs text-muted-foreground mt-1">Cliqués</div>
-            </div>
-          </div>
-        </section>
-      )}
-
       {/* Insight → Action : mentorat (uniquement si calculable depuis stats) */}
       {stats.mentoring > 0 && (
         <div className="mt-4 rounded-md border border-sky-400/40 bg-sky-400/[0.05] p-4 flex flex-wrap items-center gap-3">
