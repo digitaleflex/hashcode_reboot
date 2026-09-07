@@ -160,3 +160,22 @@ model EmailEvent {
   @@index([type])
   @@index([createdAt])
 }
+
+/// Partial profiling drafts saved on abandon — enables relance emails
+model ProfilingDraft {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  firstName      String?
+  answers        String // JSON of ProfileAnswers
+  lastQuestionId String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  /// Set once the relance email has been sent (max 1 relance)
+  relanceSentAt  DateTime?
+  /// Set when the member finally completes the flow
+  completedAt    DateTime?
+
+  @@index([createdAt])
+  @@index([completedAt])
+  @@index([relanceSentAt])
+}

@@ -43,6 +43,7 @@ export default function Home() {
 
   // Allow `?admin=1` to reveal the in-page admin dashboard (gated by auth).
   // Allow `?share=<id>` to show a public shared profile.
+  // Allow `?resume=1` (relance email) to auto-open the profiling flow.
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("admin") === "1") {
@@ -56,6 +57,13 @@ export default function Home() {
     } else if (params.get("share")) {
       setSharedMemberId(params.get("share"));
       track({ type: "reboot_page_view", ref: "shared-profile" });
+    } else if (params.get("resume")) {
+      track({ type: "reboot_page_view", ref: "relance-resume" });
+      setPhase("profiling");
+      if (!profilingStartedRef.current) {
+        profilingStartedRef.current = true;
+        track({ type: "profiling_resumed" });
+      }
     } else {
       track({ type: "reboot_page_view" });
     }

@@ -389,3 +389,61 @@ export async function sendEngagementEmail({
   );
   return sendEmail({ to, subject, html, text });
 }
+
+/* ── Relance Email (profil abandonné) ────────────────────────────────────── */
+
+export interface RelanceEmailInput {
+  to: string;
+  firstName: string;
+  lastQuestionId?: string;
+}
+
+export async function sendRelanceEmail({
+  to,
+  firstName,
+  lastQuestionId,
+}: RelanceEmailInput): Promise<SendEmailResult> {
+  const name = firstName.trim() || "toi";
+  const safeName = escapeHtml(name);
+  const subject = "Ton profil HASHCODE t'attend encore — finis-le en 1 min";
+  const landingUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://joinhashcode.com";
+  const resumeUrl = `${landingUrl}/?resume=1${lastQuestionId ? `&q=${encodeURIComponent(lastQuestionId)}` : ""}`;
+  const text = [
+    `Bonjour ${name},`,
+    "",
+    "Il y a un jour, tu commençais ton profil HASHCODE mais tu es parti avant de le finir.",
+    "",
+    "Ton profil est presque prêt. Reprends là où tu t'étais arrêté :",
+    resumeUrl,
+    "",
+    "Ça ne prend même pas une minute.",
+    "",
+    "À très vite,",
+    "L'équipe HASHCODE",
+  ].join("\n");
+  const inner = [
+    `<tr><td style="padding:24px 32px 28px 32px;background-color:#141414;">`,
+    monoLabel("TON PROFIL T'ATTEND"),
+    `<h1 style="margin:0 0 12px 0;font-family:${MAIL_FONT};font-size:24px;line-height:1.25;font-weight:800;color:#F8FAFC;">Tu es à quelques clics de ton accès ${safeName}.</h1>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">Il y a un jour, tu commençais ton profil HASHCODE mais tu es parti avant de le finir. Tes réponses sont enregistrées — tu reprends exactement où tu t'es arrêté.</p>`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;">`,
+    `<tr><td align="center" style="padding:0;">`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">`,
+    `<tr><td align="center" bgcolor="#C5F441" style="background-color:#C5F441;border-radius:8px;padding:14px 32px;">`,
+    `<a href="${escapeHtml(resumeUrl)}" target="_blank" rel="noopener" style="font-family:${MAIL_FONT};font-size:16px;font-weight:800;color:#0A0A0A;text-decoration:none;display:inline-block;">Finir mon profil</a>`,
+    `</td></tr></table>`,
+    `</td></tr></table>`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0;background-color:#0A0A0A;border:1px solid #333B1E;border-radius:8px;">`,
+    `<tr><td style="padding:14px 16px;">`,
+    `<div style="font-family:${MAIL_FONT};font-size:13px;font-weight:700;color:#C5F441;margin:0 0 4px 0;">Ce qui t'attend</div>`,
+    `<div style="font-family:${MAIL_FONT};font-size:13px;line-height:1.6;color:#94A3B8;margin:0;">• Un profil qui te positionne dans la communauté<br/>• Une invitation à rejoindre le groupe officiel<br/>• Des sessions pratiques dès ta validation</div>`,
+    `</td></tr></table>`,
+    `<p style="margin:20px 0 0 0;font-family:${MAIL_FONT};font-size:14px;line-height:1.6;color:#F8FAFC;">À très vite,<br /><span style="color:#94A3B8;">L'équipe HASHCODE</span></p>`,
+    `</td></tr>`,
+  ].join("");
+  const html = emailShell(
+    "Ton profil HASHCODE t'attend encore — finis-le en 1 min.",
+    inner,
+  );
+  return sendEmail({ to, subject, html, text });
+}

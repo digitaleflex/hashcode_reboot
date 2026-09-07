@@ -127,6 +127,16 @@ export async function POST(req: NextRequest) {
     /* analytics must never break the flow */
   }
 
+  // Mark the profiling draft as completed — no more relance for this email.
+  try {
+    await db.profilingDraft.updateMany({
+      where: { email: data.email.toLowerCase(), completedAt: null },
+      data: { completedAt: new Date() },
+    });
+  } catch {
+    /* draft cleanup must never break the flow */
+  }
+
   // Emails réels : fire-and-forget, jamais bloquant.
   if (created.accessLane === "immediate") {
     // Welcome + invitation pour accès immédiat

@@ -182,6 +182,19 @@ export const QUESTIONS: Question[] = [
     maxChars: 40,
     microcopy: "Parfait. C'est parti.",
   },
+  // --- Email (early capture right after name — enables re-engagement if user abandons later) ---
+  {
+    id: "email",
+    type: "email",
+    title: "Où t'envoyer ton profil et ton accès ?",
+    description:
+      "Ton adresse email. On l'utilise pour t'envoyer ton profil et t'inviter à la communauté.",
+    placeholder: "toi@exemple.com",
+    required: true,
+    mapsTo: "email",
+    group: "profil",
+    microcopy: "On sauvegarde ton profil.",
+  },
   {
     id: "gender",
     type: "single_choice",
@@ -305,19 +318,6 @@ export const QUESTIONS: Question[] = [
     mapsTo: "learningStyle",
     group: "rythme",
     microcopy: "Presque terminé.",
-  },
-  // --- Email (early capture — enables re-engagement if user abandons later) ---
-  {
-    id: "email",
-    type: "email",
-    title: "Où t'envoyer ton profil et ton accès ?",
-    description:
-      "Ton adresse email. On l'utilise pour t'envoyer ton profil et t'inviter à la communauté.",
-    placeholder: "toi@exemple.com",
-    required: true,
-    mapsTo: "email",
-    group: "profil",
-    microcopy: "On sauvegarde ton profil.",
   },
   // --- Mentorat (conditional follow-ups) ---
   {
