@@ -14,7 +14,7 @@ import { AlertCircle } from "lucide-react";
 import type { ProfileAnswers } from "@/lib/profiling/types";
 import { generateProfile } from "@/lib/profiling/engine";
 import { runAutoControls } from "@/lib/profiling/auto-controls";
-import { track } from "@/lib/analytics";
+import { track, getSource } from "@/lib/analytics";
 
 type Phase = "landing" | "profiling" | "submitting" | "result" | "admin-login" | "admin";
 
@@ -97,7 +97,7 @@ export default function Home() {
       const res = await fetch("/api/members", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(finalAnswers),
+        body: JSON.stringify({ ...finalAnswers, source: getSource() }),
       });
       const data: SubmitResponse = await res.json();
       if (!res.ok || !data.ok) {

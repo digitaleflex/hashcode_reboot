@@ -75,6 +75,8 @@ export const profileSchema = z
     budgetRange: budgetRangeSchema.optional(),
 
     threeMonthGoal: z.string().trim().min(4, "Objectif trop court").max(280),
+
+    source: z.string().trim().max(120).optional().default("direct"),
   })
   .superRefine((val, ctx) => {
     // Budget range only valid with mentoring interest.

@@ -72,6 +72,7 @@ interface FunnelData {
     completionRate: number;
   };
   dropoff: { questionId: string; answered: number; abandoned: number; dropRate: number }[];
+  timing: { questionId: string; samples: number; avgMs: number; p50Ms: number; p95Ms: number }[];
 }
 
 async function computeFunnel(startDate: Date, endDate: Date): Promise<FunnelData> {
@@ -82,7 +83,7 @@ async function computeFunnel(startDate: Date, endDate: Date): Promise<FunnelData
     },
   };
 
-  const [rows, total, startedSessions, completedSessions, whatsappClicks, answeredRows, abandonedRows] = await Promise.all([
+  const [rows, total, startedSessions, completedSessions, whatsappClicks, answeredRows, abandonedRows, timedRows] = await Promise.all([
     db.analyticsEvent.groupBy({
       by: ["type"],
       _count: true,
@@ -109,9 +110,14 @@ async function computeFunnel(startDate: Date, endDate: Date): Promise<FunnelData
       _count: true,
       where: { ...where, type: "profiling_abandoned", ref: { not: null } },
     }),
+    db.analyticsEvent.findMany({
+      where: { ...where, type: "profiling_question_timed", ref: { not: null }, value: { not: null } },
+      select: { ref: true, value: true },
+    }),
   ]);
 
   const dropoff = buildDropoff(answeredRows, abandonedRows);
+  const timing = buildTiming(timedRows);
 
   return {
     total,
@@ -123,7 +129,32 @@ async function computeFunnel(startDate: Date, endDate: Date): Promise<FunnelData
       completionRate: startedSessions.length === 0 ? 0 : Math.round((completedSessions.length / startedSessions.length) * 100),
     },
     dropoff,
+    timing,
   };
+}
+
+function buildTiming(
+  rows: { ref: string | null; value: number | null }[],
+): { questionId: string; samples: number; avgMs: number; p50Ms: number; p95Ms: number }[] {
+  const byQuestion = new Map<string, number[]>();
+  for (const r of rows) {
+    if (r.ref && r.value !== null && r.value > 0) {
+      const arr = byQuestion.get(r.ref) ?? [];
+      arr.push(r.value);
+      byQuestion.set(r.ref, arr);
+    }
+  }
+  const result: { questionId: string; samples: number; avgMs: number; p50Ms: number; p95Ms: number }[] = [];
+  for (const [id, vals] of byQuestion) {
+    const sorted = [...vals].sort((a, b) => a - b);
+    const avg = Math.round(sorted.reduce((s, v) => s + v, 0) / sorted.length);
+    const p50 = sorted[Math.floor(sorted.length * 0.5)] ?? 0;
+    const p95 = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))] ?? 0;
+    result.push({ questionId: id, samples: sorted.length, avgMs: avg, p50Ms: p50, p95Ms: p95 });
+  }
+  // Worst average first — shows friction points.
+  result.sort((a, b) => b.avgMs - a.avgMs);
+  return result;
 }
 
 function buildDropoff(
@@ -183,7 +214,7 @@ export async function GET(req: NextRequest) {
 
   if (!compare) {
     // Original behavior: all-time funnel
-    const [rows, total, startedSessions, completedSessions, whatsappClicks, answeredRows, abandonedRows] = await Promise.all([
+    const [rows, total, startedSessions, completedSessions, whatsappClicks, answeredRows, abandonedRows, timedRows] = await Promise.all([
       db.analyticsEvent.groupBy({
         by: ["type"],
         _count: true,
@@ -209,9 +240,14 @@ export async function GET(req: NextRequest) {
         _count: true,
         where: { type: "profiling_abandoned", ref: { not: null } },
       }),
+      db.analyticsEvent.findMany({
+        where: { type: "profiling_question_timed", ref: { not: null }, value: { not: null } },
+        select: { ref: true, value: true },
+      }),
     ]);
 
     const dropoff = buildDropoff(answeredRows, abandonedRows);
+    const timing = buildTiming(timedRows);
 
     return NextResponse.json({
       total,
@@ -223,6 +259,7 @@ export async function GET(req: NextRequest) {
         completionRate: startedSessions.length === 0 ? 0 : Math.round((completedSessions.length / startedSessions.length) * 100),
       },
       dropoff,
+      timing,
     });
   }
 

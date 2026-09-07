@@ -25,6 +25,7 @@ export interface Stats {
   byAvailability: { availability: string; count: number }[];
   byBudget: { budget: string; count: number }[];
   byArchetype: { archetype: string; count: number }[];
+  bySource: { source: string; count: number }[];
   email: {
     sent: number;
     opened: number;
@@ -67,6 +68,7 @@ export interface FunnelData {
     completionRate: number;
   };
   dropoff: { questionId: string; answered: number; abandoned: number; dropRate: number }[];
+  timing: { questionId: string; samples: number; avgMs: number; p50Ms: number; p95Ms: number }[];
   // Comparison mode fields
   previous?: {
     events: { type: string; count: number }[];
@@ -481,6 +483,15 @@ export function AdminStats({
             })}
           </div>
         </div>
+        <Breakdown
+          title="Par source d'acquisition"
+          rows={(stats?.bySource ?? []).map((s) => [s.source, s.count])}
+          onRowClick={onFilter}
+          filterKey="source"
+          filterValues={Object.fromEntries(
+            (stats?.bySource ?? []).map((s) => [s.source, s.source]),
+          )}
+        />
       </section>
 
       {/* Activation path — NOT a strict funnel: WhatsApp clicks can precede
@@ -584,6 +595,53 @@ export function AdminStats({
                 </span>
               </div>
             ))}
+          </div>
+        </section>
+      )}
+
+      {/* Time per question — identifies slow/friction questions */}
+      {funnel?.timing && funnel.timing.length > 0 && (
+        <section className="mt-6">
+          <div className="flex items-center justify-between mb-3">
+            <MonoLabel className="text-muted-foreground">Temps par question</MonoLabel>
+            <span className="text-xs text-muted-foreground mono-label">
+              moyenne · médiane · p95
+            </span>
+          </div>
+          <div className="rounded-md border border-border/60 bg-card/40 p-4 sm:p-5 space-y-2">
+            {funnel.timing.slice(0, 10).map((t) => {
+              const avgSec = Math.round(t.avgMs / 1000);
+              const slow = avgSec >= 30;
+              return (
+                <div key={t.questionId} className="flex items-center gap-3">
+                  <span className="text-sm text-foreground truncate w-40 shrink-0" title={t.questionId}>
+                    {QUESTION_LABEL[t.questionId] ?? t.questionId}
+                  </span>
+                  <div className="flex-1 h-2 bg-border/60 rounded-full overflow-hidden">
+                    <div
+                      className={cn(
+                        "h-full rounded-full transition-[width]",
+                        slow ? "bg-red-500" : "bg-lime",
+                      )}
+                      style={{ width: `${Math.min(100, (avgSec / 60) * 100)}%` }}
+                    />
+                  </div>
+                  <span className="text-xs text-muted-foreground mono-label w-20 text-right shrink-0">
+                    {avgSec}s
+                    <span className="ml-1 text-border">· {Math.round(t.p50Ms / 1000)}s</span>
+                  </span>
+                  <span
+                    className={cn(
+                      "text-xs mono-label w-14 text-right shrink-0",
+                      slow ? "text-red-400" : "text-muted-foreground",
+                    )}
+                    title="95e percentile"
+                  >
+                    p95 {Math.round(t.p95Ms / 1000)}s
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </section>
       )}
