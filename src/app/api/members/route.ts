@@ -78,6 +78,7 @@ export async function POST(req: NextRequest) {
     .create({
       data: {
         ...answersToCreatePayload(data),
+        source: data.source ?? "direct",
         profileArchetype: generated.archetype,
         tags: JSON.stringify(generated.tags),
         profileStatus: controls.profileStatus,

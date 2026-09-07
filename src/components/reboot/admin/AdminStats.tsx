@@ -25,6 +25,7 @@ export interface Stats {
   byAvailability: { availability: string; count: number }[];
   byBudget: { budget: string; count: number }[];
   byArchetype: { archetype: string; count: number }[];
+  bySource: { source: string; count: number }[];
   email: {
     sent: number;
     opened: number;
@@ -482,6 +483,15 @@ export function AdminStats({
             })}
           </div>
         </div>
+        <Breakdown
+          title="Par source d'acquisition"
+          rows={(stats?.bySource ?? []).map((s) => [s.source, s.count])}
+          onRowClick={onFilter}
+          filterKey="source"
+          filterValues={Object.fromEntries(
+            (stats?.bySource ?? []).map((s) => [s.source, s.source]),
+          )}
+        />
       </section>
 
       {/* Activation path — NOT a strict funnel: WhatsApp clicks can precede

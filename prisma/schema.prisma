@@ -62,6 +62,9 @@ model Member {
   profileArchetype  String? // CYBER BUILDER | WEB BUILDER | AI EXPLORER | ...
   tags             String  @default("[]") // JSON string[]
 
+  // --- Acquisition ---
+  source String? // utm_source/medium/campaign, e.g. "whatsapp/post?reboot" | "direct"
+
   // --- Statuts ---
   profileStatus    String   @default("PENDING")  // PENDING | APPROVED | REJECTED | WAITLIST
   communityStatus  String   @default("NOT_INVITED") // NOT_INVITED | INVITED | JOINED

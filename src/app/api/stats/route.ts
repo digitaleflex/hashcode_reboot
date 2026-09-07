@@ -20,6 +20,7 @@ interface StatsAggregate {
   byAvailability: { availability: string; count: number }[];
   byBudget: { budget: string | null; count: number }[];
   byArchetype: { archetype: string; count: number }[];
+  bySource: { source: string; count: number }[];
   email: {
     sent: number;
     opened: number;
@@ -53,6 +54,7 @@ async function computeStats(startDate: Date, endDate: Date): Promise<StatsAggreg
     byAvailability,
     byBudget,
     byArchetype,
+    bySource,
     emailSent,
     emailOpened,
     emailClicked,
@@ -71,6 +73,7 @@ async function computeStats(startDate: Date, endDate: Date): Promise<StatsAggreg
     db.member.groupBy({ by: ["availability"], _count: true, where: whereCreated }),
     db.member.groupBy({ by: ["budgetRange"], _count: true, where: whereCreated }),
     db.member.groupBy({ by: ["profileArchetype"], _count: true, orderBy: { _count: { profileArchetype: "desc" } }, where: whereCreated }),
+    db.member.groupBy({ by: ["source"], _count: true, orderBy: { _count: { source: "desc" } }, take: 10, where: whereCreated }),
     db.emailEvent.count({ where: { ...whereCreated, type: "email.sent" } }),
     db.emailEvent.count({ where: { ...whereCreated, type: "email.opened" } }),
     db.emailEvent.count({ where: { ...whereCreated, type: "email.clicked" } }),
@@ -92,6 +95,11 @@ async function computeStats(startDate: Date, endDate: Date): Promise<StatsAggreg
       a.profileArchetype
         ? [{ archetype: String(a.profileArchetype), count: a._count }]
         : [],
+    ),
+    bySource: bySource.flatMap((s) =>
+      s.source
+        ? [{ source: String(s.source), count: s._count }]
+        : [{ source: "direct", count: s._count }],
     ),
     email: {
       sent: emailSentN,
@@ -144,6 +152,7 @@ export async function GET(req: NextRequest) {
       byAvailability,
       byBudget,
       byArchetype,
+      bySource,
       emailSent,
       emailOpened,
       emailClicked,
@@ -162,6 +171,7 @@ export async function GET(req: NextRequest) {
       db.member.groupBy({ by: ["availability"], _count: true, where: { deletedAt: null } }),
       db.member.groupBy({ by: ["budgetRange"], _count: true, where: { deletedAt: null } }),
       db.member.groupBy({ by: ["profileArchetype"], _count: true, orderBy: { _count: { profileArchetype: "desc" } }, where: { deletedAt: null } }),
+      db.member.groupBy({ by: ["source"], _count: true, orderBy: { _count: { source: "desc" } }, take: 10, where: { deletedAt: null } }),
       db.emailEvent.count({ where: { type: "email.sent" } }),
       db.emailEvent.count({ where: { type: "email.opened" } }),
       db.emailEvent.count({ where: { type: "email.clicked" } }),
@@ -184,6 +194,11 @@ byArchetype: byArchetype.flatMap((a) =>
         ? [{ archetype: String(a.profileArchetype), count: a._count }]
         : [],
     ),
+      bySource: bySource.flatMap((s) =>
+        s.source
+          ? [{ source: String(s.source), count: s._count }]
+          : [{ source: "direct", count: s._count }],
+      ),
       email: {
         sent: emailSentN,
         opened: emailOpenedN,

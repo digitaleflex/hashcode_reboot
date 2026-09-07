@@ -22,6 +22,7 @@ export interface StatsData {
   byAvailability: Array<{ availability: string; count: number }>;
   byBudget: Array<{ budget: string; count: number }>;
   byArchetype: Array<{ archetype: string; count: number }>;
+  bySource: Array<{ source: string; count: number }>;
 }
 
 export interface StatsWithCompare {

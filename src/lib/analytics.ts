@@ -33,6 +33,7 @@ export interface TrackEvent {
 }
 
 const SESSION_KEY = "hashcode:reboot:session";
+const SOURCE_KEY = "hashcode:reboot:source";
 
 /** Get-or-create a stable client session id (per browser). */
 export function getOrCreateSessionId(): string {
@@ -46,6 +47,56 @@ export function getOrCreateSessionId(): string {
     return s;
   } catch {
     return "anon";
+  }
+}
+
+/**
+ * Capture UTM/source params from the current URL (best-effort).
+ * Persisted in localStorage so the acquisition source survives the funnel.
+ * Priority: explicit utm_source > utm_medium > referrer hint.
+ */
+export function getOrCreateSource(): string {
+  if (typeof window === "undefined") return "direct";
+  try {
+    const existing = localStorage.getItem(SOURCE_KEY);
+    if (existing) return existing;
+
+    const params = new URLSearchParams(window.location.search);
+    const source = params.get("utm_source");
+    const medium = params.get("utm_medium");
+    const campaign = params.get("utm_campaign");
+    let value: string;
+    if (source) {
+      value = `${source}${medium ? `/${medium}` : ""}${campaign ? `?${campaign}` : ""}`;
+    } else if (medium) {
+      value = medium;
+    } else {
+      value = "direct";
+    }
+    localStorage.setItem(SOURCE_KEY, value);
+    return value;
+  } catch {
+    return "direct";
+  }
+}
+
+/** Read the persisted acquisition source (or "direct"). */
+export function getSource(): string {
+  if (typeof window === "undefined") return "direct";
+  try {
+    return localStorage.getItem(SOURCE_KEY) ?? "direct";
+  } catch {
+    return "direct";
+  }
+}
+
+/** Reset the source (only used in dev/tests). */
+export function clearSource(): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(SOURCE_KEY);
+  } catch {
+    /* ignore */
   }
 }
 
