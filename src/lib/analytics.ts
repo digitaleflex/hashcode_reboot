@@ -20,6 +20,7 @@ export const EVENT_TYPES = [
   "community_cta_clicked",
   "whatsapp_join_clicked",
   "share_profile_clicked",
+  "status_change_email_sent",
 ] as const;
 
 export type EventType = (typeof EVENT_TYPES)[number];

@@ -1,9 +1,10 @@
-// HASHCODE REBOOT — envoi réel d'emails via Resend (API HTTP directe, sans SDK).
-// Ne journalise ni ne retourne JAMAIS de secret (RESEND_API_KEY / EMAIL_FROM).
+// HASHCODE REBOOT — envoi réel d'emails via Resend (primary) + Brevo (fallback).
+// Ne journalise ni ne retourne JAMAIS de secret (RESEND_API_KEY / BREVO_API_KEY).
 
 import { db } from "@/lib/db";
 
 const RESEND_URL = "https://api.resend.com/emails";
+const BREVO_URL = "https://api.brevo.com/v3/smtp/email";
 const SEND_TIMEOUT_MS = 8000;
 
 export interface SendEmailInput {
@@ -16,11 +17,7 @@ export interface SendEmailInput {
 export interface SendEmailResult {
   ok: boolean;
   id?: string;
-}
-
-/** Enveloppe Resend minimale (l'API renvoie { id } en cas de succès). */
-interface ResendResponse {
-  id?: unknown;
+  provider?: "resend" | "brevo";
 }
 
 /** Échappement HTML minimal pour les valeurs interpolées. */
@@ -40,6 +37,12 @@ function categorizeEmail(subject: string): string {
   if (s.includes("inscription") || s.includes("merci")) return "waitlist";
   if (s.includes("t'attend") || s.includes("rejoins")) return "engagement";
   if (s.includes("reprend") || s.includes("termin")) return "relance";
+  if (
+    s.includes("validé") ||
+    s.includes("liste d'attente") ||
+    s.includes("non retenu")
+  )
+    return "status_change";
   return "other";
 }
 
@@ -64,10 +67,9 @@ async function trackEmailSent(to: string, subject: string): Promise<void> {
 
 /**
  * POST https://api.resend.com/emails avec `Authorization: Bearer <RESEND_API_KEY>`.
- * Ne lève jamais : toute erreur (config absente, réseau, timeout, 4xx/5xx)
- * retourne { ok: false } silencieusement.
+ * Retourne { ok: false } en cas d'erreur.
  */
-export async function sendEmail({
+async function sendViaResend({
   to,
   subject,
   html,
@@ -89,21 +91,110 @@ export async function sendEmail({
       signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
     });
     if (!res.ok) {
-      return { ok: false };
+      return { ok: false, provider: "resend" };
     }
     try {
-      const payload = (await res.json()) as ResendResponse;
+      const payload = (await res.json()) as { id?: unknown };
       const id = typeof payload.id === "string" ? payload.id : undefined;
-      // Track email.sent event
       trackEmailSent(to, subject).catch(() => {});
-      return id ? { ok: true, id } : { ok: true };
+      return id ? { ok: true, id, provider: "resend" } : { ok: true, provider: "resend" };
     } catch {
       trackEmailSent(to, subject).catch(() => {});
-      return { ok: true };
+      return { ok: true, provider: "resend" };
     }
   } catch {
+    return { ok: false, provider: "resend" };
+  }
+}
+
+/**
+ * POST https://api.brevo.com/v3/smtp/email avec `api-key: <BREVO_API_KEY>`.
+ * Retourne { ok: false } en cas d'erreur.
+ */
+async function sendViaBrevo({
+  to,
+  subject,
+  html,
+  text,
+}: SendEmailInput): Promise<SendEmailResult> {
+  const apiKey = process.env.BREVO_API_KEY;
+  const from = process.env.BREVO_EMAIL_FROM;
+  if (!apiKey || !from) {
     return { ok: false };
   }
+  // Extraire l'email du format "Nom <email@domaine>"
+  const emailMatch = from.match(/<([^>]+)>/);
+  const fromEmail = emailMatch ? emailMatch[1] : from;
+  const fromName = from.replace(/<[^>]+>/, "").trim() || "HASHCODE REBOOT";
+  try {
+    const res = await fetch(BREVO_URL, {
+      method: "POST",
+      headers: {
+        "api-key": apiKey,
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+      body: JSON.stringify({
+        sender: { email: fromEmail, name: fromName },
+        to: [{ email: to }],
+        subject,
+        htmlContent: html,
+        textContent: text,
+      }),
+      signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
+    });
+    if (!res.ok) {
+      return { ok: false, provider: "brevo" };
+    }
+    try {
+      const payload = (await res.json()) as { messageId?: unknown };
+      const id = typeof payload.messageId === "string" ? payload.messageId : undefined;
+      trackEmailSent(to, subject).catch(() => {});
+      return id ? { ok: true, id, provider: "brevo" } : { ok: true, provider: "brevo" };
+    } catch {
+      trackEmailSent(to, subject).catch(() => {});
+      return { ok: true, provider: "brevo" };
+    }
+  } catch {
+    return { ok: false, provider: "brevo" };
+  }
+}
+
+/**
+ * Envoi d'email avec stratégie : Resend (primary) → Brevo (fallback si quota).
+ * Ne lève jamais : toute erreur retourne { ok: false } silencieusement.
+ */
+export async function sendEmail({
+  to,
+  subject,
+  html,
+  text,
+}: SendEmailInput): Promise<SendEmailResult> {
+  // 1. Essayer Resend (primary)
+  const resendResult = await sendViaResend({ to, subject, html, text });
+
+  // Si Resend réussit, retourner le résultat
+  if (resendResult.ok) {
+    return resendResult;
+  }
+
+  // 2. Vérifier si on doit basculer vers Brevo (fallback)
+  const fallbackOn429 = process.env.BREVO_FALLBACK_ON_429 === "true";
+
+  if (fallbackOn429) {
+    // Essayer Brevo comme fallback
+    const brevoResult = await sendViaBrevo({ to, subject, html, text });
+
+    // Logger le basculement (en dev seulement)
+    if (process.env.NODE_ENV !== "production") {
+      console.info("[Brevo Fallback] Basculement Resend → Brevo pour", to);
+    }
+
+    return brevoResult;
+  }
+
+  // 3. Sinon retourner l'erreur Resend (pas de fallback)
+  return resendResult;
 }
 
 /* ------------------------------------------------------------------ */
@@ -541,4 +632,149 @@ export async function sendMagicLinkEmail({
     inner,
   );
   return sendEmail({ to, subject, html, text });
+}
+
+/* ── Status change notification (PENDING → APPROVED / WAITLIST / REJECTED) ── */
+
+export type StatusChangeType = "APPROVED" | "WAITLIST" | "REJECTED";
+
+export interface StatusChangeEmailInput {
+  to: string;
+  firstName: string;
+  newStatus: StatusChangeType;
+  archetypeLabel?: string | null;
+}
+
+const STATUS_LABEL: Record<StatusChangeType, string> = {
+  APPROVED: "Validé",
+  WAITLIST: "Liste d'attente",
+  REJECTED: "Profil non retenu",
+};
+
+// Helpers d'URL pour les emails (toujours absolu, jamais localhost)
+function getWhatsAppUrlForEmail(): string {
+  return process.env.WHATSAPP_URL || process.env.NEXT_PUBLIC_WHATSAPP_URL || "https://chat.whatsapp.com/JwJGgoQpS46I9r81QPrCs4";
+}
+function getAccountUrlForEmail(): string {
+  const base = process.env.NEXT_PUBLIC_SITE_URL || "https://reboot.joinhashcode.com";
+  return `${base}/account`;
+}
+
+/**
+ * Envoie un email au membre quand son statut change.
+ * Catégorise l'email comme "status_change" pour les analytics.
+ */
+export async function sendStatusChangeEmail({
+  to,
+  firstName,
+  newStatus,
+  archetypeLabel,
+}: StatusChangeEmailInput): Promise<SendEmailResult> {
+  const name = firstName.trim() || "toi";
+  const safeName = escapeHtml(name);
+  const label = STATUS_LABEL[newStatus];
+
+  const subjectByStatus: Record<StatusChangeType, string> = {
+    APPROVED: "Tu es validé dans HASHCODE",
+    WAITLIST: "Tu es sur la liste d'attente HASHCODE",
+    REJECTED: "Ton profil HASHCODE n'a pas été retenu",
+  };
+
+  const subject = subjectByStatus[newStatus];
+  let text: string;
+  let inner: string;
+
+  if (newStatus === "APPROVED") {
+    const archLine = archetypeLabel
+      ? `Profil confirmé : ${archetypeLabel}.`
+      : "Ton profil a été examiné et confirmé.";
+    text = [
+      `Bonjour ${name},`,
+      "",
+      `${archLine} Bienvenue dans la communauté.`,
+      "",
+      "Voici ton lien direct pour rejoindre le groupe WhatsApp officiel :",
+      getWhatsAppUrlForEmail(),
+      "",
+      "Tu y retrouveras :",
+      "• Les sessions pratiques de la communauté",
+      "• Les annonces et événements",
+      "• Les autres membres qui avancent comme toi",
+      "",
+      "On a hâte de te compter parmi nous.",
+      "",
+      "L'équipe HASHCODE",
+    ].join("\n");
+    inner = approvedHtml(safeName, archetypeLabel);
+  } else if (newStatus === "WAITLIST") {
+    text = [
+      `Bonjour ${name},`,
+      "",
+      "On a examiné ton profil avec attention. Les places de cette vague sont",
+      "limitées, et tu es sur liste d'attente pour la prochaine ouverture.",
+      "",
+      "Pas besoin de recréer un profil — on te contactera par email dès qu'une",
+      "place se libère. D'ici là, tu peux continuer à faire évoluer ton objectif",
+      "à 3 mois dans ton espace /account.",
+      "",
+      "L'équipe HASHCODE",
+    ].join("\n");
+    inner = waitlistHtml(safeName);
+  } else {
+    // REJECTED
+    text = [
+      `Bonjour ${name},`,
+      "",
+      "Merci pour l'intérêt que tu portes à HASHCODE. Après examen, ton profil",
+      "n'a pas été retenu pour cette vague. On relit les dossiers chaque semaine.",
+      "",
+      "Tu peux mettre à jour tes informations (objectif à 3 mois, WhatsApp, etc.)",
+      "dans ton espace /account et repasser la validation à tout moment.",
+      "",
+      "L'équipe HASHCODE",
+    ].join("\n");
+    inner = rejectedHtml(safeName);
+  }
+
+  return sendEmail({ to, subject, html: emailShell(subject, inner), text });
+}
+
+function approvedHtml(safeName: string, archetype: string | null | undefined) {
+  const archLine = archetype
+    ? `Profil confirmé : <strong style="color:#C5F441;">${escapeHtml(archetype)}</strong>.`
+    : "Ton profil a été examiné et confirmé.";
+  return [
+    `<tr><td style="padding:24px 32px 28px 32px;background-color:#141414;">`,
+    monoLabel("VALIDÉ"),
+    `<h1 style="margin:0 0 12px 0;font-family:${MAIL_FONT};font-size:24px;line-height:1.25;font-weight:800;color:#F8FAFC;">Bienvenue, ${safeName}.</h1>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">${archLine} Voici ton lien direct pour rejoindre le groupe WhatsApp officiel :</p>`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;background-color:#0A0A0A;border:1px solid #333B1E;border-radius:8px;">`,
+    `<tr><td align="center" style="padding:16px 12px;">`,
+    `<a href="${escapeHtml(getWhatsAppUrlForEmail())}" style="display:inline-block;padding:12px 24px;background-color:#C5F441;color:#0A0A0A;text-decoration:none;font-family:${MAIL_FONT};font-size:14px;font-weight:700;border-radius:6px;">Rejoindre le groupe WhatsApp</a>`,
+    `</td></tr></table>`,
+    `<p style="margin:0;font-family:${MAIL_FONT};font-size:12px;line-height:1.6;color:#94A3B8;">Tu peux aussi gérer ton profil sur <a href="${escapeHtml(getAccountUrlForEmail())}" style="color:#C5F441;">ton espace HASHCODE</a>.</p>`,
+    `</td></tr>`,
+  ].join("");
+}
+
+function waitlistHtml(safeName: string) {
+  return [
+    `<tr><td style="padding:24px 32px 28px 32px;background-color:#141414;">`,
+    monoLabel("LISTE D'ATTENTE"),
+    `<h1 style="margin:0 0 12px 0;font-family:${MAIL_FONT};font-size:24px;line-height:1.25;font-weight:800;color:#F8FAFC;">Tu es sur la liste, ${safeName}.</h1>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">On a examiné ton profil. Les places de cette vague sont limitées, et tu es sur liste d'attente pour la prochaine ouverture.</p>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">Pas besoin de recréer un profil — on te contactera par email dès qu'une place se libère. D'ici là, continue à faire évoluer ton objectif à 3 mois dans <a href="${escapeHtml(getAccountUrlForEmail())}" style="color:#C5F441;">ton espace HASHCODE</a>.</p>`,
+    `</td></tr>`,
+  ].join("");
+}
+
+function rejectedHtml(safeName: string) {
+  return [
+    `<tr><td style="padding:24px 32px 28px 32px;background-color:#141414;">`,
+    monoLabel("NON RETENU"),
+    `<h1 style="margin:0 0 12px 0;font-family:${MAIL_FONT};font-size:24px;line-height:1.25;font-weight:800;color:#F8FAFC;">${safeName}, ton profil n'a pas été retenu.</h1>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">Merci pour l'intérêt que tu portes à HASHCODE. On relit les dossiers chaque semaine.</p>`,
+    `<p style="margin:0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">Tu peux mettre à jour tes informations et repasser la validation à tout moment depuis <a href="${escapeHtml(getAccountUrlForEmail())}" style="color:#C5F441;">ton espace HASHCODE</a>.</p>`,
+    `</td></tr>`,
+  ].join("");
 }

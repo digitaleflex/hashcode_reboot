@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { isAdminAuthed, requireAdminRole } from "@/lib/admin-auth";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { audit } from "@/lib/admin-audit";
+import { sendStatusChangeEmail, type StatusChangeType } from "@/lib/mail";
 
 export const runtime = "nodejs";
 
@@ -132,7 +133,50 @@ export async function PATCH(
   }
 
   try {
+    // Charger le member AVANT l'update pour comparer le statut (anti-doublon
+    // + détection d'un vrai changement de statut).
+    const before = await db.member.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        profileStatus: true,
+        profileArchetype: true,
+        deletedAt: true,
+      },
+    });
+    if (!before || before.deletedAt) {
+      return NextResponse.json(
+        { error: "Membre introuvable.", code: "NOT_FOUND" },
+        { status: 404 },
+      );
+    }
+
     const updated = await db.member.update({ where: { id }, data });
+
+    // Notification email si le statut a changé vers un statut "terminal"
+    // (APPROVED / WAITLIST / REJECTED). On n'envoie pas pour PENDING car
+    // c'est l'état initial / un retour en arrière. Anti-doublon via
+    // EmailEvent lookup.
+    const newStatus = (data.profileStatus as string | undefined) ?? updated.profileStatus;
+    const oldStatus = before.profileStatus;
+    if (
+      newStatus !== oldStatus &&
+      (newStatus === "APPROVED" ||
+        newStatus === "WAITLIST" ||
+        newStatus === "REJECTED")
+    ) {
+      void notifyStatusChange({
+        memberId: updated.id,
+        email: updated.email,
+        firstName: updated.firstName,
+        oldStatus,
+        newStatus: newStatus as StatusChangeType,
+        archetype: updated.profileArchetype,
+      });
+    }
+
     // Audit isolé : ne casse jamais la réponse si l'audit échoue.
     try {
       await db.analyticsEvent.create({
@@ -236,5 +280,68 @@ export async function DELETE(
       { error: "Erreur interne.", code: "INTERNAL_ERROR" },
       { status: 500 },
     );
+  }
+}
+
+/**
+ * Notifie le membre d'un changement de statut (APPROVED / WAITLIST / REJECTED).
+ * - Fire-and-forget (void) : ne casse jamais le PATCH si l'email échoue.
+ * - Anti-doublon : si on a déjà envoyé un email de status_change pour ce
+ *   membre dans la dernière heure, on n'envoie pas (l'admin peut avoir
+ *   cliqué 2x sur le bouton "Approuver").
+ * - Tracking : un event analytics "status_change_email_sent" est créé,
+ *   et l'email est tracé via EmailEvent par sendStatusChangeEmail (qui
+ *   appelle trackEmailSent en interne).
+ */
+async function notifyStatusChange(args: {
+  memberId: string;
+  email: string;
+  firstName: string;
+  oldStatus: string;
+  newStatus: StatusChangeType;
+  archetype: string | null;
+}): Promise<void> {
+  try {
+    // Anti-doublon : regarde si on a déjà envoyé un status_change pour ce
+    // membre dans la dernière heure.
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const recentSent = await db.emailEvent.findFirst({
+      where: {
+        memberId: args.memberId,
+        category: "status_change",
+        type: "email.sent",
+        createdAt: { gte: oneHourAgo },
+      },
+      select: { id: true },
+    });
+    if (recentSent) {
+      return;
+    }
+
+    // Envoi (sendEmail ne throw pas dans le pattern actuel)
+    const result = await sendStatusChangeEmail({
+      to: args.email,
+      firstName: args.firstName,
+      newStatus: args.newStatus,
+      archetypeLabel: args.archetype,
+    });
+
+    // Event analytics (fire-and-forget)
+    try {
+      await db.analyticsEvent.create({
+        data: {
+          type: "status_change_email_sent",
+          memberId: args.memberId,
+          ref: `status:${args.newStatus}`,
+          value: result.ok ? 1 : 0,
+        },
+      });
+    } catch {
+      /* ignore */
+    }
+  } catch (err) {
+    // On ne remonte JAMAIS cette erreur au PATCH : l'admin a déjà eu sa
+    // réponse 200, le membre sera notifié par un autre canal (WhatsApp).
+    console.error("[notifyStatusChange] failed:", err);
   }
 }
