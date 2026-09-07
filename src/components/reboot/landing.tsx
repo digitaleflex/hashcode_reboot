@@ -201,6 +201,12 @@ export function Landing({
             <span className="text-[13px] text-muted-foreground" aria-hidden>
               Reboot · Édition 2026
             </span>
+            <a
+              href="/login"
+              className="min-h-[44px] inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors focus-lime"
+            >
+              Se connecter
+            </a>
             <RebootButton size="md" onClick={onJoin} className="group">
               Construire mon profil
               <CtaArrow />

@@ -495,3 +495,50 @@ export async function sendRelanceEmail({
   );
   return sendEmail({ to, subject, html, text });
 }
+
+/* ── Magic Link / Login OTP ────────────────────────────────────────────────── */
+
+export interface MagicLinkEmailInput {
+  to: string;
+  firstName: string;
+  code: string;
+}
+
+export async function sendMagicLinkEmail({
+  to,
+  firstName,
+  code,
+}: MagicLinkEmailInput): Promise<SendEmailResult> {
+  const name = firstName.trim() || "toi";
+  const safeName = escapeHtml(name);
+  const safeCode = escapeHtml(code.trim());
+  const subject = "Ton code de connexion HASHCODE";
+  const text = [
+    `Bonjour ${name},`,
+    "",
+    `Voici ton code de connexion : ${code.trim()}`,
+    "",
+    "Saisis-le sur la page de connexion pour accéder à ton compte. Il expire dans 15 minutes.",
+    "",
+    "Si tu n'as pas demandé ce code, ignore cet e-mail — ton compte reste sécurisé.",
+    "",
+    "L'équipe HASHCODE",
+  ].join("\n");
+  const inner = [
+    `<tr><td style="padding:24px 32px 28px 32px;background-color:#141414;">`,
+    monoLabel("CONNEXION SÉCURISÉE"),
+    `<h1 style="margin:0 0 12px 0;font-family:${MAIL_FONT};font-size:24px;line-height:1.25;font-weight:800;color:#F8FAFC;">Ton code, ${safeName}.</h1>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">Saisis ce code sur la page de connexion pour accéder à ton compte HASHCODE. Il expire dans 15 minutes.</p>`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;background-color:#0A0A0A;border:1px solid #333B1E;border-radius:8px;">`,
+    `<tr><td align="center" style="padding:20px 16px;">`,
+    `<div style="font-family:${MAIL_FONT};font-size:32px;font-weight:800;letter-spacing:8px;color:#C5F441;margin:0;">${safeCode}</div>`,
+    `</td></tr></table>`,
+    `<p style="margin:0;font-family:${MAIL_FONT};font-size:12px;line-height:1.6;color:#94A3B8;text-align:center;">Si tu n&apos;as pas demandé ce code, ignore cet e-mail — ton compte reste sécurisé.</p>`,
+    `</td></tr>`,
+  ].join("");
+  const html = emailShell(
+    "Ton code de connexion HASHCODE — valide 15 minutes.",
+    inner,
+  );
+  return sendEmail({ to, subject, html, text });
+}

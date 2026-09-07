@@ -81,6 +81,8 @@ model Member {
   @@index([communityStatus])
   @@index([createdAt])
   @@index([deletedAt])
+
+  sessions MemberSession[]
 }
 
 // Clés admin persistées (rotation, expiration, invalidation)
@@ -181,4 +183,33 @@ model ProfilingDraft {
   @@index([createdAt])
   @@index([completedAt])
   @@index([relanceSentAt])
+}
+
+/// Member auth sessions (magic link via OTP).
+/// One MemberSession = one cookie = one device/browser.
+model MemberSession {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  memberId  String
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  /// Hashed OTP (bcrypt). null = OTP consumed (verified).
+  otpHash   String?
+  /// Number of failed OTP attempts for this session (max 3).
+  attempts  Int      @default(0)
+  expiresAt DateTime
+
+  /// IP and user-agent for audit/security.
+  ip        String?
+  userAgent String?
+
+  /// When the session was last refreshed (cookie sliding window).
+  lastSeenAt DateTime @default(now())
+  /// When the session was invalidated (logout or hard-revoke).
+  revokedAt  DateTime?
+
+  @@index([memberId])
+  @@index([expiresAt])
+  @@index([revokedAt])
 }
