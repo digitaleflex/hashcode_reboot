@@ -7,6 +7,7 @@ import { AdminStatsSkeleton } from "@/components/reboot/admin/skeletons";
 import { PendingApprovalsBanner } from "@/components/reboot/admin/PendingApprovalsBanner";
 import { fetchJson, isAbortError, withRetryAfter } from "@/components/reboot/admin/lib/fetchJson";
 import { AlertCircle, Clock } from "lucide-react";
+import { CohortRetention } from "@/components/reboot/admin/CohortRetention";
 
 const POLL_MS = 30_000;
 
@@ -127,6 +128,8 @@ export default function AdminStatsPage() {
       </div>
 
       <EmailEngagement data={emailStats} loading={loading} />
+
+      <CohortRetention />
     </div>
   );
 }
