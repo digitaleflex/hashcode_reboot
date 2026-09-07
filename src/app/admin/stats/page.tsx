@@ -6,7 +6,9 @@ import { EmailEngagement, type EmailStatsData } from "@/components/reboot/admin/
 import { AdminStatsSkeleton } from "@/components/reboot/admin/skeletons";
 import { PendingApprovalsBanner } from "@/components/reboot/admin/PendingApprovalsBanner";
 import { fetchJson, isAbortError, withRetryAfter } from "@/components/reboot/admin/lib/fetchJson";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Clock } from "lucide-react";
+
+const POLL_MS = 30_000;
 
 export default function AdminStatsPage() {
   const [stats, setStats] = React.useState<Stats | null>(null);
@@ -14,8 +16,15 @@ export default function AdminStatsPage() {
   const [emailStats, setEmailStats] = React.useState<EmailStatsData | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [lastRefresh, setLastRefresh] = React.useState<number | null>(null);
+
+  const ctrlRef = React.useRef<AbortController | null>(null);
+  const timerRef = React.useRef<number | null>(null);
+  const runningRef = React.useRef(false);
 
   const loadData = React.useCallback(async (signal?: AbortSignal) => {
+    if (runningRef.current) return;
+    runningRef.current = true;
     setLoading(true);
     setError(null);
     try {
@@ -42,13 +51,9 @@ export default function AdminStatsPage() {
       }
 
       setStats(statsResult.data);
-
-      if (funnelResult?.res?.ok) {
-        setFunnel(funnelResult.data);
-      }
-      if (emailResult?.res?.ok) {
-        setEmailStats(emailResult.data);
-      }
+      if (funnelResult?.res?.ok) setFunnel(funnelResult.data);
+      if (emailResult?.res?.ok) setEmailStats(emailResult.data);
+      setLastRefresh(Date.now());
     } catch (e) {
       if (isAbortError(e)) return;
       if (e instanceof Error && e.message === "unauthorized") return;
@@ -59,13 +64,26 @@ export default function AdminStatsPage() {
       );
     } finally {
       setLoading(false);
+      runningRef.current = false;
     }
   }, []);
 
+  // Polling
   React.useEffect(() => {
-    const ctrl = new AbortController();
-    void loadData(ctrl.signal);
-    return () => ctrl.abort();
+    let mounted = true;
+    const schedule = () => { timerRef.current = window.setTimeout(() => { if (mounted) { void loadData(); schedule(); } }, POLL_MS); };
+    void loadData();
+    schedule();
+
+    const onVis = () => { if (!document.hidden) schedule(); };
+    document.addEventListener("visibilitychange", onVis);
+
+    return () => {
+      mounted = false;
+      if (timerRef.current) clearTimeout(timerRef.current);
+      ctrlRef.current?.abort();
+      document.removeEventListener("visibilitychange", onVis);
+    };
   }, [loadData]);
 
   return (
@@ -87,20 +105,26 @@ export default function AdminStatsPage() {
 
       {stats && <PendingApprovalsBanner pendingCount={stats.pendingCount ?? 0} />}
 
-      <section aria-label="Vue d'ensemble">
-        {loading ? (
-          <AdminStatsSkeleton />
-        ) : (
-          <AdminStats
-            stats={stats}
-            funnel={funnel}
-            loading={loading}
-            filters={{}}
-            onFilter={() => {}}
-            onClearFilters={() => {}}
-          />
+      <div className="flex items-center justify-between">
+        <section aria-label="Vue d'ensemble" className="flex-1 min-w-0">
+          {loading && !funnel ? <AdminStatsSkeleton /> : (
+            <AdminStats
+              stats={stats}
+              funnel={funnel}
+              loading={loading}
+              filters={{}}
+              onFilter={() => {}}
+              onClearFilters={() => {}}
+            />
+          )}
+        </section>
+        {lastRefresh && (
+          <span className="mono-label text-xs text-muted-foreground shrink-0 ml-4 flex items-center gap-1" title={new Date(lastRefresh).toLocaleTimeString()}>
+            <Clock className="size-3" />
+            {Math.round((Date.now() - lastRefresh) / 1000)}s
+          </span>
         )}
-      </section>
+      </div>
 
       <EmailEngagement data={emailStats} loading={loading} />
     </div>
