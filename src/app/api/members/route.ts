@@ -8,6 +8,7 @@ import { generateProfile } from "@/lib/profiling/engine";
 import { sendInvitationEmail, sendWelcomeEmail, sendWaitlistEmail } from "@/lib/mail";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { isAdminAuthed } from "@/lib/admin-auth";
+import { isEmailBlacklisted } from "@/lib/blacklist";
 
 export const runtime = "nodejs";
 
@@ -51,6 +52,24 @@ export async function POST(req: NextRequest) {
     );
   }
   const data = parsed.data;
+
+  // Blacklist check : si l'email est blacklisté, on bloque l'inscription.
+  // Anti-énumération : message générique (pas de mention de "blacklist").
+  const blacklisted = await isEmailBlacklisted(data.email);
+  if (blacklisted) {
+    // Log interne pour debug, mais pas de leak côté client
+    console.warn(
+      `[signup] Blocked signup for blacklisted email (reason=${blacklisted.reason})`,
+    );
+    return NextResponse.json(
+      {
+        error:
+          "Impossible de créer ton profil avec cet email. Contacte-nous à privacy@joinhashcode.com si tu penses qu'il s'agit d'une erreur.",
+        code: "EMAIL_NOT_ACCEPTED",
+      },
+      { status: 403 },
+    );
+  }
 
   // Anti-duplication: if email exists, surface a clean "already started" state.
   // Anti-énumération : réponse minimale, sans memberId ni statuts — le client

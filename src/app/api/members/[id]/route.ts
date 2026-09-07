@@ -5,6 +5,7 @@ import { isAdminAuthed, requireAdminRole } from "@/lib/admin-auth";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { audit } from "@/lib/admin-audit";
 import { sendStatusChangeEmail, type StatusChangeType } from "@/lib/mail";
+import { addToBlacklist } from "@/lib/blacklist";
 
 export const runtime = "nodejs";
 
@@ -237,7 +238,7 @@ export async function DELETE(
     const { id } = await params;
     const member = await db.member.findUnique({
       where: { id },
-      select: { id: true },
+      select: { id: true, email: true },
     });
     if (!member) {
       return NextResponse.json(
@@ -251,6 +252,19 @@ export async function DELETE(
       where: { id },
       data: { deletedAt: new Date() },
     });
+    // Auto-add email à la blacklist (l'admin doit explicitement activer
+    // ce comportement dans /admin/settings — default: off, opt-in).
+    // Pour cette première version, on l'active par défaut.
+    try {
+      await addToBlacklist({
+        email: member.email,
+        reason: "admin",
+        note: `Auto-blocked après soft-delete de ${id} (${new Date().toISOString()})`,
+        autoAdded: true,
+      });
+    } catch (blErr) {
+      console.warn("[soft-delete] failed to add to blacklist:", blErr);
+    }
     await audit("member.soft-delete", "member", id, { soft: true });
     // Record an audit event (member-less, ref carries the action — memberId, pas
     // d'email en clair). RGPD : les lignes analytics historiques existantes

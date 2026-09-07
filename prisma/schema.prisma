@@ -213,3 +213,26 @@ model MemberSession {
   @@index([expiresAt])
   @@index([revokedAt])
 }
+
+/// Email blacklist — block signups from known abusers or spam.
+/// One row per blocked email. `expiresAt = null` = permanent.
+model MemberBlacklist {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  /// Email blocked (lowercased, unique). No wildcards (e.g. *@gmail.com) — too dangerous.
+  email     String   @unique
+  /// Reason: spammer | harassment | duplicate | abuser | admin | other
+  reason    String
+  /// Free-form note (max 500 chars).
+  note      String?
+  /// When the block expires. null = permanent.
+  expiresAt DateTime?
+  /// Whether the member's soft-delete triggered this blacklist entry.
+  /// (true = auto-added, false = manually added by an admin)
+  autoAdded Boolean  @default(false)
+
+  @@index([email])
+  @@index([expiresAt])
+  @@index([reason])
+}
