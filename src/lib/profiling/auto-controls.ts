@@ -46,11 +46,13 @@ export function runAutoControls(a: ProfileAnswers): AutoControlsResult {
   const hasLevel = !!a.level;
   const hasAvailability = !!a.availability;
   const goalLen = (a.threeMonthGoal ?? "").trim().length;
-  const goalMeaningful = goalLen >= 8;
+  const goalMeaningful = goalLen >= 4;
 
   const highValueLead =
     a.mentoringInterest === "yes" &&
     a.budgetRange !== undefined &&
+    a.budgetRange !== "not_now" &&
+    a.budgetRange !== "unknown" &&
     HIGH_BUDGET_TIERS.has(a.budgetRange);
 
   // Core completeness gate (should be enforced upstream but double-check).

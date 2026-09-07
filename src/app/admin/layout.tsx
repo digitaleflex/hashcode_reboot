@@ -24,6 +24,8 @@ const SECTION_MAP: Record<string, string> = {
   "/admin/members": "section-members",
   "/admin/activity": "section-activity",
   "/admin/exports": "section-exports",
+  "/admin/audit-log": "section-audit-log",
+  "/admin/settings": "section-settings",
 };
 
 const SECTION_LABELS: Record<string, string> = {
@@ -31,6 +33,8 @@ const SECTION_LABELS: Record<string, string> = {
   "section-members": "Membres",
   "section-activity": "Activité",
   "section-exports": "Exports",
+  "section-audit-log": "Audit",
+  "section-settings": "Paramètres",
 };
 
 const routeMap: Record<string, string> = {
@@ -38,6 +42,8 @@ const routeMap: Record<string, string> = {
   "section-members": "/admin/members",
   "section-activity": "/admin/activity",
   "section-exports": "/admin/exports",
+  "section-audit-log": "/admin/audit-log",
+  "section-settings": "/admin/settings",
 };
 
 export default function AdminLayout({

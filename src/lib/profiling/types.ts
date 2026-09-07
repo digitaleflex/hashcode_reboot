@@ -16,7 +16,6 @@ export type Goal =
 export type Availability = "<2h" | "2-5h" | "5-10h" | "10-15h" | "15h+";
 export type LearningStyle = "practice" | "path" | "group" | "mentor" | "project";
 export type MentoringInterest = "no" | "maybe" | "yes";
-export type BudgetWillingness = "yes" | "maybe" | "not_now";
 export type BudgetRange =
   | "<2500"
   | "2500-5000"
@@ -24,7 +23,8 @@ export type BudgetRange =
   | "10000-20000"
   | "20000-30000"
   | ">30000"
-  | "unknown";
+  | "unknown"
+  | "not_now";
 export type Gender = "male" | "female" | "other" | "prefer_not_say";
 
 export type ProfileStatus = "PENDING" | "APPROVED" | "REJECTED" | "WAITLIST";
@@ -68,7 +68,6 @@ export interface ProfileAnswers {
   mentoringDomain?: string;
 
   // Budget
-  budgetWillingness?: BudgetWillingness;
   budgetRange?: BudgetRange;
 
   // Open

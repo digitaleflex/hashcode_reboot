@@ -63,6 +63,7 @@ export function ProfilingFlow({
   const [phase, setPhase] = React.useState<"questions" | "preview">("questions");
   const [localError, setLocalError] = React.useState<string | null>(null);
   const [duplicate, setDuplicate] = React.useState(false);
+  const lastQuestionRef = React.useRef<string | null>(null);
 
   // --- Hydrate from localStorage on mount (resume support) ---
   React.useEffect(() => {
@@ -90,16 +91,31 @@ export function ProfilingFlow({
     setHydrated(true);
   }, []);
 
-  // --- Confirmation de sortie (beforeunload) ---
+  // --- Confirmation de sortie (beforeunload) + drop-off tracking ---
   React.useEffect(() => {
     if (!hydrated || answeredIds.length === 0) return;
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       e.returnValue = "Tu es sûr de vouloir quitter ?";
+      if (lastQuestionRef.current) {
+        track({ type: "profiling_abandoned", ref: lastQuestionRef.current });
+      }
       return "Tes réponses sont sauvegardées, tu peux reprendre plus tard.";
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
+  }, [hydrated, answeredIds.length]);
+
+  // Track drop-off on visibility change (tab switch / mobile background)
+  React.useEffect(() => {
+    if (!hydrated || answeredIds.length === 0) return;
+    const handler = () => {
+      if (document.visibilityState === "hidden" && lastQuestionRef.current) {
+        track({ type: "profiling_abandoned", ref: lastQuestionRef.current });
+      }
+    };
+    document.addEventListener("visibilitychange", handler);
+    return () => document.removeEventListener("visibilitychange", handler);
   }, [hydrated, answeredIds.length]);
 
   // --- Persist to localStorage (only non-sensitive profiling answers) ---
@@ -130,6 +146,11 @@ export function ProfilingFlow({
   // Current question. When step >= visible.length, all questions are done → current is
   // undefined, which the auto-finish effect uses to submit the profile.
   const current = step < visible.length ? visible[step] : undefined;
+
+  // Track the last question shown for drop-off analytics.
+  React.useEffect(() => {
+    if (current) lastQuestionRef.current = current.id;
+  }, [current]);
 
   function setAnswer(q: Question, value: unknown) {
     setAnswers((prev) => ({ ...prev, [q.mapsTo]: value as never }));
@@ -242,7 +263,7 @@ export function ProfilingFlow({
               Ton profil HASHCODE est prêt.
             </h2>
             <p className="mt-2 text-muted-foreground">
-              Voici la première orientation qu&apos;on tire de tes réponses.
+              {gen.archetype} — {gen.domainLabel}. Voici la première orientation qu&apos;on tire de tes réponses.
             </p>
           </div>
           <div className="mt-8 max-w-md mx-auto">
@@ -255,12 +276,12 @@ export function ProfilingFlow({
               onClick={() => {
                 setPhase("questions");
                 setDirection(1);
-                // Next question after preview is email (first contact question).
-                const emailIdx = visible.findIndex((q) => q.id === "email");
-                if (emailIdx >= 0) setStep(emailIdx);
+                // Email already captured — next is phone (first contact question).
+                const phoneIdx = visible.findIndex((q) => q.id === "phone");
+                if (phoneIdx >= 0) setStep(phoneIdx);
               }}
             >
-              Continuer
+              Finaliser mon profil
               <CtaArrow />
             </RebootButton>
             <RebootButton
@@ -273,8 +294,7 @@ export function ProfilingFlow({
             </RebootButton>
           </div>
           <p className="mt-6 max-w-md mx-auto text-center text-xs text-muted-foreground">
-            Plus que tes coordonnées pour t&apos;envoyer ton accès. On n&apos;y
-            touche pas plus.
+            Plus que ton WhatsApp pour recevoir ton invitation. 15 secondes.
           </p>
         </div>
       </ProfilingShell>
@@ -310,7 +330,7 @@ export function ProfilingFlow({
     <ProfilingShell
       progress={progress}
       onBack={goBack}
-      stepLabel={current.group === "contact" ? "Coordonnées" : "Ton profil HASHCODE"}
+      stepLabel={current.group === "contact" ? "WhatsApp (presque fini)" : "Ton profil HASHCODE"}
       microcopy={current.microcopy}
       group={current.group}
     >

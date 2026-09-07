@@ -82,12 +82,6 @@ const MENTORING = [
   },
 ];
 
-const BUDGET_WILLINGNESS = [
-  { value: "yes", label: "Oui", emoji: "✓" },
-  { value: "maybe", label: "Peut-être", emoji: "≈" },
-  { value: "not_now", label: "Pas pour le moment", emoji: "—" },
-];
-
 const BUDGET_RANGES = [
   { value: "<2500", label: "Moins de 2 500 FCFA / mois" },
   { value: "2500-5000", label: "2 500 – 5 000 FCFA / mois" },
@@ -171,12 +165,6 @@ function mentoringYesOrMaybe(a: ProfileAnswers): boolean {
 }
 function mentoringYes(a: ProfileAnswers): boolean {
   return a.mentoringInterest === "yes";
-}
-function budgetOpen(a: ProfileAnswers): boolean {
-  return (
-    mentoringYesOrMaybe(a) &&
-    (a.budgetWillingness === "yes" || a.budgetWillingness === "maybe")
-  );
 }
 
 export const QUESTIONS: Question[] = [
@@ -318,6 +306,19 @@ export const QUESTIONS: Question[] = [
     group: "rythme",
     microcopy: "Presque terminé.",
   },
+  // --- Email (early capture — enables re-engagement if user abandons later) ---
+  {
+    id: "email",
+    type: "email",
+    title: "Où t'envoyer ton profil et ton accès ?",
+    description:
+      "Ton adresse email. On l'utilise pour t'envoyer ton profil et t'inviter à la communauté.",
+    placeholder: "toi@exemple.com",
+    required: true,
+    mapsTo: "email",
+    group: "profil",
+    microcopy: "On sauvegarde ton profil.",
+  },
   // --- Mentorat (conditional follow-ups) ---
   {
     id: "mentoringInterest",
@@ -365,28 +366,17 @@ export const QUESTIONS: Question[] = [
     condition: (a) => mentoringYes(a),
   },
   {
-    id: "budgetWillingness",
-    type: "single_choice",
-    title:
-      "Si HASHCODE proposait un accompagnement personnalisé adapté à tes objectifs, serais-tu prêt à investir dans ton accompagnement ?",
-    description:
-      "C'est une recherche de besoins, pas une vente. Ça nous aide à comprendre la communauté.",
-    options: BUDGET_WILLINGNESS,
-    required: false,
-    mapsTo: "budgetWillingness",
-    group: "mentorat",
-    condition: (a) => mentoringYesOrMaybe(a),
-  },
-  {
     id: "budgetRange",
     type: "single_choice",
-    title: "Quel niveau d'investissement mensuel pourrais-tu envisager ?",
-    description: "Aucune réponse n'engage à quoi que ce soit.",
-    options: BUDGET_RANGES,
+    title:
+      "Quel niveau d'investissement mensuel pourrais-tu envisager ?",
+    description:
+      "Aucune réponse n'engage à quoi que ce soit. Ça nous aide à comprendre la communauté.",
+    options: BUDGET_RANGES.concat([{ value: "not_now", label: "Pas pour le moment" }]),
     required: false,
     mapsTo: "budgetRange",
     group: "mentorat",
-    condition: (a) => budgetOpen(a),
+    condition: (a) => mentoringYesOrMaybe(a),
   },
   // --- Vision (open) ---
   {
@@ -394,27 +384,16 @@ export const QUESTIONS: Question[] = [
     type: "longtext",
     title: "Dans 3 mois, qu'aimerais-tu avoir accompli ?",
     description:
-      "Une phrase suffit. Sois précis — c'est ce qui rend ton profil utile.",
+      "Même une courte phrase suffit. On veut comprendre ta direction.",
     placeholder:
-      "Ex. Décrocher mon premier poste en cybersécurité.",
+      "Ex. Avoir decrocher mon premier poste.",
     required: true,
     mapsTo: "threeMonthGoal",
     group: "vision",
-    minChars: 8,
+    minChars: 4,
     maxChars: 280,
   },
-  // --- Contact (delivery channel — at the very end) ---
-  {
-    id: "email",
-    type: "email",
-    title: "Où t'envoyer ton profil et ton accès ?",
-    description:
-      "Ton adresse email. On l'utilise pour t'envoyer ton profil et t'inviter à la communauté.",
-    placeholder: "toi@exemple.com",
-    required: true,
-    mapsTo: "email",
-    group: "contact",
-  },
+  // --- Contact (phone + optional identity — email already captured above) ---
   {
     id: "phone",
     type: "text",
@@ -425,14 +404,15 @@ export const QUESTIONS: Question[] = [
     required: true,
     mapsTo: "phone",
     group: "contact",
+    microcopy: "Dernière ligne droite.",
   },
   {
     id: "lastName",
     type: "text",
     title: "Ton nom ?",
-    description: "Pour qu'on sache qui tu es.",
+    description: "Facultatif — pour qu'on sache qui tu es.",
     placeholder: "Ex. Dossou",
-    required: true,
+    required: false,
     mapsTo: "lastName",
     group: "contact",
   },
@@ -440,9 +420,9 @@ export const QUESTIONS: Question[] = [
     id: "city",
     type: "text",
     title: "Ta ville ou région ?",
-    description: "Pour les meetups et événements locaux.",
+    description: "Facultatif — pour les meetups et événements locaux.",
     placeholder: "Ex. Cotonou",
-    required: true,
+    required: false,
     mapsTo: "city",
     group: "contact",
   },

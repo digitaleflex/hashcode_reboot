@@ -1,6 +1,8 @@
 // HASHCODE REBOOT — envoi réel d'emails via Resend (API HTTP directe, sans SDK).
 // Ne journalise ni ne retourne JAMAIS de secret (RESEND_API_KEY / EMAIL_FROM).
 
+import { db } from "@/lib/db";
+
 const RESEND_URL = "https://api.resend.com/emails";
 const SEND_TIMEOUT_MS = 8000;
 
@@ -29,6 +31,35 @@ function escapeHtml(value: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+/** Track email.sent in EmailEvent table (fire-and-forget). */
+function categorizeEmail(subject: string): string {
+  const s = subject.toLowerCase();
+  if (s.includes("bienvenue") || s.includes("invitation")) return "welcome";
+  if (s.includes("inscription") || s.includes("merci")) return "waitlist";
+  if (s.includes("t'attend") || s.includes("rejoins")) return "engagement";
+  if (s.includes("reprend") || s.includes("termin")) return "relance";
+  return "other";
+}
+
+async function trackEmailSent(to: string, subject: string): Promise<void> {
+  try {
+    const member = await db.member.findUnique({
+      where: { email: to },
+      select: { id: true },
+    });
+    await db.emailEvent.create({
+      data: {
+        email: to,
+        memberId: member?.id ?? null,
+        type: "email.sent",
+        category: categorizeEmail(subject),
+      },
+    });
+  } catch {
+    // silent — email tracking is best-effort
+  }
 }
 
 /**
@@ -63,8 +94,11 @@ export async function sendEmail({
     try {
       const payload = (await res.json()) as ResendResponse;
       const id = typeof payload.id === "string" ? payload.id : undefined;
+      // Track email.sent event
+      trackEmailSent(to, subject).catch(() => {});
       return id ? { ok: true, id } : { ok: true };
     } catch {
+      trackEmailSent(to, subject).catch(() => {});
       return { ok: true };
     }
   } catch {

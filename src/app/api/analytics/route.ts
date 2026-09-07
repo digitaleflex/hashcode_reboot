@@ -71,6 +71,7 @@ interface FunnelData {
     whatsappClicks: number;
     completionRate: number;
   };
+  dropoff: { questionId: string; answered: number; abandoned: number; dropRate: number }[];
 }
 
 async function computeFunnel(startDate: Date, endDate: Date): Promise<FunnelData> {
@@ -81,7 +82,7 @@ async function computeFunnel(startDate: Date, endDate: Date): Promise<FunnelData
     },
   };
 
-  const [rows, total, startedSessions, completedSessions, whatsappClicks] = await Promise.all([
+  const [rows, total, startedSessions, completedSessions, whatsappClicks, answeredRows, abandonedRows] = await Promise.all([
     db.analyticsEvent.groupBy({
       by: ["type"],
       _count: true,
@@ -98,7 +99,19 @@ async function computeFunnel(startDate: Date, endDate: Date): Promise<FunnelData
       where: { ...where, type: "profiling_completed" },
     }),
     db.analyticsEvent.count({ where: { ...where, type: "whatsapp_join_clicked" } }),
+    db.analyticsEvent.groupBy({
+      by: ["ref"],
+      _count: true,
+      where: { ...where, type: "profiling_question_answered", ref: { not: null } },
+    }),
+    db.analyticsEvent.groupBy({
+      by: ["ref"],
+      _count: true,
+      where: { ...where, type: "profiling_abandoned", ref: { not: null } },
+    }),
   ]);
+
+  const dropoff = buildDropoff(answeredRows, abandonedRows);
 
   return {
     total,
@@ -109,7 +122,39 @@ async function computeFunnel(startDate: Date, endDate: Date): Promise<FunnelData
       whatsappClicks,
       completionRate: startedSessions.length === 0 ? 0 : Math.round((completedSessions.length / startedSessions.length) * 100),
     },
+    dropoff,
   };
+}
+
+function buildDropoff(
+  answeredRows: { ref: string | null; _count: number }[],
+  abandonedRows: { ref: string | null; _count: number }[],
+) {
+  const answeredMap = new Map<string, number>();
+  for (const r of answeredRows) {
+    if (r.ref) answeredMap.set(r.ref, r._count);
+  }
+  const abandonedMap = new Map<string, number>();
+  for (const r of abandonedRows) {
+    if (r.ref) abandonedMap.set(r.ref, r._count);
+  }
+  // Merge all question ids from both maps
+  const allIds = new Set([...answeredMap.keys(), ...abandonedMap.keys()]);
+  const result: { questionId: string; answered: number; abandoned: number; dropRate: number }[] = [];
+  for (const id of allIds) {
+    const answered = answeredMap.get(id) ?? 0;
+    const abandoned = abandonedMap.get(id) ?? 0;
+    const total = answered + abandoned;
+    result.push({
+      questionId: id,
+      answered,
+      abandoned,
+      dropRate: total === 0 ? 0 : Math.round((abandoned / total) * 100),
+    });
+  }
+  // Sort by drop rate descending (worst first)
+  result.sort((a, b) => b.dropRate - a.dropRate);
+  return result;
 }
 
 function computeChange(current: FunnelData, previous: FunnelData) {
@@ -138,7 +183,7 @@ export async function GET(req: NextRequest) {
 
   if (!compare) {
     // Original behavior: all-time funnel
-    const [rows, total, startedSessions, completedSessions, whatsappClicks] = await Promise.all([
+    const [rows, total, startedSessions, completedSessions, whatsappClicks, answeredRows, abandonedRows] = await Promise.all([
       db.analyticsEvent.groupBy({
         by: ["type"],
         _count: true,
@@ -154,7 +199,19 @@ export async function GET(req: NextRequest) {
         where: { type: "profiling_completed" },
       }),
       db.analyticsEvent.count({ where: { type: "whatsapp_join_clicked" } }),
+      db.analyticsEvent.groupBy({
+        by: ["ref"],
+        _count: true,
+        where: { type: "profiling_question_answered", ref: { not: null } },
+      }),
+      db.analyticsEvent.groupBy({
+        by: ["ref"],
+        _count: true,
+        where: { type: "profiling_abandoned", ref: { not: null } },
+      }),
     ]);
+
+    const dropoff = buildDropoff(answeredRows, abandonedRows);
 
     return NextResponse.json({
       total,
@@ -165,6 +222,7 @@ export async function GET(req: NextRequest) {
         whatsappClicks,
         completionRate: startedSessions.length === 0 ? 0 : Math.round((completedSessions.length / startedSessions.length) * 100),
       },
+      dropoff,
     });
   }
 

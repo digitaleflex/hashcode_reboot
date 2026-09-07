@@ -332,7 +332,6 @@ function MemberDetail({
     mentoringMaybeReason: string | null;
     mentoringTypes: string[];
     mentoringFrequency: string | null;
-    budgetWillingness: string | null;
     budgetRange: string | null;
     threeMonthGoal: string | null;
     profileArchetype: string | null;
