@@ -454,7 +454,7 @@ export async function sendRelanceEmail({
   const name = firstName.trim() || "toi";
   const safeName = escapeHtml(name);
   const subject = "Ton profil HASHCODE t'attend encore — finis-le en 1 min";
-  const landingUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://joinhashcode.com";
+  const landingUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://reboot.joinhashcode.com";
   const resumeUrl = `${landingUrl}/?resume=1${lastQuestionId ? `&q=${encodeURIComponent(lastQuestionId)}` : ""}`;
   const text = [
     `Bonjour ${name},`,
