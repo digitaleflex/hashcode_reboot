@@ -11,7 +11,22 @@ import { useToast } from "@/hooks/use-toast";
 export default function AdminExportsPage() {
   const [exporting, setExporting] = React.useState<"csv" | "json" | null>(null);
   const [exportDialogOpen, setExportDialogOpen] = React.useState(false);
+  const [totalMembers, setTotalMembers] = React.useState<number | null>(null);
   const { toast } = useToast();
+
+  // Total connu pour prévenir la troncature à 2000 lignes avant export.
+  React.useEffect(() => {
+    const ctrl = new AbortController();
+    fetch("/api/members?pageSize=1&page=1", { cache: "no-store", signal: ctrl.signal })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && typeof data.total === "number") setTotalMembers(data.total);
+      })
+      .catch(() => {
+        /* silencieux — le warning est un bonus, pas un blocage */
+      });
+    return () => ctrl.abort();
+  }, []);
 
   async function handleExport(kind: "csv" | "json", columns?: string[]) {
     if (exporting) return;
@@ -85,6 +100,7 @@ export default function AdminExportsPage() {
         onOpenChange={setExportDialogOpen}
         onExport={(kind, columns) => void handleExport(kind, columns)}
         exporting={exporting}
+        totalMembers={totalMembers ?? undefined}
       />
     </div>
   );

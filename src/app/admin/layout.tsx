@@ -96,10 +96,12 @@ export default function AdminLayout({
     >
       <header className="sticky top-0 z-40 h-14 border-b border-border/60 bg-card/80 backdrop-blur-sm">
         <div className="h-full px-4 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <Logo className="size-6 text-lime shrink-0" />
             <span className="text-sm font-medium">Admin</span>
-            <ChevronRight className="size-4 text-muted-foreground" />
+            <span className="flex items-center gap-3 text-muted-foreground/60" aria-hidden>
+              <ChevronRight className="size-4" />
+            </span>
             <span className="text-sm text-muted-foreground">{currentSectionLabel}</span>
           </div>
 

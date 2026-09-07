@@ -351,6 +351,14 @@ export function MemberTable({
             <span className="mono-label text-lime">
               {selectedIds.size} sélectionné{selectedIds.size > 1 ? "s" : ""}
             </span>
+            {selectedIds.size > 10 && (
+              <span
+                role="status"
+                className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/40 rounded-sm px-2 py-1"
+              >
+                ⚠ Le serveur traite 10 membres maximum par action — {selectedIds.size - 10} non traité(s).
+              </span>
+            )}
             <span className="text-border">·</span>
             <button
               onClick={() => onBulk("approve")}
@@ -445,7 +453,16 @@ export function MemberTable({
                     aria-label="Sélectionner tout"
                   />
                 </TableHead>
-                <TableHead className="mono-label">
+                <TableHead
+                  className="mono-label"
+                  aria-sort={
+                    sortKey === "firstName"
+                      ? sortDir === "asc"
+                        ? "ascending"
+                        : "descending"
+                      : undefined
+                  }
+                >
                   <SortHeader
                     label="Nom"
                     active={sortKey === "firstName"}
@@ -454,7 +471,16 @@ export function MemberTable({
                   />
                 </TableHead>
                 <TableHead className="mono-label">Pays</TableHead>
-                <TableHead className="mono-label">
+                <TableHead
+                  className="mono-label"
+                  aria-sort={
+                    sortKey === "primaryDomain"
+                      ? sortDir === "asc"
+                        ? "ascending"
+                        : "descending"
+                      : undefined
+                  }
+                >
                   <SortHeader
                     label="Domaine"
                     active={sortKey === "primaryDomain"}
@@ -462,7 +488,16 @@ export function MemberTable({
                     onClick={() => onToggleSort("primaryDomain")}
                   />
                 </TableHead>
-                <TableHead className="mono-label">
+                <TableHead
+                  className="mono-label"
+                  aria-sort={
+                    sortKey === "level"
+                      ? sortDir === "asc"
+                        ? "ascending"
+                        : "descending"
+                      : undefined
+                  }
+                >
                   <SortHeader
                     label="Niveau"
                     active={sortKey === "level"}
@@ -473,7 +508,16 @@ export function MemberTable({
                 <TableHead className="mono-label hidden md:table-cell">Objectif</TableHead>
                 <TableHead className="mono-label hidden md:table-cell">Mentorat</TableHead>
                 <TableHead className="mono-label hidden lg:table-cell">Budget</TableHead>
-                <TableHead className="mono-label">
+                <TableHead
+                  className="mono-label"
+                  aria-sort={
+                    sortKey === "profileStatus"
+                      ? sortDir === "asc"
+                        ? "ascending"
+                        : "descending"
+                      : undefined
+                  }
+                >
                   <SortHeader
                     label="Statut"
                     active={sortKey === "profileStatus"}
@@ -482,7 +526,16 @@ export function MemberTable({
                   />
                 </TableHead>
                 <TableHead className="mono-label hidden sm:table-cell">Voie</TableHead>
-                <TableHead className="mono-label text-right">
+                <TableHead
+                  className="mono-label text-right"
+                  aria-sort={
+                    sortKey === "createdAt"
+                      ? sortDir === "asc"
+                        ? "ascending"
+                        : "descending"
+                      : undefined
+                  }
+                >
                   <SortHeader
                     label="Date"
                     active={sortKey === "createdAt"}

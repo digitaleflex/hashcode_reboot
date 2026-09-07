@@ -73,6 +73,7 @@ export default function AdminMembersPage() {
           description: `Action « ${action} » appliquée avec succès.`,
         });
         setConfirmBulkDelete(false);
+        setSelectedIds(new Set());
         await refreshMembers();
       } catch (e) {
         if (isAbortError(e)) return;

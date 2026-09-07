@@ -46,7 +46,7 @@ const nextConfig: NextConfig = {
   // See: https://github.com/vercel/next.js/issues/96646
   output: process.env.VERCEL ? undefined : "standalone",
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   reactStrictMode: false,
 
