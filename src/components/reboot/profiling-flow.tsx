@@ -196,8 +196,12 @@ export function ProfilingFlow({
   const current = step < visible.length ? visible[step] : undefined;
 
   // Track the last question shown for drop-off analytics.
+  const questionStartRef = React.useRef<number>(0);
   React.useEffect(() => {
-    if (current) lastQuestionRef.current = current.id;
+    if (current) {
+      lastQuestionRef.current = current.id;
+      questionStartRef.current = Date.now();
+    }
   }, [current]);
 
   function setAnswer(q: Question, value: unknown) {
@@ -212,6 +216,15 @@ export function ProfilingFlow({
     if (value !== undefined) setAnswer(q, value);
     markAnswered(q);
     setLocalError(null);
+
+    // Time-per-question: report how long the user spent on THIS question.
+    // Capped at 10 min to ignore tabs left open in the background.
+    if (questionStartRef.current > 0) {
+      const durationMs = Date.now() - questionStartRef.current;
+      if (durationMs > 0 && durationMs < 10 * 60 * 1000) {
+        track({ type: "profiling_question_timed", ref: q.id, value: Math.round(durationMs) });
+      }
+    }
 
     // Après l'email (Q2) → on avance ET on ouvre la vérification OTP.
     // L'email change invalide la vérification précédente.

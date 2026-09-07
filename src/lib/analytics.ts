@@ -10,6 +10,7 @@ export const EVENT_TYPES = [
   "reboot_cta_clicked",
   "profiling_started",
   "profiling_question_answered",
+  "profiling_question_timed",
   "profiling_back",
   "profiling_resumed",
   "profiling_completed",
