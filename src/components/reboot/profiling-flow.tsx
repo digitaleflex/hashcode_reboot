@@ -21,6 +21,12 @@ import { HashSymbol } from "@/components/brand/logo";
 import { OptionCard, MultiOptionCard } from "./option-card";
 import { CountrySelect } from "./country-select";
 import { ProfileCard } from "./profile-card";
+import {
+  setEncryptedItem,
+  getEncryptedItem,
+  removeEncryptedItem,
+} from "@/lib/storage-crypto";
+import { EmailVerifyCard } from "./email-verify-card";
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debounced, setDebounced] = React.useState(value);
@@ -37,6 +43,7 @@ interface PersistedState {
   answers: ProfileAnswers;
   answeredIds: string[];
   step: number; // index within visible list at save time
+  verifiedEmail?: string; // email vérifié par OTP (si déjà fait)
 }
 
 export function ProfilingFlow({
@@ -63,59 +70,116 @@ export function ProfilingFlow({
   const [phase, setPhase] = React.useState<"questions" | "preview">("questions");
   const [localError, setLocalError] = React.useState<string | null>(null);
   const [duplicate, setDuplicate] = React.useState(false);
+  // Vérification email OTP : l'email est collecté en Q2, le code est demandé
+  // juste après puis exigé avant la soumission finale (maybeFinish).
+  const [verifiedEmail, setVerifiedEmail] = React.useState<string>("");
+  const [verifyOpen, setVerifyOpen] = React.useState(false);
+  const lastQuestionRef = React.useRef<string | null>(null);
 
   // --- Hydrate from localStorage on mount (resume support) ---
   React.useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as PersistedState;
-        if (parsed?.answers && Array.isArray(parsed.answeredIds)) {
-          setAnswers(parsed.answers);
-          setAnsweredIds(parsed.answeredIds);
-          setStep(parsed.step ?? 0);
-          setHasResume(true);
-          setShowResumePrompt(true);
-          // Heuristic: if a draft already contains an email, the user has
-          // already reached the contact step — most likely a returning member
-          // with an existing HASHCODE account. Surface the duplicate copy.
-          if (parsed.answers.email && parsed.answers.email.trim().length > 0) {
-            setDuplicate(true);
+    let cancelled = false;
+    (async () => {
+      try {
+        const raw = await getEncryptedItem(STORAGE_KEY);
+        if (raw && !cancelled) {
+          const parsed = JSON.parse(raw) as PersistedState;
+          if (parsed?.answers && Array.isArray(parsed.answeredIds)) {
+            setAnswers(parsed.answers);
+            setAnsweredIds(parsed.answeredIds);
+            setStep(parsed.step ?? 0);
+            setHasResume(true);
+            setShowResumePrompt(true);
+            if (typeof parsed.verifiedEmail === "string") {
+              setVerifiedEmail(parsed.verifiedEmail.trim().toLowerCase());
+            }
+            if (parsed.answers.email && parsed.answers.email.trim().length > 0) {
+              setDuplicate(true);
+            }
           }
         }
+      } catch {
+        /* ignore corrupt storage */
       }
-    } catch {
-      /* ignore corrupt storage */
-    }
-    setHydrated(true);
+      if (!cancelled) setHydrated(true);
+    })();
+    return () => { cancelled = true; };
   }, []);
 
-  // --- Confirmation de sortie (beforeunload) ---
+  // Save partial answers server-side on abandon — enables relance emails.
+  // Déclaré avant les effets qui l'utilisent (règle react-hooks/immutability).
+  function saveDraft() {
+    const email = answers.email;
+    if (!email || !email.trim()) return; // email not captured yet
+    const payload = {
+      email,
+      answers,
+      lastQuestionId: lastQuestionRef.current ?? undefined,
+    };
+    try {
+      if (navigator.sendBeacon) {
+        const blob = new Blob([JSON.stringify(payload)], {
+          type: "application/json",
+        });
+        navigator.sendBeacon("/api/profiling/draft", blob);
+      } else {
+        void fetch("/api/profiling/draft", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          keepalive: true,
+        });
+      }
+    } catch {
+      /* best-effort — draft saving must never break UX */
+    }
+  }
+
+  // --- Confirmation de sortie (beforeunload) + drop-off tracking ---
   React.useEffect(() => {
     if (!hydrated || answeredIds.length === 0) return;
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       e.returnValue = "Tu es sûr de vouloir quitter ?";
+      if (lastQuestionRef.current) {
+        track({ type: "profiling_abandoned", ref: lastQuestionRef.current });
+        saveDraft();
+      }
       return "Tes réponses sont sauvegardées, tu peux reprendre plus tard.";
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
-  }, [hydrated, answeredIds.length]);
+  }, [hydrated, answeredIds.length, answers, lastQuestionRef]);
 
-  // --- Persist to localStorage (only non-sensitive profiling answers) ---
+  // Track drop-off on visibility change (tab switch / mobile background)
+  React.useEffect(() => {
+    if (!hydrated || answeredIds.length === 0) return;
+    let lastHiddenAt = 0;
+    const handler = () => {
+      if (document.visibilityState === "hidden" && lastQuestionRef.current) {
+        // Debounce: don't fire twice for a quick tab switch within 5s.
+        const now = Date.now();
+        if (now - lastHiddenAt > 5000) {
+          lastHiddenAt = now;
+          track({ type: "profiling_abandoned", ref: lastQuestionRef.current });
+          saveDraft();
+        }
+      }
+    };
+    document.addEventListener("visibilitychange", handler);
+    return () => document.removeEventListener("visibilitychange", handler);
+  }, [hydrated, answeredIds.length, answers, lastQuestionRef]);
+
+  // --- Persist to localStorage (encrypted, resume support) ---
   React.useEffect(() => {
     if (!hydrated) return;
     if (answeredIds.length === 0) {
-      localStorage.removeItem(STORAGE_KEY);
+      void removeEncryptedItem(STORAGE_KEY);
       return;
     }
-    const data: PersistedState = { answers, answeredIds, step };
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    } catch {
-      /* storage full / disabled */
-    }
-  }, [answers, answeredIds, step, hydrated]);
+    const data: PersistedState = { answers, answeredIds, step, verifiedEmail };
+    void setEncryptedItem(STORAGE_KEY, JSON.stringify(data));
+  }, [answers, answeredIds, step, verifiedEmail, hydrated]);
 
   const visible = React.useMemo(
     () => getVisibleQuestions(answers),
@@ -131,6 +195,11 @@ export function ProfilingFlow({
   // undefined, which the auto-finish effect uses to submit the profile.
   const current = step < visible.length ? visible[step] : undefined;
 
+  // Track the last question shown for drop-off analytics.
+  React.useEffect(() => {
+    if (current) lastQuestionRef.current = current.id;
+  }, [current]);
+
   function setAnswer(q: Question, value: unknown) {
     setAnswers((prev) => ({ ...prev, [q.mapsTo]: value as never }));
   }
@@ -143,6 +212,20 @@ export function ProfilingFlow({
     if (value !== undefined) setAnswer(q, value);
     markAnswered(q);
     setLocalError(null);
+
+    // Après l'email (Q2) → on avance ET on ouvre la vérification OTP.
+    // L'email change invalide la vérification précédente.
+    if (q.id === "email") {
+      const emailNow = (
+        value !== undefined ? String(value) : String(answers.email ?? "")
+      ).trim().toLowerCase();
+      setDirection(1);
+      setStep((s) => Math.min(s + 1, visible.length));
+      if (emailNow && emailNow !== verifiedEmail.trim().toLowerCase()) {
+        setVerifyOpen(true);
+      }
+      return;
+    }
 
     // Strategic interlude: after threeMonthGoal → show profile preview before contact.
     if (q.id === "threeMonthGoal") {
@@ -171,7 +254,7 @@ export function ProfilingFlow({
     setShowResumePrompt(false);
   }
   function restart() {
-    localStorage.removeItem(STORAGE_KEY);
+    void removeEncryptedItem(STORAGE_KEY);
     setAnswers({ firstName: "", lastName: "", email: "", phone: "", country: "", city: "" });
     setAnsweredIds([]);
     setStep(0);
@@ -179,16 +262,26 @@ export function ProfilingFlow({
     setShowResumePrompt(false);
     setHasResume(false);
     setDuplicate(false);
+    setVerifiedEmail("");
+    setVerifyOpen(false);
   }
 
   // --- Submit once all required visible questions are answered ---
   function maybeFinish() {
+    // Garde-fou : l'email doit être vérifié par OTP avant soumission.
+    const emailNow = String(answers.email ?? "").trim().toLowerCase();
+    if (emailNow && emailNow !== verifiedEmail.trim().toLowerCase()) {
+      const emailIdx = visible.findIndex((q) => q.id === "email");
+      if (emailIdx >= 0) setStep(emailIdx);
+      setVerifyOpen(true);
+      return;
+    }
     const allRequiredAnswered = visible.every(
       (q) => !q.required || answeredSet.has(q.id),
     );
     if (allRequiredAnswered) {
       // Clear local storage after successful completion.
-      localStorage.removeItem(STORAGE_KEY);
+      void removeEncryptedItem(STORAGE_KEY);
       onComplete(answers);
     } else {
       // Some required question wasn't answered — find the first unanswered
@@ -242,7 +335,7 @@ export function ProfilingFlow({
               Ton profil HASHCODE est prêt.
             </h2>
             <p className="mt-2 text-muted-foreground">
-              Voici la première orientation qu&apos;on tire de tes réponses.
+              {gen.archetype} — {gen.domainLabel}. Voici la première orientation qu&apos;on tire de tes réponses.
             </p>
           </div>
           <div className="mt-8 max-w-md mx-auto">
@@ -255,12 +348,12 @@ export function ProfilingFlow({
               onClick={() => {
                 setPhase("questions");
                 setDirection(1);
-                // Next question after preview is email (first contact question).
-                const emailIdx = visible.findIndex((q) => q.id === "email");
-                if (emailIdx >= 0) setStep(emailIdx);
+                // Email already captured — next is phone (first contact question).
+                const phoneIdx = visible.findIndex((q) => q.id === "phone");
+                if (phoneIdx >= 0) setStep(phoneIdx);
               }}
             >
-              Continuer
+              Finaliser mon profil
               <CtaArrow />
             </RebootButton>
             <RebootButton
@@ -273,8 +366,7 @@ export function ProfilingFlow({
             </RebootButton>
           </div>
           <p className="mt-6 max-w-md mx-auto text-center text-xs text-muted-foreground">
-            Plus que tes coordonnées pour t&apos;envoyer ton accès. On n&apos;y
-            touche pas plus.
+            Plus que ton WhatsApp pour recevoir ton invitation. 15 secondes.
           </p>
         </div>
       </ProfilingShell>
@@ -310,7 +402,7 @@ export function ProfilingFlow({
     <ProfilingShell
       progress={progress}
       onBack={goBack}
-      stepLabel={current.group === "contact" ? "Coordonnées" : "Ton profil HASHCODE"}
+      stepLabel={current.group === "contact" ? "WhatsApp (presque fini)" : "Ton profil HASHCODE"}
       microcopy={current.microcopy}
       group={current.group}
     >
@@ -357,6 +449,18 @@ export function ProfilingFlow({
           />
         </motion.div>
       </AnimatePresence>
+      {verifyOpen && String(answers.email ?? "").trim() && (
+        <EmailVerifyCard
+          email={String(answers.email).trim()}
+          firstName={String(answers.firstName ?? "").trim()}
+          onVerified={(em) => {
+            setVerifiedEmail(em.trim().toLowerCase());
+            setVerifyOpen(false);
+            track({ type: "email_verified" });
+          }}
+          onLater={() => setVerifyOpen(false)}
+        />
+      )}
     </ProfilingShell>
   );
 }

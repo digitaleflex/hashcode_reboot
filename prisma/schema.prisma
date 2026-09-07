@@ -136,3 +136,46 @@ model AnalyticsEvent {
   @@index([sessionId])
   @@index([createdAt])
 }
+
+/// Email engagement events (sent, opened, clicked) via Resend webhooks
+model EmailEvent {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  /// Member email (matched from webhook payload)
+  email     String
+  /// Optional member id (matched after lookup)
+  memberId  String?
+  /// Event type: email.sent | email.opened | email.clicked
+  type      String
+  /// Email subject or category (welcome, waitlist, engagement, relance)
+  category  String?
+  /// Click URL (for email.clicked events)
+  clickUrl  String?
+  /// Raw webhook payload (for debugging)
+  metadata  String?
+
+  @@index([email])
+  @@index([memberId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+/// Partial profiling drafts saved on abandon — enables relance emails
+model ProfilingDraft {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  firstName      String?
+  answers        String // JSON of ProfileAnswers
+  lastQuestionId String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  /// Set once the relance email has been sent (max 1 relance)
+  relanceSentAt  DateTime?
+  /// Set when the member finally completes the flow
+  completedAt    DateTime?
+
+  @@index([createdAt])
+  @@index([completedAt])
+  @@index([relanceSentAt])
+}

@@ -13,6 +13,8 @@ export const EVENT_TYPES = [
   "profiling_back",
   "profiling_resumed",
   "profiling_completed",
+  "profiling_abandoned",
+  "email_verified",
   "profil_generated",
   "community_cta_clicked",
   "whatsapp_join_clicked",

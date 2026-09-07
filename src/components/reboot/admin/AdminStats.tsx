@@ -25,6 +25,13 @@ export interface Stats {
   byAvailability: { availability: string; count: number }[];
   byBudget: { budget: string; count: number }[];
   byArchetype: { archetype: string; count: number }[];
+  email: {
+    sent: number;
+    opened: number;
+    clicked: number;
+    openRate: number;
+    clickRate: number;
+  };
   // Comparison mode fields
   previous?: {
     totals: {
@@ -59,6 +66,7 @@ export interface FunnelData {
     whatsappClicks: number;
     completionRate: number;
   };
+  dropoff: { questionId: string; answered: number; abandoned: number; dropRate: number }[];
   // Comparison mode fields
   previous?: {
     events: { type: string; count: number }[];
@@ -93,6 +101,31 @@ const BUDGET_LABEL: Record<string, string> = {
   "20000-30000": "20–30k",
   ">30000": "> 30k",
   unknown: "NSP",
+};
+
+const QUESTION_LABEL: Record<string, string> = {
+  firstName: "Prénom",
+  email: "Email",
+  country: "Pays",
+  city: "Ville",
+  goals: "Objectifs",
+  learningStyle: "Style d'apprentissage",
+  mentorat: "Mentorat",
+  mentoratDetails: "Détails mentorat",
+  mentoringInterest: "Intérêt mentorat",
+  mentoringExperience: "Expérience mentorat",
+  mentoringAreas: "Domaines mentorat",
+  mentoringFrequency: "Fréquence mentorat",
+  mentoringFormat: "Format mentorat",
+  threeMonthGoal: "Objectif 3 mois",
+  budgetRange: "Budget",
+  availability: "Disponibilité",
+  level: "Niveau",
+  experience: "Expérience",
+  interests: "Intérêts",
+  phone: "WhatsApp",
+  motivation: "Motivation",
+  domain: "Domaine",
 };
 
 // Skeleton unifié : voir ./skeletons/AdminStatsSkeleton (source unique).
@@ -513,6 +546,47 @@ export function AdminStats({
           )}
         </div>
       </section>
+
+      {/* Drop-off per question — identifies which question causes most abandonment */}
+      {funnel?.dropoff && funnel.dropoff.length > 0 && (
+        <section className="mt-6">
+          <div className="flex items-center justify-between mb-3">
+            <MonoLabel className="text-muted-foreground">Drop-off par question</MonoLabel>
+            <span className="text-xs text-muted-foreground mono-label">
+              {funnel.dropoff.filter((d) => d.dropRate > 0).length} question(s) avec abandons
+            </span>
+          </div>
+          <div className="rounded-md border border-border/60 bg-card/40 p-4 sm:p-5 space-y-2">
+            {funnel.dropoff.slice(0, 10).map((d) => (
+              <div key={d.questionId} className="flex items-center gap-3">
+                <span className="text-sm text-foreground truncate w-40 shrink-0" title={d.questionId}>
+                  {QUESTION_LABEL[d.questionId] ?? d.questionId}
+                </span>
+                <div className="flex-1 h-2 bg-border/60 rounded-full overflow-hidden">
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-[width]",
+                      d.dropRate > 30 ? "bg-red-500" : d.dropRate > 15 ? "bg-amber-500" : "bg-lime",
+                    )}
+                    style={{ width: `${d.dropRate}%` }}
+                  />
+                </div>
+                <span className="text-xs text-muted-foreground mono-label w-16 text-right shrink-0">
+                  {d.abandoned} abandon{d.abandoned > 1 ? "s" : ""}
+                </span>
+                <span
+                  className={cn(
+                    "text-xs mono-label w-10 text-right shrink-0",
+                    d.dropRate > 30 ? "text-red-400" : d.dropRate > 15 ? "text-amber-400" : "text-muted-foreground",
+                  )}
+                >
+                  {d.dropRate}%
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Insight → Action : mentorat (uniquement si calculable depuis stats) */}
       {stats.mentoring > 0 && (

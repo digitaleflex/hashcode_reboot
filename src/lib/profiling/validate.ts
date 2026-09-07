@@ -20,7 +20,6 @@ const goalSchema = z.enum([
 const availabilitySchema = z.enum(["<2h", "2-5h", "5-10h", "10-15h", "15h+"]);
 const learningSchema = z.enum(["practice", "path", "group", "mentor", "project"]);
 const mentoringSchema = z.enum(["no", "maybe", "yes"]);
-const budgetWillingnessSchema = z.enum(["yes", "maybe", "not_now"]);
 const budgetRangeSchema = z.enum([
   "<2500",
   "2500-5000",
@@ -29,6 +28,7 @@ const budgetRangeSchema = z.enum([
   "20000-30000",
   ">30000",
   "unknown",
+  "not_now",
 ]);
 const genderSchema = z
   .enum(["male", "female", "other", "prefer_not_say"])
@@ -37,11 +37,19 @@ const genderSchema = z
 export const profileSchema = z
   .object({
     firstName: z.string().trim().min(1, "Prénom requis").max(40),
-    lastName: z.string().trim().min(1, "Nom requis").max(60),
+    lastName: z.string().trim().max(60).optional().default(""),
     email: z.string().trim().toLowerCase().email("Email invalide"),
-    phone: z.string().trim().min(1, "WhatsApp requis").max(40),
+    phone: z
+      .string()
+      .trim()
+      .min(1, "WhatsApp requis")
+      .max(40)
+      .regex(
+        /^\+?[0-9][0-9\s\-()]{6,30}$/,
+        "Numéro WhatsApp invalide (format international : +229 ...)",
+      ),
     country: z.string().trim().min(1, "Pays requis").max(8),
-    city: z.string().trim().min(1, "Ville requise").max(80),
+    city: z.string().trim().max(80).optional().default(""),
     gender: genderSchema,
 
     primaryDomain: domainSchema,
@@ -64,32 +72,20 @@ export const profileSchema = z
     mentoringFrequency: z.string().trim().max(40).optional(),
     mentoringDomain: z.string().trim().max(60).optional(),
 
-    budgetWillingness: budgetWillingnessSchema.optional(),
     budgetRange: budgetRangeSchema.optional(),
 
-    threeMonthGoal: z.string().trim().min(8, "Objectif trop court").max(280),
+    threeMonthGoal: z.string().trim().min(4, "Objectif trop court").max(280),
   })
   .superRefine((val, ctx) => {
-    // Conditional sanity: budget fields only if mentoring interest + willingness.
+    // Budget range only valid with mentoring interest.
     if (
       val.mentoringInterest !== "yes" &&
       val.mentoringInterest !== "maybe"
     ) {
-      if (val.budgetWillingness)
-        ctx.addIssue({
-          path: ["budgetWillingness"],
-          message: "Ne devrait pas être défini sans intérêt mentorat",
-          code: "custom",
-        });
-    }
-    if (
-      val.budgetWillingness !== "yes" &&
-      val.budgetWillingness !== "maybe"
-    ) {
-      if (val.budgetRange)
+      if (val.budgetRange && val.budgetRange !== "not_now" && val.budgetRange !== "unknown")
         ctx.addIssue({
           path: ["budgetRange"],
-          message: "Ne devrait pas être défini sans volonté d'investir",
+          message: "Ne devrait pas être défini sans intérêt mentorat",
           code: "custom",
         });
     }
@@ -119,7 +115,6 @@ export function memberToAnswers(_m: {
   mentoringTypes: string;
   mentoringFrequency: string | null;
   mentoringDomain: string | null;
-  budgetWillingness: string | null;
   budgetRange: string | null;
   threeMonthGoal: string | null;
 }): ProfileAnswers {
@@ -153,7 +148,6 @@ export function memberToAnswers(_m: {
     mentoringTypes: parse<string[]>(_m.mentoringTypes, []),
     mentoringFrequency: _m.mentoringFrequency ?? undefined,
     mentoringDomain: _m.mentoringDomain ?? undefined,
-    budgetWillingness: (_m.budgetWillingness as ProfileAnswers["budgetWillingness"]) ?? undefined,
     budgetRange: (_m.budgetRange as ProfileAnswers["budgetRange"]) ?? undefined,
     threeMonthGoal: _m.threeMonthGoal ?? undefined,
   };
@@ -184,7 +178,6 @@ export function answersToCreatePayload(a: ProfileAnswers) {
     mentoringTypes: JSON.stringify(a.mentoringTypes ?? []),
     mentoringFrequency: a.mentoringFrequency ?? null,
     mentoringDomain: a.mentoringDomain ?? null,
-    budgetWillingness: a.budgetWillingness ?? null,
     budgetRange: a.budgetRange ?? null,
     threeMonthGoal: a.threeMonthGoal?.trim() ?? null,
   };

@@ -20,6 +20,13 @@ interface StatsAggregate {
   byAvailability: { availability: string; count: number }[];
   byBudget: { budget: string | null; count: number }[];
   byArchetype: { archetype: string; count: number }[];
+  email: {
+    sent: number;
+    opened: number;
+    clicked: number;
+    openRate: number;
+    clickRate: number;
+  };
 }
 
 async function computeStats(startDate: Date, endDate: Date): Promise<StatsAggregate> {
@@ -46,6 +53,9 @@ async function computeStats(startDate: Date, endDate: Date): Promise<StatsAggreg
     byAvailability,
     byBudget,
     byArchetype,
+    emailSent,
+    emailOpened,
+    emailClicked,
   ] = await Promise.all([
     db.member.count({ where: whereCreated }),
     db.member.count({ where: { ...whereCreated, profileStatus: "APPROVED" } }),
@@ -61,7 +71,14 @@ async function computeStats(startDate: Date, endDate: Date): Promise<StatsAggreg
     db.member.groupBy({ by: ["availability"], _count: true, where: whereCreated }),
     db.member.groupBy({ by: ["budgetRange"], _count: true, where: whereCreated }),
     db.member.groupBy({ by: ["profileArchetype"], _count: true, orderBy: { _count: { profileArchetype: "desc" } }, where: whereCreated }),
+    db.emailEvent.count({ where: { ...whereCreated, type: "email.sent" } }),
+    db.emailEvent.count({ where: { ...whereCreated, type: "email.opened" } }),
+    db.emailEvent.count({ where: { ...whereCreated, type: "email.clicked" } }),
   ]);
+
+  const emailSentN = emailSent;
+  const emailOpenedN = emailOpened;
+  const emailClickedN = emailClicked;
 
   return {
     totals: { total, approved, pending, waitlist, rejected },
@@ -76,6 +93,13 @@ async function computeStats(startDate: Date, endDate: Date): Promise<StatsAggreg
         ? [{ archetype: String(a.profileArchetype), count: a._count }]
         : [],
     ),
+    email: {
+      sent: emailSentN,
+      opened: emailOpenedN,
+      clicked: emailClickedN,
+      openRate: emailSentN === 0 ? 0 : Math.round((emailOpenedN / emailSentN) * 100),
+      clickRate: emailSentN === 0 ? 0 : Math.round((emailClickedN / emailSentN) * 100),
+    },
   };
 }
 
@@ -120,6 +144,9 @@ export async function GET(req: NextRequest) {
       byAvailability,
       byBudget,
       byArchetype,
+      emailSent,
+      emailOpened,
+      emailClicked,
     ] = await Promise.all([
       db.member.count({ where: { deletedAt: null } }),
       db.member.count({ where: { deletedAt: null, profileStatus: "APPROVED" } }),
@@ -135,7 +162,14 @@ export async function GET(req: NextRequest) {
       db.member.groupBy({ by: ["availability"], _count: true, where: { deletedAt: null } }),
       db.member.groupBy({ by: ["budgetRange"], _count: true, where: { deletedAt: null } }),
       db.member.groupBy({ by: ["profileArchetype"], _count: true, orderBy: { _count: { profileArchetype: "desc" } }, where: { deletedAt: null } }),
+      db.emailEvent.count({ where: { type: "email.sent" } }),
+      db.emailEvent.count({ where: { type: "email.opened" } }),
+      db.emailEvent.count({ where: { type: "email.clicked" } }),
     ]);
+
+    const emailSentN = emailSent;
+    const emailOpenedN = emailOpened;
+    const emailClickedN = emailClicked;
 
     return NextResponse.json({
       totals: { total, approved, pending, waitlist, rejected },
@@ -150,6 +184,13 @@ byArchetype: byArchetype.flatMap((a) =>
         ? [{ archetype: String(a.profileArchetype), count: a._count }]
         : [],
     ),
+      email: {
+        sent: emailSentN,
+        opened: emailOpenedN,
+        clicked: emailClickedN,
+        openRate: emailSentN === 0 ? 0 : Math.round((emailOpenedN / emailSentN) * 100),
+        clickRate: emailSentN === 0 ? 0 : Math.round((emailClickedN / emailSentN) * 100),
+      },
     });
   }
 

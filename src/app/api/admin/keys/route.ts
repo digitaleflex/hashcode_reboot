@@ -19,23 +19,33 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
   }
 
-  // List all non-revoked, non-expired keys (active)
+  const { searchParams } = new URL(req.url);
+  const includeRevoked = searchParams.get("include_revoked") === "true";
+
+  const where = includeRevoked
+    ? {} // all keys
+    : {
+        revokedAt: null,
+        expiresAt: null,
+      };
+
+  // List keys (optionally including revoked)
   const keys = await db.adminKey.findMany({
-    where: {
-      revokedAt: null,
-      expiresAt: null, // null = never expires
-    },
+    where,
     orderBy: { createdAt: "desc" },
+    select: {
+      kid: true,
+      createdAt: true,
+      expiresAt: true,
+      revokedAt: true,
+    },
   });
 
-  // Return only the kid identifiers (no hash for security)
-  const kids = keys.map((k) => k.kid);
-
   return NextResponse.json({
-    kids,
-    total: kids.length,
+    keys,
+    total: keys.length,
     page: 1,
-    pageSize: kids.length,
+    pageSize: keys.length,
   });
 }
 

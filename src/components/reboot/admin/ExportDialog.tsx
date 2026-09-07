@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { MonoLabel } from "../shared";
 import { cn } from "@/lib/utils";
+import { AlertTriangle } from "lucide-react";
 
 const EXPORT_COLUMNS = [
   { key: "firstName", label: "Prénom" },
@@ -34,13 +35,18 @@ interface ExportDialogProps {
   onOpenChange: (open: boolean) => void;
   onExport: (kind: "csv" | "json", columns: string[]) => void;
   exporting: "csv" | "json" | null;
+  /** Nombre total de membres (pour prévenir la troncature à 2000 lignes). */
+  totalMembers?: number;
 }
+
+const MAX_EXPORT = 2000;
 
 export function ExportDialog({
   open,
   onOpenChange,
   onExport,
   exporting,
+  totalMembers,
 }: ExportDialogProps) {
   const [columns, setColumns] = React.useState<Set<string>>(
     new Set(EXPORT_COLUMNS.map((c) => c.key)),
@@ -82,6 +88,23 @@ export function ExportDialog({
             Choisis le format et les colonnes à inclure dans l'export.
           </DialogDescription>
         </DialogHeader>
+
+        {/* Pre-warning troncature — total connu > MAX_EXPORT */}
+        {typeof totalMembers === "number" && totalMembers > MAX_EXPORT && (
+          <div
+            role="alert"
+            className="rounded-md border border-amber-500/40 bg-amber-500/[0.06] p-3 flex items-start gap-2.5"
+          >
+            <AlertTriangle className="size-4 text-amber-400 shrink-0 mt-0.5" aria-hidden />
+            <div className="text-sm text-foreground">
+              <strong className="font-semibold">{totalMembers.toLocaleString("fr-FR")} membres</strong>{" "}
+              <span className="text-muted-foreground">
+                — l'export est limité à {MAX_EXPORT.toLocaleString("fr-FR")} lignes. Le fichier sera
+                tronqué. Utilise les filtres de la liste Membres pour affiner avant d'exporter.
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Format selection */}
         <div className="space-y-2">

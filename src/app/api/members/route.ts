@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { profileSchema, answersToCreatePayload } from "@/lib/profiling/validate";
 import { runAutoControls, WHATSAPP_URL } from "@/lib/profiling/auto-controls";
 import { generateProfile } from "@/lib/profiling/engine";
-import { sendInvitationEmail, sendWelcomeEmail } from "@/lib/mail";
+import { sendInvitationEmail, sendWelcomeEmail, sendWaitlistEmail } from "@/lib/mail";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { isAdminAuthed } from "@/lib/admin-auth";
 
@@ -127,8 +127,19 @@ export async function POST(req: NextRequest) {
     /* analytics must never break the flow */
   }
 
-  // Emails réels (lane immediate uniquement) : fire-and-forget, jamais bloquant.
+  // Mark the profiling draft as completed — no more relance for this email.
+  try {
+    await db.profilingDraft.updateMany({
+      where: { email: data.email.toLowerCase(), completedAt: null },
+      data: { completedAt: new Date() },
+    });
+  } catch {
+    /* draft cleanup must never break the flow */
+  }
+
+  // Emails réels : fire-and-forget, jamais bloquant.
   if (created.accessLane === "immediate") {
+    // Welcome + invitation pour accès immédiat
     try {
       await sendWelcomeEmail({
         to: data.email,
@@ -143,6 +154,16 @@ export async function POST(req: NextRequest) {
         to: data.email,
         firstName: data.firstName,
         whatsappUrl: WHATSAPP_URL,
+      });
+    } catch {
+      /* email must never break the flow */
+    }
+  } else {
+    // Email waitlist pour validation en attente
+    try {
+      await sendWaitlistEmail({
+        to: data.email,
+        firstName: data.firstName,
       });
     } catch {
       /* email must never break the flow */
