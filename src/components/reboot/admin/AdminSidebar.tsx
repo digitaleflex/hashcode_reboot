@@ -102,7 +102,7 @@ export function AdminSidebar({ activeSection, onNavigate, onOpenPalette }: Admin
   function handleNav(sectionId: string) {
     const item = ITEMS.find(i => i.id === sectionId);
     if (item) {
-      window.location.href = item.path;
+      window.location.assign(item.path);
     }
     setMobileOpen(false);
     requestAnimationFrame(() => mobileOpenRef.current?.focus());
