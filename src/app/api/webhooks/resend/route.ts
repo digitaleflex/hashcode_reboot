@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { timingSafeEqual } from "node:crypto";
 
 export const runtime = "nodejs";
 
@@ -8,15 +9,30 @@ export const runtime = "nodejs";
  * POST /api/webhooks/resend — Resend webhook receiver.
  *
  * Handles: email.sent, email.opened, email.clicked
- * Docs: https://resend.com/docs/dashboard/webhooks
- *
- * To configure: add https://your-domain.com/api/webhooks/resend
- * in Resend Dashboard → Webhooks.
+ * Verifies Svix signature when RESEND_WEBHOOK_SECRET is set.
  */
 export async function POST(req: NextRequest) {
+  const rawBody = await req.text();
+
+  // Verify webhook signature if secret is configured
+  const secret = process.env.RESEND_WEBHOOK_SECRET;
+  if (secret) {
+    const svixId = req.headers.get("svix-id");
+    const svixTimestamp = req.headers.get("svix-timestamp");
+    const svixSignature = req.headers.get("svix-signature");
+    if (!svixId || !svixTimestamp || !svixSignature) {
+      return NextResponse.json({ ok: false, error: "Missing svix headers" }, { status: 401 });
+    }
+    const toSign = `${svixId}.${svixTimestamp}.${rawBody}`;
+    const valid = await verifySvixSignature(secret, toSign, svixSignature);
+    if (!valid) {
+      return NextResponse.json({ ok: false, error: "Invalid signature" }, { status: 401 });
+    }
+  }
+
   let body: unknown;
   try {
-    body = await req.json();
+    body = JSON.parse(rawBody);
   } catch {
     return NextResponse.json({ ok: false }, { status: 400 });
   }
@@ -97,8 +113,44 @@ function categorizeEmail(subject?: string): string {
 }
 
 function extractClickUrl(data: Record<string, unknown>): string | null {
-  // Resend includes click data in different places depending on version
   const clickData = data.click as { url?: string } | undefined;
   if (clickData?.url) return clickData.url;
   return null;
+}
+
+/**
+ * Verify Svix webhook signature (HMAC-SHA256).
+ * Secret format: "whsec_<base64>" → extract key, sign payload, compare.
+ */
+async function verifySvixSignature(
+  secret: string,
+  toSign: string,
+  headerSignature: string,
+): Promise<boolean> {
+  try {
+    // whsec_<base64> → raw key bytes
+    const keyB64 = secret.replace("whsec_", "").replace(/-/g, "+").replace(/_/g, "/");
+    const keyBytes = Buffer.from(keyB64, "base64");
+
+    const cryptoKey = await crypto.subtle.importKey(
+      "raw",
+      keyBytes,
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"],
+    );
+    const sig = await crypto.subtle.sign("HMAC", cryptoKey, Buffer.from(toSign));
+    const computed = `v1,${Buffer.from(sig).toString("base64")}`;
+
+    // header may contain multiple signatures separated by space
+    const signatures = headerSignature.split(" ");
+    for (const s of signatures) {
+      if (timingSafeEqual(Buffer.from(computed), Buffer.from(s))) {
+        return true;
+      }
+    }
+    return false;
+  } catch {
+    return false;
+  }
 }
