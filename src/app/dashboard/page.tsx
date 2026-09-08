@@ -8,6 +8,7 @@ import { WelcomeCard } from "./_components/WelcomeCard";
 import { StatusCard } from "./_components/StatusCard";
 import { QuickActions } from "./_components/QuickActions";
 import { ProfileSummary } from "./_components/ProfileSummary";
+import { AgendaCard } from "./_components/AgendaCard";
 import { LogoutButton } from "@/app/account/logout-button";
 
 export const dynamic = "force-dynamic";
@@ -72,6 +73,8 @@ export default async function DashboardPage() {
               communityStatus={data.status.communityStatus}
               profileStatus={data.status.profileStatus}
             />
+
+            <AgendaCard />
 
             {/* Membre depuis */}
             <p className="text-center text-xs text-muted-foreground pt-4">
