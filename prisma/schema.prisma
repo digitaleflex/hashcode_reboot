@@ -236,3 +236,38 @@ model MemberBlacklist {
   @@index([expiresAt])
   @@index([reason])
 }
+
+/// Agenda — événements HASHCODE (sessions, workshops, meetups).
+model Event {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  title       String
+  description String?
+
+  // Timing
+  startsAt    DateTime
+  endsAt      DateTime?
+
+  // Location
+  location    String?  // "WhatsApp", "Discord", "Salle 1", etc.
+  url         String?  // Lien externe (Zoom, Google Meet, etc.)
+
+  // Type
+  type        String   @default("session") // session | workshop | meetup | webinar | other
+
+  // Visibility (null = tous les membres)
+  domain      String?  // web | cybersecurity | ai
+  level       String?  // beginner | practicing | autonomous | advanced
+
+  // Status
+  status      String   @default("scheduled") // scheduled | live | completed | cancelled
+
+  // Recurrence
+  recurrence  String?  // weekly | biweekly | monthly | null = one-shot
+
+  @@index([startsAt])
+  @@index([status])
+  @@index([type])
+}
