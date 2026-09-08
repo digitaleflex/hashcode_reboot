@@ -803,3 +803,97 @@ function rejectedHtml(safeName: string) {
     `</td></tr>`,
   ].join("");
 }
+
+/**
+ * Envoi d'notification email à tous les membres APPROVED à la création d'un événement.
+ * Fire-and-forget : ne bloque pas la réponse API.
+ */
+export async function sendEventNotificationEmail({
+  to,
+  firstName,
+  event,
+  rsvpUrl,
+}: {
+  to: string;
+  firstName: string;
+  event: {
+    title: string;
+    description: string | null;
+    startsAt: Date;
+    endsAt: Date | null;
+    location: string | null;
+    type: string;
+    domain: string | null;
+    level: string | null;
+  };
+  rsvpUrl: string;
+}): Promise<SendEmailResult> {
+  const name = firstName.trim() || "membre";
+  const safeName = escapeHtml(name);
+  const safeTitle = escapeHtml(event.title);
+  const safeType = escapeHtml(event.type);
+  const safeDomain = event.domain ? escapeHtml(event.domain) : "";
+  const safeLevel = event.level ? escapeHtml(event.level) : "";
+
+  const subject = "Nouvel événement HASHCODE REBOOT — " + safeTitle;
+  const startsStr = event.startsAt.toLocaleDateString("fr-FR", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const endsStr =
+    event.endsAt && event.endsAt !== event.startsAt
+      ? event.endsAt.toLocaleDateString("fr-FR", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : null;
+
+  const text = [
+    `Bonjour ${name},`,
+    "",
+    "Un nouvel événement vient d'être publié sur HASHCODE REBOOT.",
+    "",
+    `Titre : ${safeTitle}`,
+    `Type : ${safeType}`,
+    safeDomain && `Domaine : ${safeDomain}`,
+    safeLevel && `Niveau : ${safeLevel}`,
+    `Date : ${startsStr}`,
+    endsStr && `Fin : ${endsStr}`,
+    event.location && `Lieu : ${event.location}`,
+    event.description && `Description : ${event.description}`,
+    "",
+    `Vous pouvez vous inscrire (RSVP) ici : ${rsvpUrl}`,
+    "",
+    "À bientôt sur HASHCODE REBOOT !",
+    "",
+    "HASHCODE · REBOOT",
+  ].join("\n");
+
+  const inner = [
+    `<tr><td style="padding:24px 32px 28px 32px;background-color:#141414;">`,
+    monoLabel("NOUVEL ÉVÉNEMENT"),
+    `<h1 style="margin:0 0 12px 0;font-family:${MAIL_FONT};font-size:24px;line-height:1.25;font-weight:800;color:#F8FAFC;">${safeTitle}</h1>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">Un nouvel événement vient d'être publié sur HASHCODE REBOOT.</p>`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;background-color:#0A0A0A;border:1px solid #333B1E;border-radius:8px;">`,
+    `<tr><td style="padding:14px 16px;">`,
+    `<div style="font-family:${MAIL_FONT};font-size:11px;font-weight:700;letter-spacing:2px;color:#94A3B8;margin:0 0 4px 0;">TYPE</div>`,
+    `<div style="font-family:${MAIL_FONT};font-size:16px;font-weight:700;color:#C5F441;margin:0;">${safeType}</div>`,
+    safeDomain && `<div style="font-family:${MAIL_FONT};font-size:11px;font-weight:700;letter-spacing:1px;color:#94A3B8;margin:2px 0 0 0;">Domaine : ${safeDomain}</div>`,
+    safeLevel && `<div style="font-family:${MAIL_FONT};font-size:11px;font-weight:700;letter-spacing:1px;color:#94A3B8;margin:2px 0 0 0;">Niveau : ${safeLevel}</div>`,
+    `<div style="font-family:${MAIL_FONT};font-size:11px;font-weight:700;letter-spacing:2px;color:#94A3B8;margin:4px 0 0 0;">Date : ${startsStr}</div>`,
+    endsStr && `<div style="font-family:${MAIL_FONT};font-size:11px;font-weight:700;letter-spacing:2px;color:#94A3B8;margin:2px 0 0 0;">Fin : ${endsStr}</div>`,
+    event.location && `<div style="font-family:${MAIL_FONT};font-size:11px;font-weight:700;letter-spacing:2px;color:#94A3B8;margin:2px 0 0 0;">Lieu : ${event.location}</div>`,
+    event.description && `<div style="font-family:${MAIL_FONT};font-size:11px;line-height:1.5;color:#F8FAFC;margin:4px 0 0 0;">${event.description}</div>`,
+    `</td></tr>`,
+    `</table>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:14px;line-height:1.65;color:#94A3B8;">Vous pouvez vous inscrire (RSVP) ici : <a href="${escapeHtml(rsvpUrl)}" style="color:#C5F441;">${rsvpUrl}</a></p>`,
+    `<p style="margin:0;font-family:${MAIL_FONT};font-size:12px;line-height:1.6;color:#64748B;">À bientôt sur HASHCODE REBOOT !</p>`,
+    `<p style="margin:8px 0 0 0;font-family:${MAIL_FONT};font-size:11px;line-height:1.6;color:#64748B;">HASHCODE · REBOOT — Une nouvelle génération de la communauté commence.</p>`,
+    `</td></tr>`,
+  ].join("");
+
+  return sendEmail({ to, subject, html: emailShell(subject, inner), text });
+}

@@ -83,6 +83,7 @@ model Member {
   @@index([deletedAt])
 
   sessions MemberSession[]
+  rsvps    EventRsvp[]
 }
 
 // Clés admin persistées (rotation, expiration, invalidation)
@@ -266,8 +267,38 @@ model Event {
 
   // Recurrence
   recurrence  String?  // weekly | biweekly | monthly | null = one-shot
+  recurrenceId String? // shared ID for grouped recurring events
+
+  // Capacity
+  maxAttendees Int?    // null = unlimited
+
+  // Notifications
+  notifiedAt   DateTime? // when members were notified
+
+  rsvps       EventRsvp[]
 
   @@index([startsAt])
   @@index([status])
   @@index([type])
+  @@index([recurrenceId])
+}
+
+/// RSVP — inscription aux événements
+model EventRsvp {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  memberId  String
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  status    String   @default("going") // going | maybe | cancelled
+  note      String?
+
+  @@unique([eventId, memberId])
+  @@index([eventId])
+  @@index([memberId])
+  @@index([status])
 }
