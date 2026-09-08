@@ -485,7 +485,7 @@ describe("account-otp: isValidOtpFormat (unit)", () => {
 describe("sanitize-next: open-redirect filter (unit)", () => {
   // Same filter used in login/page.tsx and verify-otp/page.tsx
   function sanitizeNext(rawNext) {
-    const fallback = "/account";
+    const fallback = "/dashboard";
     if (!rawNext) return fallback;
     const v = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : fallback;
     return v;
@@ -493,28 +493,29 @@ describe("sanitize-next: open-redirect filter (unit)", () => {
 
   test("allows relative paths starting with /", () => {
     assert.equal(sanitizeNext("/account"), "/account");
+    assert.equal(sanitizeNext("/dashboard"), "/dashboard");
     assert.equal(sanitizeNext("/admin/stats"), "/admin/stats");
     assert.equal(sanitizeNext("/some/deep/path"), "/some/deep/path");
   });
 
   test("rejects protocol-relative URLs (//evil.com)", () => {
-    assert.equal(sanitizeNext("//evil.com"), "/account");
-    assert.equal(sanitizeNext("//evil.com/steal"), "/account");
+    assert.equal(sanitizeNext("//evil.com"), "/dashboard");
+    assert.equal(sanitizeNext("//evil.com/steal"), "/dashboard");
   });
 
   test("rejects absolute URLs", () => {
-    assert.equal(sanitizeNext("https://evil.com"), "/account");
-    assert.equal(sanitizeNext("http://evil.com"), "/account");
-    assert.equal(sanitizeNext("ftp://evil.com"), "/account");
+    assert.equal(sanitizeNext("https://evil.com"), "/dashboard");
+    assert.equal(sanitizeNext("http://evil.com"), "/dashboard");
+    assert.equal(sanitizeNext("ftp://evil.com"), "/dashboard");
   });
 
-  test("falls back to /account for empty/null", () => {
-    assert.equal(sanitizeNext(null), "/account");
-    assert.equal(sanitizeNext(""), "/account");
-    assert.equal(sanitizeNext(undefined), "/account");
+  test("falls back to /dashboard for empty/null", () => {
+    assert.equal(sanitizeNext(null), "/dashboard");
+    assert.equal(sanitizeNext(""), "/dashboard");
+    assert.equal(sanitizeNext(undefined), "/dashboard");
   });
 
-  test("allows /account with query params", () => {
+  test("allows paths with query params", () => {
     assert.equal(sanitizeNext("/verify-otp?email=x&code=123"), "/verify-otp?email=x&code=123");
   });
 });

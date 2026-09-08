@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
       process.env.NEXT_PUBLIC_SITE_URL ||
       process.env.NEXT_PUBLIC_URL ||
       "https://reboot.joinhashcode.com";
-    const url = `${base.replace(/\/$/, "")}/verify-otp?email=${encodeURIComponent(email)}&code=${encodeURIComponent(otp)}&next=${encodeURIComponent("/account")}`;
+    const url = `${base.replace(/\/$/, "")}/verify-otp?email=${encodeURIComponent(email)}&code=${encodeURIComponent(otp)}&next=${encodeURIComponent("/dashboard")}`;
     await sendMagicLinkEmail({
       to: email,
       firstName: member.firstName || "toi",

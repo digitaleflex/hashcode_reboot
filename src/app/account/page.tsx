@@ -10,27 +10,18 @@ import { ContactForm } from "./_components/ContactForm";
 import { NextSteps } from "./_components/NextSteps";
 import { LogoutButton } from "./logout-button";
 
-export const dynamic = "force-dynamic"; // toujours recharger (revalidate via PATCH)
+export const dynamic = "force-dynamic";
 
 /**
- * Page /account — espace personnel du membre.
- *
- * Sections :
- *   1. AccountHeader : prénom + archétype + statut badge
- *   2. StatusSection : explication contextuelle par statut (variante par status)
- *   3. NextSteps : 3 prochaines étapes personnalisées par archétype
- *   4. ContactForm : édition email/WhatsApp/ville/nom/objectif (PATCH /api/account/profile)
- *   5. LogoutButton
+ * Page /account — espace personnel du membre (édition profil).
+ * Le dashboard principal est /dashboard.
  */
 export default async function AccountPage() {
   const session = await getSession();
   if (!session) {
-    // Sécurité : si la session a expiré entre le middleware et le render
     redirect("/login?next=/account");
   }
 
-  // Récupère le member complet (avec tous les champs)
-  // via la même logique que /api/account/me pour rester synchro.
   const member = await db.member.findUnique({
     where: { id: session.member.id },
   });
@@ -44,13 +35,13 @@ export default async function AccountPage() {
     <main className="min-h-screen bg-background text-foreground flex flex-col">
       <header className="flex items-center justify-between p-4 sm:p-6">
         <a
-          href="/"
+          href="/dashboard"
           className="text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
-          ← Accueil
+          ← Dashboard
         </a>
         <Logo />
-        <div className="w-12" /> {/* spacer */}
+        <div className="w-12" />
       </header>
 
       <div className="flex-1 px-4 py-6 sm:py-8">

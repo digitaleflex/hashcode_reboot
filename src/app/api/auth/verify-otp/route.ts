@@ -161,7 +161,7 @@ export async function POST(req: NextRequest) {
   const res = NextResponse.json({
     ok: true,
     message: "Connexion réussie.",
-    redirect: "/account",
+    redirect: "/dashboard",
   });
   setSessionCookieOnResponse(res, session.id, newExpiresAt);
   return res;

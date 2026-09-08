@@ -14,8 +14,8 @@ function VerifyOtpForm() {
   const searchParams = useSearchParams();
   const email = searchParams.get("email") ?? "";
   // Anti open-redirect : n'accepte que les chemins internes (pas d'URL externe, pas de //).
-  const rawNext = searchParams.get("next") || "/account";
-  const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/account";
+  const rawNext = searchParams.get("next") || "/dashboard";
+  const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/dashboard";
   // Lien magique 1-clic : ?code=123456 pré-remplit et auto-soumet (même session OTP).
   const linkCode = (searchParams.get("code") ?? "").replace(/\D/g, "").slice(0, OTP_LENGTH);
   const autoSubmitRef = React.useRef(false);
