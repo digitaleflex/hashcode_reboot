@@ -6,11 +6,13 @@ import {
   LayoutDashboard,
   User,
   Settings,
-  LogOut,
   MessageCircle,
   Calendar,
   Menu,
   X,
+  ChevronsLeft,
+  ChevronsRight,
+  LogOut,
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { cn } from "@/lib/utils";
@@ -22,22 +24,96 @@ const NAV_ITEMS = [
   { label: "Paramètres", href: "/dashboard/settings", icon: Settings },
 ] as const;
 
+const BOTTOM_ITEMS = [
+  {
+    label: "WhatsApp",
+    href: "https://chat.whatsapp.com/GBh0XJfGpPq3RJrmylVljl",
+    icon: MessageCircle,
+    external: true,
+  },
+] as const;
+
 interface DashboardSidebarProps {
   firstName?: string;
   onLogout?: () => void;
 }
 
-export function DashboardSidebar({ firstName, onLogout }: DashboardSidebarProps) {
+/* ───────────────────────────────────────────
+ *  Composant lien Nav — réutilisable partout
+ * ─────────────────────────────────────────── */
+function NavLink({
+  item,
+  active,
+  collapsed,
+  onClick,
+}: {
+  item: { label: string; href: string; icon: React.ElementType; external?: boolean };
+  active: boolean;
+  collapsed: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={collapsed ? item.label : undefined}
+      className={cn(
+        "w-full flex items-center gap-3 rounded-md text-sm transition-all duration-150 cursor-pointer group relative",
+        collapsed ? "justify-center px-0 py-2.5 mx-auto w-10" : "px-3 py-2.5",
+        active
+          ? "bg-lime/10 text-lime font-medium"
+          : "text-muted-foreground hover:text-foreground hover:bg-secondary",
+      )}
+    >
+      <item.icon className="size-4 shrink-0" />
+      {!collapsed && <span className="truncate">{item.label}</span>}
+
+      {/* Tooltip quand replié */}
+      {collapsed && (
+        <span className="absolute left-full ml-2 px-2.5 py-1 rounded-md bg-popover text-popover-foreground text-xs font-medium whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity shadow-md border border-border/60 z-50">
+          {item.label}
+        </span>
+      )}
+    </button>
+  );
+}
+
+/* ═══════════════════════════════════════════
+ *  Sidebar principale
+ * ═══════════════════════════════════════════ */
+export function DashboardSidebar({ firstName }: DashboardSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+
+  // ── État replié (desktop) — persister dans localStorage ──
+  const [collapsed, setCollapsed] = React.useState(false);
+  const [mounted, setMounted] = React.useState(false);
+
+  // Hydrate depuis localStorage
+  React.useEffect(() => {
+    try {
+      const saved = localStorage.getItem("sidebar-collapsed");
+      if (saved !== null) setCollapsed(saved === "true");
+    } catch {}
+    setMounted(true);
+  }, []);
+
+  // Sauvegarder à chaque changement
+  React.useEffect(() => {
+    if (!mounted) return;
+    try {
+      localStorage.setItem("sidebar-collapsed", String(collapsed));
+    } catch {}
+  }, [collapsed, mounted]);
+
+  // ── État mobile ──
   const [mobileOpen, setMobileOpen] = React.useState(false);
 
-  // Fermer le drawer quand on navigue
+  // Fermer le drawer mobile quand on navigue
   React.useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
 
-  // Fermer avec Escape
+  // Escape pour fermer le mobile
   React.useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setMobileOpen(false);
@@ -48,79 +124,107 @@ export function DashboardSidebar({ firstName, onLogout }: DashboardSidebarProps)
     }
   }, [mobileOpen]);
 
-  const navContent = (
+  // Lock body scroll quand mobile ouvert
+  React.useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = "hidden";
+      return () => { document.body.style.overflow = ""; };
+    }
+  }, [mobileOpen]);
+
+  // ── Déterminer lien actif ──
+  const isActive = (href: string) =>
+    href === "/dashboard"
+      ? pathname === "/dashboard" || pathname === "/dashboard/"
+      : pathname.startsWith(href);
+
+  // ── Contenu nav (réutilisable desktop + mobile) ──
+  const renderNav = (isCollapsed: boolean) => (
     <>
-      <nav className="flex-1 py-4 px-3 space-y-1">
-        {NAV_ITEMS.map((item) => {
-          const active =
-            item.href === "/dashboard"
-              ? pathname === "/dashboard" || pathname === "/dashboard/"
-              : pathname.startsWith(item.href);
-          return (
-            <button
-              key={item.href}
-              onClick={() => {
-                router.push(item.href);
-                setMobileOpen(false);
-              }}
-              className={cn(
-                "w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors cursor-pointer",
-                active
-                  ? "bg-lime/10 text-lime font-medium"
-                  : "text-muted-foreground hover:text-foreground hover:bg-secondary",
-              )}
-            >
-              <item.icon className="size-4 shrink-0" />
-              {item.label}
-            </button>
-          );
-        })}
+      <nav className="flex-1 py-4 px-2 space-y-1">
+        {NAV_ITEMS.map((item) => (
+          <NavLink
+            key={item.href}
+            item={item}
+            active={isActive(item.href)}
+            collapsed={isCollapsed}
+            onClick={() => {
+              router.push(item.href);
+              setMobileOpen(false);
+            }}
+          />
+        ))}
       </nav>
 
-      <div className="px-3 pb-4 space-y-1 border-t border-border/60 pt-3">
-        <a
-          href="https://chat.whatsapp.com/GBh0XJfGpPq3RJrmylVljl"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-        >
-          <MessageCircle className="size-4 shrink-0" />
-          WhatsApp
-        </a>
+      <div className="px-2 pb-4 space-y-1 border-t border-border/60 pt-3">
+        {BOTTOM_ITEMS.map((item) => (
+          <NavLink
+            key={item.href}
+            item={item}
+            active={false}
+            collapsed={isCollapsed}
+            onClick={() => {
+              window.open(item.href, "_blank", "noopener,noreferrer");
+              setMobileOpen(false);
+            }}
+          />
+        ))}
+
+        {/* Bouton déconnexion */}
+        <NavLink
+          item={{ label: "Déconnexion", href: "#", icon: LogOut }}
+          active={false}
+          collapsed={isCollapsed}
+          onClick={() => {
+            router.push("/account/logout");
+            setMobileOpen(false);
+          }}
+        />
       </div>
     </>
   );
 
   return (
     <>
-      {/* ── Hamburger mobile (visible < md) ── */}
+      /* ═══════════════════════════════════════
+       *  HAMBURGER MOBILE (FAB bottom-left)
+       * ═══════════════════════════════════════ */
       <button
         onClick={() => setMobileOpen(true)}
-        className="md:hidden fixed bottom-4 left-4 z-50 size-12 rounded-full bg-lime text-background flex items-center justify-center shadow-lg hover:bg-lime/90 transition-colors cursor-pointer"
+        className={cn(
+          "md:hidden fixed bottom-5 left-5 z-50 size-12 rounded-full",
+          "bg-lime text-background shadow-lg shadow-lime/20",
+          "flex items-center justify-center",
+          "hover:scale-105 active:scale-95 transition-transform cursor-pointer",
+        )}
         aria-label="Ouvrir le menu"
       >
         <Menu className="size-5" />
       </button>
 
-      {/* ── Overlay mobile ── */}
+      /* ═══════════════════════════════════════
+       *  OVERLAY + DRAWER MOBILE
+       * ═══════════════════════════════════════ */
       {mobileOpen && (
         <div
-          className="md:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+          className="md:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
           onClick={() => setMobileOpen(false)}
         />
       )}
 
-      {/* ── Drawer mobile ── */}
       <aside
         className={cn(
-          "md:hidden fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border/60 flex flex-col transform transition-transform duration-200 ease-out",
+          "md:hidden fixed inset-y-0 left-0 z-50",
+          "w-72 bg-card border-r border-border/60",
+          "flex flex-col",
+          "transition-transform duration-250 ease-out",
           mobileOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        {/* Header drawer */}
-        <div className="flex items-center justify-between px-4 h-14 border-b border-border/60">
-          <div className="flex items-center gap-2">
-            <Logo className="size-5 text-lime" />
+        {/* Header drawer — Logo + prénom + bouton fermer */}
+        <div className="flex items-center justify-between px-4 h-14 border-b border-border/60 shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Logo className="size-5 text-lime shrink-0" />
             {firstName && (
               <span className="text-sm font-medium truncate">{firstName}</span>
             )}
@@ -134,12 +238,45 @@ export function DashboardSidebar({ firstName, onLogout }: DashboardSidebarProps)
           </button>
         </div>
 
-        {navContent}
+        {renderNav(false)}
       </aside>
 
-      {/* ── Sidebar desktop (visible >= md) ── */}
-      <aside className="hidden md:flex flex-col w-56 border-r border-border/60 bg-card/40 min-h-0">
-        {navContent}
+      /* ═══════════════════════════════════════
+       *  SIDEBAR DESKTOP (≥ md) — pliable
+       * ═══════════════════════════════════════ */
+      <aside
+        className={cn(
+          "hidden md:flex flex-col border-r border-border/60 bg-card/40 min-h-0",
+          "transition-all duration-200 ease-in-out shrink-0",
+          collapsed ? "w-[60px]" : "w-56",
+        )}
+      >
+        {/* Contenu nav */}
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          {renderNav(collapsed)}
+        </div>
+
+        {/* Bouton replier/déplier */}
+        <div className="px-2 pb-3 pt-1 border-t border-border/60">
+          <button
+            onClick={() => setCollapsed((c) => !c)}
+            title={collapsed ? "Déplier la sidebar" : "Replier la sidebar"}
+            className={cn(
+              "w-full flex items-center gap-3 rounded-md text-sm transition-all cursor-pointer",
+              collapsed ? "justify-center px-0 py-2" : "px-3 py-2",
+              "text-muted-foreground hover:text-foreground hover:bg-secondary",
+            )}
+          >
+            {collapsed ? (
+              <ChevronsRight className="size-4 shrink-0" />
+            ) : (
+              <>
+                <ChevronsLeft className="size-4 shrink-0" />
+                <span className="truncate">Replier</span>
+              </>
+            )}
+          </button>
+        </div>
       </aside>
     </>
   );
