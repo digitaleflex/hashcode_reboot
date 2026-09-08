@@ -5,7 +5,8 @@ import { db } from "@/lib/db";
 import { profileSchema, answersToCreatePayload } from "@/lib/profiling/validate";
 import { runAutoControls, WHATSAPP_URL } from "@/lib/profiling/auto-controls";
 import { generateProfile } from "@/lib/profiling/engine";
-import { sendInvitationEmail, sendWelcomeEmail, sendWaitlistEmail } from "@/lib/mail";
+import { sendInvitationEmail, sendWelcomeEmail, sendWaitlistEmail, sendVerificationLinkEmail } from "@/lib/mail";
+import { requestEmailLink, buildVerifyUrl } from "@/lib/verify-email";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { isAdminAuthed } from "@/lib/admin-auth";
 import { isEmailBlacklisted } from "@/lib/blacklist";
@@ -16,8 +17,8 @@ export const runtime = "nodejs";
  * the automatic controls (branching), persists. Returns the access lane +
  * generated profile so the client can render the right branch. */
 export async function POST(req: NextRequest) {
-  // Anti-spam: 5 submissions per IP per 10 minutes.
-  const rl = await rateLimit(rateKey(req), { capacity: 5, windowMs: 600000 });
+  // Anti-spam: 5 submissions per IP per 10 minutes (bucket dédié).
+  const rl = await rateLimit(`members-submit:${rateKey(req)}`, { capacity: 5, windowMs: 600000 });
   if (!rl.ok) {
     return NextResponse.json(
       { error: "Trop de soumissions. Réessaie dans quelques minutes." },
@@ -158,6 +159,19 @@ export async function POST(req: NextRequest) {
   }
 
   // Emails réels : fire-and-forget, jamais bloquant.
+  // Vérification à la fin : 2e email avec lien magique 1-clic (valide 24 h).
+  try {
+    const link = await requestEmailLink(data.email);
+    if (link.ok) {
+      await sendVerificationLinkEmail({
+        to: data.email,
+        firstName: data.firstName,
+        url: buildVerifyUrl(link.token),
+      });
+    }
+  } catch {
+    /* email must never break the flow */
+  }
   if (created.accessLane === "immediate") {
     // Welcome + invitation pour accès immédiat
     try {

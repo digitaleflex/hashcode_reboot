@@ -15,6 +15,7 @@ import { DEFAULT_WHATSAPP_URL, REASON_LABELS } from "@/lib/profiling/auto-contro
 import { countryName, countryFlag } from "@/lib/profiling/countries";
 import { track } from "@/lib/analytics";
 import { Check, Clock, Mail, MessageCircle, Share2, ShieldCheck } from "lucide-react";
+import { EmailVerificationNudge } from "./email-verify-card";
 
 export interface WelcomeResult {
   memberId: string;
@@ -127,6 +128,11 @@ export function Welcome({
               <PendingBranch answers={answers} result={result} />
             )}
           </div>
+
+          {/* Vérification email à la fin : lien magique 1-clic (2e email avec l'invitation) */}
+          {!isDuplicate && (
+            <EmailVerificationNudge email={answers.email} firstName={answers.firstName} />
+          )}
 
           {/* Profile card */}
           <div className="mt-8">
