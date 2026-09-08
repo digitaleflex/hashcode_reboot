@@ -481,49 +481,56 @@ export async function sendEngagementEmail({
   return sendEmail({ to, subject, html, text });
 }
 
-/* ── Vérification Email (code OTP) ───────────────────────────────────────── */
+/* ── Vérification Email (lien magique 1-clic) ────────────────────────────── */
 
-export interface VerificationEmailInput {
+export interface VerificationLinkEmailInput {
   to: string;
   firstName: string;
-  code: string;
+  url: string;
 }
 
-/** Mail avec le code de vérification à 6 chiffres (valide 10 minutes). */
-export async function sendVerificationEmail({
+/** Mail avec lien magique de vérification (1 clic, valide 24 h). Remplace l'OTP. */
+export async function sendVerificationLinkEmail({
   to,
   firstName,
-  code,
-}: VerificationEmailInput): Promise<SendEmailResult> {
+  url,
+}: VerificationLinkEmailInput): Promise<SendEmailResult> {
   const name = firstName.trim() || "toi";
   const safeName = escapeHtml(name);
-  const safeCode = escapeHtml(code.trim());
-  const subject = "Ton code de vérification HASHCODE";
+  const safeUrl = escapeHtml(url.trim());
+  const subject = "Vérifie ton email HASHCODE (1 clic)";
   const text = [
     `Bonjour ${name},`,
     "",
-    `Ton code de vérification : ${code.trim()}`,
+    "Bienvenue ! Clique sur ce lien pour vérifier ton adresse email :",
+    url.trim(),
     "",
-    "Saisis ce code dans le formulaire pour confirmer ton adresse email. Il est valide 10 minutes.",
+    "Ce lien est valide 24 heures, usage unique.",
     "",
-    "Si tu n'as pas demandé ce code, ignore cet e-mail.",
+    "Si tu n'as pas demandé ce lien, ignore cet e-mail.",
     "",
     "L'équipe HASHCODE",
   ].join("\n");
   const inner = [
     `<tr><td style="padding:24px 32px 28px 32px;background-color:#141414;">`,
     monoLabel("VÉRIFIE TON EMAIL"),
-    `<h1 style="margin:0 0 12px 0;font-family:${MAIL_FONT};font-size:24px;line-height:1.25;font-weight:800;color:#F8FAFC;">Ton code, ${safeName}.</h1>`,
-    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">Saisis ce code dans le formulaire pour confirmer ton adresse email. Il expire dans 10 minutes.</p>`,
-    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;background-color:#0A0A0A;border:1px solid #333B1E;border-radius:8px;">`,
-    `<tr><td align="center" style="padding:20px 16px;">`,
-    `<div style="font-family:${MAIL_FONT};font-size:32px;font-weight:800;letter-spacing:8px;color:#C5F441;margin:0;">${safeCode}</div>`,
-    `</td></tr></table>`,
-    `<p style="margin:0;font-family:${MAIL_FONT};font-size:12px;line-height:1.6;color:#94A3B8;text-align:center;">Si tu n&apos;as pas demandé ce code, ignore cet e-mail.</p>`,
+    `<h1 style="margin:0 0 12px 0;font-family:${MAIL_FONT};font-size:24px;line-height:1.25;font-weight:800;color:#F8FAFC;">Un clic et c'est bon, ${safeName}.</h1>`,
+    `<p style="margin:0 0 20px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">Clique sur le bouton pour confirmer ton adresse email. Lien valide 24 heures.</p>`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;">`,
+    `<tr><td align="center" style="padding:0;">`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">`,
+    `<tr><td align="center" bgcolor="#C5F441" style="background-color:#C5F441;border-radius:8px;padding:14px 32px;">`,
+    `<a href="${safeUrl}" target="_blank" rel="noopener" style="font-family:${MAIL_FONT};font-size:16px;font-weight:800;color:#0A0A0A;text-decoration:none;display:inline-block;">Vérifier mon email</a>`,
+    `</td></tr>`,
+    `</table>`,
+    `</td></tr>`,
+    `</table>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:12px;line-height:1.6;color:#94A3B8;text-align:center;word-break:break-all;">Si le bouton ne fonctionne pas, copie ce lien :<br /><a href="${safeUrl}" target="_blank" rel="noopener" style="color:#C5F441;text-decoration:underline;">${safeUrl}</a></p>`,
+    `<p style="margin:0;font-family:${MAIL_FONT};font-size:12px;line-height:1.6;color:#94A3B8;text-align:center;">Si tu n&apos;as pas demandé ce lien, ignore cet e-mail.</p>`,
     `</td></tr>`,
   ].join("");
   const html = emailShell(
-    "Ton code de vérification HASHCODE — valide 10 minutes.",
+    "Vérifie ton email HASHCODE — 1 clic, valide 24 h.",
     inner,
   );
   return sendEmail({ to, subject, html, text });
@@ -593,16 +600,19 @@ export interface MagicLinkEmailInput {
   to: string;
   firstName: string;
   code: string;
+  url?: string;
 }
 
 export async function sendMagicLinkEmail({
   to,
   firstName,
   code,
+  url,
 }: MagicLinkEmailInput): Promise<SendEmailResult> {
   const name = firstName.trim() || "toi";
   const safeName = escapeHtml(name);
   const safeCode = escapeHtml(code.trim());
+  const safeUrl = url ? escapeHtml(url.trim()) : "";
   const subject = "Ton code de connexion HASHCODE";
   const text = [
     `Bonjour ${name},`,
@@ -610,6 +620,7 @@ export async function sendMagicLinkEmail({
     `Voici ton code de connexion : ${code.trim()}`,
     "",
     "Saisis-le sur la page de connexion pour accéder à ton compte. Il expire dans 15 minutes.",
+    ...(url ? ["", `Ou connecte-toi en 1 clic : ${url.trim()}`] : []),
     "",
     "Si tu n'as pas demandé ce code, ignore cet e-mail — ton compte reste sécurisé.",
     "",
@@ -624,6 +635,20 @@ export async function sendMagicLinkEmail({
     `<tr><td align="center" style="padding:20px 16px;">`,
     `<div style="font-family:${MAIL_FONT};font-size:32px;font-weight:800;letter-spacing:8px;color:#C5F441;margin:0;">${safeCode}</div>`,
     `</td></tr></table>`,
+    ...(safeUrl
+      ? [
+          `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;">`,
+          `<tr><td align="center" style="padding:0;">`,
+          `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">`,
+          `<tr><td align="center" bgcolor="#C5F441" style="background-color:#C5F441;border-radius:8px;padding:14px 32px;">`,
+          `<a href="${safeUrl}" target="_blank" rel="noopener" style="font-family:${MAIL_FONT};font-size:16px;font-weight:800;color:#0A0A0A;text-decoration:none;display:inline-block;">Se connecter en 1 clic</a>`,
+          `</td></tr>`,
+          `</table>`,
+          `</td></tr>`,
+          `</table>`,
+          `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:12px;line-height:1.6;color:#94A3B8;text-align:center;word-break:break-all;">Le bouton ne marche pas ? Colle ce lien :<br /><a href="${safeUrl}" target="_blank" rel="noopener" style="color:#C5F441;text-decoration:underline;">${safeUrl}</a></p>`,
+        ]
+      : []),
     `<p style="margin:0;font-family:${MAIL_FONT};font-size:12px;line-height:1.6;color:#94A3B8;text-align:center;">Si tu n&apos;as pas demandé ce code, ignore cet e-mail — ton compte reste sécurisé.</p>`,
     `</td></tr>`,
   ].join("");

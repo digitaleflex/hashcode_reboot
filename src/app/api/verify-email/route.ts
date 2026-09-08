@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
-import { requestEmailCode } from "@/lib/verify-email";
-import { sendVerificationEmail } from "@/lib/mail";
+import { requestEmailLink, confirmEmailLink, buildVerifyUrl } from "@/lib/verify-email";
+import { sendVerificationLinkEmail } from "@/lib/mail";
 
 export const runtime = "nodejs";
 
@@ -11,7 +11,7 @@ const sendSchema = z.object({
   firstName: z.string().trim().max(40).optional().default(""),
 });
 
-/** POST /api/verify-email — envoie un code OTP à 6 chiffres (public).
+/** POST /api/verify-email — envoie un lien magique 1-clic (public).
  * Anti-abus : 5 envois par IP toutes les 10 minutes + cooldown 60 s par email. */
 export async function POST(req: NextRequest) {
   const rl = await rateLimit(`verify-email:${rateKey(req)}`, {
@@ -47,11 +47,11 @@ export async function POST(req: NextRequest) {
   }
   const { email, firstName } = parsed.data;
 
-  const requested = await requestEmailCode(email);
+  const requested = await requestEmailLink(email);
   if (!requested.ok) {
     return NextResponse.json(
       {
-        error: `Code déjà envoyé. Réessaie dans ${requested.cooldownSec ?? 60} secondes.`,
+        error: `Lien déjà envoyé. Réessaie dans ${requested.cooldownSec ?? 60} secondes.`,
         code: "COOLDOWN",
         retryInSec: requested.cooldownSec ?? 60,
       },
@@ -62,14 +62,54 @@ export async function POST(req: NextRequest) {
   // Envoi fire-and-forget : on répond ok même si Resend échoue,
   // le client pourra redemander après le cooldown.
   try {
-    await sendVerificationEmail({
+    await sendVerificationLinkEmail({
       to: email,
       firstName: firstName || "toi",
-      code: requested.code,
+      url: buildVerifyUrl(requested.token),
     });
   } catch {
     /* email must never break the flow */
   }
 
-  return NextResponse.json({ ok: true, message: "Code envoyé. Vérifie ta boîte mail." });
+  return NextResponse.json({ ok: true, message: "Lien envoyé. Vérifie ta boîte mail (1 clic)." });
+}
+
+/** GET /api/verify-email?token=xxx — vérifie le lien magique (public, usage unique).
+ * Utilisé par la page /verify-email. */
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const token = (searchParams.get("token") || "").trim();
+  if (!token) {
+    return NextResponse.json(
+      { error: "Lien invalide.", code: "INVALID_LINK" },
+      { status: 422 },
+    );
+  }
+  const rl = await rateLimit(`verify-email-verify:${rateKey(req)}`, {
+    capacity: 10,
+    windowMs: 600000,
+  });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Trop de tentatives. Réessaie dans quelques minutes.", code: "RATE_LIMITED" },
+      {
+        status: 429,
+        headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) },
+      },
+    );
+  }
+  const result = await confirmEmailLink(token);
+  if (!result.ok) {
+    const expired = result.reason === "expired";
+    return NextResponse.json(
+      {
+        error: expired
+          ? "Lien expiré. Demande un nouveau lien."
+          : "Lien invalide. Demande un nouveau lien.",
+        code: expired ? "EXPIRED" : "INVALID_LINK",
+      },
+      { status: 422 },
+    );
+  }
+  return NextResponse.json({ ok: true, verified: true, email: result.email, message: "Email vérifié." });
 }
