@@ -44,9 +44,6 @@ export function useAdminKeyboardShortcuts(
 
       if (isInput && e.key !== "Escape") return;
 
-      // Ignore modifier key combos
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-
       const key = e.key.toLowerCase();
       const shortcut = shortcuts[key];
       if (shortcut) {

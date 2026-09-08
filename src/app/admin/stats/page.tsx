@@ -8,10 +8,12 @@ import { PendingApprovalsBanner } from "@/components/reboot/admin/PendingApprova
 import { fetchJson, isAbortError, withRetryAfter } from "@/components/reboot/admin/lib/fetchJson";
 import { AlertCircle, Clock } from "lucide-react";
 import { CohortRetention } from "@/components/reboot/admin/CohortRetention";
+import { useRouter } from "next/navigation";
 
 const POLL_MS = 30_000;
 
 export default function AdminStatsPage() {
+  const router = useRouter();
   const [stats, setStats] = React.useState<Stats | null>(null);
   const [funnel, setFunnel] = React.useState<FunnelData | null>(null);
   const [emailStats, setEmailStats] = React.useState<EmailStatsData | null>(null);
@@ -116,6 +118,9 @@ export default function AdminStatsPage() {
               filters={{}}
               onFilter={() => {}}
               onClearFilters={() => {}}
+              onSeeQueue={() => {
+                router.push("/admin/members?status=PENDING");
+              }}
             />
           )}
         </section>

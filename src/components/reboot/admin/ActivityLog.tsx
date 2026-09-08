@@ -4,6 +4,7 @@ import * as React from "react";
 import { MonoLabel } from "../shared";
 import { cn } from "@/lib/utils";
 import { fetchJson, isAbortError } from "./lib/fetchJson";
+import { useToast } from "@/hooks/use-toast";
 import { ActivityLogSkeleton } from "./skeletons/ActivityLogSkeleton";
 
 const EVENT_LABELS: Record<
@@ -39,28 +40,42 @@ export function ActivityLog() {
   >([]);
   const [loading, setLoading] = React.useState(true);
   const [expanded, setExpanded] = React.useState(false);
+  const { toast } = useToast();
 
-  const load = React.useCallback(async (showMore: boolean, signal?: AbortSignal) => {
-    try {
-      const { res, data } = await fetchJson(
-        `/api/admin/activity?limit=${showMore ? 50 : 12}`,
-        { cache: "no-store", signal },
+const load = React.useCallback(async (showMore: boolean, signal?: AbortSignal) => {
+  try {
+    const { res, data, error, code, retryAfterSec } = await fetchJson(
+      `/api/admin/activity?limit=${showMore ? 50 : 12}`,
+      { cache: "no-store", signal },
+    );
+    if (signal?.aborted) return;
+    if (res.ok) {
+      setEvents(
+        (data?.events ?? []) as {
+          id: string;
+          type: string;
+          ref: string | null;
+          createdAt: string;
+        }[],
       );
-      if (signal?.aborted) return;
-      if (res.ok)
-        setEvents(
-          (data?.events ?? []) as {
-            id: string;
-            type: string;
-            ref: string | null;
-            createdAt: string;
-          }[],
-        );
-    } catch (e) {
-      if (isAbortError(e)) return;
-      /* activity optionnel — pas d'erreur dure */
+    } else {
+      const msg = error ?? "Erreur de chargement de l'activité.";
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: msg,
+      });
     }
-  }, []);
+  } catch (e) {
+    if (isAbortError(e)) return;
+    console.warn(e);
+    toast({
+      variant: "destructive",
+      title: "Erreur",
+      description: "Erreur réseau.",
+    });
+  }
+}, [toast]);
 
   React.useEffect(() => {
     const ctrl = new AbortController();
