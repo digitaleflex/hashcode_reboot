@@ -186,9 +186,7 @@ export function DashboardSidebar({ firstName }: DashboardSidebarProps) {
 
   return (
     <>
-      /* ═══════════════════════════════════════
-       *  HAMBURGER MOBILE (FAB bottom-left)
-       * ═══════════════════════════════════════ */
+      {/* ── HAMBURGER MOBILE (FAB bottom-left) ── */}
       <button
         onClick={() => setMobileOpen(true)}
         className={cn(
@@ -202,9 +200,7 @@ export function DashboardSidebar({ firstName }: DashboardSidebarProps) {
         <Menu className="size-5" />
       </button>
 
-      /* ═══════════════════════════════════════
-       *  OVERLAY + DRAWER MOBILE
-       * ═══════════════════════════════════════ */
+      {/* ── OVERLAY + DRAWER MOBILE ── */}
       {mobileOpen && (
         <div
           className="md:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
@@ -221,7 +217,7 @@ export function DashboardSidebar({ firstName }: DashboardSidebarProps) {
           mobileOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        {/* Header drawer — Logo + prénom + bouton fermer */}
+        {/* Header drawer */}
         <div className="flex items-center justify-between px-4 h-14 border-b border-border/60 shrink-0">
           <div className="flex items-center gap-2.5 min-w-0">
             <Logo className="size-5 text-lime shrink-0" />
@@ -241,9 +237,7 @@ export function DashboardSidebar({ firstName }: DashboardSidebarProps) {
         {renderNav(false)}
       </aside>
 
-      /* ═══════════════════════════════════════
-       *  SIDEBAR DESKTOP (≥ md) — pliable
-       * ═══════════════════════════════════════ */
+      {/* ── SIDEBAR DESKTOP (≥ md) — pliable ── */}
       <aside
         className={cn(
           "hidden md:flex flex-col border-r border-border/60 bg-card/40 min-h-0",
@@ -251,7 +245,6 @@ export function DashboardSidebar({ firstName }: DashboardSidebarProps) {
           collapsed ? "w-[60px]" : "w-56",
         )}
       >
-        {/* Contenu nav */}
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {renderNav(collapsed)}
         </div>
