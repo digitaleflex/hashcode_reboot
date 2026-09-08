@@ -9,6 +9,8 @@ import {
   LogOut,
   MessageCircle,
   Calendar,
+  Menu,
+  X,
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { cn } from "@/lib/utils";
@@ -20,22 +22,47 @@ const NAV_ITEMS = [
   { label: "Paramètres", href: "/dashboard/settings", icon: Settings },
 ] as const;
 
-export function DashboardSidebar() {
+interface DashboardSidebarProps {
+  firstName?: string;
+  onLogout?: () => void;
+}
+
+export function DashboardSidebar({ firstName, onLogout }: DashboardSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const [mobileOpen, setMobileOpen] = React.useState(false);
 
-  return (
-    <aside className="hidden md:flex flex-col w-56 border-r border-border/60 bg-card/40 min-h-0">
+  // Fermer le drawer quand on navigue
+  React.useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  // Fermer avec Escape
+  React.useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileOpen(false);
+    };
+    if (mobileOpen) {
+      document.addEventListener("keydown", handleKey);
+      return () => document.removeEventListener("keydown", handleKey);
+    }
+  }, [mobileOpen]);
+
+  const navContent = (
+    <>
       <nav className="flex-1 py-4 px-3 space-y-1">
         {NAV_ITEMS.map((item) => {
           const active =
             item.href === "/dashboard"
-              ? pathname === "/dashboard"
+              ? pathname === "/dashboard" || pathname === "/dashboard/"
               : pathname.startsWith(item.href);
           return (
             <button
               key={item.href}
-              onClick={() => router.push(item.href)}
+              onClick={() => {
+                router.push(item.href);
+                setMobileOpen(false);
+              }}
               className={cn(
                 "w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors cursor-pointer",
                 active
@@ -61,6 +88,59 @@ export function DashboardSidebar() {
           WhatsApp
         </a>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* ── Hamburger mobile (visible < md) ── */}
+      <button
+        onClick={() => setMobileOpen(true)}
+        className="md:hidden fixed bottom-4 left-4 z-50 size-12 rounded-full bg-lime text-background flex items-center justify-center shadow-lg hover:bg-lime/90 transition-colors cursor-pointer"
+        aria-label="Ouvrir le menu"
+      >
+        <Menu className="size-5" />
+      </button>
+
+      {/* ── Overlay mobile ── */}
+      {mobileOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* ── Drawer mobile ── */}
+      <aside
+        className={cn(
+          "md:hidden fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border/60 flex flex-col transform transition-transform duration-200 ease-out",
+          mobileOpen ? "translate-x-0" : "-translate-x-full",
+        )}
+      >
+        {/* Header drawer */}
+        <div className="flex items-center justify-between px-4 h-14 border-b border-border/60">
+          <div className="flex items-center gap-2">
+            <Logo className="size-5 text-lime" />
+            {firstName && (
+              <span className="text-sm font-medium truncate">{firstName}</span>
+            )}
+          </div>
+          <button
+            onClick={() => setMobileOpen(false)}
+            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
+            aria-label="Fermer le menu"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+
+        {navContent}
+      </aside>
+
+      {/* ── Sidebar desktop (visible >= md) ── */}
+      <aside className="hidden md:flex flex-col w-56 border-r border-border/60 bg-card/40 min-h-0">
+        {navContent}
+      </aside>
+    </>
   );
 }
