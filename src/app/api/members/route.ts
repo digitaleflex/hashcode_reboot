@@ -54,9 +54,15 @@ export async function POST(req: NextRequest) {
   }
   const data = parsed.data;
 
-  // Blacklist check : si l'email est blacklisté, on bloque l'inscription.
-  // Anti-énumération : message générique (pas de mention de "blacklist").
-  const blacklisted = await isEmailBlacklisted(data.email);
+  // Blacklist + dédup en parallèle (2 lectures indépendantes).
+  // Anti-énumération : messages génériques, sans memberId ni statuts.
+  const [blacklisted, existing] = await Promise.all([
+    isEmailBlacklisted(data.email),
+    db.member.findUnique({
+      where: { email: data.email },
+      select: { id: true },
+    }),
+  ]);
   if (blacklisted) {
     // Log interne pour debug, mais pas de leak côté client
     console.warn(
@@ -73,12 +79,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Anti-duplication: if email exists, surface a clean "already started" state.
-  // Anti-énumération : réponse minimale, sans memberId ni statuts — le client
-  // affiche le profil LOCAL (voir page.tsx, branche duplicate).
-  const existing = await db.member.findUnique({
-    where: { email: data.email },
-    select: { id: true },
-  });
+  // Le client affiche le profil LOCAL (voir page.tsx, branche duplicate).
   if (existing) {
     return NextResponse.json(
       {
@@ -135,74 +136,53 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Server-side funnel event (member now exists).
-  try {
-    await db.analyticsEvent.create({
+  // Écritures secondaires en parallèle (analytics + draft) — jamais bloquantes.
+  await Promise.allSettled([
+    db.analyticsEvent.create({
       data: {
         type: "profil_generated",
         memberId: created.id,
         ref: controls.accessLane,
       },
-    });
-  } catch {
-    /* analytics must never break the flow */
-  }
-
-  // Mark the profiling draft as completed — no more relance for this email.
-  try {
-    await db.profilingDraft.updateMany({
+    }),
+    db.profilingDraft.updateMany({
       where: { email: data.email.toLowerCase(), completedAt: null },
       data: { completedAt: new Date() },
-    });
-  } catch {
-    /* draft cleanup must never break the flow */
-  }
+    }),
+  ]);
 
-  // Emails réels : fire-and-forget, jamais bloquant.
-  // Vérification à la fin : 2e email avec lien magique 1-clic (valide 24 h).
-  try {
-    const link = await requestEmailLink(data.email);
-    if (link.ok) {
-      await sendVerificationLinkEmail({
-        to: data.email,
-        firstName: data.firstName,
-        url: buildVerifyUrl(link.token),
-      });
-    }
-  } catch {
-    /* email must never break the flow */
-  }
-  if (created.accessLane === "immediate") {
-    // Welcome + invitation pour accès immédiat
+  // Emails en arrière-plan : on répond 201 sans attendre les providers
+  // (chaque envoi a son timeout 8s — les await séquentiels coûtaient jusqu'à 24s de TTFB).
+  const email = data.email;
+  const firstName = data.firstName;
+  const archetype = generated.archetype;
+  const lane = created.accessLane;
+  void (async () => {
     try {
-      await sendWelcomeEmail({
-        to: data.email,
-        firstName: data.firstName,
-        archetype: generated.archetype,
-      });
+      const link = await requestEmailLink(email);
+      if (link.ok) {
+        await sendVerificationLinkEmail({
+          to: email,
+          firstName,
+          url: buildVerifyUrl(link.token),
+        });
+      }
     } catch {
       /* email must never break the flow */
     }
-    try {
-      await sendInvitationEmail({
-        to: data.email,
-        firstName: data.firstName,
-        whatsappUrl: WHATSAPP_URL,
-      });
-    } catch {
-      /* email must never break the flow */
+    if (lane === "immediate") {
+      await Promise.allSettled([
+        sendWelcomeEmail({ to: email, firstName, archetype }),
+        sendInvitationEmail({ to: email, firstName, whatsappUrl: WHATSAPP_URL }),
+      ]);
+    } else {
+      try {
+        await sendWaitlistEmail({ to: email, firstName });
+      } catch {
+        /* email must never break the flow */
+      }
     }
-  } else {
-    // Email waitlist pour validation en attente
-    try {
-      await sendWaitlistEmail({
-        to: data.email,
-        firstName: data.firstName,
-      });
-    } catch {
-      /* email must never break the flow */
-    }
-  }
+  })();
 
   return NextResponse.json(
     {
