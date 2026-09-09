@@ -6,6 +6,7 @@ import { sendEventNotificationEmail } from "@/lib/mail";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { validateEventPatch, notifyWhere } from "@/lib/events-validation";
 import { audit } from "@/lib/admin-audit";
+import { blockIfTesting } from "@/lib/test-guard";
 
 export const runtime = "nodejs";
 
@@ -64,6 +65,8 @@ export async function GET(req: NextRequest, { params }: Params) {
  * Si notify=true : renotifie tous les APPROVED (comme à la création).
  */
 export async function PATCH(req: NextRequest, { params }: Params) {
+  const blocked = blockIfTesting();
+  if (blocked) return blocked;
   const rl = await rateLimit(`events-patch:${rateKey(req)}`, {
     capacity: 20,
     windowMs: 600000,
@@ -197,6 +200,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
  * Les RSVP sont supprimés en cascade (onDelete: Cascade).
  */
 export async function DELETE(req: NextRequest, { params }: Params) {
+  const blocked = blockIfTesting();
+  if (blocked) return blocked;
   if (!requireAdminRole(req, "operator")) {
     return NextResponse.json(
       { error: "Accès refusé. Rôle operator requis.", code: "FORBIDDEN" },

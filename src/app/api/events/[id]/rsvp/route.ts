@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/account-auth";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { blockIfTesting } from "@/lib/test-guard";
 
 export const runtime = "nodejs";
 
@@ -14,6 +15,8 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const blocked = blockIfTesting();
+  if (blocked) return blocked;
   const session = await getSession(req);
   if (!session) {
     return NextResponse.json(
@@ -111,6 +114,8 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const blocked = blockIfTesting();
+  if (blocked) return blocked;
   const session = await getSession(req);
   if (!session) {
     return NextResponse.json(

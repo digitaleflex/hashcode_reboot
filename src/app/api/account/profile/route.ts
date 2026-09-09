@@ -3,6 +3,7 @@ import { z } from "zod";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { getSession } from "@/lib/account-auth";
 import { db } from "@/lib/db";
+import { blockIfTesting } from "@/lib/test-guard";
 
 export const runtime = "nodejs";
 
@@ -46,6 +47,8 @@ const updateSchema = z.object({
 });
 
 export async function PATCH(req: NextRequest) {
+  const blocked = blockIfTesting();
+  if (blocked) return blocked;
   const rl = await rateLimit(`account-update:${rateKey(req)}`, {
     capacity: 10,
     windowMs: 10 * 60 * 1000,

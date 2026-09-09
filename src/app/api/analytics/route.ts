@@ -5,6 +5,7 @@ import { EVENT_TYPES } from "@/lib/analytics";
 import { isAdminAuthed } from "@/lib/admin-auth";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { subDays } from "date-fns";
+import { blockIfTesting } from "@/lib/test-guard";
 
 export const runtime = "nodejs";
 
@@ -19,6 +20,8 @@ const eventSchema = z.object({
 
 /** POST /api/analytics — record a funnel event. */
 export async function POST(req: NextRequest) {
+  const blocked = blockIfTesting();
+  if (blocked) return blocked;
   // Anti-abus : 120 événements par IP toutes les 10 minutes.
   // refillPerSec = 1/5 req/sec = 12 req/min = 120 req/10min (window)
   const rl = await rateLimit(`analytics:${rateKey(req)}`, {

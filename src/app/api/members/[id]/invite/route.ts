@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireAdminRole } from "@/lib/admin-auth";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { WHATSAPP_URL } from "@/lib/profiling/auto-controls";
+import { blockIfTesting } from "@/lib/test-guard";
 
 export const runtime = "nodejs";
 
@@ -15,6 +16,8 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const blocked = blockIfTesting();
+  if (blocked) return blocked;
   if (!requireAdminRole(req, "operator")) {
     return NextResponse.json(
       { error: "Opérateur requis.", code: "FORBIDDEN" },

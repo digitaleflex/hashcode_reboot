@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { blockIfTesting } from "@/lib/test-guard";
 
 export const runtime = "nodejs";
 
@@ -31,6 +32,8 @@ const phoneFillSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const blocked = blockIfTesting();
+  if (blocked) return blocked;
   const rl = await rateLimit(`phone-fill:${rateKey(req)}`, {
     capacity: 5,
     windowMs: 10 * 60 * 1000,
