@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { fetchJson, isAbortError, withRetryAfter } from "@/components/reboot/admin/lib/fetchJson";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { AdminEventList } from "./_components/AdminEventList";
 
 const TYPE_OPTIONS = [
   { value: "session", label: "Session" },
@@ -54,6 +55,7 @@ export default function AdminEventsPage() {
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [success, setSuccess] = React.useState(false);
+  const [refreshSignal, setRefreshSignal] = React.useState(0);
 
   const [form, setForm] = React.useState({
     title: "",
@@ -132,6 +134,7 @@ export default function AdminEventsPage() {
 
       // Invalidate cache
       queryClient.invalidateQueries({ queryKey: ["events"] });
+      setRefreshSignal((n) => n + 1);
     } catch (err) {
       if (isAbortError(err)) return;
       const msg = err instanceof Error ? err.message : "Erreur inconnue";
@@ -143,15 +146,28 @@ export default function AdminEventsPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="font-display font-bold text-2xl tracking-tight">
-          Nouvel événement
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Créer un événement et notifier tous les membres approuvés.
-        </p>
-      </header>
+    <div className="space-y-8">
+      <section className="space-y-4">
+        <header>
+          <h1 className="font-display font-bold text-2xl tracking-tight">
+            Événements
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Pilote l&apos;agenda membre : statuts, édition, renotification, suppression.
+          </p>
+        </header>
+        <AdminEventList refreshSignal={refreshSignal} />
+      </section>
+
+      <section className="space-y-6">
+        <header>
+          <h2 className="font-display font-bold text-xl tracking-tight">
+            Nouvel événement
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Créer un événement et notifier tous les membres approuvés.
+          </p>
+        </header>
 
       {success && (
         <div className="flex items-center gap-2 rounded-md bg-green-500/10 border border-green-500/30 px-4 py-3 text-sm text-green-400">
@@ -376,6 +392,7 @@ export default function AdminEventsPage() {
           </button>
         </div>
       </form>
+      </section>
     </div>
   );
 }

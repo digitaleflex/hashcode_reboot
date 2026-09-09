@@ -8,11 +8,13 @@ import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 export const runtime = "nodejs";
 
 /**
- * GET /api/events — liste les événements à venir (membres connectés).
+ * GET /api/events — liste les événements à venir (membres connectés ou admin).
+ * Admin : ?status=all pour tout voir (y compris past/cancelled/completed).
  */
 export async function GET(req: NextRequest) {
   const session = await getSession(req);
-  if (!session) {
+  const isAdmin = requireAdminRole(req, "viewer");
+  if (!session && !isAdmin) {
     return NextResponse.json(
       { error: "Non authentifié.", code: "UNAUTHENTICATED" },
       { status: 401 },
@@ -27,13 +29,22 @@ export async function GET(req: NextRequest) {
   const memberIdParam = url.searchParams.get("memberId");
   // memberId=me → membre connecté (utilisé par /dashboard/agenda et AgendaCard)
   const memberId =
-    memberIdParam === "me" ? session.member.id : memberIdParam;
+    memberIdParam === "me" ? (session?.member.id ?? null) : memberIdParam;
 
   // Filtres
   const where: Record<string, unknown> = {};
 
-  // Par défaut, ne montrer que les événements scheduled/live à venir
-  if (!status || status === "upcoming") {
+  // Admin avec status=all → tout voir (gestion)
+  if (status === "all") {
+    if (!isAdmin) {
+      return NextResponse.json(
+        { error: "Accès refusé.", code: "FORBIDDEN" },
+        { status: 403 },
+      );
+    }
+    // pas de filtre status/date → tous les events
+  } else if (!status || status === "upcoming") {
+    // Par défaut, ne montrer que les événements scheduled/live à venir
     where.status = { in: ["scheduled", "live"] };
     where.startsAt = { gte: new Date() };
   } else if (status === "past") {
@@ -64,9 +75,14 @@ export async function GET(req: NextRequest) {
   // Enrichir avec le count et le RSVP du membre courant
   const enriched = await Promise.all(
     events.map(async (event) => {
-      const goingCount = await db.eventRsvp.count({
-        where: { eventId: event.id, status: "going" },
-      });
+      const [goingCount, maybeCount] = await Promise.all([
+        db.eventRsvp.count({
+          where: { eventId: event.id, status: "going" },
+        }),
+        db.eventRsvp.count({
+          where: { eventId: event.id, status: "maybe" },
+        }),
+      ]);
       let myRsvp: string | null = null;
       if (memberId) {
         const rsvp = await db.eventRsvp.findUnique({
@@ -91,6 +107,7 @@ export async function GET(req: NextRequest) {
         maxAttendees: event.maxAttendees,
         notifiedAt: event.notifiedAt,
         goingCount,
+        maybeCount,
         myRsvp,
       };
     }),
