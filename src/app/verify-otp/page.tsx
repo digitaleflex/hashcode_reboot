@@ -270,6 +270,9 @@ function VerifyOtpForm() {
               ? `Renvoyer le code (${resendCooldown}s)`
               : "Renvoyer le code"}
           </button>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Rien reçu ? Vérifie tes spams, puis renvoie un code.
+          </p>
         </div>
       </form>
     </div>
