@@ -13,11 +13,41 @@ import { rateKey } from "./rate-limit-key";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 
-// Redis-backed rate limiter with in-memory fallback
-const redis = new Redis({
-  url: process.env.KV_REST_API_URL!,
-  token: process.env.KV_REST_API_TOKEN!
-});
+// Redis client lazy (évite le crash à l'import si les vars sont absentes —
+// le fallback mémoire prend alors le relais via le catch de rateLimit()).
+let cachedRedis: Redis | null | undefined;
+function getRedis(): Redis {
+  if (cachedRedis !== undefined) {
+    if (cachedRedis === null) throw new Error("Redis not configured");
+    return cachedRedis;
+  }
+  const url = process.env.KV_REST_API_URL;
+  const token = process.env.KV_REST_API_TOKEN;
+  if (!url || !token) {
+    cachedRedis = null;
+    throw new Error("Redis not configured");
+  }
+  cachedRedis = new Redis({ url, token });
+  return cachedRedis;
+}
+
+// Singletons Ratelimit par (capacité, fenêtre) — évite new Ratelimit + new Map
+// à chaque requête. ephemeralCache partagé : utile uniquement s'il survit
+// entre les appels.
+const limiterCache = new Map<string, Ratelimit>();
+const sharedEphemeralCache = new Map();
+function getLimiter(capacity: number, windowSec: number): Ratelimit {
+  const cacheKey = `${capacity}:${windowSec}`;
+  const cached = limiterCache.get(cacheKey);
+  if (cached) return cached;
+  const limiter = new Ratelimit({
+    redis: getRedis(),
+    limiter: Ratelimit.slidingWindow(capacity, `${Math.max(1, windowSec)} s`),
+    ephemeralCache: sharedEphemeralCache,
+  });
+  limiterCache.set(cacheKey, limiter);
+  return limiter;
+}
 
 /** Configuration for a rate limit. */
 interface RateLimitConfig {
@@ -82,16 +112,11 @@ function memoryRateLimit(key: string, config: RateLimitConfig): RateLimitResult 
  * @param config - Capacity and window configuration.
  */
 export async function redisRateLimit(key: string, config: RateLimitConfig): Promise<RateLimitResult> {
-  // Upstash's current API accepts the identifier only; create the limiter
-  // from the caller's configuration instead of passing unsupported arguments.
-  const limiter = new Ratelimit({
-    redis,
-    limiter: Ratelimit.slidingWindow(
-      config.capacity,
-      `${Math.max(1, Math.ceil(config.windowMs / 1000))} s`,
-    ),
-    ephemeralCache: new Map(),
-  });
+  // Singleton par (capacité, fenêtre) — pas d'alloc par requête.
+  const limiter = getLimiter(
+    config.capacity,
+    Math.max(1, Math.ceil(config.windowMs / 1000)),
+  );
   const result = await limiter.limit(key);
   return {
     ok: result.success,
