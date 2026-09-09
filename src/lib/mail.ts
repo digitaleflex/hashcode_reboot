@@ -684,6 +684,10 @@ function getAccountUrlForEmail(): string {
   const base = process.env.NEXT_PUBLIC_SITE_URL || "https://reboot.joinhashcode.com";
   return `${base}/account`;
 }
+function getLoginUrlForEmail(): string {
+  const base = process.env.NEXT_PUBLIC_SITE_URL || "https://reboot.joinhashcode.com";
+  return `${base}/login`;
+}
 
 /**
  * Envoie un email au membre quand son statut change.
@@ -725,6 +729,9 @@ export async function sendStatusChangeEmail({
       "• Les sessions pratiques de la communauté",
       "• Les annonces et événements",
       "• Les autres membres qui avancent comme toi",
+      "",
+      "Nouveau : ton espace membre est en ligne. Suis ta progression et retrouve l'agenda ici :",
+      getLoginUrlForEmail(),
       "",
       "On a hâte de te compter parmi nous.",
       "",
@@ -777,6 +784,12 @@ function approvedHtml(safeName: string, archetype: string | null | undefined) {
     `<tr><td align="center" style="padding:16px 12px;">`,
     `<a href="${escapeHtml(getWhatsAppUrlForEmail())}" style="display:inline-block;padding:12px 24px;background-color:#C5F441;color:#0A0A0A;text-decoration:none;font-family:${MAIL_FONT};font-size:14px;font-weight:700;border-radius:6px;">Rejoindre le groupe WhatsApp</a>`,
     `</td></tr></table>`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;background-color:#0A0A0A;border:1px solid #262626;border-radius:8px;">`,
+    `<tr><td style="padding:14px 16px;">`,
+    `<div style="font-family:${MAIL_FONT};font-size:13px;font-weight:700;color:#F8FAFC;margin:0 0 4px 0;">Nouveau : ton espace membre</div>`,
+    `<div style="font-family:${MAIL_FONT};font-size:13px;line-height:1.6;color:#94A3B8;margin:0 0 12px 0;">Suis ta progression, retrouve l'agenda des sessions et gère ton profil.</div>`,
+    `<a href="${escapeHtml(getLoginUrlForEmail())}" style="display:inline-block;padding:12px 24px;background-color:transparent;border:1px solid #C5F441;color:#C5F441;text-decoration:none;font-family:${MAIL_FONT};font-size:14px;font-weight:700;border-radius:6px;">Voir mon dashboard</a>`,
+    `</td></tr></table>`,
     `<p style="margin:0;font-family:${MAIL_FONT};font-size:12px;line-height:1.6;color:#94A3B8;">Tu peux aussi gérer ton profil sur <a href="${escapeHtml(getAccountUrlForEmail())}" style="color:#C5F441;">ton espace HASHCODE</a>.</p>`,
     `</td></tr>`,
   ].join("");
@@ -802,6 +815,78 @@ function rejectedHtml(safeName: string) {
     `<p style="margin:0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">Tu peux mettre à jour tes informations et repasser la validation à tout moment depuis <a href="${escapeHtml(getAccountUrlForEmail())}" style="color:#C5F441;">ton espace HASHCODE</a>.</p>`,
     `</td></tr>`,
   ].join("");
+}
+
+/* ── Annonce Dashboard (nouveauté pour les membres existants) ─────────────── */
+
+export interface DashboardInviteEmailInput {
+  to: string;
+  firstName: string;
+  /** Lien magique 1-clic vers /verify-otp (valide 72 h). */
+  url: string;
+}
+
+/**
+ * Annonce l'arrivée de l'espace membre aux inscrits existants.
+ * Inclut un lien magique 1-clic (valide 72 h) + repli vers /login si expiré.
+ */
+export async function sendDashboardInviteEmail({
+  to,
+  firstName,
+  url,
+}: DashboardInviteEmailInput): Promise<SendEmailResult> {
+  const name = firstName.trim() || "toi";
+  const safeName = escapeHtml(name);
+  const safeUrl = escapeHtml(url.trim());
+  const loginUrl = escapeHtml(getLoginUrlForEmail());
+  const subject = "Nouveau : ton espace membre HASHCODE est en ligne";
+  const text = [
+    `Bonjour ${name},`,
+    "",
+    "Bonne nouvelle : ton espace membre HASHCODE est en ligne.",
+    "",
+    "Tu y retrouveras :",
+    "• Ton profil et ton positionnement dans la communauté",
+    "• L'agenda des prochaines sessions",
+    "• Ton objectif à 3 mois, modifiable à tout moment",
+    "",
+    "Connecte-toi en 1 clic (lien valide 72 heures) :",
+    url.trim(),
+    "",
+    "Lien expiré ? Demande un nouveau code ici :",
+    getLoginUrlForEmail(),
+    "",
+    "À très vite sur ton dashboard,",
+    "L'équipe HASHCODE",
+  ].join("\n");
+  const inner = [
+    `<tr><td style="padding:24px 32px 28px 32px;background-color:#141414;">`,
+    monoLabel("NOUVEAUTÉ"),
+    `<h1 style="margin:0 0 12px 0;font-family:${MAIL_FONT};font-size:24px;line-height:1.25;font-weight:800;color:#F8FAFC;">Ton espace est prêt, ${safeName}.</h1>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">Ton espace membre HASHCODE est en ligne. Suis ta progression, retrouve l'agenda et gère ton profil.</p>`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;">`,
+    `<tr><td align="center" style="padding:0;">`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">`,
+    `<tr><td align="center" bgcolor="#C5F441" style="background-color:#C5F441;border-radius:8px;padding:14px 32px;">`,
+    `<a href="${safeUrl}" target="_blank" rel="noopener" style="font-family:${MAIL_FONT};font-size:16px;font-weight:800;color:#0A0A0A;text-decoration:none;display:inline-block;">Voir mon dashboard</a>`,
+    `</td></tr>`,
+    `</table>`,
+    `</td></tr>`,
+    `</table>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:12px;line-height:1.6;color:#94A3B8;text-align:center;">Lien valide 72 heures. Expiré ? <a href="${loginUrl}" target="_blank" rel="noopener" style="color:#C5F441;text-decoration:underline;">Demande un nouveau code ici</a>.</p>`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0;background-color:#0A0A0A;border:1px solid #262626;border-radius:8px;">`,
+    `<tr><td style="padding:14px 16px;">`,
+    `<div style="font-family:${MAIL_FONT};font-size:13px;font-weight:700;color:#F8FAFC;margin:0 0 4px 0;">Dans ton espace</div>`,
+    `<div style="font-family:${MAIL_FONT};font-size:13px;line-height:1.6;color:#94A3B8;margin:0;">• Ton profil et ton positionnement<br/>• L'agenda des prochaines sessions<br/>• Ton objectif à 3 mois, modifiable</div>`,
+    `</td></tr></table>`,
+    `<p style="margin:20px 0 0 0;font-family:${MAIL_FONT};font-size:14px;line-height:1.6;color:#F8FAFC;">À très vite,<br /><span style="color:#94A3B8;">L'équipe HASHCODE</span></p>`,
+    `</td></tr>`,
+  ].join("");
+  const html = emailShell(
+    "Ton espace membre HASHCODE est en ligne — connecte-toi en 1 clic.",
+    inner,
+  );
+  return sendEmail({ to, subject, html, text });
 }
 
 /**

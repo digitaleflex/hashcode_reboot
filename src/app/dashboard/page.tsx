@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { buildAccountData } from "@/lib/account-data";
 import { WelcomeCard } from "./_components/WelcomeCard";
@@ -14,12 +15,12 @@ export default async function DashboardPage() {
   const session = await import("@/lib/account-auth").then((m) =>
     m.getSession(),
   );
-  if (!session) return null;
+  if (!session) redirect("/login?next=/dashboard");
 
   const member = await db.member.findUnique({
     where: { id: session.member.id },
   });
-  if (!member || member.deletedAt) return null;
+  if (!member || member.deletedAt) redirect("/login?next=/dashboard");
 
   const data = buildAccountData(member);
 
