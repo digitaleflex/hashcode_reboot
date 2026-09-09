@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/account-auth";
-import { requireAdminRole, checkCSRF } from "@/lib/admin-auth";
+import { requireAdminRole, checkCSRF, readAdminCookie, getAdminRoleFromToken } from "@/lib/admin-auth";
 import { sendEventNotificationEmail } from "@/lib/mail";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { validateEventCreate, notifyWhere } from "@/lib/events-validation";
+import { audit } from "@/lib/admin-audit";
 
 export const runtime = "nodejs";
 
@@ -165,91 +167,73 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const {
-    title,
-    description,
-    startsAt,
-    endsAt,
-    location,
-    url,
-    type,
-    domain,
-    level,
-    recurrence,
-    recurrenceId,
-    maxAttendees,
-    notify,
-  } = body;
+  const { notify } = body;
 
-  // Validation
-  if (!title || typeof title !== "string" || title.trim().length < 3) {
+  // Validation stricte partagée (enums, longueurs, dates, url, capacité).
+  const validated = validateEventCreate(body);
+  if (!validated.ok) {
     return NextResponse.json(
-      { error: "Titre requis (min 3 caractères).", code: "INVALID_PAYLOAD" },
+      { error: validated.error, code: "INVALID_PAYLOAD" },
       { status: 422 },
     );
   }
-
-  if (!startsAt || isNaN(Date.parse(String(startsAt)))) {
-    return NextResponse.json(
-      { error: "Date de début invalide.", code: "INVALID_PAYLOAD" },
-      { status: 422 },
-    );
-  }
-
-  if (endsAt && isNaN(Date.parse(String(endsAt)))) {
-    return NextResponse.json(
-      { error: "Date de fin invalide.", code: "INVALID_PAYLOAD" },
-      { status: 422 },
-    );
-  }
+  const v = validated.data;
 
   const event = await db.event.create({
     data: {
-      title: String(title).trim(),
-      description: description ? String(description).trim() : null,
-      startsAt: new Date(String(startsAt)),
-      endsAt: endsAt ? new Date(String(endsAt)) : null,
-      location: location ? String(location).trim() : null,
-      url: url ? String(url).trim() : null,
-      type: String(type || "session"),
-      domain: domain ? String(domain) : null,
-      level: level ? String(level) : null,
-      recurrence: recurrence ? String(recurrence) : null,
-      recurrenceId: recurrenceId ? String(recurrenceId) : null,
-      maxAttendees: maxAttendees ? Number(maxAttendees) : null,
+      title: v.title,
+      description: v.description,
+      startsAt: v.startsAt,
+      endsAt: v.endsAt,
+      location: v.location,
+      url: v.url,
+      type: v.type,
+      domain: v.domain,
+      level: v.level,
+      recurrence: v.recurrence,
+      recurrenceId: v.recurrenceId,
+      maxAttendees: v.maxAttendees,
     },
-    select: { id: true, title: true, startsAt: true },
+    select: { id: true, title: true, startsAt: true, domain: true, level: true },
   });
+
+  // Audit (fire-and-forget, ne casse jamais la création).
+  void audit(
+    "event.create",
+    "event",
+    event.id,
+    { title: event.title },
+    { type: "admin", role: getAdminRoleFromToken(readAdminCookie(req)) ?? "operator" },
+  );
 
   // Notification email en masse (fire-and-forget)
   if (notify !== false) {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://joinhashcode.com";
     const rsvpUrl = `${siteUrl}/dashboard/agenda`;
 
-    // Récupérer tous les membres approuvés avec email
+    // Destinataires ciblés : APPROVED restreints au domaine/niveau
+    // de l'event quand renseignés (même filtre que notify-count).
     const members = await db.member.findMany({
-      where: {
-        profileStatus: "APPROVED",
-        deletedAt: null,
-      },
+      where: notifyWhere({ domain: v.domain, level: v.level }),
       select: { email: true, firstName: true },
     });
 
     // Fire-and-forget: on n'attend pas chaque envoi.
     // Lots de 10 en parallèle (au lieu d'1 par 1) pour les grosses listes.
+    const notifyPayload = {
+      title: v.title,
+      description: v.description,
+      startsAt: v.startsAt,
+      endsAt: v.endsAt,
+      location: v.location,
+      type: v.type,
+      domain: v.domain,
+      level: v.level,
+    };
     const notifyPromise = (async () => {
       let sent = 0;
       let failed = 0;
-      const payload = {
-        title: String(title).trim(),
-        description: description ? String(description).trim() : null,
-        startsAt: new Date(String(startsAt)),
-        endsAt: endsAt ? new Date(String(endsAt)) : null,
-        location: location ? String(location).trim() : null,
-        type: String(type || "session"),
-        domain: domain ? String(domain) : null,
-        level: level ? String(level) : null,
-      };
+      const payload = notifyPayload;
       for (let i = 0; i < members.length; i += 10) {
         const chunk = members.slice(i, i + 10);
         const results = await Promise.allSettled(
@@ -277,6 +261,13 @@ export async function POST(req: NextRequest) {
 
     // Ne pas bloquer la réponse — le client reçoit l'event immédiatement
     notifyPromise.catch((err) => console.error("[events] Notify error:", err));
+    void audit(
+      "event.notify",
+      "event",
+      event.id,
+      { title: event.title, recipients: members.length },
+      { type: "admin", role: getAdminRoleFromToken(readAdminCookie(req)) ?? "operator" },
+    );
 
     return NextResponse.json(
       {

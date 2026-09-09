@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/account-auth";
-import { requireAdminRole, checkCSRF } from "@/lib/admin-auth";
+import { requireAdminRole, checkCSRF, readAdminCookie, getAdminRoleFromToken } from "@/lib/admin-auth";
 import { sendEventNotificationEmail } from "@/lib/mail";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { validateEventPatch, notifyWhere } from "@/lib/events-validation";
+import { audit } from "@/lib/admin-audit";
 
 export const runtime = "nodejs";
 
@@ -54,12 +56,6 @@ export async function GET(req: NextRequest, { params }: Params) {
     myRsvp,
   });
 }
-
-const VALID_TYPES = ["session", "workshop", "meetup", "webinar", "other"];
-const VALID_DOMAINS = ["web", "cybersecurity", "ai"];
-const VALID_LEVELS = ["beginner", "practicing", "autonomous", "advanced"];
-const VALID_STATUS = ["scheduled", "live", "completed", "cancelled"];
-const VALID_RECURRENCE = ["weekly", "biweekly", "monthly"];
 
 /**
  * PATCH /api/events/[id] — modifie un événement (admin operator uniquement).
@@ -114,118 +110,34 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     );
   }
 
-  const data: Record<string, unknown> = {};
+  // Validation stricte partagée (mêmes règles que la création).
+  // `notify: true` seul est valide (renotification sans modification).
+  const validated = validateEventPatch(body, {
+    startsAt: existing.startsAt,
+    endsAt: existing.endsAt,
+  });
+  if (!validated.ok) {
+    return NextResponse.json(
+      { error: validated.error, code: "INVALID_PAYLOAD" },
+      { status: 422 },
+    );
+  }
+  const data = validated.data;
 
-  if (body.title !== undefined) {
-    if (typeof body.title !== "string" || body.title.trim().length < 3) {
-      return NextResponse.json(
-        { error: "Titre requis (min 3 caractères).", code: "INVALID_PAYLOAD" },
-        { status: 422 },
-      );
-    }
-    data.title = body.title.trim();
-  }
-  if (body.description !== undefined) {
-    data.description =
-      body.description === null ? null : String(body.description).trim() || null;
-  }
-  if (body.startsAt !== undefined) {
-    if (!body.startsAt || isNaN(Date.parse(String(body.startsAt)))) {
-      return NextResponse.json(
-        { error: "Date de début invalide.", code: "INVALID_PAYLOAD" },
-        { status: 422 },
-      );
-    }
-    data.startsAt = new Date(String(body.startsAt));
-  }
-  if (body.endsAt !== undefined) {
-    if (body.endsAt !== null && isNaN(Date.parse(String(body.endsAt)))) {
-      return NextResponse.json(
-        { error: "Date de fin invalide.", code: "INVALID_PAYLOAD" },
-        { status: 422 },
-      );
-    }
-    data.endsAt = body.endsAt ? new Date(String(body.endsAt)) : null;
-  }
-  if (body.location !== undefined) {
-    data.location =
-      body.location === null ? null : String(body.location).trim() || null;
-  }
-  if (body.url !== undefined) {
-    data.url = body.url === null ? null : String(body.url).trim() || null;
-  }
-  if (body.type !== undefined) {
-    if (!VALID_TYPES.includes(String(body.type))) {
-      return NextResponse.json(
-        { error: "Type invalide.", code: "INVALID_PAYLOAD" },
-        { status: 422 },
-      );
-    }
-    data.type = String(body.type);
-  }
-  if (body.domain !== undefined) {
-    if (body.domain !== null && !VALID_DOMAINS.includes(String(body.domain))) {
-      return NextResponse.json(
-        { error: "Domaine invalide.", code: "INVALID_PAYLOAD" },
-        { status: 422 },
-      );
-    }
-    data.domain = body.domain ? String(body.domain) : null;
-  }
-  if (body.level !== undefined) {
-    if (body.level !== null && !VALID_LEVELS.includes(String(body.level))) {
-      return NextResponse.json(
-        { error: "Niveau invalide.", code: "INVALID_PAYLOAD" },
-        { status: 422 },
-      );
-    }
-    data.level = body.level ? String(body.level) : null;
-  }
-  if (body.status !== undefined) {
-    if (!VALID_STATUS.includes(String(body.status))) {
-      return NextResponse.json(
-        { error: "Statut invalide.", code: "INVALID_PAYLOAD" },
-        { status: 422 },
-      );
-    }
-    data.status = String(body.status);
-  }
-  if (body.recurrence !== undefined) {
-    if (
-      body.recurrence !== null &&
-      body.recurrence !== "" &&
-      !VALID_RECURRENCE.includes(String(body.recurrence))
-    ) {
-      return NextResponse.json(
-        { error: "Récurrence invalide.", code: "INVALID_PAYLOAD" },
-        { status: 422 },
-      );
-    }
-    data.recurrence = body.recurrence ? String(body.recurrence) : null;
-  }
-  if (body.maxAttendees !== undefined) {
-    if (body.maxAttendees === null || body.maxAttendees === "") {
-      data.maxAttendees = null;
-    } else {
-      const n = Number(body.maxAttendees);
-      if (!Number.isInteger(n) || n < 1 || n > 9999) {
-        return NextResponse.json(
-          { error: "Capacité invalide (1-9999).", code: "INVALID_PAYLOAD" },
-          { status: 422 },
-        );
-      }
-      data.maxAttendees = n;
-    }
-  }
-
-  if (Object.keys(data).length === 0) {
+  if (Object.keys(data).length === 0 && body.notify !== true) {
     return NextResponse.json(
       { error: "Rien à mettre à jour.", code: "INVALID_PAYLOAD" },
       { status: 422 },
     );
   }
 
-  const event = await db.event.update({ where: { id }, data });
+  const event = Object.keys(data).length
+    ? await db.event.update({ where: { id }, data })
+    : existing;
+  const adminRole = getAdminRoleFromToken(readAdminCookie(req)) ?? "operator";
+  if (Object.keys(data).length) {
+    void audit("event.update", "event", id, { fields: Object.keys(data) }, { type: "admin", role: adminRole });
+  }
 
   // Re-notification optionnelle (même canal qu'à la création)
   let notifyResult: { status: string; recipientCount: number } | null = null;
@@ -234,7 +146,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       process.env.NEXT_PUBLIC_SITE_URL || "https://joinhashcode.com";
     const rsvpUrl = `${siteUrl}/dashboard/agenda`;
     const members = await db.member.findMany({
-      where: { profileStatus: "APPROVED", deletedAt: null },
+      where: notifyWhere({ domain: event.domain, level: event.level }),
       select: { email: true, firstName: true },
     });
     const notifyPromise = (async () => {
@@ -267,6 +179,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       });
     })();
     notifyPromise.catch((err) => console.error("[events] Renotify error:", err));
+    void audit(
+      "event.notify",
+      "event",
+      event.id,
+      { title: event.title, recipients: members.length },
+      { type: "admin", role: adminRole },
+    );
     notifyResult = { status: "queued", recipientCount: members.length };
   }
 
@@ -304,5 +223,12 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   }
 
   await db.event.delete({ where: { id } });
+  void audit(
+    "event.delete",
+    "event",
+    existing.id,
+    { title: existing.title },
+    { type: "admin", role: getAdminRoleFromToken(readAdminCookie(req)) ?? "operator" },
+  );
   return NextResponse.json({ ok: true, deleted: existing });
 }
