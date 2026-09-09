@@ -135,11 +135,6 @@ export async function rateLimit(
   key: string,
   config: RateLimitConfig,
 ): Promise<RateLimitResult> {
-  // Local tests/development use the deterministic in-memory fallback when
-  // distributed Redis credentials are not configured.
-  if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-    return memoryRateLimit(key, config);
-  }
   try {
     return await redisRateLimit(key, config);
   } catch (error) {

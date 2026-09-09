@@ -94,6 +94,8 @@ export const profileSchema = z
     }
   });
 
+export type ParsedProfile = z.infer<typeof profileSchema>;
+
 /** Convert Prisma Member row → ProfileAnswers-shaped object (for resume / admin). */
 export function memberToAnswers(_m: {
   firstName: string;
