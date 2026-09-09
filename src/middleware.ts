@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SESSION_COOKIE_NAME } from "@/lib/account-auth";
+
+// Inline — on n'importe PAS account-auth (qui importe Prisma/DB).
+// Le middleware Edge ne fait que vérifier la présence du cookie.
+const SESSION_COOKIE_NAME = "hashcode_session";
 
 /**
  * Middleware Next.js (Edge runtime).
