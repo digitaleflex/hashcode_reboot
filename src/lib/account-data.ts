@@ -101,6 +101,7 @@ export function buildAccountData(m: MemberRow): AccountData {
       phone: m.phone ?? "",
       country: m.country,
       city: m.city ?? "",
+      gender: m.gender,
       threeMonthGoal: m.threeMonthGoal,
       createdAt: m.createdAt.toISOString(),
     },

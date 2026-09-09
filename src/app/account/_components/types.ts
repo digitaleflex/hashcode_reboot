@@ -12,6 +12,7 @@ export interface AccountMember {
   phone: string;
   country: string;
   city: string;
+  gender: string | null;
   threeMonthGoal: string | null;
   createdAt: string;
 }

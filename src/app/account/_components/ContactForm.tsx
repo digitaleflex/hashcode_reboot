@@ -17,6 +17,7 @@ export function ContactForm({ member }: { member: AccountMember }) {
   const [lastName, setLastName] = React.useState(member.lastName);
   const [phone, setPhone] = React.useState(member.phone);
   const [city, setCity] = React.useState(member.city);
+  const [gender, setGender] = React.useState(member.gender ?? "");
   const [threeMonthGoal, setThreeMonthGoal] = React.useState(
     member.threeMonthGoal ?? "",
   );
@@ -31,9 +32,10 @@ export function ContactForm({ member }: { member: AccountMember }) {
       lastName !== member.lastName ||
       phone !== member.phone ||
       city !== member.city ||
+      gender !== (member.gender ?? "") ||
       threeMonthGoal !== (member.threeMonthGoal ?? "");
     setDirty(isDirty);
-  }, [lastName, phone, city, threeMonthGoal, member]);
+  }, [lastName, phone, city, gender, threeMonthGoal, member]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -49,6 +51,7 @@ export function ContactForm({ member }: { member: AccountMember }) {
           lastName: lastName.trim(),
           phone: phone.trim(),
           city: city.trim(),
+          gender: gender || null,
           threeMonthGoal: threeMonthGoal.trim(),
         }),
       });
@@ -155,6 +158,25 @@ export function ContactForm({ member }: { member: AccountMember }) {
           placeholder="Ex. Cotonou"
           className="w-full rounded-md border border-border bg-card px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-lime focus:border-lime transition-colors disabled:opacity-50"
         />
+      </div>
+
+      <div>
+        <MonoLabel className="text-muted-foreground block mb-1.5">
+          Genre{" "}
+          <span className="text-border normal-case">(facultatif)</span>
+        </MonoLabel>
+        <select
+          value={gender}
+          onChange={(e) => setGender(e.target.value)}
+          disabled={loading}
+          className="w-full rounded-md border border-border bg-card px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-lime focus:border-lime transition-colors disabled:opacity-50"
+        >
+          <option value="">Ne pas préciser</option>
+          <option value="male">Homme</option>
+          <option value="female">Femme</option>
+          <option value="other">Autre</option>
+          <option value="prefer_not_say">Préfère ne pas dire</option>
+        </select>
       </div>
 
       <div>

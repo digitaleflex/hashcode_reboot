@@ -377,7 +377,8 @@ export const QUESTIONS: Question[] = [
     minChars: 4,
     maxChars: 280,
   },
-  // --- Contact (phone + optional identity — email already captured above) ---
+  // --- Contact (phone only — nom/ville/genre se complètent après,
+  // dans le dashboard. Moins de friction = plus de complétion.) ---
   {
     id: "phone",
     type: "text",
@@ -389,42 +390,6 @@ export const QUESTIONS: Question[] = [
     mapsTo: "phone",
     group: "contact",
     microcopy: "Dernière ligne droite.",
-  },
-  {
-    id: "lastName",
-    type: "text",
-    title: "Ton nom ?",
-    description: "Facultatif — pour qu'on sache qui tu es.",
-    placeholder: "Ex. Dossou",
-    required: false,
-    mapsTo: "lastName",
-    group: "contact",
-  },
-  {
-    id: "city",
-    type: "text",
-    title: "Ta ville ou région ?",
-    description: "Facultatif — pour les meetups et événements locaux.",
-    placeholder: "Ex. Cotonou",
-    required: false,
-    mapsTo: "city",
-    group: "contact",
-  },
-  {
-    id: "gender",
-    type: "single_choice",
-    title: "Souhaites-tu préciser ton genre ?",
-    description: "Facultatif et confidentiel — pour mieux connaître la communauté.",
-    options: [
-      { value: "male", label: "Homme" },
-      { value: "female", label: "Femme" },
-      { value: "other", label: "Autre" },
-      { value: "prefer_not_say", label: "Préfère ne pas dire" },
-    ],
-    required: false,
-    mapsTo: "gender",
-    group: "contact",
-    microcopy: "Merci, c'est noté.",
   },
 ];
 
