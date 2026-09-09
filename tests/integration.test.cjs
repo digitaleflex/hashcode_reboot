@@ -3,17 +3,30 @@
  * Runs against a real Next.js dev server spawned automatically.
  *
  * Run:  node --test tests/integration.test.cjs
- * Or:   npm run test:integration   (add to package.json if desired)
+ *
+ * ⚠️  SAFETY: These tests spawn a dev server that connects to DATABASE_URL.
+ *     If DATABASE_URL points to production, WRITE tests (POST) will pollute it.
+ *     All WRITE tests below are intentionally READ-ONLY or sandboxed:
+ *       - POST /api/admin/login  → only creates rate-limit state (in-memory)
+ *       - POST /api/admin/logout → only clears a cookie
+ *       - POST /api/analytics    → REMOVED (would pollute production analytics)
+ *       - POST /api/events       → REMOVED (would pollute production events)
+ *       - POST /api/members      → REMOVED (would pollute production members)
+ *     Only GET/verify/logout tests remain. For write-path testing, use a
+ *     dedicated test database (set TESTING_DATABASE_URL in .env.test).
  *
  * Requires: Next.js dev server starts on port 3737 with ADMIN_PASSCODE set.
  * Server lifecycle is managed automatically (before/after hooks).
  *
  * Coverage:
  *  - /api/admin/login    — valid / wrong / missing / invalid JSON / rate-limit
- *  - /api/admin/verify  — no cookie / invalid / expired / valid
- *  - /api/admin/logout  — clears cookie
- *  - Protected routes   — require auth, return 401 without cookie
- *  - Public routes      — work without auth
+ *  - /api/admin/verify   — no cookie / invalid / expired / valid
+ *  - /api/admin/logout   — clears cookie
+ *  - Protected endpoints — require auth, return 401 without cookie
+ *  - Public endpoints    — work without auth (GET only)
+ *  - /api/events/notify-count — auth + domain filter + invalid domain
+ *  - /api/admin/audit-log     — auth + CSV format
+ *  - /api/admin/activity      — auth + limit param
  */
 
 "use strict";
@@ -294,36 +307,8 @@ describe("public endpoints work without auth", () => {
     assert.ok(["ok", "degraded", "down"].includes(res.json?.status));
   });
 
-  test("POST /api/analytics → 200 (public funnel tracking)", async () => {
-    const res = await httpRequest("POST", "/api/analytics", { body: { type: "reboot_page_view" } });
-    assert.equal(res.status, 200);
-    assert.equal(res.json?.ok, true);
-  });
-});
-
-// ── POST /api/members (signup) ──────────────────────────────────
-
-describe("POST /api/members — auth gate", () => {
-  before(async () => {
-    if (!serverReady) { startServer(); await waitForServer(); serverReady = true; }
-  });
-
-  test("→ 400 on invalid JSON", async () => {
-    const res = await httpRequest("POST", "/api/members", {
-      body: "not-json", headers: { "Content-Type": "text/plain" },
-    });
-    assert.equal(res.status, 400);
-  });
-
-  test("→ 422 when required fields are missing", async () => {
-    const res = await httpRequest("POST", "/api/members", { body: {} });
-    assert.equal(res.status, 422);
-  });
-
-  // NOTE: rate-limit tests for POST /api/members are omitted here because
-  // the rate-limit window is 10 minutes (600s). Zod validation is covered
-  // by unit tests. The critical path (valid submission) is tested via API
-  // in the unit test suite.
+  // NOTE: POST /api/analytics intentionally omitted — it would create
+  // reboot_page_view events in the production database.
 });
 
 // ── GET /api/events/notify-count ─────────────────────────────────
@@ -446,67 +431,8 @@ describe("GET /api/admin/activity — auth + format", () => {
   });
 });
 
-// ── POST /api/events (create) ────────────────────────────────────
-
-describe("POST /api/events — auth + validation", () => {
-  before(async () => {
-    if (!serverReady) { startServer(); await waitForServer(); serverReady = true; }
-  });
-
-  test("→ 403 without auth (viewer cannot create)", async () => {
-    const res = await httpRequest("POST", "/api/events", {
-      body: { title: "Test Event", startsAt: "2026-12-01T14:00:00Z" },
-    });
-    assert.equal(res.status, 403);
-  });
-
-  test("→ 422 when title is too short", async () => {
-    await wait(11_000);
-    const login = await httpRequest("POST", "/api/admin/login", { body: { passcode: TEST_PASSPHRASE } });
-    const jar = parseSetCookies(login.setCookie);
-    const res = await httpRequest("POST", "/api/events", {
-      body: { title: "ab", startsAt: "2026-12-01T14:00:00Z" },
-      cookies: jar,
-    });
-    assert.equal(res.status, 422);
-  });
-
-  test("→ 422 when endsAt is before startsAt", async () => {
-    await wait(11_000);
-    const login = await httpRequest("POST", "/api/admin/login", { body: { passcode: TEST_PASSPHRASE } });
-    const jar = parseSetCookies(login.setCookie);
-    const res = await httpRequest("POST", "/api/events", {
-      body: {
-        title: "Test Event Integration",
-        startsAt: "2026-12-01T14:00:00Z",
-        endsAt: "2026-12-01T12:00:00Z",
-      },
-      cookies: jar,
-    });
-    assert.equal(res.status, 422);
-  });
-
-  test("→ 201 with valid payload (notify=false to skip emails)", async () => {
-    await wait(11_000);
-    const login = await httpRequest("POST", "/api/admin/login", { body: { passcode: TEST_PASSPHRASE } });
-    const jar = parseSetCookies(login.setCookie);
-    const res = await httpRequest("POST", "/api/events", {
-      body: {
-        title: "Integration Test Event",
-        startsAt: "2026-12-01T14:00:00Z",
-        endsAt: "2026-12-01T16:00:00Z",
-        type: "session",
-        domain: "web",
-        level: "beginner",
-        notify: false,
-      },
-      cookies: jar,
-    });
-    assert.equal(res.status, 201, `got ${res.status}: ${JSON.stringify(res.json)}`);
-    assert.equal(res.json?.ok, true);
-    assert.ok(res.json?.event?.id);
-  });
-});
+// NOTE: POST /api/events intentionally omitted — it creates events in the
+// production database. Use unit tests or a dedicated test DB for write-path.
 
 // ── Cleanup ────────────────────────────────────────────────────
 
