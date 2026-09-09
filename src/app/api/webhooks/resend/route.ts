@@ -166,12 +166,19 @@ async function handleBounce(
       });
 
       if (member) {
-        // Add to blacklist for permanent bounces
-        await db.memberBlacklist.create({
-          data: {
+        // Raison dans l'enum BLACKLIST_REASONS (le détail va dans note).
+        // Upsert : idempotent si le webhook est rejoué.
+        await db.memberBlacklist.upsert({
+          where: { email: member.email },
+          create: {
             email: member.email,
-            reason: `permanent_bounce_${Date.now()}`,
-            note: `Auto-added via Resend webhook: ${bounceMessage ?? "no message"}`,
+            reason: "other",
+            note: `Auto: permanent bounce via Resend (${bounceMessage ?? "no message"})`.slice(0, 500),
+            autoAdded: true,
+          },
+          update: {
+            reason: "other",
+            note: `Auto: permanent bounce via Resend (${bounceMessage ?? "no message"})`.slice(0, 500),
             autoAdded: true,
           },
         });
@@ -228,11 +235,17 @@ async function handleComplaint(
     });
 
     if (member) {
-      await db.memberBlacklist.create({
-        data: {
+      await db.memberBlacklist.upsert({
+        where: { email: member.email },
+        create: {
           email: member.email,
-          reason: `spam_complaint_${Date.now()}`,
-          note: `Auto-added via Resend webhook: ${feedbackType ?? "no feedback type"}`,
+          reason: "spammer",
+          note: `Auto: spam complaint via Resend (${feedbackType ?? "no feedback type"})`.slice(0, 500),
+          autoAdded: true,
+        },
+        update: {
+          reason: "spammer",
+          note: `Auto: spam complaint via Resend (${feedbackType ?? "no feedback type"})`.slice(0, 500),
           autoAdded: true,
         },
       });
@@ -288,11 +301,17 @@ async function handleSuppression(
     });
 
     if (member) {
-      await db.memberBlacklist.create({
-        data: {
+      await db.memberBlacklist.upsert({
+        where: { email: member.email },
+        create: {
           email: member.email,
-          reason: `suppressed_${reason}_${Date.now()}`,
-          note: `Auto-added via Resend webhook: ${reason}`,
+          reason: "other",
+          note: `Auto: suppressed via Resend (${reason ?? "unknown"})`.slice(0, 500),
+          autoAdded: true,
+        },
+        update: {
+          reason: "other",
+          note: `Auto: suppressed via Resend (${reason ?? "unknown"})`.slice(0, 500),
           autoAdded: true,
         },
       });
@@ -354,15 +373,19 @@ export async function POST(req: NextRequest) {
     const signature = h.get("resend-signature") ?? h.get("svix-signature");
     const webhookSecret = process.env.RESEND_WEBHOOK_SECRET;
 
-    // Verify signature if secret is configured
+    // Verify signature if secret is configured — fail-closed en prod
+    // (sinon n'importe qui peut spammer EmailEvent + auto-blacklister).
     if (webhookSecret) {
       const isValid = await verifyWebhookSignature(rawBody, signature, webhookSecret);
       if (!isValid) {
         logger.warn("Invalid webhook signature", { signature: signature ? "present" : "missing" });
         return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
       }
+    } else if (process.env.NODE_ENV === "production") {
+      logger.error("Webhook secret missing in production — rejecting");
+      return NextResponse.json({ error: "Webhook not configured" }, { status: 503 });
     } else {
-      logger.warn("Webhook secret not configured, skipping signature verification");
+      logger.warn("Webhook secret not configured, skipping signature verification (dev only)");
     }
 
     // Parse event
