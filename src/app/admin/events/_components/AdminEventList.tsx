@@ -71,6 +71,13 @@ function toLocalInput(iso: string | null): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+/** datetime-local (heure locale, sans fuseau) → ISO UTC pour l'API. */
+function toISOStringLocal(v: string): string | null {
+  if (!v) return null;
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? null : d.toISOString();
+}
+
 /**
  * Liste de pilotage admin : compteurs RSVP + changement de statut
  * + édition + renotification + suppression.
@@ -191,6 +198,11 @@ export function AdminEventList({ refreshSignal }: { refreshSignal: number }) {
   async function handleSaveEdit(e: React.FormEvent) {
     e.preventDefault();
     if (!editing) return;
+    const startsAtIso = toISOStringLocal(editForm.startsAt);
+    if (!startsAtIso) {
+      toast({ title: "Erreur", description: "Date de début invalide.", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
       const { res, error } = await fetchJson(`/api/events/${editing.id}`, {
@@ -199,8 +211,8 @@ export function AdminEventList({ refreshSignal }: { refreshSignal: number }) {
         body: JSON.stringify({
           title: editForm.title,
           description: editForm.description || null,
-          startsAt: editForm.startsAt,
-          endsAt: editForm.endsAt || null,
+          startsAt: startsAtIso,
+          endsAt: editForm.endsAt ? (toISOStringLocal(editForm.endsAt) ?? null) : null,
           location: editForm.location || null,
           url: editForm.url || null,
           type: editForm.type,
@@ -322,7 +334,7 @@ export function AdminEventList({ refreshSignal }: { refreshSignal: number }) {
                 type="button"
                 disabled={busy}
                 onClick={() => void handleRenotify(ev.id)}
-                title="Renvoyer l'email à tous les APPROVED"
+                title="Renvoyer l'email aux membres concernés (ciblage domaine/niveau)"
                 className="inline-flex items-center gap-1.5 rounded-md border border-border/60 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-lime/40 hover:text-lime cursor-pointer disabled:opacity-50"
               >
                 <Send className="size-3.5" />

@@ -47,6 +47,14 @@ const RECURRENCE_OPTIONS = [
   { value: "monthly", label: "Mensuel" },
 ] as const;
 
+/** datetime-local (heure locale admin, sans fuseau) → ISO UTC.
+ *  Sans ça, le serveur lit "14:00" comme 14:00 UTC au lieu de 14:00 locales. */
+function toISOStringLocal(v: string): string | null {
+  if (!v) return null;
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? null : d.toISOString();
+}
+
 export default function AdminEventsPage() {
   const router = useRouter();
   const { toast } = useToast();
@@ -56,6 +64,7 @@ export default function AdminEventsPage() {
   const [error, setError] = React.useState<string | null>(null);
   const [success, setSuccess] = React.useState(false);
   const [refreshSignal, setRefreshSignal] = React.useState(0);
+  const [notifyCount, setNotifyCount] = React.useState<number | null>(null);
 
   const [form, setForm] = React.useState({
     title: "",
@@ -76,6 +85,26 @@ export default function AdminEventsPage() {
     setForm((f) => ({ ...f, [field]: value }));
   };
 
+  // Compteur pré-envoi : mêmes filtres que l'envoi réel (notify-count).
+  React.useEffect(() => {
+    let cancelled = false;
+    const t = window.setTimeout(async () => {
+      try {
+        const q = new URLSearchParams();
+        if (form.domain) q.set("domain", form.domain);
+        if (form.level) q.set("level", form.level);
+        const result = await fetchJson(`/api/events/notify-count?${q.toString()}`);
+        if (!cancelled && result.res.ok) setNotifyCount(result.data?.count ?? null);
+      } catch {
+        /* silencieux : le compteur ne bloque jamais le form */
+      }
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [form.domain, form.level]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -83,11 +112,25 @@ export default function AdminEventsPage() {
     setLoading(true);
 
     try {
+      const startsAtIso = toISOStringLocal(form.startsAt);
+      if (!startsAtIso) {
+        setError("Date de début invalide.");
+        return;
+      }
+      const endsAtIso = toISOStringLocal(form.endsAt);
+      if (form.endsAt && !endsAtIso) {
+        setError("Date de fin invalide.");
+        return;
+      }
+      if (endsAtIso && endsAtIso <= startsAtIso) {
+        setError("La fin doit être après le début.");
+        return;
+      }
       const body: Record<string, unknown> = {
         title: form.title,
         description: form.description || null,
-        startsAt: form.startsAt,
-        endsAt: form.endsAt || null,
+        startsAt: startsAtIso,
+        endsAt: endsAtIso,
         location: form.location || null,
         url: form.url || null,
         type: form.type,
@@ -165,7 +208,7 @@ export default function AdminEventsPage() {
             Nouvel événement
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Créer un événement et notifier tous les membres approuvés.
+            Créer un événement et notifier les membres concernés (ciblage domaine/niveau).
           </p>
         </header>
 
@@ -362,6 +405,13 @@ export default function AdminEventsPage() {
                 Notifier tous les membres approuvés
               </span>
             </label>
+            {form.notify && notifyCount !== null && (
+              <p className="text-xs text-lime/90">
+                {notifyCount} membre{notifyCount > 1 ? "s" : ""}{" "}
+                {notifyCount > 1 ? "seront notifiés" : "sera notifié"}
+                {form.domain || form.level ? " (ciblage actif)" : ""}
+              </p>
+            )}
           </div>
         </div>
 
