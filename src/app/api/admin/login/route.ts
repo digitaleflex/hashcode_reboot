@@ -1,18 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminCookieHeader, issueAdminToken, getAdminPasscode, checkCSRF } from "@/lib/admin-auth";
 import { rateLimit, rateKey, RATE_LIMITS, retryAfterHeader } from "@/lib/rate-limit";
-import { db } from "@/lib/db";
+import { audit } from "@/lib/admin-audit";
 
 export const runtime = "nodejs";
 
-async function auditLogin(ref: string) {
-  try {
-    await db.analyticsEvent.create({
-      data: { type: "admin_login_attempt", ref },
-    });
-  } catch {
-    /* ignore — l'audit ne casse jamais l'auth */
-  }
+function auditLogin(ip: string, ref: "success" | "failure") {
+  // AuditLog (traçabilité admin), pas AnalyticsEvent (funnel produit).
+  void audit("admin.login", "admin_key", undefined, { result: ref }, { type: "ip", ip });
 }
 
 /** POST /api/admin/login — verify passcode, issue admin cookie. */
@@ -74,7 +69,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (diff !== 0) {
-      await auditLogin("failure");
+      auditLogin(ip, "failure");
       return NextResponse.json(
         { error: "Passcode invalide.", code: "UNAUTHORIZED" },
         { status: 401 },
@@ -82,7 +77,7 @@ export async function POST(req: NextRequest) {
     }
 
     const token = issueAdminToken("operator", ip);
-    await auditLogin("success");
+    auditLogin(ip, "success");
     return NextResponse.json(
       { ok: true },
       { headers: { "Set-Cookie": adminCookieHeader(token) } },
