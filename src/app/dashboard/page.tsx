@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { db } from "@/lib/db";
 import { buildAccountData } from "@/lib/account-data";
 import { WelcomeCard } from "./_components/WelcomeCard";
@@ -26,6 +27,19 @@ export default async function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-4xl w-full px-5 sm:px-8 py-8 space-y-6">
+      {/* Nudge WhatsApp : le numéro n'est plus demandé à l'inscription —
+          on le récupère ici s'il manque (ajout direct au groupe). */}
+      {!member.phone && (
+        <Link
+          href="/dashboard/settings"
+          className="block rounded-md border border-lime/40 bg-lime/[0.04] px-4 py-3 text-sm text-foreground transition-colors hover:border-lime/60"
+        >
+          <span className="font-medium">Ajoute ton WhatsApp</span>{" "}
+          <span className="text-muted-foreground">
+            pour qu&apos;on t&apos;ajoute directement au groupe — 10 secondes dans tes paramètres.
+          </span>
+        </Link>
+      )}
       <WelcomeCard
         firstName={data.member.firstName}
         profile={data.profile}

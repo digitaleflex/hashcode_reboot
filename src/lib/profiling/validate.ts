@@ -42,12 +42,13 @@ export const profileSchema = z
     phone: z
       .string()
       .trim()
-      .min(1, "WhatsApp requis")
       .max(40)
       .regex(
-        /^\+?[0-9][0-9\s\-()]{6,30}$/,
+        /^$|^\+?[0-9][0-9\s\-()]{6,30}$/,
         "Numéro WhatsApp invalide (format international : +229 ...)",
-      ),
+      )
+      .optional()
+      .default(""),
     country: z.string().trim().min(1, "Pays requis").max(8),
     city: z.string().trim().max(80).optional().default(""),
     gender: genderSchema,

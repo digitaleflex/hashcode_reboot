@@ -384,12 +384,12 @@ export const QUESTIONS: Question[] = [
     type: "text",
     title: "Ton numéro WhatsApp ?",
     description:
-      "Pour t'inviter directement à la communauté officielle.",
+      "Facultatif — pour qu'on t'ajoute directement au groupe. Sinon, tu recevras le lien par email.",
     placeholder: "+229 ...",
-    required: true,
+    required: false,
     mapsTo: "phone",
     group: "contact",
-    microcopy: "Dernière ligne droite.",
+    microcopy: "Tu peux passer.",
   },
 ];
 
