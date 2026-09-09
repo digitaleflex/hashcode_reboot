@@ -3,10 +3,24 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchJson, withRetryAfter } from "../lib/fetchJson";
 
+export interface ActivityMember {
+  id: string;
+  firstName: string;
+  lastName: string | null;
+  email: string;
+  profileStatus: string;
+  country: string;
+  city: string | null;
+}
+
 export interface ActivityEvent {
   id: string;
   type: string;
+  sessionId: string | null;
+  memberId: string | null;
+  member: ActivityMember | null;
   ref: string | null;
+  value: number | null;
   createdAt: string;
 }
 
