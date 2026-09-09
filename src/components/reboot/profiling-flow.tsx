@@ -7,6 +7,7 @@ import { ArrowLeft, ArrowRight, Check, RotateCcw } from "lucide-react";
 import {
   QUESTIONS,
   getQuestionOptions,
+  THREE_MONTH_GOAL_SUGGESTIONS,
 } from "@/lib/profiling/questions";
 import {
   getVisibleQuestions,
@@ -26,7 +27,6 @@ import {
   getEncryptedItem,
   removeEncryptedItem,
 } from "@/lib/storage-crypto";
-import { EmailVerifyCard } from "./email-verify-card";
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debounced, setDebounced] = React.useState(value);
@@ -43,7 +43,6 @@ interface PersistedState {
   answers: ProfileAnswers;
   answeredIds: string[];
   step: number; // index within visible list at save time
-  verifiedEmail?: string; // email vérifié par OTP (si déjà fait)
 }
 
 export function ProfilingFlow({
@@ -70,10 +69,8 @@ export function ProfilingFlow({
   const [phase, setPhase] = React.useState<"questions" | "preview">("questions");
   const [localError, setLocalError] = React.useState<string | null>(null);
   const [duplicate, setDuplicate] = React.useState(false);
-  // Vérification email OTP : l'email est collecté en Q2, le code est demandé
-  // juste après puis exigé avant la soumission finale (maybeFinish).
-  const [verifiedEmail, setVerifiedEmail] = React.useState<string>("");
-  const [verifyOpen, setVerifyOpen] = React.useState(false);
+  // Vérification email : lien magique 1-clic envoyé à la fin (POST /api/members).
+  // L'email est collecté en Q2 sans bloquer — plus d'interruption OTP.
   const lastQuestionRef = React.useRef<string | null>(null);
 
   // --- Hydrate from localStorage on mount (resume support) ---
@@ -90,9 +87,6 @@ export function ProfilingFlow({
             setStep(parsed.step ?? 0);
             setHasResume(true);
             setShowResumePrompt(true);
-            if (typeof parsed.verifiedEmail === "string") {
-              setVerifiedEmail(parsed.verifiedEmail.trim().toLowerCase());
-            }
             if (parsed.answers.email && parsed.answers.email.trim().length > 0) {
               setDuplicate(true);
             }
@@ -177,9 +171,9 @@ export function ProfilingFlow({
       void removeEncryptedItem(STORAGE_KEY);
       return;
     }
-    const data: PersistedState = { answers, answeredIds, step, verifiedEmail };
+    const data: PersistedState = { answers, answeredIds, step };
     void setEncryptedItem(STORAGE_KEY, JSON.stringify(data));
-  }, [answers, answeredIds, step, verifiedEmail, hydrated]);
+  }, [answers, answeredIds, step, hydrated]);
 
   const visible = React.useMemo(
     () => getVisibleQuestions(answers),
@@ -226,17 +220,11 @@ export function ProfilingFlow({
       }
     }
 
-    // Après l'email (Q2) → on avance ET on ouvre la vérification OTP.
-    // L'email change invalide la vérification précédente.
+    // Après l'email (Q2) → on avance direct, sans bloquer.
+    // La vérification se fait à la fin par lien magique 1-clic.
     if (q.id === "email") {
-      const emailNow = (
-        value !== undefined ? String(value) : String(answers.email ?? "")
-      ).trim().toLowerCase();
       setDirection(1);
       setStep((s) => Math.min(s + 1, visible.length));
-      if (emailNow && emailNow !== verifiedEmail.trim().toLowerCase()) {
-        setVerifyOpen(true);
-      }
       return;
     }
 
@@ -275,20 +263,11 @@ export function ProfilingFlow({
     setShowResumePrompt(false);
     setHasResume(false);
     setDuplicate(false);
-    setVerifiedEmail("");
-    setVerifyOpen(false);
   }
 
   // --- Submit once all required visible questions are answered ---
+  // Plus de blocage OTP : on soumet direct, le lien magique part à la fin (POST /api/members).
   function maybeFinish() {
-    // Garde-fou : l'email doit être vérifié par OTP avant soumission.
-    const emailNow = String(answers.email ?? "").trim().toLowerCase();
-    if (emailNow && emailNow !== verifiedEmail.trim().toLowerCase()) {
-      const emailIdx = visible.findIndex((q) => q.id === "email");
-      if (emailIdx >= 0) setStep(emailIdx);
-      setVerifyOpen(true);
-      return;
-    }
     const allRequiredAnswered = visible.every(
       (q) => !q.required || answeredSet.has(q.id),
     );
@@ -462,18 +441,6 @@ export function ProfilingFlow({
           />
         </motion.div>
       </AnimatePresence>
-      {verifyOpen && String(answers.email ?? "").trim() && (
-        <EmailVerifyCard
-          email={String(answers.email).trim()}
-          firstName={String(answers.firstName ?? "").trim()}
-          onVerified={(em) => {
-            setVerifiedEmail(em.trim().toLowerCase());
-            setVerifyOpen(false);
-            track({ type: "email_verified" });
-          }}
-          onLater={() => setVerifyOpen(false)}
-        />
-      )}
     </ProfilingShell>
   );
 }
@@ -767,6 +734,11 @@ function QuestionView({
             error={error}
             minChars={question.minChars}
             maxChars={question.maxChars}
+            suggestions={
+              question.id === "threeMonthGoal"
+                ? THREE_MONTH_GOAL_SUGGESTIONS
+                : undefined
+            }
           />
         )}
 
@@ -917,6 +889,7 @@ function LongTextView({
   error,
   minChars,
   maxChars,
+  suggestions,
 }: {
   value: string;
   placeholder?: string;
@@ -925,12 +898,27 @@ function LongTextView({
   error: string | null;
   minChars?: number;
   maxChars?: number;
+  suggestions?: string[];
 }) {
   const len = value.trim().length;
   const [blurred, setBlurred] = React.useState(false);
   const showError = error || (blurred ? "" : "");
   return (
     <div className="space-y-3">
+      {suggestions && suggestions.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {suggestions.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => onChange(s)}
+              className="rounded-full border border-border/60 bg-secondary/50 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-lime/40 hover:text-foreground cursor-pointer"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
       <textarea
         value={value}
         autoFocus

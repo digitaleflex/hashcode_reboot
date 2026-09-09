@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
       db.emailEvent.findMany({
         select: { email: true, type: true, category: true, createdAt: true },
         orderBy: { createdAt: "asc" },
+        take: 20000,
       }),
       listCategoryStats(),
       relanceDraftSummary(),
@@ -24,6 +25,7 @@ export async function GET(req: NextRequest) {
       db.emailEvent.findMany({
         where: { type: "email.sent", category: "relance" },
         select: { email: true },
+        take: 10000,
       }),
     ]);
 

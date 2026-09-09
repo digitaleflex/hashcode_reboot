@@ -13,6 +13,7 @@ export const runtime = "nodejs";
  *   - lastName (max 60)
  *   - phone (format WhatsApp international)
  *   - city (max 80)
+ *   - gender (male/female/other/prefer_not_say, null = non précisé)
  *   - threeMonthGoal (min 4, max 280)
  *
  * Email volontairement NON modifiable (nécessite un flow de vérification
@@ -25,14 +26,17 @@ const updateSchema = z.object({
   phone: z
     .string()
     .trim()
-    .min(1, "WhatsApp requis")
     .max(40)
     .regex(
-      /^\+?[0-9][0-9\s\-()]{6,30}$/,
+      /^$|^\+?[0-9][0-9\s\-()]{6,30}$/,
       "Numéro WhatsApp invalide (format international : +229 ...)",
     )
     .optional(),
   city: z.string().trim().max(80).optional().default(""),
+  gender: z
+    .enum(["male", "female", "other", "prefer_not_say"])
+    .nullable()
+    .optional(),
   threeMonthGoal: z
     .string()
     .trim()
@@ -103,6 +107,7 @@ export async function PATCH(req: NextRequest) {
         ...(updates.lastName !== undefined && { lastName: updates.lastName }),
         ...(updates.phone !== undefined && { phone: updates.phone }),
         ...(updates.city !== undefined && { city: updates.city }),
+        ...(updates.gender !== undefined && { gender: updates.gender }),
         ...(updates.threeMonthGoal !== undefined && {
           threeMonthGoal: updates.threeMonthGoal,
         }),
@@ -111,6 +116,7 @@ export async function PATCH(req: NextRequest) {
         lastName: true,
         phone: true,
         city: true,
+        gender: true,
         threeMonthGoal: true,
         updatedAt: true,
       },
@@ -123,6 +129,7 @@ export async function PATCH(req: NextRequest) {
         lastName: updated.lastName,
         phone: updated.phone,
         city: updated.city,
+        gender: updated.gender,
         threeMonthGoal: updated.threeMonthGoal,
       },
     });

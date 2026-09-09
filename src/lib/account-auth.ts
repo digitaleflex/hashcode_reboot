@@ -138,20 +138,19 @@ export async function getSession(req?: NextRequest) {
   if (session.otpHash !== null) return null; // pas encore vérifiée
   if (session.member.deletedAt) return null;
 
-  // Sliding window : refresh expiresAt + lastSeenAt
-  // On évite de le faire trop souvent (coût DB) : seulement si > 1h
+  // Sliding window : refresh expiresAt + lastSeenAt, seulement si > 1h
+  // (évite 1 write DB par requête). Fire-and-forget : ne bloque pas la réponse.
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
   if (session.lastSeenAt < oneHourAgo) {
     const newExpires = new Date(Date.now() + SESSION_TTL_MS);
-    await db.memberSession.update({
-      where: { id: session.id },
-      data: { lastSeenAt: new Date(), expiresAt: newExpires },
-    });
-  } else {
-    await db.memberSession.update({
-      where: { id: session.id },
-      data: { lastSeenAt: new Date() },
-    });
+    void db.memberSession
+      .update({
+        where: { id: session.id },
+        data: { lastSeenAt: new Date(), expiresAt: newExpires },
+      })
+      .catch(() => {
+        /* best-effort : le refresh ne casse jamais la session */
+      });
   }
 
   return session;

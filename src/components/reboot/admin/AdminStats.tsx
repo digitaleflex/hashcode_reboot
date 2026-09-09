@@ -446,7 +446,7 @@ export function AdminStats({
             {(stats?.byArchetype ?? []).length === 0 && (
               <p className="text-xs text-muted-foreground">Aucune donnée.</p>
             )}
-            {(stats?.byArchetype ?? []).map((a) => {
+            {(stats?.byArchetype ?? []).map((a, idx) => {
               const total =
                 (stats?.byArchetype ?? []).reduce((s, x) => s + x.count, 0) || 1;
               const pct = Math.round((a.count / total) * 100);
@@ -470,7 +470,7 @@ export function AdminStats({
               );
               return (
                 <button
-                  key={a.archetype}
+                  key={`archetype-${a.archetype}-${idx}`}
                   type="button"
                   onClick={() => onFilter("archetype", a.archetype)}
                   title={`Filtrer : ${a.archetype}`}
@@ -759,7 +759,16 @@ function Breakdown({
   filterValues?: Record<string, string>;
 }) {
   const max = Math.max(1, ...rows.map((r) => r[1]));
-  const total = rows.reduce((s, r) => s + r[1], 0);
+  // Défense : fusionne les labels en double (ex: "direct" ×2 depuis l'API)
+  // pour garantir des clés React uniques même si l'API régresse.
+  const mergedRows = (() => {
+    const m = new Map<string, number>();
+    for (const [label, count] of rows) {
+      m.set(label, (m.get(label) ?? 0) + count);
+    }
+    return [...m.entries()];
+  })();
+  const total = mergedRows.reduce((s, r) => s + r[1], 0);
   return (
     <div className="rounded-md border border-border/60 bg-card p-4 sm:p-5">
       <div className="flex items-center justify-between">
@@ -767,10 +776,10 @@ function Breakdown({
         <span className="mono-label text-muted-foreground">{total}</span>
       </div>
       <div className="mt-3 space-y-2.5">
-        {rows.length === 0 && (
+        {mergedRows.length === 0 && (
           <p className="text-xs text-muted-foreground">Aucune donnée.</p>
         )}
-        {rows.slice(0, 8).map(([label, count]) => {
+        {mergedRows.slice(0, 8).map(([label, count], idx) => {
           const pct = Math.round((count / total) * 100) || 0;
           const filterValue = filterValues?.[label];
           const clickable = Boolean(onRowClick && filterKey && filterValue);
@@ -794,7 +803,7 @@ function Breakdown({
           if (clickable) {
             return (
               <button
-                key={label}
+                key={`${filterKey ?? title}-${label}-${idx}`}
                 type="button"
                 onClick={() => onRowClick!(filterKey!, filterValue!)}
                 title={`Filtrer : ${label}`}
@@ -806,7 +815,7 @@ function Breakdown({
             );
           }
           return (
-            <div key={label} className="group flex items-center gap-3">
+            <div key={`${filterKey ?? title}-${label}-${idx}`} className="group flex items-center gap-3">
               {content}
             </div>
           );

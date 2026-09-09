@@ -83,6 +83,7 @@ model Member {
   @@index([deletedAt])
 
   sessions MemberSession[]
+  rsvps    EventRsvp[]
 }
 
 // Clés admin persistées (rotation, expiration, invalidation)
@@ -212,4 +213,92 @@ model MemberSession {
   @@index([memberId])
   @@index([expiresAt])
   @@index([revokedAt])
+}
+
+/// Email blacklist — block signups from known abusers or spam.
+/// One row per blocked email. `expiresAt = null` = permanent.
+model MemberBlacklist {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  /// Email blocked (lowercased, unique). No wildcards (e.g. *@gmail.com) — too dangerous.
+  email     String   @unique
+  /// Reason: spammer | harassment | duplicate | abuser | admin | other
+  reason    String
+  /// Free-form note (max 500 chars).
+  note      String?
+  /// When the block expires. null = permanent.
+  expiresAt DateTime?
+  /// Whether the member's soft-delete triggered this blacklist entry.
+  /// (true = auto-added, false = manually added by an admin)
+  autoAdded Boolean  @default(false)
+
+  @@index([email])
+  @@index([expiresAt])
+  @@index([reason])
+}
+
+/// Agenda — événements HASHCODE (sessions, workshops, meetups).
+model Event {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  title       String
+  description String?
+
+  // Timing
+  startsAt    DateTime
+  endsAt      DateTime?
+
+  // Location
+  location    String?  // "WhatsApp", "Discord", "Salle 1", etc.
+  url         String?  // Lien externe (Zoom, Google Meet, etc.)
+
+  // Type
+  type        String   @default("session") // session | workshop | meetup | webinar | other
+
+  // Visibility (null = tous les membres)
+  domain      String?  // web | cybersecurity | ai
+  level       String?  // beginner | practicing | autonomous | advanced
+
+  // Status
+  status      String   @default("scheduled") // scheduled | live | completed | cancelled
+
+  // Recurrence
+  recurrence  String?  // weekly | biweekly | monthly | null = one-shot
+  recurrenceId String? // shared ID for grouped recurring events
+
+  // Capacity
+  maxAttendees Int?    // null = unlimited
+
+  // Notifications
+  notifiedAt   DateTime? // when members were notified
+
+  rsvps       EventRsvp[]
+
+  @@index([startsAt])
+  @@index([status])
+  @@index([type])
+  @@index([recurrenceId])
+}
+
+/// RSVP — inscription aux événements
+model EventRsvp {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  memberId  String
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  status    String   @default("going") // going | maybe | cancelled
+  note      String?
+
+  @@unique([eventId, memberId])
+  @@index([eventId])
+  @@index([memberId])
+  @@index([status])
 }

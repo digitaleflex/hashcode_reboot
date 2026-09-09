@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { fetchJson } from "../lib/fetchJson";
+import { fetchJson, withRetryAfter } from "../lib/fetchJson";
 
 export interface StatsData {
   totals: {
@@ -55,14 +55,19 @@ export function useStats({
         params.set("period", period);
       }
       const url = `/api/stats${params.toString() ? `?${params.toString()}` : ""}`;
-      const { res, data, code } = await fetchJson(url, { cache: "no-store" });
-      if (res.status === 401 || code === "UNAUTHORIZED") {
-        onSessionExpired();
-        throw new Error("unauthorized");
-      }
-      if (!res.ok) {
-        throw new Error("Erreur de chargement des stats.");
-      }
+      const { res, data, code, error, retryAfterSec } = await fetchJson(url, { cache: "no-store" });
+       if (res.status === 401 || code === "UNAUTHORIZED") {
+         onSessionExpired();
+         throw new Error("unauthorized");
+       }
+       if (!res.ok) {
+         const msg = error ?? "Erreur de chargement des stats.";
+         throw new Error(
+           res.status === 429 || code === "RATE_LIMITED"
+             ? withRetryAfter(msg, retryAfterSec)
+             : msg,
+         );
+       }
       // When compare=true, the API returns { current, previous, change }
       // When compare=false, the API returns the flat stats shape
       if (compare) {

@@ -9,7 +9,9 @@ import { RebootButton, MonoLabel } from "@/components/reboot/shared";
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") || "/account";
+  // Anti open-redirect (défense en profondeur, le sink /verify-otp filtre aussi).
+  const rawNext = searchParams.get("next") || "/dashboard";
+  const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/dashboard";
   const [email, setEmail] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [sent, setSent] = React.useState(false);

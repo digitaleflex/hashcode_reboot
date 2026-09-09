@@ -16,7 +16,6 @@ export default function AdminMembersPage() {
   const [bulkAction, setBulkAction] = React.useState<string | null>(null);
   const [bulkResult, setBulkResult] = React.useState<string | null>(null);
   const [confirmBulkDelete, setConfirmBulkDelete] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
 
   const handleSessionExpired = React.useCallback(() => {
     router.push("/?admin=1");
@@ -29,6 +28,7 @@ export default function AdminMembersPage() {
     sortKey, sortDir, toggleSort,
     selectedIds, setSelectedIds, toggleSelect, toggleSelectAll,
     recentMembers, loading, refreshMembers, serverSorted,
+    loadError,
   } = useMembers({ onSessionExpired: handleSessionExpired });
 
   const runBulk = React.useCallback(
@@ -119,17 +119,14 @@ export default function AdminMembersPage() {
 
   return (
     <div className="space-y-8">
-      {error && (
+      {loadError && (
         <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4 flex items-center justify-between gap-4 animate-hash-in">
           <div className="flex items-center gap-3">
             <AlertCircle className="size-5 text-destructive shrink-0" />
-            <p className="text-sm text-foreground">{error}</p>
+            <p className="text-sm text-foreground">{loadError}</p>
           </div>
           <button
-            onClick={() => {
-              setError(null);
-              void refreshMembers();
-            }}
+            onClick={() => void refreshMembers()}
             className="text-xs px-3 py-1.5 rounded-md border border-border bg-card text-foreground hover:border-lime/60 hover:text-lime transition-colors focus-lime whitespace-nowrap"
           >
             Réessayer

@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs/config";
 
 /**
  * Security headers applied to all responses.
@@ -48,7 +49,7 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
-  reactStrictMode: false,
+  reactStrictMode: true,
 
   async headers() {
     return [
@@ -60,4 +61,30 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Wrap with Sentry config for source map upload and tunnel route
+export default withSentryConfig(nextConfig, {
+  // Org and project slugs (from Sentry URL: https://sentry.io/organizations/<org>/projects/<project>/)
+  org: "o4512056004968448",
+  project: "4512056014274640",
+
+  // Source map upload auth token (set in CI env or .env.sentry-build-plugin)
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+
+  // Upload wider set of client source files for better stack trace resolution
+  widenClientFileUpload: true,
+
+  // Create a proxy API route to bypass ad-blockers
+  tunnelRoute: "/monitoring",
+
+  // Suppress non-CI output
+  silent: !process.env.CI,
+
+  // Tree-shaking options (webpack only, not Turbopack)
+  // Disable if using Turbopack
+  // webpack: {
+  //   treeshake: {
+  //     enabled: true,
+  //     exclude: ["@sentry/nextjs"],
+  //   },
+  // },
+});

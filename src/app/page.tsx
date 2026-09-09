@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
+import dynamic from "next/dynamic";
 import { Landing } from "@/components/reboot/landing";
-import { ProfilingFlow } from "@/components/reboot/profiling-flow";
 import { Welcome, type WelcomeResult } from "@/components/reboot/welcome";
 import { AdminLogin } from "@/components/reboot/admin-login";
 import { HashSymbol, Logo } from "@/components/brand/logo";
@@ -15,6 +15,13 @@ import type { ProfileAnswers } from "@/lib/profiling/types";
 import { generateProfile } from "@/lib/profiling/engine";
 import { runAutoControls } from "@/lib/profiling/auto-controls";
 import { track, getSource } from "@/lib/analytics";
+
+// framer-motion sort du bundle initial : chargé seulement quand
+// l'utilisateur démarre le profiling (phase "profiling").
+const ProfilingFlow = dynamic(
+  () => import("@/components/reboot/profiling-flow").then((m) => m.ProfilingFlow),
+  { ssr: false, loading: () => null },
+);
 
 type Phase = "landing" | "profiling" | "submitting" | "result" | "admin-login" | "admin";
 

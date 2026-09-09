@@ -107,11 +107,18 @@ export async function POST(req: NextRequest) {
   });
 
   // Envoyer l'email (fire-and-forget : pas de bloc si Resend est lent)
+  // Double option : code OTP à saisir + lien magique 1-clic (même code, même session).
   try {
+    const base =
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      process.env.NEXT_PUBLIC_URL ||
+      "https://reboot.joinhashcode.com";
+    const url = `${base.replace(/\/$/, "")}/verify-otp?email=${encodeURIComponent(email)}&code=${encodeURIComponent(otp)}&next=${encodeURIComponent("/dashboard")}`;
     await sendMagicLinkEmail({
       to: email,
       firstName: member.firstName || "toi",
       code: otp,
+      url,
     });
   } catch (err) {
     // Log seulement : on ne révèle pas l'erreur au client

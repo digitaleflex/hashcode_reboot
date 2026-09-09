@@ -13,7 +13,12 @@ function VerifyOtpForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get("email") ?? "";
-  const next = searchParams.get("next") || "/account";
+  // Anti open-redirect : n'accepte que les chemins internes (pas d'URL externe, pas de //).
+  const rawNext = searchParams.get("next") || "/dashboard";
+  const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/dashboard";
+  // Lien magique 1-clic : ?code=123456 pré-remplit et auto-soumet (même session OTP).
+  const linkCode = (searchParams.get("code") ?? "").replace(/\D/g, "").slice(0, OTP_LENGTH);
+  const autoSubmitRef = React.useRef(false);
   const [digits, setDigits] = React.useState<string[]>(
     Array(OTP_LENGTH).fill(""),
   );
@@ -120,6 +125,26 @@ function VerifyOtpForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code]);
 
+  // Lien magique : pré-remplit depuis ?code= et soumet une seule fois.
+  // Puis nettoie l'URL (retire ?code= de l'historique pour limiter l'exposition).
+  React.useEffect(() => {
+    if (autoSubmitRef.current) return;
+    if (linkCode.length !== OTP_LENGTH || !email) return;
+    autoSubmitRef.current = true;
+    setDigits(linkCode.split(""));
+    setInfo("Lien détecté — connexion automatique…");
+    void submit(linkCode);
+    try {
+      const params = new URLSearchParams(window.location.search);
+      params.delete("code");
+      const clean = `${window.location.pathname}?${params.toString()}`;
+      window.history.replaceState(null, "", clean);
+    } catch {
+      /* best-effort */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkCode, email]);
+
   async function handleResend() {
     if (resendCooldown > 0) return;
     setError(null);
@@ -141,7 +166,7 @@ function VerifyOtpForm() {
         }
         return;
       }
-      setInfo("Un nouveau code a été envoyé. Il expire dans 15 minutes.");
+      setInfo("Un nouveau code + lien ont été envoyés. Ils expirent dans 15 minutes.");
       setResendCooldown(RESEND_COOLDOWN_SEC);
       setDigits(Array(OTP_LENGTH).fill(""));
       inputsRef.current[0]?.focus();
@@ -158,7 +183,7 @@ function VerifyOtpForm() {
           Saisis ton code
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          On a envoyé un code à 6 chiffres à{" "}
+          On a envoyé un code à 6 chiffres + un lien 1-clic à{" "}
           <strong className="text-foreground">{email}</strong>.
         </p>
       </div>

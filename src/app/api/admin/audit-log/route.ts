@@ -34,6 +34,38 @@ export async function GET(req: NextRequest) {
       take: limit,
     });
 
+    // Enrichit les logs liés à un membre avec email/prénom/statut pour le détail par user
+    const memberIds = [
+      ...new Set(
+        logs
+          .filter((l) => l.entityType === "member" && l.entityId)
+          .map((l) => l.entityId as string),
+      ),
+    ];
+    const members =
+      memberIds.length > 0
+        ? await db.member.findMany({
+            where: { id: { in: memberIds } },
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              profileStatus: true,
+              country: true,
+              city: true,
+            },
+          })
+        : [];
+    const memberById = new Map(members.map((m) => [m.id, m]));
+    const enriched = logs.map((l) => ({
+      ...l,
+      member:
+        l.entityType === "member" && l.entityId
+          ? (memberById.get(l.entityId) ?? null)
+          : null,
+    }));
+
     if (format === "csv") {
       const escape = (s: string | null): string => {
         if (!s) return "";
@@ -41,20 +73,23 @@ export async function GET(req: NextRequest) {
         return `"${escaped}"`;
       };
 
-      const header = "id,createdAt,actor,action,entityType,entityId,metadata\n";
-      const rows = logs
-        .map(
-          (l) =>
-            [
-              l.id,
-              l.createdAt.toISOString(),
-              escape(l.actor),
-              escape(l.action),
-              escape(l.entityType),
-              escape(l.entityId),
-              escape(l.metadata),
-            ].join(","),
-        )
+      const header =
+        "id,createdAt,actor,action,entityType,entityId,memberEmail,memberName,metadata\n";
+      const rows = enriched
+        .map((l) => {
+          const m = (l as { member?: { email?: string; firstName?: string; lastName?: string | null } | null }).member;
+          return [
+            l.id,
+            l.createdAt.toISOString(),
+            escape(l.actor),
+            escape(l.action),
+            escape(l.entityType),
+            escape(l.entityId),
+            escape(m?.email ?? null),
+            escape(m ? `${m.firstName ?? ""} ${m.lastName ?? ""}`.trim() || null : null),
+            escape(l.metadata),
+          ].join(",");
+        })
         .join("\n");
 
       return new NextResponse(header + rows, {
@@ -66,7 +101,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    return NextResponse.json({ logs, total: logs.length });
+    return NextResponse.json({ logs: enriched, total: enriched.length });
   } catch {
     return NextResponse.json(
       { error: "Erreur interne.", code: "INTERNAL_ERROR" },

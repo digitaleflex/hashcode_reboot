@@ -196,22 +196,6 @@ export const QUESTIONS: Question[] = [
     microcopy: "On sauvegarde ton profil.",
   },
   {
-    id: "gender",
-    type: "single_choice",
-    title: "Comment te définis-tu en tant que genre ?",
-    description: "C'est optionnel et confidentiel.",
-    options: [
-      { value: "male", label: "Homme" },
-      { value: "female", label: "Femme" },
-      { value: "other", label: "Autre" },
-      { value: "prefer_not_say", label: "Préfère ne pas dire" },
-    ],
-    required: false,
-    mapsTo: "gender",
-    group: "profil",
-    microcopy: "C'est optionnel et confidentiel.",
-  },
-  {
     id: "country",
     type: "country",
     title: "Tu vis dans quel pays ?",
@@ -291,7 +275,7 @@ export const QUESTIONS: Question[] = [
     id: "level",
     type: "single_choice",
     title: "Où te situes-tu aujourd'hui ?",
-    description: "Honnête. On part de là où tu es vraiment.",
+    description: "Dis-nous où tu en es vraiment, on part de là — sans pression.",
     options: LEVELS,
     required: true,
     mapsTo: "level",
@@ -301,8 +285,8 @@ export const QUESTIONS: Question[] = [
   {
     id: "availability",
     type: "single_choice",
-    title: "Combien de temps peux-tu réellement consacrer à ta progression chaque semaine ?",
-    description: "Le mot « réellement » compte. Sois lucide.",
+    title: "Combien de temps peux-tu consacrer à ta progression chaque semaine ?",
+    description: "Une estimation honnête, sans pression — on s'adapte à ton rythme.",
     options: AVAILABILITY,
     required: true,
     mapsTo: "availability",
@@ -386,46 +370,35 @@ export const QUESTIONS: Question[] = [
     description:
       "Même une courte phrase suffit. On veut comprendre ta direction.",
     placeholder:
-      "Ex. Avoir decrocher mon premier poste.",
+      "Ex. Décrocher mon premier stage.",
     required: true,
     mapsTo: "threeMonthGoal",
     group: "vision",
     minChars: 4,
     maxChars: 280,
   },
-  // --- Contact (phone + optional identity — email already captured above) ---
+  // --- Contact (phone only — nom/ville/genre se complètent après,
+  // dans le dashboard. Moins de friction = plus de complétion.) ---
   {
     id: "phone",
     type: "text",
     title: "Ton numéro WhatsApp ?",
     description:
-      "Pour t'inviter directement à la communauté officielle.",
+      "Facultatif — pour qu'on t'ajoute directement au groupe. Sinon, tu recevras le lien par email.",
     placeholder: "+229 ...",
-    required: true,
+    required: false,
     mapsTo: "phone",
     group: "contact",
-    microcopy: "Dernière ligne droite.",
+    microcopy: "Tu peux passer.",
   },
-  {
-    id: "lastName",
-    type: "text",
-    title: "Ton nom ?",
-    description: "Facultatif — pour qu'on sache qui tu es.",
-    placeholder: "Ex. Dossou",
-    required: false,
-    mapsTo: "lastName",
-    group: "contact",
-  },
-  {
-    id: "city",
-    type: "text",
-    title: "Ta ville ou région ?",
-    description: "Facultatif — pour les meetups et événements locaux.",
-    placeholder: "Ex. Cotonou",
-    required: false,
-    mapsTo: "city",
-    group: "contact",
-  },
+];
+
+/** Suggestions 1-clic pour l'objectif à 3 mois (réduit la page blanche). */
+export const THREE_MONTH_GOAL_SUGGESTIONS = [
+  "Décrocher mon premier stage",
+  "Finir mon portfolio",
+  "Lancer mon premier projet",
+  "Être à l'aise avec les bases",
 ];
 
 /** Resolve options dynamically for a question (used for conditional option sets). */

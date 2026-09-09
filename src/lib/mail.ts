@@ -481,49 +481,56 @@ export async function sendEngagementEmail({
   return sendEmail({ to, subject, html, text });
 }
 
-/* ── Vérification Email (code OTP) ───────────────────────────────────────── */
+/* ── Vérification Email (lien magique 1-clic) ────────────────────────────── */
 
-export interface VerificationEmailInput {
+export interface VerificationLinkEmailInput {
   to: string;
   firstName: string;
-  code: string;
+  url: string;
 }
 
-/** Mail avec le code de vérification à 6 chiffres (valide 10 minutes). */
-export async function sendVerificationEmail({
+/** Mail avec lien magique de vérification (1 clic, valide 24 h). Remplace l'OTP. */
+export async function sendVerificationLinkEmail({
   to,
   firstName,
-  code,
-}: VerificationEmailInput): Promise<SendEmailResult> {
+  url,
+}: VerificationLinkEmailInput): Promise<SendEmailResult> {
   const name = firstName.trim() || "toi";
   const safeName = escapeHtml(name);
-  const safeCode = escapeHtml(code.trim());
-  const subject = "Ton code de vérification HASHCODE";
+  const safeUrl = escapeHtml(url.trim());
+  const subject = "Vérifie ton email HASHCODE (1 clic)";
   const text = [
     `Bonjour ${name},`,
     "",
-    `Ton code de vérification : ${code.trim()}`,
+    "Bienvenue ! Clique sur ce lien pour vérifier ton adresse email :",
+    url.trim(),
     "",
-    "Saisis ce code dans le formulaire pour confirmer ton adresse email. Il est valide 10 minutes.",
+    "Ce lien est valide 24 heures, usage unique.",
     "",
-    "Si tu n'as pas demandé ce code, ignore cet e-mail.",
+    "Si tu n'as pas demandé ce lien, ignore cet e-mail.",
     "",
     "L'équipe HASHCODE",
   ].join("\n");
   const inner = [
     `<tr><td style="padding:24px 32px 28px 32px;background-color:#141414;">`,
     monoLabel("VÉRIFIE TON EMAIL"),
-    `<h1 style="margin:0 0 12px 0;font-family:${MAIL_FONT};font-size:24px;line-height:1.25;font-weight:800;color:#F8FAFC;">Ton code, ${safeName}.</h1>`,
-    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">Saisis ce code dans le formulaire pour confirmer ton adresse email. Il expire dans 10 minutes.</p>`,
-    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;background-color:#0A0A0A;border:1px solid #333B1E;border-radius:8px;">`,
-    `<tr><td align="center" style="padding:20px 16px;">`,
-    `<div style="font-family:${MAIL_FONT};font-size:32px;font-weight:800;letter-spacing:8px;color:#C5F441;margin:0;">${safeCode}</div>`,
-    `</td></tr></table>`,
-    `<p style="margin:0;font-family:${MAIL_FONT};font-size:12px;line-height:1.6;color:#94A3B8;text-align:center;">Si tu n&apos;as pas demandé ce code, ignore cet e-mail.</p>`,
+    `<h1 style="margin:0 0 12px 0;font-family:${MAIL_FONT};font-size:24px;line-height:1.25;font-weight:800;color:#F8FAFC;">Un clic et c'est bon, ${safeName}.</h1>`,
+    `<p style="margin:0 0 20px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">Clique sur le bouton pour confirmer ton adresse email. Lien valide 24 heures.</p>`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;">`,
+    `<tr><td align="center" style="padding:0;">`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">`,
+    `<tr><td align="center" bgcolor="#C5F441" style="background-color:#C5F441;border-radius:8px;padding:14px 32px;">`,
+    `<a href="${safeUrl}" target="_blank" rel="noopener" style="font-family:${MAIL_FONT};font-size:16px;font-weight:800;color:#0A0A0A;text-decoration:none;display:inline-block;">Vérifier mon email</a>`,
+    `</td></tr>`,
+    `</table>`,
+    `</td></tr>`,
+    `</table>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:12px;line-height:1.6;color:#94A3B8;text-align:center;word-break:break-all;">Si le bouton ne fonctionne pas, copie ce lien :<br /><a href="${safeUrl}" target="_blank" rel="noopener" style="color:#C5F441;text-decoration:underline;">${safeUrl}</a></p>`,
+    `<p style="margin:0;font-family:${MAIL_FONT};font-size:12px;line-height:1.6;color:#94A3B8;text-align:center;">Si tu n&apos;as pas demandé ce lien, ignore cet e-mail.</p>`,
     `</td></tr>`,
   ].join("");
   const html = emailShell(
-    "Ton code de vérification HASHCODE — valide 10 minutes.",
+    "Vérifie ton email HASHCODE — 1 clic, valide 24 h.",
     inner,
   );
   return sendEmail({ to, subject, html, text });
@@ -593,16 +600,19 @@ export interface MagicLinkEmailInput {
   to: string;
   firstName: string;
   code: string;
+  url?: string;
 }
 
 export async function sendMagicLinkEmail({
   to,
   firstName,
   code,
+  url,
 }: MagicLinkEmailInput): Promise<SendEmailResult> {
   const name = firstName.trim() || "toi";
   const safeName = escapeHtml(name);
   const safeCode = escapeHtml(code.trim());
+  const safeUrl = url ? escapeHtml(url.trim()) : "";
   const subject = "Ton code de connexion HASHCODE";
   const text = [
     `Bonjour ${name},`,
@@ -610,6 +620,7 @@ export async function sendMagicLinkEmail({
     `Voici ton code de connexion : ${code.trim()}`,
     "",
     "Saisis-le sur la page de connexion pour accéder à ton compte. Il expire dans 15 minutes.",
+    ...(url ? ["", `Ou connecte-toi en 1 clic : ${url.trim()}`] : []),
     "",
     "Si tu n'as pas demandé ce code, ignore cet e-mail — ton compte reste sécurisé.",
     "",
@@ -624,6 +635,20 @@ export async function sendMagicLinkEmail({
     `<tr><td align="center" style="padding:20px 16px;">`,
     `<div style="font-family:${MAIL_FONT};font-size:32px;font-weight:800;letter-spacing:8px;color:#C5F441;margin:0;">${safeCode}</div>`,
     `</td></tr></table>`,
+    ...(safeUrl
+      ? [
+          `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;">`,
+          `<tr><td align="center" style="padding:0;">`,
+          `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">`,
+          `<tr><td align="center" bgcolor="#C5F441" style="background-color:#C5F441;border-radius:8px;padding:14px 32px;">`,
+          `<a href="${safeUrl}" target="_blank" rel="noopener" style="font-family:${MAIL_FONT};font-size:16px;font-weight:800;color:#0A0A0A;text-decoration:none;display:inline-block;">Se connecter en 1 clic</a>`,
+          `</td></tr>`,
+          `</table>`,
+          `</td></tr>`,
+          `</table>`,
+          `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:12px;line-height:1.6;color:#94A3B8;text-align:center;word-break:break-all;">Le bouton ne marche pas ? Colle ce lien :<br /><a href="${safeUrl}" target="_blank" rel="noopener" style="color:#C5F441;text-decoration:underline;">${safeUrl}</a></p>`,
+        ]
+      : []),
     `<p style="margin:0;font-family:${MAIL_FONT};font-size:12px;line-height:1.6;color:#94A3B8;text-align:center;">Si tu n&apos;as pas demandé ce code, ignore cet e-mail — ton compte reste sécurisé.</p>`,
     `</td></tr>`,
   ].join("");
@@ -658,6 +683,10 @@ function getWhatsAppUrlForEmail(): string {
 function getAccountUrlForEmail(): string {
   const base = process.env.NEXT_PUBLIC_SITE_URL || "https://reboot.joinhashcode.com";
   return `${base}/account`;
+}
+function getLoginUrlForEmail(): string {
+  const base = process.env.NEXT_PUBLIC_SITE_URL || "https://reboot.joinhashcode.com";
+  return `${base}/login`;
 }
 
 /**
@@ -700,6 +729,9 @@ export async function sendStatusChangeEmail({
       "• Les sessions pratiques de la communauté",
       "• Les annonces et événements",
       "• Les autres membres qui avancent comme toi",
+      "",
+      "Nouveau : ton espace membre est en ligne. Suis ta progression et retrouve l'agenda ici :",
+      getLoginUrlForEmail(),
       "",
       "On a hâte de te compter parmi nous.",
       "",
@@ -752,6 +784,12 @@ function approvedHtml(safeName: string, archetype: string | null | undefined) {
     `<tr><td align="center" style="padding:16px 12px;">`,
     `<a href="${escapeHtml(getWhatsAppUrlForEmail())}" style="display:inline-block;padding:12px 24px;background-color:#C5F441;color:#0A0A0A;text-decoration:none;font-family:${MAIL_FONT};font-size:14px;font-weight:700;border-radius:6px;">Rejoindre le groupe WhatsApp</a>`,
     `</td></tr></table>`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;background-color:#0A0A0A;border:1px solid #262626;border-radius:8px;">`,
+    `<tr><td style="padding:14px 16px;">`,
+    `<div style="font-family:${MAIL_FONT};font-size:13px;font-weight:700;color:#F8FAFC;margin:0 0 4px 0;">Nouveau : ton espace membre</div>`,
+    `<div style="font-family:${MAIL_FONT};font-size:13px;line-height:1.6;color:#94A3B8;margin:0 0 12px 0;">Suis ta progression, retrouve l'agenda des sessions et gère ton profil.</div>`,
+    `<a href="${escapeHtml(getLoginUrlForEmail())}" style="display:inline-block;padding:12px 24px;background-color:transparent;border:1px solid #C5F441;color:#C5F441;text-decoration:none;font-family:${MAIL_FONT};font-size:14px;font-weight:700;border-radius:6px;">Voir mon dashboard</a>`,
+    `</td></tr></table>`,
     `<p style="margin:0;font-family:${MAIL_FONT};font-size:12px;line-height:1.6;color:#94A3B8;">Tu peux aussi gérer ton profil sur <a href="${escapeHtml(getAccountUrlForEmail())}" style="color:#C5F441;">ton espace HASHCODE</a>.</p>`,
     `</td></tr>`,
   ].join("");
@@ -777,4 +815,170 @@ function rejectedHtml(safeName: string) {
     `<p style="margin:0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">Tu peux mettre à jour tes informations et repasser la validation à tout moment depuis <a href="${escapeHtml(getAccountUrlForEmail())}" style="color:#C5F441;">ton espace HASHCODE</a>.</p>`,
     `</td></tr>`,
   ].join("");
+}
+
+/* ── Annonce Dashboard (nouveauté pour les membres existants) ─────────────── */
+
+export interface DashboardInviteEmailInput {
+  to: string;
+  firstName: string;
+  /** Lien magique 1-clic vers /verify-otp (valide 72 h). */
+  url: string;
+}
+
+/**
+ * Annonce l'arrivée de l'espace membre aux inscrits existants.
+ * Inclut un lien magique 1-clic (valide 72 h) + repli vers /login si expiré.
+ */
+export async function sendDashboardInviteEmail({
+  to,
+  firstName,
+  url,
+}: DashboardInviteEmailInput): Promise<SendEmailResult> {
+  const name = firstName.trim() || "toi";
+  const safeName = escapeHtml(name);
+  const safeUrl = escapeHtml(url.trim());
+  const loginUrl = escapeHtml(getLoginUrlForEmail());
+  const subject = "Nouveau : ton espace membre HASHCODE est en ligne";
+  const text = [
+    `Bonjour ${name},`,
+    "",
+    "Bonne nouvelle : ton espace membre HASHCODE est en ligne.",
+    "",
+    "Tu y retrouveras :",
+    "• Ton profil et ton positionnement dans la communauté",
+    "• L'agenda des prochaines sessions",
+    "• Ton objectif à 3 mois, modifiable à tout moment",
+    "",
+    "Connecte-toi en 1 clic (lien valide 72 heures) :",
+    url.trim(),
+    "",
+    "Lien expiré ? Demande un nouveau code ici :",
+    getLoginUrlForEmail(),
+    "",
+    "À très vite sur ton dashboard,",
+    "L'équipe HASHCODE",
+  ].join("\n");
+  const inner = [
+    `<tr><td style="padding:24px 32px 28px 32px;background-color:#141414;">`,
+    monoLabel("NOUVEAUTÉ"),
+    `<h1 style="margin:0 0 12px 0;font-family:${MAIL_FONT};font-size:24px;line-height:1.25;font-weight:800;color:#F8FAFC;">Ton espace est prêt, ${safeName}.</h1>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">Ton espace membre HASHCODE est en ligne. Suis ta progression, retrouve l'agenda et gère ton profil.</p>`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;">`,
+    `<tr><td align="center" style="padding:0;">`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">`,
+    `<tr><td align="center" bgcolor="#C5F441" style="background-color:#C5F441;border-radius:8px;padding:14px 32px;">`,
+    `<a href="${safeUrl}" target="_blank" rel="noopener" style="font-family:${MAIL_FONT};font-size:16px;font-weight:800;color:#0A0A0A;text-decoration:none;display:inline-block;">Voir mon dashboard</a>`,
+    `</td></tr>`,
+    `</table>`,
+    `</td></tr>`,
+    `</table>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:12px;line-height:1.6;color:#94A3B8;text-align:center;">Lien valide 72 heures. Expiré ? <a href="${loginUrl}" target="_blank" rel="noopener" style="color:#C5F441;text-decoration:underline;">Demande un nouveau code ici</a>.</p>`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0;background-color:#0A0A0A;border:1px solid #262626;border-radius:8px;">`,
+    `<tr><td style="padding:14px 16px;">`,
+    `<div style="font-family:${MAIL_FONT};font-size:13px;font-weight:700;color:#F8FAFC;margin:0 0 4px 0;">Dans ton espace</div>`,
+    `<div style="font-family:${MAIL_FONT};font-size:13px;line-height:1.6;color:#94A3B8;margin:0;">• Ton profil et ton positionnement<br/>• L'agenda des prochaines sessions<br/>• Ton objectif à 3 mois, modifiable</div>`,
+    `</td></tr></table>`,
+    `<p style="margin:20px 0 0 0;font-family:${MAIL_FONT};font-size:14px;line-height:1.6;color:#F8FAFC;">À très vite,<br /><span style="color:#94A3B8;">L'équipe HASHCODE</span></p>`,
+    `</td></tr>`,
+  ].join("");
+  const html = emailShell(
+    "Ton espace membre HASHCODE est en ligne — connecte-toi en 1 clic.",
+    inner,
+  );
+  return sendEmail({ to, subject, html, text });
+}
+
+/**
+ * Envoi d'notification email à tous les membres APPROVED à la création d'un événement.
+ * Fire-and-forget : ne bloque pas la réponse API.
+ */
+export async function sendEventNotificationEmail({
+  to,
+  firstName,
+  event,
+  rsvpUrl,
+}: {
+  to: string;
+  firstName: string;
+  event: {
+    title: string;
+    description: string | null;
+    startsAt: Date;
+    endsAt: Date | null;
+    location: string | null;
+    type: string;
+    domain: string | null;
+    level: string | null;
+  };
+  rsvpUrl: string;
+}): Promise<SendEmailResult> {
+  const name = firstName.trim() || "membre";
+  const safeName = escapeHtml(name);
+  const safeTitle = escapeHtml(event.title);
+  const safeType = escapeHtml(event.type);
+  const safeDomain = event.domain ? escapeHtml(event.domain) : "";
+  const safeLevel = event.level ? escapeHtml(event.level) : "";
+
+  const subject = "Nouvel événement HASHCODE REBOOT — " + safeTitle;
+  const startsStr = event.startsAt.toLocaleDateString("fr-FR", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const endsStr =
+    event.endsAt && event.endsAt !== event.startsAt
+      ? event.endsAt.toLocaleDateString("fr-FR", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : null;
+
+  const text = [
+    `Bonjour ${name},`,
+    "",
+    "Un nouvel événement vient d'être publié sur HASHCODE REBOOT.",
+    "",
+    `Titre : ${safeTitle}`,
+    `Type : ${safeType}`,
+    safeDomain && `Domaine : ${safeDomain}`,
+    safeLevel && `Niveau : ${safeLevel}`,
+    `Date : ${startsStr}`,
+    endsStr && `Fin : ${endsStr}`,
+    event.location && `Lieu : ${event.location}`,
+    event.description && `Description : ${event.description}`,
+    "",
+    `Vous pouvez vous inscrire (RSVP) ici : ${rsvpUrl}`,
+    "",
+    "À bientôt sur HASHCODE REBOOT !",
+    "",
+    "HASHCODE · REBOOT",
+  ].join("\n");
+
+  const inner = [
+    `<tr><td style="padding:24px 32px 28px 32px;background-color:#141414;">`,
+    monoLabel("NOUVEL ÉVÉNEMENT"),
+    `<h1 style="margin:0 0 12px 0;font-family:${MAIL_FONT};font-size:24px;line-height:1.25;font-weight:800;color:#F8FAFC;">${safeTitle}</h1>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">Un nouvel événement vient d'être publié sur HASHCODE REBOOT.</p>`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;background-color:#0A0A0A;border:1px solid #333B1E;border-radius:8px;">`,
+    `<tr><td style="padding:14px 16px;">`,
+    `<div style="font-family:${MAIL_FONT};font-size:11px;font-weight:700;letter-spacing:2px;color:#94A3B8;margin:0 0 4px 0;">TYPE</div>`,
+    `<div style="font-family:${MAIL_FONT};font-size:16px;font-weight:700;color:#C5F441;margin:0;">${safeType}</div>`,
+    safeDomain && `<div style="font-family:${MAIL_FONT};font-size:11px;font-weight:700;letter-spacing:1px;color:#94A3B8;margin:2px 0 0 0;">Domaine : ${safeDomain}</div>`,
+    safeLevel && `<div style="font-family:${MAIL_FONT};font-size:11px;font-weight:700;letter-spacing:1px;color:#94A3B8;margin:2px 0 0 0;">Niveau : ${safeLevel}</div>`,
+    `<div style="font-family:${MAIL_FONT};font-size:11px;font-weight:700;letter-spacing:2px;color:#94A3B8;margin:4px 0 0 0;">Date : ${startsStr}</div>`,
+    endsStr && `<div style="font-family:${MAIL_FONT};font-size:11px;font-weight:700;letter-spacing:2px;color:#94A3B8;margin:2px 0 0 0;">Fin : ${endsStr}</div>`,
+    event.location && `<div style="font-family:${MAIL_FONT};font-size:11px;font-weight:700;letter-spacing:2px;color:#94A3B8;margin:2px 0 0 0;">Lieu : ${event.location}</div>`,
+    event.description && `<div style="font-family:${MAIL_FONT};font-size:11px;line-height:1.5;color:#F8FAFC;margin:4px 0 0 0;">${event.description}</div>`,
+    `</td></tr>`,
+    `</table>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:14px;line-height:1.65;color:#94A3B8;">Vous pouvez vous inscrire (RSVP) ici : <a href="${escapeHtml(rsvpUrl)}" style="color:#C5F441;">${rsvpUrl}</a></p>`,
+    `<p style="margin:0;font-family:${MAIL_FONT};font-size:12px;line-height:1.6;color:#64748B;">À bientôt sur HASHCODE REBOOT !</p>`,
+    `<p style="margin:8px 0 0 0;font-family:${MAIL_FONT};font-size:11px;line-height:1.6;color:#64748B;">HASHCODE · REBOOT — Une nouvelle génération de la communauté commence.</p>`,
+    `</td></tr>`,
+  ].join("");
+
+  return sendEmail({ to, subject, html: emailShell(subject, inner), text });
 }

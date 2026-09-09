@@ -14,7 +14,8 @@ import type { GeneratedProfile, ProfileAnswers } from "@/lib/profiling/types";
 import { DEFAULT_WHATSAPP_URL, REASON_LABELS } from "@/lib/profiling/auto-controls";
 import { countryName, countryFlag } from "@/lib/profiling/countries";
 import { track } from "@/lib/analytics";
-import { Check, Clock, Mail, MessageCircle, Share2, ShieldCheck } from "lucide-react";
+import { Check, Clock, Loader2, Mail, MessageCircle, Share2, ShieldCheck } from "lucide-react";
+import { EmailVerificationNudge } from "./email-verify-card";
 
 export interface WelcomeResult {
   memberId: string;
@@ -128,6 +129,11 @@ export function Welcome({
             )}
           </div>
 
+          {/* Vérification email à la fin : lien magique 1-clic (2e email avec l'invitation) */}
+          {!isDuplicate && (
+            <EmailVerificationNudge email={answers.email} firstName={answers.firstName} />
+          )}
+
           {/* Profile card */}
           <div className="mt-8">
             <MonoLabel className="text-muted-foreground mb-3 block">
@@ -209,11 +215,95 @@ export function Welcome({
 }
 
 /* ------------------------------------------------------------------ */
+/* Capture WhatsApp post-conversion (remplissage unique, anti-abus API) */
+/* ------------------------------------------------------------------ */
+
+function WhatsAppCapture({ memberId }: { memberId: string }) {
+  const [phone, setPhone] = React.useState("");
+  const [state, setState] = React.useState<"idle" | "saving" | "saved">("idle");
+  const [error, setError] = React.useState<string | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!phone.trim() || state !== "idle") return;
+    setState("saving");
+    setError(null);
+    try {
+      const res = await fetch("/api/account/phone", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ memberId, phone: phone.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error ?? "Erreur. Réessaie.");
+        setState("idle");
+        return;
+      }
+      setState("saved");
+    } catch {
+      setError("Erreur réseau. Vérifie ta connexion.");
+      setState("idle");
+    }
+  }
+
+  if (state === "saved") {
+    return (
+      <div className="mt-4 flex items-center gap-2 rounded-md border border-lime/40 bg-lime/5 px-3.5 py-3 text-sm text-foreground">
+        <Check className="size-4 text-lime shrink-0" />
+        C&apos;est noté ! On t&apos;ajoute directement au groupe WhatsApp.
+      </div>
+    );
+  }
+
+  return (
+    <form
+      onSubmit={submit}
+      className="mt-4 rounded-md border border-border/60 bg-black/20 p-3.5"
+    >
+      <p className="text-sm text-foreground font-medium">
+        On t&apos;ajoute directement au groupe ?
+      </p>
+      <p className="mt-0.5 text-xs text-muted-foreground">
+        Laisse ton WhatsApp — sinon, utilise le lien d&apos;invitation reçu par email.
+      </p>
+      <div className="mt-2.5 flex gap-2">
+        <input
+          type="tel"
+          inputMode="tel"
+          autoComplete="tel"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          maxLength={40}
+          placeholder="+229 ..."
+          aria-label="Numéro WhatsApp"
+          className="flex-1 min-w-0 rounded-md border border-border/60 bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-lime/50 focus:ring-1 focus:ring-lime/30"
+        />
+        <button
+          type="submit"
+          disabled={state === "saving" || !phone.trim()}
+          className="shrink-0 inline-flex items-center gap-1.5 rounded-md bg-lime px-4 py-2 text-sm font-medium text-black transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {state === "saving" ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <MessageCircle className="size-4" />
+          )}
+          Ajouter
+        </button>
+      </div>
+      {error && <p className="mt-1.5 text-xs text-red-400">{error}</p>}
+    </form>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Branch A — immediate access                                        */
 /* ------------------------------------------------------------------ */
 
 function ImmediateBranch({
   answers,
+  result,
 }: {
   answers: ProfileAnswers;
   result: WelcomeResult;
@@ -263,6 +353,12 @@ function ImmediateBranch({
               Communauté locale&nbsp;: {countryFlag(answers.country)}{" "}
               {countryName(answers.country)} — on te retrouvera aussi là.
             </p>
+          )}
+          {/* Capture WhatsApp post-conversion : l'utilisateur vient de recevoir
+              de la valeur (profil validé) — c'est ici que le numéro se donne
+              le mieux. Remplissage unique côté API (pas d'écrasement). */}
+          {!answers.phone?.trim() && (
+            <WhatsAppCapture memberId={result.memberId} />
           )}
         </div>
       </div>

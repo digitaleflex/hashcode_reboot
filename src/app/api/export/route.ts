@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { isAdminAuthed } from "@/lib/admin-auth";
+import { isAdminAuthed, readAdminCookie, getAdminRoleFromToken } from "@/lib/admin-auth";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { audit } from "@/lib/admin-audit";
 
 export const runtime = "nodejs";
 
@@ -59,12 +60,14 @@ export async function GET(req: NextRequest) {
         { email: { contains: q, mode: "insensitive" } },
       ];
 
-    const total = await db.member.count({ where });
-    const members = await db.member.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      take: MAX_EXPORT,
-    });
+    const [total, members] = await Promise.all([
+      db.member.count({ where }),
+      db.member.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take: MAX_EXPORT,
+      }),
+    ]);
 
     const ALL_HEADERS = [
       "id",
@@ -168,6 +171,17 @@ export async function GET(req: NextRequest) {
     } catch {
       /* ignore */
     }
+    // Traçabilité RGPD : qui a exporté quoi (AuditLog, fire-and-forget).
+    void audit(
+      "member.export",
+      "member",
+      undefined,
+      { format: "csv", exported: members.length, total },
+      {
+        type: "admin",
+        role: getAdminRoleFromToken(readAdminCookie(req)) ?? "operator",
+      },
+    );
 
     const truncated = total > MAX_EXPORT;
     return new NextResponse(csv, {

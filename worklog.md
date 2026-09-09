@@ -1335,3 +1335,48 @@ Stage Summary:
 - All error handling hardening done: admin visible errors + retry, submit
   retry button, offline detection banner.
 - The project is ready for deployment.
+
+## Session 2026-09-09 — Observabilité, agenda, perf & sécu (17 commits)
+
+Commits du jour (branche development) :
+- feat(observability): Sentry Next.js + structured logging + Prisma resilience
+- feat(webhooks): handle Resend lifecycle events with blacklist + audit
+- feat(dashboard): announce member space with magic-link invite
+- feat(profiling): goal suggestions + softer copy + gender reposition
+- feat(dashboard): add profile and settings pages
+- feat(agenda): add RSVP interaction + fix dashboard navigation
+- feat(admin-events): pilotage complet agenda
+- feat(admin-activity): afficher session/member/value + detail user
+- feat(admin-audit): details membre + CSV enrichi
+- fix(admin-stats): merge duplicate source keys and harden Breakdown keys
+  (NULL→"direct" + "direct" stocké créaient 2 lignes `direct` → duplicate key React)
+- perf(rate-limit): singleton Ratelimit par (capacité, fenêtre) + Redis lazy
+  (fini le `new` + `new Map` par requête, plus de crash import si vars absentes)
+- perf(auth): `getSession()` sans write systématique (refresh >1h, fire-and-forget)
+  + `issueAdminToken` sans identity émet 3 segments (fini le `..sig` invalide)
+- perf(signup): blacklist+dédup en `Promise.all`, analytics+draft en
+  `Promise.allSettled`, réponse 201 immédiate puis mails en background
+- fix(webhooks): fail-closed en prod (503 si secret absent), raisons blacklist
+  dans l'enum (`other`/`spammer`, détail en note) + `upsert` idempotent
+- feat(audit): login admin → `AuditLog` (`admin.login`, acteur IP) au lieu
+  d'`AnalyticsEvent` ; exports CSV/JSON audités (`member.export`, RGPD)
+- perf(events): GET sans N+1 (batch groupBy + `_count` réutilisé), notifs/renotifs
+  par lots de 10, relance cron par 10 + `updateMany` unique, `take` sur
+  analytics/email-stats
+- perf(admin-ui): polling 30s assaini (1 seul timer, refresh silencieux sans
+  flash skeleton), `ProfilingFlow`/framer-motion en `dynamic(ssr:false)`,
+  `reactStrictMode: true`
+
+État fonctionnel vérifié :
+- `npm run test:unit` → 86/86 pass. `tsc --noEmit` → 0 erreur dans `src/`
+  (seules erreurs dans `.next/dev/types/` générés, pré-existant).
+- README mis à jour (routes, admin 12h + rôles viewer/operator + CSRF, mails
+  Resend+Brevo 11 templates, espace membre OTP/session 30j, limites, structure).
+
+Reste proposé (non appliqué) :
+- Validation serveur stricte events (enums, `endsAt > startsAt`, maxAttendees).
+- Notifs événement ciblées domaine/niveau + compteur pré-envoi.
+- Audit `event.create/update/delete/notify`.
+- Timezone `startsAt/endsAt` (`datetime-local` sans fuseau).
+- Deps mortes à purger (`recharts`, `@mdxeditor`, `dnd-kit`, `react-hook-form`
+  installés mais non importés) — touche au lockfile, en attente de validation.

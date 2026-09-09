@@ -9,10 +9,8 @@ import { ChangePasscodeDialog } from "@/components/reboot/admin/ChangePasscodeDi
 import { SessionReminder } from "./session-reminder";
 import { adminMono, adminSans } from "./fonts";
 import {
-  ChevronRight,
   LogOut,
   Command,
-  Settings,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -22,24 +20,17 @@ import { cn } from "@/lib/utils";
 const SECTION_MAP: Record<string, string> = {
   "/admin/stats": "section-stats",
   "/admin/members": "section-members",
+  "/admin/events": "section-events",
   "/admin/activity": "section-activity",
   "/admin/exports": "section-exports",
   "/admin/audit-log": "section-audit-log",
   "/admin/settings": "section-settings",
 };
 
-const SECTION_LABELS: Record<string, string> = {
-  "section-stats": "Vue d'ensemble",
-  "section-members": "Membres",
-  "section-activity": "Activité",
-  "section-exports": "Exports",
-  "section-audit-log": "Audit",
-  "section-settings": "Paramètres",
-};
-
 const routeMap: Record<string, string> = {
   "section-stats": "/admin/stats",
   "section-members": "/admin/members",
+  "section-events": "/admin/events",
   "section-activity": "/admin/activity",
   "section-exports": "/admin/exports",
   "section-audit-log": "/admin/audit-log",
@@ -59,7 +50,6 @@ export default function AdminLayout({
   const [isPaletteOpen, setIsPaletteOpen] = React.useState(false);
 
   const activeSectionId = SECTION_MAP[pathname] || "section-stats";
-  const currentSectionLabel = SECTION_LABELS[activeSectionId];
 
   const handleLogout = React.useCallback(async () => {
     try {
@@ -104,11 +94,6 @@ export default function AdminLayout({
         <div className="h-full px-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Logo className="size-6 text-lime shrink-0" />
-            <span className="text-sm font-medium">Admin</span>
-            <span className="flex items-center gap-3 text-muted-foreground/60" aria-hidden>
-              <ChevronRight className="size-4" />
-            </span>
-            <span className="text-sm text-muted-foreground">{currentSectionLabel}</span>
           </div>
 
           <div className="flex items-center gap-1">

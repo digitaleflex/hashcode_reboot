@@ -5,6 +5,21 @@ import { startOfWeek, startOfMonth, subDays, subWeeks, subMonths } from "date-fn
 
 export const runtime = "nodejs";
 
+/** Fusionne les entrées source en double (ex: NULL → "direct" + "direct" stocké).
+ *  Cause racine du `duplicate key: direct` côté Breakdown. */
+function mergeBySource(
+  entries: { source: string; count: number }[],
+): { source: string; count: number }[] {
+  const merged = new Map<string, number>();
+  for (const { source, count } of entries) {
+    const key = (source ?? "").trim() || "direct";
+    merged.set(key, (merged.get(key) ?? 0) + count);
+  }
+  return [...merged.entries()]
+    .map(([source, count]) => ({ source, count }))
+    .sort((a, b) => b.count - a.count);
+}
+
 interface StatsAggregate {
   totals: {
     total: number;
@@ -96,10 +111,12 @@ async function computeStats(startDate: Date, endDate: Date): Promise<StatsAggreg
         ? [{ archetype: String(a.profileArchetype), count: a._count }]
         : [],
     ),
-    bySource: bySource.flatMap((s) =>
-      s.source
-        ? [{ source: String(s.source), count: s._count }]
-        : [{ source: "direct", count: s._count }],
+    bySource: mergeBySource(
+      bySource.flatMap((s) =>
+        s.source
+          ? [{ source: String(s.source), count: s._count }]
+          : [{ source: "direct", count: s._count }],
+      ),
     ),
     email: {
       sent: emailSentN,
@@ -194,10 +211,12 @@ byArchetype: byArchetype.flatMap((a) =>
         ? [{ archetype: String(a.profileArchetype), count: a._count }]
         : [],
     ),
-      bySource: bySource.flatMap((s) =>
-        s.source
-          ? [{ source: String(s.source), count: s._count }]
-          : [{ source: "direct", count: s._count }],
+      bySource: mergeBySource(
+        bySource.flatMap((s) =>
+          s.source
+            ? [{ source: String(s.source), count: s._count }]
+            : [{ source: "direct", count: s._count }],
+        ),
       ),
       email: {
         sent: emailSentN,

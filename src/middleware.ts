@@ -6,6 +6,7 @@ import { SESSION_COOKIE_NAME } from "@/lib/account-auth";
  *
  * Protège :
  *   - /account/* (UI membre)
+ *   - /dashboard/* (UI membre — dashboard)
  *   - /api/account/* (API member-only)
  *
  * On vérifie uniquement la présence du cookie ici. La vraie validation
@@ -18,8 +19,8 @@ import { SESSION_COOKIE_NAME } from "@/lib/account-auth";
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // /account : redirige vers /login si pas de cookie
-  if (pathname.startsWith("/account")) {
+  // /account & /dashboard : redirige vers /login si pas de cookie
+  if (pathname.startsWith("/account") || pathname.startsWith("/dashboard")) {
     const hasCookie = req.cookies.get(SESSION_COOKIE_NAME);
     if (!hasCookie) {
       const url = req.nextUrl.clone();
@@ -44,5 +45,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/account/:path*", "/api/account/:path*"],
+  matcher: ["/account/:path*", "/dashboard/:path*", "/api/account/:path*"],
 };
