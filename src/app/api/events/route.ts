@@ -72,26 +72,31 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  // Enrichir avec le count et le RSVP du membre courant
-  const enriched = await Promise.all(
-    events.map(async (event) => {
-      const [goingCount, maybeCount] = await Promise.all([
-        db.eventRsvp.count({
-          where: { eventId: event.id, status: "going" },
-        }),
-        db.eventRsvp.count({
-          where: { eventId: event.id, status: "maybe" },
-        }),
-      ]);
-      let myRsvp: string | null = null;
-      if (memberId) {
-        const rsvp = await db.eventRsvp.findUnique({
-          where: { eventId_memberId: { eventId: event.id, memberId } },
-          select: { status: true },
-        });
-        myRsvp = rsvp?.status ?? null;
-      }
-      return {
+  // Enrichir avec le count et le RSVP du membre courant.
+  // Batché en 2 requêtes (pas de N+1) : goingCount vient déjà de _count.
+  const eventIds = events.map((e) => e.id);
+  const [maybeGroups, myRsvps] = await Promise.all([
+    eventIds.length
+      ? db.eventRsvp.groupBy({
+          by: ["eventId"],
+          where: { eventId: { in: eventIds }, status: "maybe" },
+          _count: true,
+        })
+      : Promise.resolve([] as { eventId: string; _count: number }[]),
+    memberId && eventIds.length
+      ? db.eventRsvp.findMany({
+          where: { eventId: { in: eventIds }, memberId },
+          select: { eventId: true, status: true },
+        })
+      : Promise.resolve([] as { eventId: string; status: string }[]),
+  ]);
+  const maybeMap = new Map(maybeGroups.map((g) => [g.eventId, g._count]));
+  const myMap = new Map(myRsvps.map((r) => [r.eventId, r.status]));
+  const enriched = events.map((event) => {
+    const goingCount = event._count.rsvps;
+    const maybeCount = maybeMap.get(event.id) ?? 0;
+    const myRsvp: string | null = memberId ? (myMap.get(event.id) ?? null) : null;
+    return {
         id: event.id,
         title: event.title,
         description: event.description,
@@ -110,8 +115,7 @@ export async function GET(req: NextRequest) {
         maybeCount,
         myRsvp,
       };
-    }),
-  );
+    });
 
   return NextResponse.json({ events: enriched });
 }
@@ -231,30 +235,36 @@ export async function POST(req: NextRequest) {
       select: { email: true, firstName: true },
     });
 
-    // Fire-and-forget: on n'attend pas chaque envoi
+    // Fire-and-forget: on n'attend pas chaque envoi.
+    // Lots de 10 en parallèle (au lieu d'1 par 1) pour les grosses listes.
     const notifyPromise = (async () => {
       let sent = 0;
       let failed = 0;
-      for (const member of members) {
-        try {
-          await sendEventNotificationEmail({
-            to: member.email,
-            firstName: member.firstName,
-            event: {
-              title: String(title).trim(),
-              description: description ? String(description).trim() : null,
-              startsAt: new Date(String(startsAt)),
-              endsAt: endsAt ? new Date(String(endsAt)) : null,
-              location: location ? String(location).trim() : null,
-              type: String(type || "session"),
-              domain: domain ? String(domain) : null,
-              level: level ? String(level) : null,
-            },
-            rsvpUrl,
-          });
-          sent++;
-        } catch {
-          failed++;
+      const payload = {
+        title: String(title).trim(),
+        description: description ? String(description).trim() : null,
+        startsAt: new Date(String(startsAt)),
+        endsAt: endsAt ? new Date(String(endsAt)) : null,
+        location: location ? String(location).trim() : null,
+        type: String(type || "session"),
+        domain: domain ? String(domain) : null,
+        level: level ? String(level) : null,
+      };
+      for (let i = 0; i < members.length; i += 10) {
+        const chunk = members.slice(i, i + 10);
+        const results = await Promise.allSettled(
+          chunk.map((member) =>
+            sendEventNotificationEmail({
+              to: member.email,
+              firstName: member.firstName,
+              event: payload,
+              rsvpUrl,
+            }),
+          ),
+        );
+        for (const r of results) {
+          if (r.status === "fulfilled") sent++;
+          else failed++;
         }
       }
       // Marquer l'événement comme notifié

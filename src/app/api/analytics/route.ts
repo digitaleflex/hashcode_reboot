@@ -113,6 +113,7 @@ async function computeFunnel(startDate: Date, endDate: Date): Promise<FunnelData
     db.analyticsEvent.findMany({
       where: { ...where, type: "profiling_question_timed", ref: { not: null }, value: { not: null } },
       select: { ref: true, value: true },
+      take: 5000,
     }),
   ]);
 
@@ -243,6 +244,7 @@ export async function GET(req: NextRequest) {
       db.analyticsEvent.findMany({
         where: { type: "profiling_question_timed", ref: { not: null }, value: { not: null } },
         select: { ref: true, value: true },
+        take: 5000,
       }),
     ]);
 

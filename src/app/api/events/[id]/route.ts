@@ -238,26 +238,28 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       select: { email: true, firstName: true },
     });
     const notifyPromise = (async () => {
-      for (const member of members) {
-        try {
-          await sendEventNotificationEmail({
-            to: member.email,
-            firstName: member.firstName,
-            event: {
-              title: event.title,
-              description: event.description,
-              startsAt: event.startsAt,
-              endsAt: event.endsAt,
-              location: event.location,
-              type: event.type,
-              domain: event.domain,
-              level: event.level,
-            },
-            rsvpUrl,
-          });
-        } catch {
-          /* best effort */
-        }
+      const payload = {
+        title: event.title,
+        description: event.description,
+        startsAt: event.startsAt,
+        endsAt: event.endsAt,
+        location: event.location,
+        type: event.type,
+        domain: event.domain,
+        level: event.level,
+      };
+      for (let i = 0; i < members.length; i += 10) {
+        const chunk = members.slice(i, i + 10);
+        await Promise.allSettled(
+          chunk.map((member) =>
+            sendEventNotificationEmail({
+              to: member.email,
+              firstName: member.firstName,
+              event: payload,
+              rsvpUrl,
+            }),
+          ),
+        );
       }
       await db.event.update({
         where: { id: event.id },

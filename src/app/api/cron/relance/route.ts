@@ -38,37 +38,49 @@ export async function GET(req: NextRequest) {
       },
       take: 50,
       orderBy: { createdAt: "asc" },
+      select: { id: true, email: true, firstName: true, answers: true, lastQuestionId: true },
     });
 
     let sent = 0;
     let errors = 0;
+    const sentIds: string[] = [];
 
-    for (const draft of drafts) {
-      let firstName = draft.firstName ?? "";
-      try {
-        const answers = JSON.parse(draft.answers) as Record<string, unknown>;
-        if (!firstName && typeof answers.firstName === "string") {
-          firstName = answers.firstName;
+    for (let i = 0; i < drafts.length; i += 10) {
+      const chunk = drafts.slice(i, i + 10);
+      const results = await Promise.allSettled(
+        chunk.map((draft) => {
+          let firstName = draft.firstName ?? "";
+          try {
+            const answers = JSON.parse(draft.answers) as Record<string, unknown>;
+            if (!firstName && typeof answers.firstName === "string") {
+              firstName = answers.firstName;
+            }
+          } catch {
+            /* ignore — answers json may be empty */
+          }
+          return sendRelanceEmail({
+            to: draft.email,
+            firstName,
+            lastQuestionId: draft.lastQuestionId ?? undefined,
+          }).then((res) => ({ id: draft.id, ok: res.ok }));
+        }),
+      );
+      for (const r of results) {
+        if (r.status === "fulfilled" && r.value.ok) {
+          sent += 1;
+          sentIds.push(r.value.id);
+        } else {
+          errors += 1;
         }
-      } catch {
-        /* ignore — answers json may be empty */
       }
+    }
 
-      const res = await sendRelanceEmail({
-        to: draft.email,
-        firstName,
-        lastQuestionId: draft.lastQuestionId ?? undefined,
+    // 1 seul update groupé au lieu de N updates en boucle.
+    if (sentIds.length) {
+      await db.profilingDraft.updateMany({
+        where: { id: { in: sentIds } },
+        data: { relanceSentAt: new Date() },
       });
-
-      if (res.ok) {
-        await db.profilingDraft.update({
-          where: { id: draft.id },
-          data: { relanceSentAt: new Date() },
-        });
-        sent += 1;
-      } else {
-        errors += 1;
-      }
     }
 
     return NextResponse.json({ ok: true, sent, errors, scanned: drafts.length });
