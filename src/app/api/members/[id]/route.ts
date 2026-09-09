@@ -6,6 +6,7 @@ import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { audit } from "@/lib/admin-audit";
 import { sendStatusChangeEmail, type StatusChangeType } from "@/lib/mail";
 import { addToBlacklist } from "@/lib/blacklist";
+import { blockIfTesting } from "@/lib/test-guard";
 
 export const runtime = "nodejs";
 
@@ -70,6 +71,8 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const blocked = blockIfTesting();
+  if (blocked) return blocked;
   if (!requireAdminRole(req, "operator")) {
     return NextResponse.json(
       { error: "Opérateur requis.", code: "FORBIDDEN" },
@@ -212,6 +215,8 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const blocked = blockIfTesting();
+  if (blocked) return blocked;
   if (!requireAdminRole(req, "operator")) {
     return NextResponse.json(
       { error: "Opérateur requis.", code: "FORBIDDEN" },

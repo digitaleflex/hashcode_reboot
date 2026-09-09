@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requireAdminRole } from "@/lib/admin-auth";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { audit } from "@/lib/admin-audit";
+import { blockIfTesting } from "@/lib/test-guard";
 
 export const runtime = "nodejs";
 
@@ -17,6 +18,8 @@ const bulkSchema = z.object({
  * (admin-only). Used by the admin bulk-action bar.
  */
 export async function POST(req: NextRequest) {
+  const blocked = blockIfTesting();
+  if (blocked) return blocked;
   if (!requireAdminRole(req, "operator")) {
     return NextResponse.json(
       { error: "Opérateur requis.", code: "FORBIDDEN" },

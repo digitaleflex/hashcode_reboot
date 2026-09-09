@@ -6,6 +6,7 @@ import { sendEventNotificationEmail } from "@/lib/mail";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { validateEventCreate, notifyWhere } from "@/lib/events-validation";
 import { audit } from "@/lib/admin-audit";
+import { blockIfTesting } from "@/lib/test-guard";
 
 export const runtime = "nodejs";
 
@@ -127,6 +128,8 @@ export async function GET(req: NextRequest) {
  * Envoie une notification email en masse aux membres approuvés.
  */
 export async function POST(req: NextRequest) {
+  const blocked = blockIfTesting();
+  if (blocked) return blocked;
   // Rate-limit: 10 creations per IP per 10 minutes
   const rl = await rateLimit(`events-create:${rateKey(req)}`, {
     capacity: 10,

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireAdminRole } from "@/lib/admin-auth";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { blockIfTesting } from "@/lib/test-guard";
 
 export const runtime = "nodejs";
 
@@ -25,6 +26,8 @@ interface ImportError {
 
 /** POST /api/members/import — bulk CSV import (admin-only). */
 export async function POST(req: NextRequest) {
+  const blocked = blockIfTesting();
+  if (blocked) return blocked;
   if (!requireAdminRole(req, "operator")) {
     return NextResponse.json(
       { error: "Opérateur requis.", code: "FORBIDDEN" },
