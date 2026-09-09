@@ -175,9 +175,15 @@ export function DashboardSidebar({ firstName }: DashboardSidebarProps) {
           item={{ label: "Déconnexion", href: "#", icon: LogOut }}
           active={false}
           collapsed={isCollapsed}
-          onClick={() => {
-            router.push("/account/logout");
+          onClick={async () => {
+            try {
+              await fetch("/api/auth/logout", { method: "POST" });
+            } catch {
+              /* best effort */
+            }
             setMobileOpen(false);
+            router.push("/login");
+            router.refresh();
           }}
         />
       </div>

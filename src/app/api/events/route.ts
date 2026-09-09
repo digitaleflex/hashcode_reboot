@@ -24,7 +24,10 @@ export async function GET(req: NextRequest) {
   const type = url.searchParams.get("type");
   const status = url.searchParams.get("status");
   const limit = Math.min(Number(url.searchParams.get("limit") || "20"), 50);
-  const memberId = url.searchParams.get("memberId");
+  const memberIdParam = url.searchParams.get("memberId");
+  // memberId=me → membre connecté (utilisé par /dashboard/agenda et AgendaCard)
+  const memberId =
+    memberIdParam === "me" ? session.member.id : memberIdParam;
 
   // Filtres
   const where: Record<string, unknown> = {};

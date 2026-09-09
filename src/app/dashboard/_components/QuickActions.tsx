@@ -56,7 +56,7 @@ export function QuickActions({
 
         {/* Éditer profil */}
         <a
-          href="/account"
+          href="/dashboard/profile"
           className="flex items-center gap-3 rounded-md border border-border/60 bg-background/50 p-4 hover:border-lime/40 hover:bg-lime/5 transition-colors group"
         >
           <Pencil className="size-5 text-muted-foreground shrink-0" />

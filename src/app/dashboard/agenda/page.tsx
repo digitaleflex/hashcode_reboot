@@ -3,6 +3,7 @@
 import * as React from "react";
 import {
   Calendar,
+  CheckCircle2,
   Clock,
   MapPin,
   ExternalLink,
@@ -26,6 +27,9 @@ interface Event {
   level: string | null;
   status: string;
   recurrence: string | null;
+  goingCount?: number;
+  myRsvp?: string | null;
+  maxAttendees?: number | null;
 }
 
 const TYPE_CONFIG: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
@@ -109,18 +113,26 @@ export default function AgendaPage() {
   const [error, setError] = React.useState<string | null>(null);
   const [filterType, setFilterType] = React.useState<string>("all");
   const [filterDomain, setFilterDomain] = React.useState<string>("all");
+  const [rsvpStates, setRsvpStates] = React.useState<Record<string, "going" | "maybe" | null>>({});
 
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const params = new URLSearchParams({ limit: "50" });
+        const params = new URLSearchParams({ limit: "50", memberId: "me" });
         if (filterType !== "all") params.set("type", filterType);
         if (filterDomain !== "all") params.set("domain", filterDomain);
         const res = await fetch(`/api/events?${params}`, { cache: "no-store" });
         if (!res.ok) throw new Error("Erreur chargement");
         const data = await res.json();
-        if (!cancelled) setEvents(data.events ?? []);
+        if (!cancelled) {
+          setEvents(data.events ?? []);
+          const states: Record<string, "going" | "maybe" | null> = {};
+          for (const e of data.events ?? []) {
+            states[e.id] = e.myRsvp ?? null;
+          }
+          setRsvpStates(states);
+        }
       } catch {
         if (!cancelled) setError("Impossible de charger l'agenda.");
       } finally {
@@ -129,6 +141,27 @@ export default function AgendaPage() {
     })();
     return () => { cancelled = true; };
   }, [filterType, filterDomain]);
+
+  const handleRsvp = async (eventId: string, status: "going" | "maybe") => {
+    const current = rsvpStates[eventId];
+    const newStatus = current === status ? "cancelled" : status;
+
+    setRsvpStates((prev) => ({ ...prev, [eventId]: newStatus === "cancelled" ? null : status }));
+
+    try {
+      if (newStatus === "cancelled") {
+        await fetch(`/api/events/${eventId}/rsvp`, { method: "DELETE" });
+      } else {
+        await fetch(`/api/events/${eventId}/rsvp`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: newStatus }),
+        });
+      }
+    } catch {
+      setRsvpStates((prev) => ({ ...prev, [eventId]: current }));
+    }
+  };
 
   const grouped = groupByDate(events);
 
@@ -234,6 +267,8 @@ export default function AgendaPage() {
                 {dateEvents.map((event) => {
                   const config = TYPE_CONFIG[event.type] ?? TYPE_CONFIG.other;
                   const duration = formatEventDuration(event.startsAt, event.endsAt);
+                  const goingCount = event.goingCount ?? 0;
+                  const myRsvp = rsvpStates[event.id] ?? null;
 
                   return (
                     <div
@@ -281,7 +316,7 @@ export default function AgendaPage() {
                           )}
 
                           {/* Métadonnées */}
-                          <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
+                          <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground flex-wrap">
                             <span className="inline-flex items-center gap-1.5">
                               <Clock className="size-3.5" />
                               {formatEventDate(event.startsAt)}
@@ -296,6 +331,12 @@ export default function AgendaPage() {
                             {event.recurrence && (
                               <span className="text-muted-foreground/60">
                                 🔄 {RECURRENCE_LABELS[event.recurrence] ?? event.recurrence}
+                              </span>
+                            )}
+                            {goingCount > 0 && (
+                              <span className="inline-flex items-center gap-1 text-lime">
+                                <Users className="size-3.5" />
+                                {goingCount}
                               </span>
                             )}
                           </div>
@@ -322,6 +363,45 @@ export default function AgendaPage() {
                             <span className="inline-block size-1.5 rounded-full bg-red-400 animate-pulse" />
                             EN DIRECT
                           </span>
+                        </div>
+                      )}
+
+                      {/* RSVP */}
+                      {event.status === "scheduled" && (
+                        <div className="mt-3">
+                          {myRsvp === "going" ? (
+                            <button
+                              onClick={() => handleRsvp(event.id, "going")}
+                              className="inline-flex items-center gap-1.5 rounded-md bg-lime/10 border border-lime/30 px-3 py-1.5 text-xs font-medium text-lime transition-colors hover:bg-lime/20 cursor-pointer"
+                            >
+                              <CheckCircle2 className="size-3.5" />
+                              Inscrit · Annuler
+                            </button>
+                          ) : myRsvp === "maybe" ? (
+                            <button
+                              onClick={() => handleRsvp(event.id, "maybe")}
+                              className="inline-flex items-center gap-1.5 rounded-md bg-amber-500/10 border border-amber-500/30 px-3 py-1.5 text-xs font-medium text-amber-300 transition-colors hover:bg-amber-500/20 cursor-pointer"
+                            >
+                              <CheckCircle2 className="size-3.5" />
+                              Peut-être · Annuler
+                            </button>
+                          ) : (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleRsvp(event.id, "going")}
+                                className="inline-flex items-center gap-1.5 rounded-md bg-lime px-3 py-1.5 text-xs font-medium text-background transition-colors hover:bg-lime/90 cursor-pointer"
+                              >
+                                <Users className="size-3.5" />
+                                Je participe
+                              </button>
+                              <button
+                                onClick={() => handleRsvp(event.id, "maybe")}
+                                className="inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-lime/30 hover:text-lime cursor-pointer"
+                              >
+                                Peut-être
+                              </button>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
