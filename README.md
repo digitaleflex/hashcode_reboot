@@ -63,27 +63,56 @@ Noms lus par le code, dans l'ordre d'importance :
 - `/api/cron/keepalive` — `SELECT 1` Neon, protégé par `CRON_SECRET`.
 - API métier : `members` (GET liste admin / POST inscription),
   `members/[id]` (GET/PATCH/DELETE), `members/[id]/invite`, `members/[id]/share`
-  (public, lien par id non devinable), `members/bulk`, `stats`, `analytics`,
+  (public, lien par id non devinable), `members/bulk`, `members/import` (CSV),
+  `stats`, `stats/cohort`, `analytics`, `email-stats`,
   `export` (CSV), `export/json`, `check-email`, `community/count`,
-  `admin/login|logout|verify|activity`, `admin/test-email`.
+  `verify-email` (lien magique 1-clic), `auth/request-magic-link|verify-otp|logout`,
+  `account/me`, `account/profile`, `events` (GET mixte / POST operator),
+  `events/[id]` (GET/PATCH/DELETE), `events/[id]/rsvp` (POST/DELETE membre),
+  `profiling/draft` (brouillons anti-abandon),
+  `admin/login|logout|verify|activity|audit-log|keys|blacklist|test-email|announce-dashboard`,
+  `webhooks/resend` (bounced/complained/suppressed → blacklist, engagement → analytics),
+  `cron/relance` (drafts >24h, lot 50), `cron/keepalive` (`SELECT 1` Neon).
 
 Conventions : erreurs FR (`{ error }`), 400/401/404/422/429/503, `Retry-After`
 sur 429, exports plafonnés à 2000 lignes (`X-Export-Truncated`).
 
 ## Admin
 
-Passcode (`ADMIN_PASSCODE`) → cookie `hashcode-admin` HttpOnly 7 jours
-(`Secure` en prod). Fonctionnalités : stats, funnel, donut domaines, recherche,
-filtres cliquables, notes internes, actions groupées (valider/inviter/waitlist/
-rejeter/supprimer), invitation (message copiable), export CSV/JSON filtré,
-journal d'activité, envoi d'emails de test (welcome/invitation).
+Passcode (`ADMIN_PASSCODE`, ≥16 caractères requis en prod, fail-closed au boot)
+→ cookie `hashcode-admin` HttpOnly 12h (`Secure` en prod, `SameSite=Lax`).
+Rôles `viewer`/`operator` (operator seul en écriture) + CSRF same-origin sur
+les mutations. Fonctionnalités : stats (+cohorte, funnel, engagement email),
+recherche, filtres cliquables, notes internes, actions groupées
+(valider/inviter/waitlist/rejeter/supprimer), invitation (message copiable),
+import CSV, export CSV/JSON filtré (audité), blacklist (manuelle + auto via
+webhooks Resend et soft-delete), rotation des clés (`keys`), journal d'audit
+(`audit-log`, sidebar « Audit »), journal d'activité temps réel, pilotage
+agenda (CRUD événements + renotification), annonce dashboard par lots,
+envoi d'emails de test (welcome/invitation).
 
-## Mails (Resend)
+## Mails (Resend primaire + Brevo fallback)
 
-`src/lib/mail.ts` — `sendWelcomeEmail` / `sendInvitationEmail` (fetch direct,
-timeouts, ne lève jamais, aucun secret logué). `POST /api/admin/test-email`
-(admin-only, Zod) pour tester. `GET /api/health` vérifie la clé via
+`src/lib/mail.ts` — 11 templates (welcome, invitation WhatsApp, waitlist,
+engagement, vérification 1-clic 24h, relance abandon 24h+, OTP connexion 15min,
+changement de statut, invitation dashboard 72h, notification événement),
+coquille commune (table 600px, CSS inline, préheader). `sendEmail` ne lève
+jamais, timeout 8s, fallback Brevo sur 429 (opt-in `BREVO_FALLBACK_ON_429`).
+`POST /api/admin/test-email` (operator, Zod) pour tester.
+`POST /api/webhooks/resend` (signature Svix + anti-replay 5min, fail-closed
+en prod) : bounces/complaints/suppressions → blacklist + `EmailEvent`,
+delivered/opened/clicked → analytics. `GET /api/health` vérifie la clé via
 `GET /domains` (cache 30 min).
+
+## Espace membre
+
+Connexion par OTP 6 chiffres (`/login` → `/verify-otp`, 3 essais max,
+anti-énumération) ou lien magique 1-clic, session `hashcode_session` 30j
+(sliding window, refresh DB >1h uniquement). Pages : `/account` (historique),
+`/dashboard` (statut, profil, agenda), `/dashboard/agenda` (RSVP
+going/maybe/cancelled, contrôle capacité), `/dashboard/profile` (vitrine +
+partage public `/profile/[id]`), `/dashboard/settings` (coordonnées).
+Middleware Edge : présence cookie seule, validation réelle via `getSession()`.
 
 ## Santé & keepalive Neon
 
@@ -111,21 +140,28 @@ avec les cold starts (~1 s au réveil).
 
 ## Limites connues (V1)
 
-- Auth admin = passcode partagé (pas de comptes/roles) — migrer vers
-  NextAuth + rôles avant exposition large.
-- Rate-limit en mémoire (par isolate) — passer sur KV/Upstash à l'échelle.
+- Auth admin = passcode partagé + rôles `viewer`/`operator` (pas de comptes
+  nominatifs) — migrer vers NextAuth avant exposition large.
+- Rate-limit Upstash Redis + fallback mémoire (par isolate en dégradé).
+- Exports plafonnés (2000 lignes, `X-Export-Truncated`), sans streaming.
+- Notifications événement : email uniquement, à tous les APPROVED (pas de
+  ciblage domaine/niveau), sans retry auto.
 - Analytics fire-and-forget, sans retry client.
-- Partage de profil rendu côté client (pas de SSR `/share/:id` pour les
-  aperçus OG).
-- TypeScript : erreurs pré-existantes tolérées au build
-  (`ignoreBuildErrors`) — ESLint fait foi.
+- `reactStrictMode: true`, `typescript.ignoreBuildErrors: false` — le build
+  casse sur erreur de type (ESLint + `tsc --noEmit` font foi).
 
 ## Structure
 
 ```
-src/app/            pages (/, /admin) + routes /api/*
-src/components/     brand/ (logo SVG), reboot/ (landing, profiling, admin), ui/ (shadcn)
-src/lib/            db, admin-auth, health, mail, rate-limit, analytics, profiling/
-prisma/             schema.prisma + migrations/
-scripts/            copy-standalone.mjs (postbuild cross-platform)
+src/app/            pages (/, /login, /verify-otp, /verify-email, /profile/[id],
+                    /account, /dashboard/*, /admin/*) + routes /api/*
+src/components/     brand/ (logo SVG), reboot/ (landing, profiling-flow, welcome,
+                    profile, admin/*), ui/ (shadcn)
+src/lib/            db, admin-auth (+roles/CSRF), admin-audit, account-auth/otp/data,
+                    blacklist, mail (Resend+Brevo), rate-limit (Redis+mémoire),
+                    verify-email, analytics, health, logging, profiling/
+prisma/             schema.prisma (Postgres Neon) + migrations/
+scripts/            copy-standalone.mjs, test-email-services.mjs,
+                    import-blacklist-from-soft-deleted.mjs
+tests/              unit.test.cjs, magic-link.test.cjs, integration.test.cjs (node --test)
 ```
