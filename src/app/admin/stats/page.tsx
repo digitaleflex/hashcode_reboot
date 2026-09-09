@@ -25,10 +25,10 @@ export default function AdminStatsPage() {
   const timerRef = React.useRef<number | null>(null);
   const runningRef = React.useRef(false);
 
-  const loadData = React.useCallback(async (signal?: AbortSignal) => {
+  const loadData = React.useCallback(async (signal?: AbortSignal, silent?: boolean) => {
     if (runningRef.current) return;
     runningRef.current = true;
-    setLoading(true);
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const [statsResult, funnelResult, emailResult] = await Promise.all([
@@ -71,14 +71,18 @@ export default function AdminStatsPage() {
     }
   }, []);
 
-  // Polling
+  // Polling — un seul timer à la fois (clear avant re-planif),
+  // pas de flash skeleton sur les refreshs silencieux.
   React.useEffect(() => {
     let mounted = true;
-    const schedule = () => { timerRef.current = window.setTimeout(() => { if (mounted) { void loadData(); schedule(); } }, POLL_MS); };
+    const schedule = () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = window.setTimeout(() => { if (mounted) { void loadData(undefined, true); schedule(); } }, POLL_MS);
+    };
     void loadData();
     schedule();
 
-    const onVis = () => { if (!document.hidden) schedule(); };
+    const onVis = () => { if (!document.hidden) { void loadData(undefined, true); schedule(); } };
     document.addEventListener("visibilitychange", onVis);
 
     return () => {

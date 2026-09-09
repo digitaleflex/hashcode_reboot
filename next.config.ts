@@ -49,7 +49,7 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
-  reactStrictMode: false,
+  reactStrictMode: true,
 
   async headers() {
     return [
