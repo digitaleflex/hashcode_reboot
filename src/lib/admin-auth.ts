@@ -109,7 +109,14 @@ export function issueAdminToken(role: "viewer" | "operator" = "operator", identi
     const expiryStr = String(Date.now() + ADMIN_SESSION_MS);
     const expB64 = Buffer.from(expiryStr, "utf8").toString("base64url");
     const roleB64 = Buffer.from(role, "utf8").toString("base64url");
-    const idB64 = identity ? Buffer.from(identity, "utf8").toString("base64url") : "";
+    // Sans identity : format 3 segments (exp.role.sig), comme verify l'attend
+    // pour l'ancien format — pas de segment vide qui casserait la signature.
+    if (!identity) {
+      const dataToSign = `${expB64}.${roleB64}`;
+      const sigB64 = sign(getAdminPasscode(), dataToSign);
+      return `${expB64}.${roleB64}.${sigB64}`;
+    }
+    const idB64 = Buffer.from(identity, "utf8").toString("base64url");
     const dataToSign = `${expB64}.${roleB64}.${idB64}`;
     const sigB64 = sign(getAdminPasscode(), dataToSign);
     return `${expB64}.${roleB64}.${idB64}.${sigB64}`;
