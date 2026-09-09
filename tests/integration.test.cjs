@@ -194,6 +194,7 @@ describe("POST /api/admin/login", () => {
   });
 
   test("→ 429 after 15 rapid wrong attempts (capacity: 10/10s)", async () => {
+    await wait(11_000); // ensure rate-limit bucket is full
     const results = await Promise.all(
       Array.from({ length: 15 }, () =>
         httpRequest("POST", "/api/admin/login", { body: { passcode: "wrong-phrase-for-test" } }),
@@ -297,6 +298,213 @@ describe("public endpoints work without auth", () => {
     const res = await httpRequest("POST", "/api/analytics", { body: { type: "reboot_page_view" } });
     assert.equal(res.status, 200);
     assert.equal(res.json?.ok, true);
+  });
+});
+
+// ── POST /api/members (signup) ──────────────────────────────────
+
+describe("POST /api/members — auth gate", () => {
+  before(async () => {
+    if (!serverReady) { startServer(); await waitForServer(); serverReady = true; }
+  });
+
+  test("→ 400 on invalid JSON", async () => {
+    const res = await httpRequest("POST", "/api/members", {
+      body: "not-json", headers: { "Content-Type": "text/plain" },
+    });
+    assert.equal(res.status, 400);
+  });
+
+  test("→ 422 when required fields are missing", async () => {
+    const res = await httpRequest("POST", "/api/members", { body: {} });
+    assert.equal(res.status, 422);
+  });
+
+  // NOTE: rate-limit tests for POST /api/members are omitted here because
+  // the rate-limit window is 10 minutes (600s). Zod validation is covered
+  // by unit tests. The critical path (valid submission) is tested via API
+  // in the unit test suite.
+});
+
+// ── GET /api/events/notify-count ─────────────────────────────────
+
+describe("GET /api/events/notify-count — auth + params", () => {
+  before(async () => {
+    if (!serverReady) { startServer(); await waitForServer(); serverReady = true; }
+  });
+
+  test("→ 401 without cookie", async () => {
+    const res = await httpRequest("GET", "/api/events/notify-count");
+    assert.equal(res.status, 401);
+  });
+
+  test("→ 200 with auth, returns count + domain/level", async () => {
+    await wait(11_000);
+    const login = await httpRequest("POST", "/api/admin/login", { body: { passcode: TEST_PASSPHRASE } });
+    const jar = parseSetCookies(login.setCookie);
+    const res = await httpRequest("GET", "/api/events/notify-count", { cookies: jar });
+    assert.equal(res.status, 200);
+    assert.equal(typeof res.json?.count, "number");
+    assert.equal(res.json?.domain, null);
+    assert.equal(res.json?.level, null);
+  });
+
+  test("→ 200 with domain filter", async () => {
+    await wait(11_000);
+    const login = await httpRequest("POST", "/api/admin/login", { body: { passcode: TEST_PASSPHRASE } });
+    const jar = parseSetCookies(login.setCookie);
+    const res = await httpRequest("GET", "/api/events/notify-count?domain=web", { cookies: jar });
+    assert.equal(res.status, 200);
+    assert.equal(res.json?.domain, "web");
+    assert.equal(typeof res.json?.count, "number");
+  });
+
+  test("→ 422 with invalid domain", async () => {
+    await wait(11_000);
+    const login = await httpRequest("POST", "/api/admin/login", { body: { passcode: TEST_PASSPHRASE } });
+    const jar = parseSetCookies(login.setCookie);
+    const res = await httpRequest("GET", "/api/events/notify-count?domain=invalid", { cookies: jar });
+    assert.equal(res.status, 422);
+  });
+});
+
+// ── POST /api/account/phone ──────────────────────────────────────
+
+describe("POST /api/account/phone — middleware auth + validation", () => {
+  before(async () => {
+    if (!serverReady) { startServer(); await waitForServer(); serverReady = true; }
+  });
+
+  test("→ 401 without session cookie (middleware blocks /api/account/*)", async () => {
+    const res = await httpRequest("POST", "/api/account/phone", {
+      body: { memberId: "test", phone: "+22991000000" },
+    });
+    assert.equal(res.status, 401);
+  });
+});
+
+// ── GET /api/admin/audit-log ─────────────────────────────────────
+
+describe("GET /api/admin/audit-log — auth + format", () => {
+  before(async () => {
+    if (!serverReady) { startServer(); await waitForServer(); serverReady = true; }
+  });
+
+  test("→ 403 without cookie (requireAdminRole returns false)", async () => {
+    const res = await httpRequest("GET", "/api/admin/audit-log");
+    assert.equal(res.status, 403);
+  });
+
+  test("→ 200 with auth, returns logs array", async () => {
+    await wait(11_000);
+    const login = await httpRequest("POST", "/api/admin/login", { body: { passcode: TEST_PASSPHRASE } });
+    const jar = parseSetCookies(login.setCookie);
+    const res = await httpRequest("GET", "/api/admin/audit-log", { cookies: jar });
+    assert.equal(res.status, 200);
+    assert.ok(Array.isArray(res.json?.logs));
+    assert.equal(typeof res.json?.total, "number");
+  });
+
+  test("→ 200 with ?format=csv, returns CSV content", async () => {
+    await wait(11_000);
+    const login = await httpRequest("POST", "/api/admin/login", { body: { passcode: TEST_PASSPHRASE } });
+    const jar = parseSetCookies(login.setCookie);
+    const res = await httpRequest("GET", "/api/admin/audit-log?format=csv", { cookies: jar });
+    assert.equal(res.status, 200);
+    assert.ok(res.headers["content-type"]?.includes("text/csv"));
+  });
+});
+
+// ── GET /api/admin/activity ──────────────────────────────────────
+
+describe("GET /api/admin/activity — auth + format", () => {
+  before(async () => {
+    if (!serverReady) { startServer(); await waitForServer(); serverReady = true; }
+  });
+
+  test("→ 403 without cookie (requireAdminRole returns false)", async () => {
+    const res = await httpRequest("GET", "/api/admin/activity");
+    assert.equal(res.status, 403);
+  });
+
+  test("→ 200 with auth, returns events array", async () => {
+    await wait(11_000);
+    const login = await httpRequest("POST", "/api/admin/login", { body: { passcode: TEST_PASSPHRASE } });
+    const jar = parseSetCookies(login.setCookie);
+    const res = await httpRequest("GET", "/api/admin/activity", { cookies: jar });
+    assert.equal(res.status, 200);
+    assert.ok(Array.isArray(res.json?.events));
+  });
+
+  test("→ 200 with ?limit=5, respects limit", async () => {
+    await wait(11_000);
+    const login = await httpRequest("POST", "/api/admin/login", { body: { passcode: TEST_PASSPHRASE } });
+    const jar = parseSetCookies(login.setCookie);
+    const res = await httpRequest("GET", "/api/admin/activity?limit=5", { cookies: jar });
+    assert.equal(res.status, 200);
+    assert.ok(res.json.events.length <= 5);
+  });
+});
+
+// ── POST /api/events (create) ────────────────────────────────────
+
+describe("POST /api/events — auth + validation", () => {
+  before(async () => {
+    if (!serverReady) { startServer(); await waitForServer(); serverReady = true; }
+  });
+
+  test("→ 403 without auth (viewer cannot create)", async () => {
+    const res = await httpRequest("POST", "/api/events", {
+      body: { title: "Test Event", startsAt: "2026-12-01T14:00:00Z" },
+    });
+    assert.equal(res.status, 403);
+  });
+
+  test("→ 422 when title is too short", async () => {
+    await wait(11_000);
+    const login = await httpRequest("POST", "/api/admin/login", { body: { passcode: TEST_PASSPHRASE } });
+    const jar = parseSetCookies(login.setCookie);
+    const res = await httpRequest("POST", "/api/events", {
+      body: { title: "ab", startsAt: "2026-12-01T14:00:00Z" },
+      cookies: jar,
+    });
+    assert.equal(res.status, 422);
+  });
+
+  test("→ 422 when endsAt is before startsAt", async () => {
+    await wait(11_000);
+    const login = await httpRequest("POST", "/api/admin/login", { body: { passcode: TEST_PASSPHRASE } });
+    const jar = parseSetCookies(login.setCookie);
+    const res = await httpRequest("POST", "/api/events", {
+      body: {
+        title: "Test Event Integration",
+        startsAt: "2026-12-01T14:00:00Z",
+        endsAt: "2026-12-01T12:00:00Z",
+      },
+      cookies: jar,
+    });
+    assert.equal(res.status, 422);
+  });
+
+  test("→ 201 with valid payload (notify=false to skip emails)", async () => {
+    await wait(11_000);
+    const login = await httpRequest("POST", "/api/admin/login", { body: { passcode: TEST_PASSPHRASE } });
+    const jar = parseSetCookies(login.setCookie);
+    const res = await httpRequest("POST", "/api/events", {
+      body: {
+        title: "Integration Test Event",
+        startsAt: "2026-12-01T14:00:00Z",
+        endsAt: "2026-12-01T16:00:00Z",
+        type: "session",
+        domain: "web",
+        level: "beginner",
+        notify: false,
+      },
+      cookies: jar,
+    });
+    assert.equal(res.status, 201, `got ${res.status}: ${JSON.stringify(res.json)}`);
+    assert.equal(res.json?.ok, true);
+    assert.ok(res.json?.event?.id);
   });
 });
 
