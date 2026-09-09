@@ -7,6 +7,7 @@ import { StatusCard } from "./_components/StatusCard";
 import { QuickActions } from "./_components/QuickActions";
 import { ProfileSummary } from "./_components/ProfileSummary";
 import { AgendaCard } from "./_components/AgendaCard";
+import { NextSteps } from "@/app/account/_components/NextSteps";
 
 /**
  * Dashboard membre — vue d'ensemble.
@@ -50,6 +51,8 @@ export default async function DashboardPage() {
         <StatusCard status={data.status} />
         <ProfileSummary profile={data.profile} member={data.member} />
       </div>
+
+      <NextSteps archetype={data.profile?.archetype ?? null} />
 
       <QuickActions
         communityStatus={data.status.communityStatus}

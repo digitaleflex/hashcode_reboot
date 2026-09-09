@@ -1380,3 +1380,66 @@ Reste proposé (non appliqué) :
 - Timezone `startsAt/endsAt` (`datetime-local` sans fuseau).
 - Deps mortes à purger (`recharts`, `@mdxeditor`, `dnd-kit`, `react-hook-form`
   installés mais non importés) — touche au lockfile, en attente de validation.
+
+## Session 2026-09-09 (suite) — Validation events, onboarding allégé, docs complètes
+
+Suite de la session 2026-09-09. Les propositions « Reste proposé » de la session
+précédente ont été implémentées, puis la documentation complète a été révisée.
+
+### Commits (branche development) :
+- `40562df` fix(events): validation partagée + notifs ciblées domaine/niveau
+  - `lib/events-validation.ts` (249 lignes) : `validateEventCreate`,
+    `validateEventPatch`, `notifyWhere`, constantes `EVENT_*` partagées.
+  - API events : GET/POST/DELETE avec validation Zod, PATCH sans body 422
+    (cas renotify), audit `event.create/update/delete/notify`.
+  - `GET /api/events/notify-count` : compteur pré-envoi, filtre domain/level.
+- `4f7c3e4` feat(audit): trail complet events + 17 tests unitaires
+  - Audit trail : `event.create/update/delete/notify` via `AuditLog`.
+  - `tests/unit.test.cjs` : 86→103 tests, +17 sur validation events.
+- `618579b` feat(onboarding): allégé 21→18 questions, WhatsApp optionnel
+  - Retiré : lastName, city, genre du questionnaire (restent en settings).
+  - Phone rendu `required: false`, regex relâchée (`/^$|^\+?...$/`).
+  - Capture post-conversion : `POST /api/account/phone` (remplissage unique,
+    réponse générique anti-énumération, 5 req/IP/10 min).
+  - Dashboard : bandeau WhatsApp si aucun numéro.
+- `4e151ef` fix(signup): 201 immédiat + mails background
+  - POST members : réponse 201 immédiate, emails en `Promise.allSettled`.
+- `55ac186` fix(ux): espace canonique + aide spam
+  - `NextSteps` (étapes perso par archétype) déplacé de `/account` vers
+    `/dashboard`. `/account` redirige vers `/dashboard/settings`.
+  - `/verify-otp` : « Rien reçu ? Vérifie tes spams, puis renvoie un code. »
+- `76da068` test(events): couvre validation, ciblage, merge source
+  - `tests/event-validation.test.cjs` : 17 tests (create, patch, notifyWhere,
+    mergeBySource). Câblé dans `test`, `test:unit`, `test:all`, `test:events`.
+- `757d179` feat(ux): loading system global
+  - `nextjs-toploader` (barre lime), `loading.tsx` racine/dashboard/admin.
+  - `ProfilingFlow` en `dynamic(ssr:false)`.
+- `56f4359` docs(espace-membre): documentation complète
+  - `docs/espace-membre.md` : parcours, pages, coaching, layout.
+
+### Documentation révisée :
+- **README.md** : routes `events/notify-count` + `account/phone` ajoutées,
+  section « UX & Loading », lien vers `docs/espace-membre.md`, mise à jour
+  espace membre (redirect `/account`), structure mise à jour (event-validation,
+  tests/event-validation.test.cjs), limites notifs mises à jour.
+- **.env.example** : `BREVO_FALLBACK_ON_429`, `SENTRY_DSN`,
+  `NEXT_PUBLIC_SENTRY_DSN` ajoutés.
+- **worklog.md** : entrée 2026-09-09 (suite) complète.
+
+### Git :
+- Merge `development` → `main` : `09f7ffc` (conflits résolus : useActivity
+  supprimé, package-lock régénéré).
+- Push origin : `development` (`76da068`) + `main` (`09f7ffc`).
+
+### État vérifié :
+- `tsc --noEmit` : 0 erreur dans `src/`.
+- `npm run test:unit` : 103/103 pass (86 + 17 events).
+- `npm run build` : compilation OK (standalone Windows KO sur `[externals]_node`,
+  sans impact Vercel/Linux).
+
+### Reste proposé (non appliqué) :
+- 2e relance J+3 (même pattern que l'existante).
+- Purge deps mortes (`recharts`, `@mdxeditor`, `dnd-kit`, `react-hook-form`).
+- Tests `runAutoControls` (4 raisons), `generateProfile` (archétypes/tags),
+  `POST /members` invalides (intégration).
+- Relire le drop-off par question après ~100 visites.

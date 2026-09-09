@@ -10,7 +10,8 @@ manuelle) → dashboard admin. Construit pour être déployé sur **Vercel** ave
 - **Next.js 16** (App Router) + TypeScript + Tailwind CSS 4 + shadcn/ui
 - **Prisma 6** + **Neon Postgres** (URL poolée + directe)
 - **Resend** (emails transactionnels, API HTTP directe, sans SDK)
-- Zustand, TanStack Query/Table, react-hook-form + Zod
+- Zustand, TanStack Query/Table, Zod
+- **nextjs-toploader** (barre de progression lime)
 - Package manager : **Bun** (lockfile `bun.lock`)
 
 ## Démarrage rapide
@@ -69,6 +70,8 @@ Noms lus par le code, dans l'ordre d'importance :
   `verify-email` (lien magique 1-clic), `auth/request-magic-link|verify-otp|logout`,
   `account/me`, `account/profile`, `events` (GET mixte / POST operator),
   `events/[id]` (GET/PATCH/DELETE), `events/[id]/rsvp` (POST/DELETE membre),
+  `events/notify-count` (GET admin, compteur pré-envoi notification),
+  `account/phone` (POST public, remplissage unique WhatsApp post-inscription),
   `profiling/draft` (brouillons anti-abandon),
   `admin/login|logout|verify|activity|audit-log|keys|blacklist|test-email|announce-dashboard`,
   `webhooks/resend` (bounced/complained/suppressed → blacklist, engagement → analytics),
@@ -89,7 +92,8 @@ import CSV, export CSV/JSON filtré (audité), blacklist (manuelle + auto via
 webhooks Resend et soft-delete), rotation des clés (`keys`), journal d'audit
 (`audit-log`, sidebar « Audit »), journal d'activité temps réel, pilotage
 agenda (CRUD événements + renotification), annonce dashboard par lots,
-envoi d'emails de test (welcome/invitation).
+envoi d'emails de test (welcome/invitation), validation partagée des events
+(`lib/events-validation.ts`), audit trail (`event.create/update/delete/notify`).
 
 ## Mails (Resend primaire + Brevo fallback)
 
@@ -108,10 +112,12 @@ delivered/opened/clicked → analytics. `GET /api/health` vérifie la clé via
 
 Connexion par OTP 6 chiffres (`/login` → `/verify-otp`, 3 essais max,
 anti-énumération) ou lien magique 1-clic, session `hashcode_session` 30j
-(sliding window, refresh DB >1h uniquement). Pages : `/account` (historique),
-`/dashboard` (statut, profil, agenda), `/dashboard/agenda` (RSVP
-going/maybe/cancelled, contrôle capacité), `/dashboard/profile` (vitrine +
-partage public `/profile/[id]`), `/dashboard/settings` (coordonnées).
+(sliding window, refresh DB >1h uniquement). Pages : `/account` (redirect
+vers `/dashboard/settings`), `/dashboard` (statut, profil, prochaines étapes,
+agenda), `/dashboard/agenda` (RSVP going/maybe/cancelled, contrôle capacité),
+`/dashboard/profile` (vitrine + partage public `/profile/[id]`),
+`/dashboard/settings` (coordonnées, email, WhatsApp). Voir
+`docs/espace-membre.md` pour le détail complet.
 Middleware Edge : présence cookie seule, validation réelle via `getSession()`.
 
 ## Santé & keepalive Neon
@@ -138,14 +144,23 @@ avec les cold starts (~1 s au réveil).
 3. Push sur `main` : `vercel-build` migre (`migrate deploy`) puis build.
 4. Créer le job cron-job.org (section précédente).
 
+## UX & Loading
+
+Barre de progression **nextjs-toploader** (lime `#C5F441`) dans `layout.tsx`.
+Fallbacks de chargement : `loading.tsx` global (racine), dashboard et admin
+(squelettes animés). Le `ProfilingFlow` utilise un fallback spinner dynamique
+(`dynamic(..., { ssr: false })`). Le bouton WhatsApp est **facultatif** pendant
+le profiling — un bandeau post-conversion sur l'écran de résultat propose de
+remplir le numéro (remplissage unique, via `POST /api/account/phone`).
+
 ## Limites connues (V1)
 
 - Auth admin = passcode partagé + rôles `viewer`/`operator` (pas de comptes
   nominatifs) — migrer vers NextAuth avant exposition large.
 - Rate-limit Upstash Redis + fallback mémoire (par isolate en dégradé).
 - Exports plafonnés (2000 lignes, `X-Export-Truncated`), sans streaming.
-- Notifications événement : email uniquement, à tous les APPROVED (pas de
-  ciblage domaine/niveau), sans retry auto.
+- Notifications événement : email uniquement, ciblage domaine/niveau
+  (via `notifyWhere`), compteur pré-envoi, audit trail, sans retry auto.
 - Analytics fire-and-forget, sans retry client.
 - `reactStrictMode: true`, `typescript.ignoreBuildErrors: false` — le build
   casse sur erreur de type (ESLint + `tsc --noEmit` font foi).
@@ -155,13 +170,16 @@ avec les cold starts (~1 s au réveil).
 ```
 src/app/            pages (/, /login, /verify-otp, /verify-email, /profile/[id],
                     /account, /dashboard/*, /admin/*) + routes /api/*
+                    + loading.tsx (fallback global, dashboard, admin)
 src/components/     brand/ (logo SVG), reboot/ (landing, profiling-flow, welcome,
                     profile, admin/*), ui/ (shadcn)
 src/lib/            db, admin-auth (+roles/CSRF), admin-audit, account-auth/otp/data,
                     blacklist, mail (Resend+Brevo), rate-limit (Redis+mémoire),
-                    verify-email, analytics, health, logging, profiling/
+                    verify-email, analytics, health, logging, profiling/,
+                    events-validation (validateEventCreate/Patch + notifyWhere)
 prisma/             schema.prisma (Postgres Neon) + migrations/
 scripts/            copy-standalone.mjs, test-email-services.mjs,
                     import-blacklist-from-soft-deleted.mjs
-tests/              unit.test.cjs, magic-link.test.cjs, integration.test.cjs (node --test)
+tests/              unit.test.cjs, magic-link.test.cjs, event-validation.test.cjs,
+                    integration.test.cjs (node --test)
 ```

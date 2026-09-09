@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Sora } from "next/font/google";
+import NextTopLoader from "nextjs-toploader";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { Providers } from "./providers";
@@ -102,6 +103,13 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${sora.variable} font-sans antialiased bg-background text-foreground`}
       >
+        {/* Barre de progression des navigations (charte lime, sans spinner) */}
+        <NextTopLoader
+          color="#C5F441"
+          height={3}
+          showSpinner={false}
+          zIndex={100}
+        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{

@@ -20,7 +20,19 @@ import { track, getSource } from "@/lib/analytics";
 // l'utilisateur démarre le profiling (phase "profiling").
 const ProfilingFlow = dynamic(
   () => import("@/components/reboot/profiling-flow").then((m) => m.ProfilingFlow),
-  { ssr: false, loading: () => null },
+  {
+    ssr: false,
+    loading: () => (
+      <div
+        className="min-h-[50vh] flex flex-col items-center justify-center gap-3"
+        role="status"
+        aria-label="Chargement du questionnaire"
+      >
+        <span className="size-8 rounded-full border-2 border-lime/30 border-t-lime animate-spin" />
+        <p className="mono-label text-muted-foreground">Préparation…</p>
+      </div>
+    ),
+  },
 );
 
 type Phase = "landing" | "profiling" | "submitting" | "result" | "admin-login" | "admin";

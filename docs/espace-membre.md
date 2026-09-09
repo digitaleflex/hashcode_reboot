@@ -69,9 +69,11 @@ Sidebar (desktop pliable, drawer mobile) : **Vue d'ensemble** (`/dashboard`),
 - **Lecture seule** : email, pays, « Membre depuis ». Changement d'email ou
   suppression de compte : via WhatsApp (pas de self-service).
 
-### `/account` — page historique (legacy)
-Même `ContactForm` + déconnexion, plus sections statut et prochaines étapes,
-lien retour `← Dashboard`. Le canonique est `/dashboard/settings`.
+### `/account` — redirect permanent vers le dashboard
+Ancienne page historique : redirige vers `/dashboard/settings`.
+Son contenu unique (prochaines étapes personnalisées par archétype) vit
+désormais sur `/dashboard` (Vue d'ensemble). Les emails pointant encore vers
+`/account` suivent le redirect automatiquement.
 
 ## 4. Ce que le membre ne peut PAS faire (choix produit)
 - Changer son email seul (contact WhatsApp requis).
