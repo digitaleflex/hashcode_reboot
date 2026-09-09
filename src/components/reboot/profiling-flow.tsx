@@ -7,6 +7,7 @@ import { ArrowLeft, ArrowRight, Check, RotateCcw } from "lucide-react";
 import {
   QUESTIONS,
   getQuestionOptions,
+  THREE_MONTH_GOAL_SUGGESTIONS,
 } from "@/lib/profiling/questions";
 import {
   getVisibleQuestions,
@@ -733,6 +734,11 @@ function QuestionView({
             error={error}
             minChars={question.minChars}
             maxChars={question.maxChars}
+            suggestions={
+              question.id === "threeMonthGoal"
+                ? THREE_MONTH_GOAL_SUGGESTIONS
+                : undefined
+            }
           />
         )}
 
@@ -883,6 +889,7 @@ function LongTextView({
   error,
   minChars,
   maxChars,
+  suggestions,
 }: {
   value: string;
   placeholder?: string;
@@ -891,12 +898,27 @@ function LongTextView({
   error: string | null;
   minChars?: number;
   maxChars?: number;
+  suggestions?: string[];
 }) {
   const len = value.trim().length;
   const [blurred, setBlurred] = React.useState(false);
   const showError = error || (blurred ? "" : "");
   return (
     <div className="space-y-3">
+      {suggestions && suggestions.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {suggestions.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => onChange(s)}
+              className="rounded-full border border-border/60 bg-secondary/50 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-lime/40 hover:text-foreground cursor-pointer"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
       <textarea
         value={value}
         autoFocus
