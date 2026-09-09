@@ -1,156 +1,414 @@
+/**
+ * Resend webhook handler for HASHCODE REBOOT.
+ *
+ * Handles email lifecycle events:
+ * - email.bounced (permanent/transient)
+ * - email.complained (spam complaint)
+ * - email.suppressed (added to suppression list)
+ * - email.delivered, email.opened, email.clicked (analytics)
+ *
+ * Updates member records and logs events for audit trail.
+ */
+
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 import { db } from "@/lib/db";
-import { timingSafeEqual } from "node:crypto";
+import { createLogger, serializeError } from "@/lib/logging";
+import { headers } from "next/headers";
 
 export const runtime = "nodejs";
 
-/**
- * POST /api/webhooks/resend — Resend webhook receiver.
- *
- * Handles: email.sent, email.opened, email.clicked
- * Verifies Svix signature when RESEND_WEBHOOK_SECRET is set.
- */
-export async function POST(req: NextRequest) {
-  const rawBody = await req.text();
+/** Resend webhook event types we handle. */
+type ResendEventType =
+  | "email.sent"
+  | "email.delivered"
+  | "email.delivery_delayed"
+  | "email.bounced"
+  | "email.complained"
+  | "email.opened"
+  | "email.clicked"
+  | "email.suppressed"
+  | "email.failed"
+  | "contact.created"
+  | "contact.updated"
+  | "contact.deleted";
 
-  // Verify webhook signature if secret is configured
-  const secret = process.env.RESEND_WEBHOOK_SECRET;
-  if (secret) {
-    const svixId = req.headers.get("svix-id");
-    const svixTimestamp = req.headers.get("svix-timestamp");
-    const svixSignature = req.headers.get("svix-signature");
-    if (!svixId || !svixTimestamp || !svixSignature) {
-      return NextResponse.json({ ok: false, error: "Missing svix headers" }, { status: 401 });
-    }
-    const toSign = `${svixId}.${svixTimestamp}.${rawBody}`;
-    const valid = await verifySvixSignature(secret, toSign, svixSignature);
-    if (!valid) {
-      return NextResponse.json({ ok: false, error: "Invalid signature" }, { status: 401 });
-    }
-  }
+interface ResendWebhookEvent {
+  type: ResendEventType;
+  created_at: string;
+  data: {
+    email_id?: string;
+    from?: string;
+    to?: string[];
+    subject?: string;
+    tags?: Array<{ name: string; value: string }>;
+    bounce?: {
+      type: "permanent" | "transient" | "undetermined";
+      message?: string;
+    };
+    complaint?: {
+      feedback_type?: string;
+      message?: string;
+    };
+    suppression?: {
+      reason: "bounce" | "complaint" | "manual" | "unsubscribe";
+      created_at: string;
+    };
+    click?: {
+      url: string;
+    };
+    contact?: {
+      id: string;
+      email: string;
+      first_name?: string;
+      last_name?: string;
+      unsubscribed?: boolean;
+    };
+  };
+}
 
-  let body: unknown;
+/** Verify webhook signature (Resend uses svix for signatures). */
+async function verifyWebhookSignature(
+  payload: string,
+  signature: string | null,
+  secret: string
+): Promise<boolean> {
+  if (!signature || !secret) return false;
+
   try {
-    body = JSON.parse(rawBody);
+    // Resend uses svix format: "t=timestamp,v1=signature"
+    const parts = signature.split(",");
+    const timestampPart = parts.find((p) => p.startsWith("t="));
+    const signaturePart = parts.find((p) => p.startsWith("v1="));
+
+    if (!timestampPart || !signaturePart) return false;
+
+    const timestamp = timestampPart.slice(2);
+    const expectedSignature = signaturePart.slice(3);
+
+    // Verify timestamp is recent (within 5 minutes)
+    const now = Math.floor(Date.now() / 1000);
+    if (Math.abs(now - parseInt(timestamp, 10)) > 300) {
+      return false;
+    }
+
+    // Compute HMAC-SHA256
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      "raw",
+      encoder.encode(secret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"]
+    );
+    const signed = await crypto.subtle.sign(
+      "HMAC",
+      key,
+      encoder.encode(`${timestamp}.${payload}`)
+    );
+    const computedSignature = Array.from(new Uint8Array(signed))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+
+    // Timing-safe comparison
+    if (computedSignature.length !== expectedSignature.length) return false;
+    let diff = 0;
+    for (let i = 0; i < computedSignature.length; i++) {
+      diff |= computedSignature.charCodeAt(i) ^ expectedSignature.charCodeAt(i);
+    }
+    return diff === 0;
   } catch {
-    return NextResponse.json({ ok: false }, { status: 400 });
+    return false;
   }
+}
 
-  // Resend sends a type field at the top level
-  const parsed = resendWebhookSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ ok: false }, { status: 422 });
-  }
+/** Handle bounce event - update member status if permanent. */
+async function handleBounce(
+  logger: Awaited<ReturnType<typeof createLogger>>,
+  event: ResendWebhookEvent
+): Promise<void> {
+  const email = event.data.to?.[0];
+  const bounceType = event.data.bounce?.type;
+  const bounceMessage = event.data.bounce?.message;
 
-  const event = parsed.data;
-  const eventType = event.type;
-  const data = event.data;
+  if (!email) return;
 
-  // Extract email from the "to" field (first recipient)
-  const toEmail = Array.isArray(data.to) && data.to.length > 0
-    ? (typeof data.to[0] === "string" ? data.to[0] : data.to[0]?.address)
-    : null;
+  logger.warn("Email bounced", {
+    email,
+    bounceType,
+    bounceMessage,
+    eventId: event.data.email_id,
+  });
 
-  if (!toEmail) {
-    return NextResponse.json({ ok: true, skipped: "no recipient" });
-  }
-
-  // Map Resend event type to our category
-  const category = categorizeEmail(data.subject);
-
+  // Log to EmailEvent table
   try {
-    // Find matching member
-    const member = await db.member.findUnique({
-      where: { email: toEmail },
-      select: { id: true },
-    });
-
     await db.emailEvent.create({
       data: {
-        email: toEmail,
-        memberId: member?.id ?? null,
-        type: eventType,
-        category,
-        clickUrl: eventType === "email.clicked" ? extractClickUrl(data) : null,
+        email,
+        type: "email.bounced",
+        category: "bounce",
         metadata: JSON.stringify({
-          subject: data.subject,
-          from: data.from,
-          createdAt: event.created_at,
+          bounceType,
+          bounceMessage,
+          emailId: event.data.email_id,
         }),
       },
     });
   } catch {
-    // Don't fail the webhook on DB error
+    // Silent - best effort
   }
 
-  return NextResponse.json({ ok: true });
-}
+  // If permanent bounce, consider suppressing the member
+  if (bounceType === "permanent") {
+    try {
+      const member = await db.member.findUnique({
+        where: { email },
+        select: { id: true, email: true },
+      });
 
-/* ── Schemas ─────────────────────────────────────────────────────────────── */
+      if (member) {
+        // Add to blacklist for permanent bounces
+        await db.memberBlacklist.create({
+          data: {
+            email: member.email,
+            reason: `permanent_bounce_${Date.now()}`,
+            note: `Auto-added via Resend webhook: ${bounceMessage ?? "no message"}`,
+            autoAdded: true,
+          },
+        });
 
-const resendWebhookSchema = z.object({
-  type: z.string(),
-  created_at: z.string().optional(),
-  data: z.object({
-    from: z.string().optional(),
-    to: z.union([z.string(), z.array(z.union([z.string(), z.object({ address: z.string() })]))]).optional(),
-    subject: z.string().optional(),
-    email_id: z.string().optional(),
-  }).passthrough(),
-});
-
-/* ── Helpers ─────────────────────────────────────────────────────────────── */
-
-function categorizeEmail(subject?: string): string {
-  if (!subject) return "unknown";
-  const s = subject.toLowerCase();
-  if (s.includes("bienvenue") || s.includes("invitation")) return "welcome";
-  if (s.includes("inscription") || s.includes("merci")) return "waitlist";
-  if (s.includes("t'attend") || s.includes("rejoins")) return "engagement";
-  if (s.includes("reprend") || s.includes("termin")) return "relance";
-  return "other";
-}
-
-function extractClickUrl(data: Record<string, unknown>): string | null {
-  const clickData = data.click as { url?: string } | undefined;
-  if (clickData?.url) return clickData.url;
-  return null;
-}
-
-/**
- * Verify Svix webhook signature (HMAC-SHA256).
- * Secret format: "whsec_<base64>" → extract key, sign payload, compare.
- */
-async function verifySvixSignature(
-  secret: string,
-  toSign: string,
-  headerSignature: string,
-): Promise<boolean> {
-  try {
-    // whsec_<base64> → raw key bytes
-    const keyB64 = secret.replace("whsec_", "").replace(/-/g, "+").replace(/_/g, "/");
-    const keyBytes = Buffer.from(keyB64, "base64");
-
-    const cryptoKey = await crypto.subtle.importKey(
-      "raw",
-      keyBytes,
-      { name: "HMAC", hash: "SHA-256" },
-      false,
-      ["sign"],
-    );
-    const sig = await crypto.subtle.sign("HMAC", cryptoKey, Buffer.from(toSign));
-    const computed = `v1,${Buffer.from(sig).toString("base64")}`;
-
-    // header may contain multiple signatures separated by space
-    const signatures = headerSignature.split(" ");
-    for (const s of signatures) {
-      if (timingSafeEqual(Buffer.from(computed), Buffer.from(s))) {
-        return true;
+        logger.info("Member blacklisted due to permanent bounce", {
+          memberId: member.id,
+          email: member.email,
+        });
       }
+    } catch {
+      // Silent - best effort
     }
-    return false;
+  }
+}
+
+/** Handle complaint event - spam complaint. */
+async function handleComplaint(
+  logger: Awaited<ReturnType<typeof createLogger>>,
+  event: ResendWebhookEvent
+): Promise<void> {
+  const email = event.data.to?.[0];
+  const feedbackType = event.data.complaint?.feedback_type;
+
+  if (!email) return;
+
+  logger.warn("Spam complaint received", {
+    email,
+    feedbackType,
+    eventId: event.data.email_id,
+  });
+
+  // Log to EmailEvent table
+  try {
+    await db.emailEvent.create({
+      data: {
+        email,
+        type: "email.complained",
+        category: "complaint",
+        metadata: JSON.stringify({
+          feedbackType,
+          emailId: event.data.email_id,
+        }),
+      },
+    });
   } catch {
-    return false;
+    // Silent
+  }
+
+  // Add to blacklist for spam complaints
+  try {
+    const member = await db.member.findUnique({
+      where: { email },
+      select: { id: true, email: true },
+    });
+
+    if (member) {
+      await db.memberBlacklist.create({
+        data: {
+          email: member.email,
+          reason: `spam_complaint_${Date.now()}`,
+          note: `Auto-added via Resend webhook: ${feedbackType ?? "no feedback type"}`,
+          autoAdded: true,
+        },
+      });
+
+      logger.info("Member blacklisted due to spam complaint", {
+        memberId: member.id,
+        email: member.email,
+      });
+    }
+  } catch {
+    // Silent
+  }
+}
+
+/** Handle suppression event - email added to suppression list. */
+async function handleSuppression(
+  logger: Awaited<ReturnType<typeof createLogger>>,
+  event: ResendWebhookEvent
+): Promise<void> {
+  const email = event.data.to?.[0];
+  const reason = event.data.suppression?.reason;
+
+  if (!email) return;
+
+  logger.warn("Email suppressed", {
+    email,
+    reason,
+    eventId: event.data.email_id,
+  });
+
+  // Log to EmailEvent table
+  try {
+    await db.emailEvent.create({
+      data: {
+        email,
+        type: "email.suppressed",
+        category: "suppression",
+        metadata: JSON.stringify({
+          reason,
+          emailId: event.data.email_id,
+        }),
+      },
+    });
+  } catch {
+    // Silent
+  }
+
+  // Add to blacklist
+  try {
+    const member = await db.member.findUnique({
+      where: { email },
+      select: { id: true, email: true },
+    });
+
+    if (member) {
+      await db.memberBlacklist.create({
+        data: {
+          email: member.email,
+          reason: `suppressed_${reason}_${Date.now()}`,
+          note: `Auto-added via Resend webhook: ${reason}`,
+          autoAdded: true,
+        },
+      });
+    }
+  } catch {
+    // Silent
+  }
+}
+
+/** Handle delivery/engagement events for analytics. */
+async function handleEngagement(
+  logger: Awaited<ReturnType<typeof createLogger>>,
+  event: ResendWebhookEvent
+): Promise<void> {
+  const email = event.data.to?.[0];
+  const emailId = event.data.email_id;
+
+  if (!email) return;
+
+  const categoryMap: Record<string, string> = {
+    "email.delivered": "delivered",
+    "email.opened": "opened",
+    "email.clicked": "clicked",
+    "email.failed": "failed",
+    "email.sent": "sent",
+    "email.delivery_delayed": "delayed",
+  };
+
+  const category = categoryMap[event.type] ?? "other";
+
+  try {
+    await db.emailEvent.create({
+      data: {
+        email,
+        type: event.type,
+        category,
+        metadata: JSON.stringify({
+          emailId,
+          subject: event.data.subject,
+          tags: event.data.tags,
+          clickUrl: event.data.click?.url,
+        }),
+      },
+    });
+  } catch {
+    // Silent
+  }
+}
+
+/** Main webhook handler. */
+export async function POST(req: NextRequest) {
+  const logger = await createLogger({ route: "/api/webhooks/resend", method: "POST" });
+  const startTime = Date.now();
+
+  try {
+    // Get raw body for signature verification
+    const rawBody = await req.text();
+    const h = await headers();
+    const signature = h.get("resend-signature") ?? h.get("svix-signature");
+    const webhookSecret = process.env.RESEND_WEBHOOK_SECRET;
+
+    // Verify signature if secret is configured
+    if (webhookSecret) {
+      const isValid = await verifyWebhookSignature(rawBody, signature, webhookSecret);
+      if (!isValid) {
+        logger.warn("Invalid webhook signature", { signature: signature ? "present" : "missing" });
+        return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+      }
+    } else {
+      logger.warn("Webhook secret not configured, skipping signature verification");
+    }
+
+    // Parse event
+    let event: ResendWebhookEvent;
+    try {
+      event = JSON.parse(rawBody);
+    } catch {
+      logger.error("Invalid JSON payload");
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    }
+
+    logger.info("Resend webhook received", { type: event.type, emailId: event.data.email_id });
+
+    // Route to appropriate handler
+    switch (event.type) {
+      case "email.bounced":
+        await handleBounce(logger, event);
+        break;
+      case "email.complained":
+        await handleComplaint(logger, event);
+        break;
+      case "email.suppressed":
+        await handleSuppression(logger, event);
+        break;
+      case "email.delivered":
+      case "email.opened":
+      case "email.clicked":
+      case "email.failed":
+      case "email.delivery_delayed":
+      case "email.sent":
+        await handleEngagement(logger, event);
+        break;
+      default:
+        logger.debug("Unhandled webhook event type", { type: event.type });
+    }
+
+    const durationMs = Date.now() - startTime;
+    logger.info("Webhook processed", { durationMs, type: event.type });
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    const durationMs = Date.now() - startTime;
+    logger.error("Webhook processing failed", {
+      durationMs,
+      error: serializeError(error),
+    });
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
