@@ -6,6 +6,16 @@ import { cn } from "@/lib/utils";
 import { fetchJson, isAbortError } from "./lib/fetchJson";
 import { Download, Search, Filter, AlertCircle } from "lucide-react";
 
+interface AuditMember {
+  id: string;
+  firstName: string;
+  lastName: string | null;
+  email: string;
+  profileStatus: string;
+  country: string;
+  city: string | null;
+}
+
 interface AuditEntry {
   id: string;
   createdAt: string;
@@ -14,6 +24,7 @@ interface AuditEntry {
   entityType: string;
   entityId: string | null;
   metadata: string | null;
+  member: AuditMember | null;
 }
 
 const ACTION_COLORS: Record<string, string> = {
@@ -84,7 +95,9 @@ export function AuditLogViewer({
         l.action.toLowerCase().includes(q) ||
         l.entityType.toLowerCase().includes(q) ||
         (l.actor ?? "").toLowerCase().includes(q) ||
-        (l.entityId ?? "").toLowerCase().includes(q),
+        (l.entityId ?? "").toLowerCase().includes(q) ||
+        (l.member?.email ?? "").toLowerCase().includes(q) ||
+        (l.member?.firstName ?? "").toLowerCase().includes(q),
     );
   }, [logs, filter]);
 
@@ -142,7 +155,7 @@ export function AuditLogViewer({
           type="text"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          placeholder="Filtrer par action, entité, acteur…"
+          placeholder="Filtrer par action, entité, acteur, email…"
           aria-label="Filtrer les logs d'audit"
           className="w-full h-10 rounded-md border bg-card pl-9 pr-4 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-lime border-border focus:border-lime"
         />
@@ -213,9 +226,20 @@ export function AuditLogViewer({
                       <span className="mono-label text-xs text-muted-foreground">
                         {entry.entityType}
                       </span>
-                      {entry.entityId && (
-                        <span className="mono-label text-xs text-muted-foreground truncate max-w-[120px]">
-                          {entry.entityId}
+                      {entry.member ? (
+                        <span className="text-xs text-foreground/80 truncate max-w-[220px]">
+                          {entry.member.firstName} · {entry.member.email}
+                        </span>
+                      ) : (
+                        entry.entityId && (
+                          <span className="mono-label text-xs text-muted-foreground truncate max-w-[120px]">
+                            {entry.entityId}
+                          </span>
+                        )
+                      )}
+                      {entry.member && (
+                        <span className="rounded border border-lime/30 bg-lime/5 px-1.5 py-0.5 text-[10px] text-lime mono-label">
+                          {entry.member.profileStatus}
                         </span>
                       )}
                     </div>
@@ -255,6 +279,26 @@ export function AuditLogViewer({
                         <span className="text-muted-foreground">Entity ID: </span>
                         <span className="text-foreground">{entry.entityId ?? "—"}</span>
                       </div>
+                      {entry.member && (
+                        <>
+                          <div>
+                            <span className="text-muted-foreground">Membre: </span>
+                            <span className="text-foreground">
+                              {entry.member.firstName} {entry.member.lastName ?? ""} —{" "}
+                              <a href={`mailto:${entry.member.email}`} className="text-lime hover:underline">
+                                {entry.member.email}
+                              </a>{" "}
+                              ({entry.member.profileStatus})
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Localisation: </span>
+                            <span className="text-foreground">
+                              {`${entry.member.city ?? ""} ${entry.member.country}`.trim() || "—"}
+                            </span>
+                          </div>
+                        </>
+                      )}
                       <div>
                         <span className="text-muted-foreground">Date: </span>
                         <span className="text-foreground">
