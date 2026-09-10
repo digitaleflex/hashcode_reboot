@@ -18,6 +18,18 @@ export interface SendEmailInput {
    * Servent à filtrer les logs et à router les webhooks.
    */
   tags?: string[];
+  /**
+   * Catégorie d'email : utilisée par sendEmail() pour router le provider.
+   * - "marketing" → Brevo (primary) → Resend (fallback)
+   * - "transactional" → Resend (primary) → Brevo (fallback si BREVO_FALLBACK_ON_429=true)
+   * - "notification" → Resend (primary) — codes, accept/refuse, bounce
+   * - "code" → Resend (primary) — liens de connexion, OTP, magic link
+   */
+  category?:
+    | "marketing"
+    | "transactional"
+    | "notification"
+    | "code";
 }
 
 export interface SendEmailResult {
@@ -179,9 +191,11 @@ async function sendViaBrevo({
 }
 
 /**
- * Envoi d'email avec stratégie de provider configurable :
- * - EMAIL_PROVIDER=brevo → Brevo (primary) → Resend (fallback systématique)
- * - défaut → Resend (primary) → Brevo (fallback si BREVO_FALLBACK_ON_429=true)
+ * Envoi d'email avec routage provider par catégorie :
+ * - category="marketing" → Brevo (primary) → Resend (fallback)
+ * - category="notification" / "code" → Resend (primary) → Brevo (fallback si BREVO_FALLBACK_ON_429=true)
+ * - category="transactional" / défaut → Resend (primary) → Brevo (fallback si BREVO_FALLBACK_ON_429=true)
+ * - EMAIL_PROVIDER=brevo → Brevo prioritaire pour tout sauf "notification"/"code"
  * Ne lève jamais : toute erreur retourne { ok: false } silencieusement.
  */
 export async function sendEmail({
@@ -190,46 +204,64 @@ export async function sendEmail({
   html,
   text,
   tags,
+  category,
 }: SendEmailInput): Promise<SendEmailResult> {
   const input = { to, subject, html, text, tags };
 
-  // 1. Brevo prioritaire (quota Resend atteint → bascule manuelle via env)
+  // Notification / code → toujours Resend en primary (traçabilité, délai)
+  if (category === "notification" || category === "code") {
+    const resendResult = await sendViaResend(input);
+    if (resendResult.ok) return resendResult;
+    if (process.env.BREVO_FALLBACK_ON_429 === "true") {
+      if (process.env.NODE_ENV !== "production") {
+        console.info("[Email] Basculement Resend → Brevo (fallback) pour", to);
+      }
+      const brevoResult = await sendViaBrevo(input);
+      if (brevoResult.ok) return brevoResult;
+    }
+    return resendResult;
+  }
+
+  // Marketing → Brevo primary, Resend fallback
+  if (category === "marketing") {
+    const brevoResult = await sendViaBrevo(input);
+    if (brevoResult.ok) return brevoResult;
+    if (process.env.NODE_ENV !== "production") {
+      console.info("[Email] Basculement Brevo → Resend pour", to);
+    }
+    const resendResult = await sendViaResend(input);
+    if (resendResult.ok) return resendResult;
+    return brevoResult;
+  }
+
+  // EMAIL_PROVIDER=brevo → Brevo prioritaire (sauf notification/code déjà traités)
   if (process.env.EMAIL_PROVIDER === "brevo") {
     const brevoResult = await sendViaBrevo(input);
     if (brevoResult.ok) {
       return brevoResult;
     }
-    // Fallback systématique vers Resend si Brevo échoue
     if (process.env.NODE_ENV !== "production") {
       console.info("[Email] Basculement Brevo → Resend pour", to);
     }
     return sendViaResend(input);
   }
 
-  // 2. Défaut : Resend (primary)
+  // Défaut : Resend (primary)
   const resendResult = await sendViaResend(input);
-
-  // Si Resend réussit, retourner le résultat
   if (resendResult.ok) {
     return resendResult;
   }
 
-  // 3. Vérifier si on doit basculer vers Brevo (fallback)
+  // Fallback vers Brevo si activé
   const fallbackOn429 = process.env.BREVO_FALLBACK_ON_429 === "true";
-
   if (fallbackOn429) {
-    // Essayer Brevo comme fallback
-    const brevoResult = await sendViaBrevo(input);
-
-    // Logger le basculement (en dev seulement)
     if (process.env.NODE_ENV !== "production") {
       console.info("[Brevo Fallback] Basculement Resend → Brevo pour", to);
     }
-
-    return brevoResult;
+    const brevoResult = await sendViaBrevo(input);
+    if (brevoResult.ok) return brevoResult;
   }
 
-  // 4. Sinon retourner l'erreur Resend (pas de fallback)
   return resendResult;
 }
 
@@ -346,7 +378,7 @@ export async function sendWelcomeEmail({
     "Ton profil est validé — bienvenue dans HASHCODE REBOOT.",
     inner,
   );
-  return sendEmail({ to, subject, html, text });
+  return sendEmail({ to, subject, html, text, category: "marketing" });
 }
 
 export interface InvitationEmailInput {
@@ -410,7 +442,7 @@ export async function sendInvitationEmail({
     "Ton invitation est prête — rejoins le groupe WhatsApp officiel.",
     inner,
   );
-  return sendEmail({ to, subject, html, text });
+  return sendEmail({ to, subject, html, text, category: "marketing" });
 }
 
 /* ── Waitlist Email ─────────────────────────────────────────────────────── */
@@ -464,7 +496,7 @@ export async function sendWaitlistEmail({
     "Ton inscription est confirmée — ton profil est en cours de validation.",
     inner,
   );
-  return sendEmail({ to, subject, html, text });
+  return sendEmail({ to, subject, html, text, category: "marketing" });
 }
 
 /* ── Engagement Email ───────────────────────────────────────────────────── */
@@ -514,7 +546,7 @@ export async function sendEngagementEmail({
     "On t'attend — rejoins le groupe WhatsApp officiel.",
     inner,
   );
-  return sendEmail({ to, subject, html, text });
+  return sendEmail({ to, subject, html, text, category: "marketing" });
 }
 
 /* ── Vérification Email (lien magique 1-clic) ────────────────────────────── */
@@ -569,7 +601,7 @@ export async function sendVerificationLinkEmail({
     "Vérifie ton email HASHCODE — 1 clic, valide 24 h.",
     inner,
   );
-  return sendEmail({ to, subject, html, text });
+  return sendEmail({ to, subject, html, text, category: "code" });
 }
 
 /* ── Relance Email (profil abandonné) ────────────────────────────────────── */
@@ -627,7 +659,7 @@ export async function sendRelanceEmail({
     "Ton profil HASHCODE t'attend encore — finis-le en 1 min.",
     inner,
   );
-  return sendEmail({ to, subject, html, text });
+  return sendEmail({ to, subject, html, text, category: "marketing" });
 }
 
 /* ── Magic Link / Login OTP ────────────────────────────────────────────────── */
@@ -692,7 +724,7 @@ export async function sendMagicLinkEmail({
     "Ton code de connexion HASHCODE — valide 15 minutes.",
     inner,
   );
-  return sendEmail({ to, subject, html, text });
+  return sendEmail({ to, subject, html, text, category: "code" });
 }
 
 /* ── Status change notification (PENDING → APPROVED / WAITLIST / REJECTED) ── */
@@ -804,7 +836,7 @@ export async function sendStatusChangeEmail({
     inner = rejectedHtml(safeName);
   }
 
-  return sendEmail({ to, subject, html: emailShell(subject, inner), text });
+  return sendEmail({ to, subject, html: emailShell(subject, inner), text, category: "notification" });
 }
 
 function approvedHtml(safeName: string, archetype: string | null | undefined) {
@@ -922,7 +954,7 @@ export async function sendDashboardInviteEmail({
     "Ton espace membre HASHCODE est en ligne — connecte-toi en 1 clic.",
     inner,
   );
-  return sendEmail({ to, subject, html, text });
+  return sendEmail({ to, subject, html, text, category: "marketing" });
 }
 
 /* ── Rejoin Email (anciens membres → magic link 1-clic) ──────────────────── */
@@ -991,7 +1023,7 @@ export async function sendRejoinEmail({
     "Rejoins HASHCODE REBOOT — ton compte t'attend.",
     inner,
   );
-  return sendEmail({ to, subject, html, text });
+  return sendEmail({ to, subject, html, text, category: "marketing" });
 }
 
 /* ── Invitation avec Accepter/Refuser ──────────────────────────────────── */
@@ -1055,7 +1087,7 @@ export async function sendInvitationWithActions({
     "Tu es invité à rejoindre HASHCODE REBOOT — accepte ou refuse.",
     inner,
   );
-  return sendEmail({ to, subject, html, text, tags: ["invitation"] });
+  return sendEmail({ to, subject, html, text, tags: ["invitation"], category: "marketing" });
 }
 
 /* ── Notification admin : membre a accepté ─────────────────────────────── */
@@ -1093,7 +1125,7 @@ export async function sendAcceptNotificationEmail({
     `</td></tr>`,
   ].join("");
   const html = emailShell(subject, inner);
-  return sendEmail({ to: adminEmail, subject, html, text });
+  return sendEmail({ to: adminEmail, subject, html, text, category: "notification" });
 }
 
 /* ── Notification admin : membre a refuse ──────────────────────────────── */
@@ -1139,7 +1171,7 @@ export async function sendRefuseNotificationEmail({
     `</td></tr>`,
   ].join("");
   const html = emailShell(subject, inner);
-  return sendEmail({ to: adminEmail, subject, html, text });
+  return sendEmail({ to: adminEmail, subject, html, text, category: "notification" });
 }
 
 /* ── Relance invitation (J+7) ──────────────────────────────────────────── */
@@ -1189,7 +1221,7 @@ export async function sendInviteRelanceEmail({
     "On t'attend toujours — rejoins HASHCODE REBOOT.",
     inner,
   );
-  return sendEmail({ to, subject, html, text, tags: ["invitation", "relance"] });
+  return sendEmail({ to, subject, html, text, tags: ["invitation", "relance"], category: "marketing" });
 }
 
 /* ── Notification admin : email bounce ──────────────────────────────────── */
@@ -1224,7 +1256,7 @@ export async function sendBouncedNotificationEmail({
     `</td></tr>`,
   ].join("");
   const html = emailShell(subject, inner);
-  return sendEmail({ to: adminEmail, subject, html, text });
+  return sendEmail({ to: adminEmail, subject, html, text, category: "notification" });
 }
 
 /**
@@ -1318,5 +1350,5 @@ export async function sendEventNotificationEmail({
     `</td></tr>`,
   ].join("");
 
-  return sendEmail({ to, subject, html: emailShell(subject, inner), text });
+  return sendEmail({ to, subject, html: emailShell(subject, inner), text, category: "notification" });
 }
