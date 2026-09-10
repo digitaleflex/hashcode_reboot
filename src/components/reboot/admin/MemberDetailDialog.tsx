@@ -339,6 +339,10 @@ function MemberDetail({
     profileStatus: string;
     communityStatus: string;
     accessLane: string;
+    invitedAt: string | null;
+    acceptedAt: string | null;
+    approvedAt: string | null;
+    joinedAt: string | null;
     createdAt: string;
     adminNote: string | null;
   };
@@ -442,6 +446,15 @@ function MemberDetail({
   const savedNote = m.adminNote ?? "";
   const draftDirty = noteDraft.trim() !== savedNote.trim();
 
+  const fmtDate = (at: string | null | undefined) =>
+    at
+      ? new Date(at).toLocaleDateString("fr-FR", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        })
+      : "—";
+
   const rows: [string, React.ReactNode][] = [
     ["Identité", `${m.firstName} ${m.lastName ?? ""}`.trim()],
     [
@@ -506,6 +519,9 @@ function MemberDetail({
     ["Budget", m.budgetRange ? BUDGET_LABEL[m.budgetRange] ?? m.budgetRange : "—"],
     ["Objectif 3 mois", m.threeMonthGoal ? `« ${m.threeMonthGoal} »` : "—"],
     ["Archétype", m.profileArchetype ?? "—"],
+    ["Invitation acceptée", fmtDate(m.acceptedAt)],
+    ["Profil validé", fmtDate(m.approvedAt)],
+    ["Communauté rejointe", fmtDate(m.joinedAt)],
   ];
 
   return (

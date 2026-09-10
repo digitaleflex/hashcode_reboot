@@ -8,6 +8,7 @@ import {
   SESSION_TTL_MS,
   setSessionCookieOnResponse,
 } from "@/lib/account-auth";
+import { audit } from "@/lib/admin-audit";
 
 export const runtime = "nodejs";
 
@@ -173,9 +174,14 @@ export async function POST(req: NextRequest) {
         where: { id: member.id },
         data: {
           invitationStatus: "ACCEPTED",
+          acceptedAt: new Date(),
           lastClickedAt: new Date(),
           invitationClicks: { increment: 1 },
         },
+      });
+      void audit("member.invite-accept", "member", member.id, {
+        via: "verify-otp",
+        inviteSession: session.userAgent,
       });
     } catch {
       // Best-effort : la connexion reste valide même si le statut échoue.

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/account-auth";
 import { WHATSAPP_URL } from "@/lib/profiling/auto-controls";
+import { audit } from "@/lib/admin-audit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,16 +31,19 @@ export async function GET(req: NextRequest) {
 
   // Traçage best-effort : ne bloque jamais l'accès au groupe.
   try {
-    await db.member.update({
-      where: { id: memberId },
+    await db.member.updateMany({
+      where: { id: memberId, communityStatus: { not: "JOINED" } },
       data: {
         communityStatus: "JOINED",
+        joinedAt: new Date(),
         lastClickedAt: new Date(),
       },
     });
   } catch {
     /* ignore */
   }
+
+  void audit("member.community-join", "member", memberId);
 
   try {
     await db.analyticsEvent.create({

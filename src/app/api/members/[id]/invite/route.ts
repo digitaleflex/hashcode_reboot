@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireAdminRole } from "@/lib/admin-auth";
+import { requireAdminRole, readAdminCookie, getAdminRoleFromToken } from "@/lib/admin-auth";
+import { audit } from "@/lib/admin-audit";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
 
@@ -54,11 +55,20 @@ export async function POST(
       profileStatus: "APPROVED",
       communityStatus: "INVITED",
       accessLane: "immediate",
+      ...(member.profileStatus !== "APPROVED" ? { approvedAt: new Date() } : {}),
       ...(member.invitationStatus === "NOT_INVITED"
         ? { invitationStatus: "INVITED", invitedAt: new Date() }
         : {}),
     },
   });
+
+  void audit(
+    "member.invite",
+    "member",
+    id,
+    { email: member.email },
+    { type: "admin", role: getAdminRoleFromToken(readAdminCookie(req)) ?? "operator" },
+  );
 
   try {
     await db.analyticsEvent.create({

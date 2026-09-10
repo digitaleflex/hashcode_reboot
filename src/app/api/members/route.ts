@@ -111,6 +111,7 @@ export async function POST(req: NextRequest) {
         profileStatus: controls.profileStatus,
         communityStatus: controls.communityStatus,
         accessLane: controls.accessLane,
+        ...(controls.profileStatus === "APPROVED" ? { approvedAt: new Date() } : {}),
       },
       select: { id: true, accessLane: true, profileStatus: true, communityStatus: true },
     })

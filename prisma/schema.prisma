@@ -82,6 +82,9 @@ model Member {
   refusedAt        DateTime? // quand le membre a refusé
   refusedReason    String?   // raison du refus (optionnel)
   bouncedAt        DateTime? // quand le email a bounce
+  acceptedAt       DateTime? // quand l'invitation a été acceptée
+  approvedAt       DateTime? // quand le profil a été validé
+  joinedAt         DateTime? // quand le membre a rejoint la communauté
 
   @@index([email])
   @@index([country])

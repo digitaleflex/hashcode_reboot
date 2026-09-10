@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { generateOtp, hashOtp } from "@/lib/account-otp";
 import { createPendingSession } from "@/lib/account-auth";
 import { sendAcceptNotificationEmail } from "@/lib/mail";
+import { audit } from "@/lib/admin-audit";
 
 export const runtime = "nodejs";
 
@@ -89,9 +90,16 @@ export async function GET(req: NextRequest) {
     where: { id: member.id },
     data: {
       invitationStatus: "ACCEPTED",
+      acceptedAt: new Date(),
       lastClickedAt: new Date(),
       invitationClicks: { increment: 1 },
     },
+  });
+
+  // Audit : qui a accepté, quand (acteur = IP du cliqueur).
+  void audit("member.invite-accept", "member", member.id, { email: member.email }, {
+    type: "ip",
+    ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown",
   });
 
   // Générer un nouveau magic link pour le login

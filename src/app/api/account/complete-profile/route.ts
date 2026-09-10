@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { profileSchema, answersToCreatePayload } from "@/lib/profiling/validate";
 import { runAutoControls } from "@/lib/profiling/auto-controls";
 import { generateProfile } from "@/lib/profiling/engine";
+import { audit } from "@/lib/admin-audit";
 import { blockIfTesting } from "@/lib/test-guard";
 import { bodyLimit } from "@/lib/body-limit";
 
@@ -106,8 +107,14 @@ export async function POST(req: NextRequest) {
       profileStatus: controls.profileStatus,
       communityStatus: controls.communityStatus,
       accessLane: controls.accessLane,
+      ...(controls.profileStatus === "APPROVED" ? { approvedAt: new Date() } : {}),
     },
     select: { profileStatus: true, communityStatus: true, accessLane: true },
+  });
+
+  void audit("member.profile-completed", "member", member.id, {
+    profileStatus: updated.profileStatus,
+    accessLane: updated.accessLane,
   });
 
   try {

@@ -85,6 +85,13 @@ export async function POST(req: NextRequest) {
         data,
       });
       affected = r.count;
+      if (action === "approve") {
+        // Horodate la validation (uniquement les vrais changements).
+        await db.member.updateMany({
+          where: { id: { in: ids }, profileStatus: "APPROVED", approvedAt: null },
+          data: { approvedAt: new Date() },
+        });
+      }
       if (action === "invite") {
         // Ne pas écraser ACCEPTED/REFUSED/BOUNCED/EXPIRED : seuls les
         // NOT_INVITED deviennent INVITED côté suivi d'invitation.
@@ -95,7 +102,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    await audit("member.bulk-soft-delete", "member", ids.join(","), {
+    await audit(`member.bulk-${action}`, "member", ids.join(","), {
       count: affected,
       action,
     });
