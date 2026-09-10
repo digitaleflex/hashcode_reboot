@@ -25,8 +25,14 @@ export async function GET(req: NextRequest) {
       },
     );
   }
+  // Compteur public de preuve sociale : uniquement les vrais inscrits
+  // (formulaire rempli), pas les invités importés en attente d'acceptation.
   const total = await db.member.count({
-    where: { profileStatus: { in: ["APPROVED", "PENDING"] } },
+    where: {
+      deletedAt: null,
+      invitationStatus: "NOT_INVITED",
+      profileStatus: { in: ["APPROVED", "PENDING"] },
+    },
   });
   return NextResponse.json(
     { count: total },

@@ -228,6 +228,8 @@ export async function GET(req: NextRequest) {
     const budget = searchParams.get("budget");
     const status = searchParams.get("status");
     const lane = searchParams.get("lane");
+    const type = searchParams.get("type");
+    const invitationStatus = searchParams.get("invitationStatus");
     const q = searchParams.get("q");
 
     // --- Pagination : Zod strict, erreurs {error, code} façon Phase 1B ---
@@ -323,6 +325,10 @@ export async function GET(req: NextRequest) {
     if (budget) where.budgetRange = budget;
     if (status) where.profileStatus = status;
     if (lane) where.accessLane = lane;
+    // Distingue vrais inscrits vs invités importés (additif, défaut = tous).
+    if (invitationStatus) where.invitationStatus = invitationStatus;
+    else if (type === "registered") where.invitationStatus = "NOT_INVITED";
+    else if (type === "invited") where.invitationStatus = { not: "NOT_INVITED" };
     if (q) {
       // Support `email:user@example.com` syntax for email-only search
       const emailPrefix = q.match(/^email:(.+)$/i);
@@ -363,6 +369,8 @@ export async function GET(req: NextRequest) {
           profileStatus: true,
           communityStatus: true,
           accessLane: true,
+          invitationStatus: true,
+          source: true,
           createdAt: true,
           adminNote: true,
         },

@@ -17,6 +17,11 @@ export interface Stats {
     waitlist: number;
     rejected: number;
   };
+  /** Vrais inscrits (NOT_INVITED) vs invités importés — fourni par /api/stats. */
+  invitations?: {
+    registered: number;
+    invited: number;
+  };
   pendingCount: number;
   domains: { web: number; cyber: number; ai: number };
   mentoring: number;
@@ -191,7 +196,7 @@ export function AdminStats({
           {/* Stats cards unchanged */}
           <StatCard
             icon={<Users className="size-4" />}
-            label="Inscrits"
+            label="Total base"
             value={stats?.totals.total ?? "—"}
             onClick={onClearFilters}
           />
@@ -284,6 +289,29 @@ export function AdminStats({
         </div>
       )}
 
+      {/* Inscrits vs invités — le total mélange les deux, on l'explicite */}
+      {stats?.invitations && (
+        <div
+          className="rounded-md border border-border/60 bg-card/40 p-4 flex flex-wrap items-center gap-x-6 gap-y-2"
+          role="status"
+          aria-label="Répartition inscrits et invités"
+        >
+          <span className="flex items-center gap-2 text-sm text-foreground">
+            <span className="size-2 rounded-full bg-lime" aria-hidden />
+            <strong className="font-semibold tabular-nums">{stats.invitations.registered} inscrits réels</strong>
+            <span className="text-muted-foreground">— formulaire rempli</span>
+          </span>
+          <span className="flex items-center gap-2 text-sm text-foreground">
+            <span className="size-2 rounded-full bg-blue-400" aria-hidden />
+            <strong className="font-semibold tabular-nums">{stats.invitations.invited} invités</strong>
+            <span className="text-muted-foreground">— importés, en attente d'acceptation</span>
+          </span>
+          <span className="ml-auto mono-label text-xs text-muted-foreground tabular-nums">
+            Total base : {stats?.totals.total ?? "—"}
+          </span>
+        </div>
+      )}
+
       {/* Stat overview */}
       <section aria-label="Vue d'ensemble et filtres rapides">
         <div className="flex items-center justify-between">
@@ -301,10 +329,10 @@ export function AdminStats({
         <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-px bg-border/60 border border-border/60 rounded-md overflow-hidden">
           <StatCard
             icon={<Users className="size-4" aria-hidden />}
-            label="Inscrits"
+            label="Total base"
             value={stats?.totals.total ?? "—"}
             active={isAllActive}
-            title="Afficher tous les membres"
+            title="Afficher tous les membres (inscrits + invités)"
             onClick={onClearFilters}
           />
           <StatCard

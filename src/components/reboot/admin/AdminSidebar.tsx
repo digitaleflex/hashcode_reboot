@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { LayoutDashboard, Users, Activity, FileJson, Settings, Shield, ShieldBan, Calendar, Mail, ChevronLeft, ChevronRight, Command } from "lucide-react";
+import { LayoutDashboard, Users, Activity, FileJson, Settings, Shield, ShieldBan, Calendar, Mail, Megaphone, ChevronLeft, ChevronRight, Command } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 
@@ -11,6 +11,7 @@ const ITEMS = [
   { path: "/admin/stats", id: "section-stats", label: "Vue d'ensemble", icon: LayoutDashboard },
   { path: "/admin/members", id: "section-members", label: "Membres", icon: Users },
   { path: "/admin/invitations", id: "section-invitations", label: "Invitations", icon: Mail },
+  { path: "/admin/marketing", id: "section-marketing", label: "Marketing", icon: Megaphone },
   { path: "/admin/events", id: "section-events", label: "Événements", icon: Calendar },
   { path: "/admin/activity", id: "section-activity", label: "Activité", icon: Activity },
   { path: "/admin/exports", id: "section-exports", label: "Exports", icon: FileJson },

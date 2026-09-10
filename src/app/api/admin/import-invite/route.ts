@@ -320,10 +320,13 @@ export async function POST(req: NextRequest) {
             budgetRange: null,
             profileStatus: "PENDING",
             communityStatus: "NOT_INVITED",
+            invitationStatus: "INVITED",
+            invitedAt: new Date(),
             accessLane: "immediate",
             country: row.country,
             availability: "5-10h",
             learningStyle: "practice",
+            source: "admin-import",
           },
         });
         created++;
@@ -349,6 +352,14 @@ export async function POST(req: NextRequest) {
 
         if (res.ok) {
           emailsSent++;
+          // Mettre à jour le statut d'invitation après envoi réussi
+          await db.member.update({
+            where: { id: member.id },
+            data: {
+              invitationStatus: "INVITED",
+              invitedAt: new Date(),
+            },
+          });
         } else {
           failedEmails.push(row.email);
         }

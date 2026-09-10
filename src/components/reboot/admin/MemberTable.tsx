@@ -210,6 +210,15 @@ export function MemberTable({
               ["REJECTED", "Rejeté"],
             ]}
           />
+          <FilterSelect
+            placeholder="Type"
+            value={filters.type ?? "all"}
+            onChange={(v) => onFilter("type", v)}
+            options={[
+              ["registered", "Inscrits réels"],
+              ["invited", "Invités"],
+            ]}
+          />
           {/* Advanced filters — collapsed by default (progressive disclosure L2) */}
           {advancedOpen && (
             <>
@@ -651,7 +660,17 @@ export function MemberTable({
                     {m.budgetRange ? BUDGET_LABEL[m.budgetRange] ?? m.budgetRange : "—"}
                   </TableCell>
                   <TableCell>
-                    <StatusBadge status={m.profileStatus} />
+                    <span className="inline-flex flex-col items-start gap-1">
+                      <StatusBadge status={m.profileStatus} />
+                      {m.invitationStatus && m.invitationStatus !== "NOT_INVITED" && (
+                        <span
+                          className="inline-flex items-center rounded-sm border border-blue-500/50 text-blue-300 bg-blue-500/5 px-2 py-0.5 text-xs mono-label"
+                          title={`Invitation : ${m.invitationStatus}`}
+                        >
+                          Invité
+                        </span>
+                      )}
+                    </span>
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">
                     <Tag active={m.accessLane === "immediate"}>

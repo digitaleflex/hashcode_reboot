@@ -28,6 +28,11 @@ interface StatsAggregate {
     waitlist: number;
     rejected: number;
   };
+  /** Distingue vrais inscrits (formulaire rempli) vs invités importés. */
+  invitations: {
+    registered: number;
+    invited: number;
+  };
   domains: { web: number; cyber: number; ai: number };
   mentoring: number;
   byCountry: { country: string; count: number }[];
@@ -60,6 +65,8 @@ async function computeStats(startDate: Date, endDate: Date): Promise<StatsAggreg
     pending,
     waitlist,
     rejected,
+    registered,
+    invited,
     web,
     cyber,
     ai,
@@ -79,6 +86,8 @@ async function computeStats(startDate: Date, endDate: Date): Promise<StatsAggreg
     db.member.count({ where: { ...whereCreated, profileStatus: "PENDING" } }),
     db.member.count({ where: { ...whereCreated, profileStatus: "WAITLIST" } }),
     db.member.count({ where: { ...whereCreated, profileStatus: "REJECTED" } }),
+    db.member.count({ where: { ...whereCreated, invitationStatus: "NOT_INVITED" } }),
+    db.member.count({ where: { ...whereCreated, invitationStatus: { not: "NOT_INVITED" } } }),
     db.member.count({ where: { ...whereCreated, primaryDomain: "web" } }),
     db.member.count({ where: { ...whereCreated, primaryDomain: "cybersecurity" } }),
     db.member.count({ where: { ...whereCreated, primaryDomain: "ai" } }),
@@ -100,6 +109,7 @@ async function computeStats(startDate: Date, endDate: Date): Promise<StatsAggreg
 
   return {
     totals: { total, approved, pending, waitlist, rejected },
+    invitations: { registered, invited },
     domains: { web, cyber, ai },
     mentoring,
     byCountry: byCountry.map((c) => ({ country: c.country, count: c._count })),
@@ -160,6 +170,8 @@ export async function GET(req: NextRequest) {
       pending,
       waitlist,
       rejected,
+      registered,
+      invited,
       web,
       cyber,
       ai,
@@ -179,6 +191,8 @@ export async function GET(req: NextRequest) {
       db.member.count({ where: { deletedAt: null, profileStatus: "PENDING" } }),
       db.member.count({ where: { deletedAt: null, profileStatus: "WAITLIST" } }),
       db.member.count({ where: { deletedAt: null, profileStatus: "REJECTED" } }),
+      db.member.count({ where: { deletedAt: null, invitationStatus: "NOT_INVITED" } }),
+      db.member.count({ where: { deletedAt: null, invitationStatus: { not: "NOT_INVITED" } } }),
       db.member.count({ where: { deletedAt: null, primaryDomain: "web" } }),
       db.member.count({ where: { deletedAt: null, primaryDomain: "cybersecurity" } }),
       db.member.count({ where: { deletedAt: null, primaryDomain: "ai" } }),
@@ -200,6 +214,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       totals: { total, approved, pending, waitlist, rejected },
+      invitations: { registered, invited },
       domains: { web, cyber, ai },
       mentoring,
       byCountry: byCountry.map((c) => ({ country: c.country, count: c._count })),

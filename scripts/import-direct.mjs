@@ -350,10 +350,12 @@ async function main() {
           profileStatus: "PENDING",
           communityStatus: "NOT_INVITED",
           invitationStatus: "INVITED",
+          invitedAt: new Date(),
           accessLane: "immediate",
           country: m.country,
           availability: "5-10h",
           learningStyle: "practice",
+          source: m.source,
         },
       });
       created++;

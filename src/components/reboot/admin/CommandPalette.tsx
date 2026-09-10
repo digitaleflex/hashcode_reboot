@@ -54,6 +54,7 @@ export function CommandPalette({
       // Navigation
       { id: "nav-stats", label: "Vue d'ensemble", group: "navigation", action: () => onNavigate("section-stats") },
       { id: "nav-members", label: "Membres", group: "navigation", action: () => onNavigate("section-members") },
+      { id: "nav-marketing", label: "Marketing", group: "navigation", action: () => onNavigate("section-marketing") },
       { id: "nav-activity", label: "Activité", group: "navigation", action: () => onNavigate("section-activity") },
       { id: "nav-exports", label: "Exports", group: "navigation", action: () => onNavigate("section-exports") },
       { id: "nav-audit", label: "Audit", group: "navigation", action: () => onNavigate("section-audit-log") },
