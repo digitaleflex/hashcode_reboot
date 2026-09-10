@@ -889,6 +889,75 @@ export async function sendDashboardInviteEmail({
   return sendEmail({ to, subject, html, text });
 }
 
+/* ── Rejoin Email (anciens membres → magic link 1-clic) ──────────────────── */
+
+export interface RejoinEmailInput {
+  to: string;
+  firstName: string;
+  url: string;
+}
+
+/**
+ * Email de re-bienvenue pour les anciens membres invités à rejoindre HASHCODE REBOOT.
+ * Inclut un lien magique 1-clic (valide 72 h) pour se connecter directement.
+ */
+export async function sendRejoinEmail({
+  to,
+  firstName,
+  url,
+}: RejoinEmailInput): Promise<SendEmailResult> {
+  const name = firstName.trim() || "toi";
+  const safeName = escapeHtml(name);
+  const safeUrl = escapeHtml(url.trim());
+  const loginUrl = escapeHtml(getLoginUrlForEmail());
+  const subject = "Rejoins HASHCODE REBOOT — ton compte t'attend";
+  const text = [
+    `Bonjour ${name},`,
+    "",
+    "La communauté HASHCODE REBOOT est en ligne et ton compte t'attend.",
+    "",
+    "Connecte-toi en 1 clic pour retrouver ton profil et rejoindre la communauté :",
+    url.trim(),
+    "",
+    "Lien valide 72 heures. Si tu ne l'utilises pas, tu pourras toujours te connecter via :",
+    getLoginUrlForEmail(),
+    "",
+    "On a hâte de te revoir.",
+    "",
+    "L'équipe HASHCODE",
+    "",
+    "HASHCODE · REBOOT — Une nouvelle génération de la communauté commence.",
+  ].join("\n");
+  const inner = [
+    `<tr><td style="padding:24px 32px 28px 32px;background-color:#141414;">`,
+    monoLabel("BIENVENUE DE RETOUR"),
+    `<h1 style="margin:0 0 12px 0;font-family:${MAIL_FONT};font-size:24px;line-height:1.25;font-weight:800;color:#F8FAFC;">${safeName}, la communauté t'attend.</h1>`,
+    `<p style="margin:0 0 20px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">La communauté HASHCODE REBOOT est en ligne. Ton compte t'attend — connecte-toi en 1 clic pour retrouver ton profil et rejoindre les membres.</p>`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;">`,
+    `<tr><td align="center" style="padding:0;">`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">`,
+    `<tr><td align="center" bgcolor="#C5F441" style="background-color:#C5F441;border-radius:8px;padding:14px 32px;">`,
+    `<a href="${safeUrl}" target="_blank" rel="noopener" style="font-family:${MAIL_FONT};font-size:16px;font-weight:800;color:#0A0A0A;text-decoration:none;display:inline-block;">Rejoindre HASHCODE REBOOT</a>`,
+    `</td></tr>`,
+    `</table>`,
+    `</td></tr>`,
+    `</table>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:12px;line-height:1.6;color:#94A3B8;text-align:center;word-break:break-all;">Le bouton ne marche pas ? Colle ce lien dans ton navigateur :<br /><a href="${safeUrl}" target="_blank" rel="noopener" style="color:#C5F441;text-decoration:underline;">${safeUrl}</a></p>`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0;background-color:#0A0A0A;border:1px solid #262626;border-radius:8px;">`,
+    `<tr><td style="padding:14px 16px;">`,
+    `<div style="font-family:${MAIL_FONT};font-size:13px;font-weight:700;color:#F8FAFC;margin:0 0 4px 0;">Ce qui t'attend</div>`,
+    `<div style="font-family:${MAIL_FONT};font-size:13px;line-height:1.6;color:#94A3B8;margin:0;">• Ton profil et ton positionnement dans la communauté<br/>• Des sessions pratiques et du networking<br/>• Un groupe WhatsApp actif de passionnés</div>`,
+    `</td></tr></table>`,
+    `<p style="margin:20px 0 0 0;font-family:${MAIL_FONT};font-size:14px;line-height:1.6;color:#F8FAFC;">À très vite,<br /><span style="color:#94A3B8;">L'équipe HASHCODE</span></p>`,
+    `</td></tr>`,
+  ].join("");
+  const html = emailShell(
+    "Rejoins HASHCODE REBOOT — ton compte t'attend.",
+    inner,
+  );
+  return sendEmail({ to, subject, html, text });
+}
+
 /**
  * Envoi d'notification email à tous les membres APPROVED à la création d'un événement.
  * Fire-and-forget : ne bloque pas la réponse API.

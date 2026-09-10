@@ -8,6 +8,7 @@ import { fetchJson, isAbortError, withRetryAfter } from "@/components/reboot/adm
 import { AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
+import { ImportInvitePanel } from "./ImportInvitePanel";
 
 export default function AdminMembersPage() {
   const router = useRouter();
@@ -167,6 +168,10 @@ export default function AdminMembersPage() {
           onConfirmBulkDeleteChange={setConfirmBulkDelete}
           onPageChange={setPage}
         />
+      </section>
+
+      <section aria-label="Inviter d'anciens membres">
+        <ImportInvitePanel onSessionExpired={handleSessionExpired} />
       </section>
 
       <MemberDetailDialog
