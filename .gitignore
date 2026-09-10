@@ -61,3 +61,4 @@ server.log
 # local SQLite (legacy dev DB — never commit)
 db/*.db
 .vercel
+*.csv
