@@ -36,11 +36,15 @@ Noms lus par le code, dans l'ordre d'importance :
 | `POSTGRES_PRISMA_URL` | Connexion poolée (runtime, fournie par l'intégration Vercel-Neon) |
 | `POSTGRES_URL_NON_POOLING` | Connexion directe (migrations CLI) |
 | `ADMIN_PASSCODE` | Passcode admin. **Requis en production** (l'app refuse de démarrer sans) |
-| `NEXT_PUBLIC_WHATSAPP_URL` | Lien communauté côté client (fallback : valeur en dur) |
+| `NEXT_PUBLIC_WHATSAPP_URL` | Lien côté client (fallback : valeur en dur) |
 | `WHATSAPP_URL` | Idem, côté serveur (prioritaire sur la précédente) |
 | `RESEND_API_KEY` / `EMAIL_FROM` | Envoi + vérification Resend |
+| `BREVO_FALLBACK_ON_429` | `=1` pour activer le fallback Brevo quand Resend retourne 429 |
+| `SENTRY_DSN` | DSN Sentry côté serveur (optionnel, monitoring erreurs) |
+| `NEXT_PUBLIC_SENTRY_DSN` | DSN Sentry côté client (optionnel) |
 | `CRON_SECRET` | Bearer du keepalive (`/api/cron/keepalive`), 32 octets hex |
 | `PRISMA_LOG_QUERIES` | `=1` pour réactiver les logs `prisma:query` (silencieux par défaut) |
+| `TESTING` | `=1` pour activer le guard anti-écriture (tests d'intégration uniquement) |
 
 ## Scripts
 
@@ -50,6 +54,9 @@ Noms lus par le code, dans l'ordre d'importance :
 | `bun run build` | Build + copie standalone cross-platform |
 | `bun run vercel-build` | `prisma generate && prisma migrate deploy && next build` (Vercel) |
 | `bun run lint` | ESLint (doit rester vert) |
+| `bun run test:unit` | Tests unitaires (86 tests: auth, rate-limit, OTP, magic-links, open-redirect, AuditLog) |
+| `bun run test:integration` | Tests d'intégration (29 tests: auth flow, endpoints read-only, notify-count, audit-log, activity) |
+| `bun run typecheck` | `tsc --noEmit` (0 erreur attendue) |
 | `bun run db:generate` | Régénère le client Prisma |
 | `bun run db:migrate` | `prisma migrate dev` (jamais en prod) |
 | `bun run db:push` / `db:reset` | **Local uniquement** — destructeurs face à Neon |
@@ -118,7 +125,10 @@ agenda), `/dashboard/agenda` (RSVP going/maybe/cancelled, contrôle capacité),
 `/dashboard/profile` (vitrine + partage public `/profile/[id]`),
 `/dashboard/settings` (coordonnées, email, WhatsApp). Voir
 `docs/espace-membre.md` pour le détail complet.
-Middleware Edge : présence cookie seule, validation réelle via `getSession()`.
+Middleware Edge : cookie name inline (`hashcode_session`), aucune dépendance
+lourde (pas de Prisma/DB dans le bundle Edge). Validation réelle via
+`getSession()` dans les API routes. Guard `TESTING=1` sur toutes les routes
+d'écriture (`src/lib/test-guard.ts`) — empêche les writes en test/integration.
 
 ## Santé & keepalive Neon
 
@@ -153,6 +163,22 @@ Fallbacks de chargement : `loading.tsx` global (racine), dashboard et admin
 le profiling — un bandeau post-conversion sur l'écran de résultat propose de
 remplir le numéro (remplissage unique, via `POST /api/account/phone`).
 
+## Sécurité des tests
+
+**Problème résolu :** les tests d'intégration tournent contre la base de
+production (pas de base dev séparée). Pour éviter la pollution :
+
+1. **`src/lib/test-guard.ts`** — guard `blockIfTesting()` sur 14 handlers
+   d'écriture (POST/PATCH/DELETE). Retourne 403 quand `TESTING=1`.
+2. **Tests intégration read-only** — aucun POST ne crée de données en base.
+   Seuls les GET/verify/logout sont testés.
+3. **Usage :** `TESTING=1 node --test tests/integration.test.cjs`
+
+Routes protégées : `events` (POST), `events/[id]` (PATCH, DELETE),
+`events/[id]/rsvp` (POST, DELETE), `members` (POST), `members/[id]` (PATCH, DELETE),
+`members/[id]/invite` (POST), `members/import` (POST), `members/bulk` (POST),
+`analytics` (POST), `account/phone` (POST), `account/profile` (PATCH).
+
 ## Limites connues (V1)
 
 - Auth admin = passcode partagé + rôles `viewer`/`operator` (pas de comptes
@@ -176,10 +202,12 @@ src/components/     brand/ (logo SVG), reboot/ (landing, profiling-flow, welcome
 src/lib/            db, admin-auth (+roles/CSRF), admin-audit, account-auth/otp/data,
                     blacklist, mail (Resend+Brevo), rate-limit (Redis+mémoire),
                     verify-email, analytics, health, logging, profiling/,
-                    events-validation (validateEventCreate/Patch + notifyWhere)
+                    events-validation (validateEventCreate/Patch + notifyWhere),
+                    test-guard (blockIfTesting pour routes d'écriture)
 prisma/             schema.prisma (Postgres Neon) + migrations/
 scripts/            copy-standalone.mjs, test-email-services.mjs,
                     import-blacklist-from-soft-deleted.mjs
-tests/              unit.test.cjs, magic-link.test.cjs, event-validation.test.cjs,
-                    integration.test.cjs (node --test)
+tests/              unit.test.cjs (86), magic-link.test.cjs (17),
+                    event-validation.test.cjs (17),
+                    integration.test.cjs (29, read-only, safe for prod DB)
 ```
