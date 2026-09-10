@@ -958,6 +958,239 @@ export async function sendRejoinEmail({
   return sendEmail({ to, subject, html, text });
 }
 
+/* ── Invitation avec Accepter/Refuser ──────────────────────────────────── */
+
+export interface InvitationWithActionsInput {
+  to: string;
+  firstName: string;
+  acceptUrl: string;
+  refuseUrl: string;
+}
+
+/**
+ * Email d'invitation avec boutons Accepter / Refuser.
+ * Le membre peut accepter (→ profil) ou refuser (→ marqué REFUSED).
+ */
+export async function sendInvitationWithActions({
+  to,
+  firstName,
+  acceptUrl,
+  refuseUrl,
+}: InvitationWithActionsInput): Promise<SendEmailResult> {
+  const name = firstName.trim() || "toi";
+  const safeName = escapeHtml(name);
+  const safeAcceptUrl = escapeHtml(acceptUrl);
+  const safeRefuseUrl = escapeHtml(refuseUrl);
+  const subject = "Tu es invité à rejoindre HASHCODE REBOOT";
+  const text = [
+    `Bonjour ${name},`,
+    "",
+    "Tu es invité à rejoindre la communauté HASHCODE REBOOT.",
+    "",
+    "Clique sur Accepter pour retrouver ton profil et rejoindre les membres :",
+    acceptUrl,
+    "",
+    "Si tu ne souhaites pas rejoindre, clique sur Refuser :",
+    refuseUrl,
+    "",
+    "L'équipe HASHCODE",
+  ].join("\n");
+  const inner = [
+    `<tr><td style="padding:24px 32px 28px 32px;background-color:#141414;">`,
+    monoLabel("INVITATION"),
+    `<h1 style="margin:0 0 12px 0;font-family:${MAIL_FONT};font-size:24px;line-height:1.25;font-weight:800;color:#F8FAFC;">${safeName}, tu es invité.</h1>`,
+    `<p style="margin:0 0 20px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">La communauté HASHCODE REBOOT est active et on t'invite à nous rejoindre. Des sessions pratiques, du networking et une communauté de passionnés t'attendent.</p>`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 12px 0;">`,
+    `<tr><td align="center">`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">`,
+    `<tr><td align="center" bgcolor="#C5F441" style="background-color:#C5F441;border-radius:8px;padding:14px 32px;">`,
+    `<a href="${safeAcceptUrl}" target="_blank" rel="noopener" style="font-family:${MAIL_FONT};font-size:16px;font-weight:800;color:#0A0A0A;text-decoration:none;display:inline-block;">Accepter l'invitation</a>`,
+    `</td></tr></table></td></tr></table>`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;">`,
+    `<tr><td align="center">`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">`,
+    `<tr><td align="center" style="border:1px solid #333B1E;border-radius:8px;padding:12px 24px;">`,
+    `<a href="${safeRefuseUrl}" target="_blank" rel="noopener" style="font-family:${MAIL_FONT};font-size:14px;font-weight:600;color:#94A3B8;text-decoration:none;display:inline-block;">Refuser</a>`,
+    `</td></tr></table></td></tr></table>`,
+    `<p style="margin:0;font-family:${MAIL_FONT};font-size:12px;line-height:1.6;color:#64748B;text-align:center;">Tu reçois cet email car tu as fait partie de la communauté HASHCODE. Si ce n'est pas toi, ignore cet email.</p>`,
+    `</td></tr>`,
+  ].join("");
+  const html = emailShell(
+    "Tu es invité à rejoindre HASHCODE REBOOT — accepte ou refuse.",
+    inner,
+  );
+  return sendEmail({ to, subject, html, text });
+}
+
+/* ── Notification admin : membre a accepté ─────────────────────────────── */
+
+export interface InviteAcceptedNotificationInput {
+  adminEmail: string;
+  memberName: string;
+  memberEmail: string;
+}
+
+export async function sendAcceptNotificationEmail({
+  adminEmail,
+  memberName,
+  memberEmail,
+}: InviteAcceptedNotificationInput): Promise<SendEmailResult> {
+  const safeName = escapeHtml(memberName);
+  const safeEmail = escapeHtml(memberEmail);
+  const subject = `${memberName} a accepte l'invitation HASHCODE`;
+  const text = [
+    `${memberName} (${memberEmail}) a accepte son invitation.`,
+    "Il a ete redirige vers le formulaire de profil.",
+    "",
+    "— HASHCODE REBOOT",
+  ].join("\n");
+  const inner = [
+    `<tr><td style="padding:24px 32px 28px 32px;background-color:#141414;">`,
+    monoLabel("INVITATION ACCEPTEE"),
+    `<h1 style="margin:0 0 12px 0;font-family:${MAIL_FONT};font-size:20px;line-height:1.25;font-weight:800;color:#C5F441;">${safeName} a accepte</h1>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;"><strong>${safeName}</strong> (<a href="mailto:${safeEmail}" style="color:#C5F441;">${safeEmail}</a>) a accepte son invitation et a ete redirige vers le formulaire de profil.</p>`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0;background-color:#0A0A0A;border:1px solid #333B1E;border-radius:8px;">`,
+    `<tr><td style="padding:14px 16px;">`,
+    `<div style="font-family:${MAIL_FONT};font-size:13px;font-weight:700;color:#F8FAFC;margin:0 0 4px 0;">Prochaine etape</div>`,
+    `<div style="font-family:${MAIL_FONT};font-size:13px;line-height:1.6;color:#94A3B8;margin:0;">Le membre doit remplir son profil (18 questions) pour etre valide.</div>`,
+    `</td></tr></table>`,
+    `</td></tr>`,
+  ].join("");
+  const html = emailShell(subject, inner);
+  return sendEmail({ to: adminEmail, subject, html, text });
+}
+
+/* ── Notification admin : membre a refuse ──────────────────────────────── */
+
+export interface InviteRefusedNotificationInput {
+  adminEmail: string;
+  memberName: string;
+  memberEmail: string;
+  reason?: string | null;
+}
+
+export async function sendRefuseNotificationEmail({
+  adminEmail,
+  memberName,
+  memberEmail,
+  reason,
+}: InviteRefusedNotificationInput): Promise<SendEmailResult> {
+  const safeName = escapeHtml(memberName);
+  const safeEmail = escapeHtml(memberEmail);
+  const safeReason = reason ? escapeHtml(reason) : null;
+  const subject = `${memberName} a refuse l'invitation HASHCODE`;
+  const text = [
+    `${memberName} (${memberEmail}) a refuse son invitation.`,
+    "",
+    safeReason ? `Raison : ${reason}` : "Aucune raison donnee.",
+    "Le membre a ete marque REFUSED et ne recevra plus d'emails.",
+    "",
+    "— HASHCODE REBOOT",
+  ].join("\n");
+  const inner = [
+    `<tr><td style="padding:24px 32px 28px 32px;background-color:#141414;">`,
+    monoLabel("INVITATION REFUSEE"),
+    `<h1 style="margin:0 0 12px 0;font-family:${MAIL_FONT};font-size:20px;line-height:1.25;font-weight:800;color:#F8FAFC;">${safeName} a refuse</h1>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;"><strong>${safeName}</strong> (<a href="mailto:${safeEmail}" style="color:#C5F441;">${safeEmail}</a>) a refuse son invitation.</p>`,
+    safeReason
+      ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;background-color:#0A0A0A;border:1px solid #262626;border-radius:8px;"><tr><td style="padding:14px 16px;"><div style="font-family:${MAIL_FONT};font-size:13px;font-weight:700;color:#F8FAFC;margin:0 0 4px 0;">Raison</div><div style="font-family:${MAIL_FONT};font-size:13px;line-height:1.6;color:#94A3B8;margin:0;">${safeReason}</div></td></tr></table>`
+      : "",
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0;background-color:#0A0A0A;border:1px solid #333B1E;border-radius:8px;">`,
+    `<tr><td style="padding:14px 16px;">`,
+    `<div style="font-family:${MAIL_FONT};font-size:13px;font-weight:700;color:#94A3B8;margin:0 0 4px 0;">Action</div>`,
+    `<div style="font-family:${MAIL_FONT};font-size:13px;line-height:1.6;color:#94A3B8;margin:0;">Le membre a ete marque REFUSED. Il ne recevra plus d'emails d'invitation.</div>`,
+    `</td></tr></table>`,
+    `</td></tr>`,
+  ].join("");
+  const html = emailShell(subject, inner);
+  return sendEmail({ to: adminEmail, subject, html, text });
+}
+
+/* ── Relance invitation (J+7) ──────────────────────────────────────────── */
+
+export interface InviteRelanceInput {
+  to: string;
+  firstName: string;
+  acceptUrl: string;
+}
+
+export async function sendInviteRelanceEmail({
+  to,
+  firstName,
+  acceptUrl,
+}: InviteRelanceInput): Promise<SendEmailResult> {
+  const name = firstName.trim() || "toi";
+  const safeName = escapeHtml(name);
+  const safeAcceptUrl = escapeHtml(acceptUrl);
+  const subject = "On t'attend toujours — rejoins HASHCODE REBOOT";
+  const text = [
+    `Bonjour ${name},`,
+    "",
+    "Il y a quelques jours, tu as recu une invitation a rejoindre HASHCODE REBOOT.",
+    "Tu ne l'as pas encore acceptee. La communaute est active et on t'attend :",
+    acceptUrl,
+    "",
+    "Si tu ne souhaites pas rejoindre, tu peux ignorer cet email.",
+    "",
+    "A tres vite,",
+    "L'equipe HASHCODE",
+  ].join("\n");
+  const inner = [
+    `<tr><td style="padding:24px 32px 28px 32px;background-color:#141414;">`,
+    monoLabel("ON T'ATTEND"),
+    `<h1 style="margin:0 0 12px 0;font-family:${MAIL_FONT};font-size:24px;line-height:1.25;font-weight:800;color:#F8FAFC;">${safeName}, tu es toujours attendu.</h1>`,
+    `<p style="margin:0 0 20px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">Il y a quelques jours, tu as recu une invitation a rejoindre HASHCODE REBOOT. Tu ne l'as pas encore acceptee — la communaute est active et on t'attend.</p>`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;">`,
+    `<tr><td align="center">`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">`,
+    `<tr><td align="center" bgcolor="#C5F441" style="background-color:#C5F441;border-radius:8px;padding:14px 32px;">`,
+    `<a href="${safeAcceptUrl}" target="_blank" rel="noopener" style="font-family:${MAIL_FONT};font-size:16px;font-weight:800;color:#0A0A0A;text-decoration:none;display:inline-block;">Rejoindre maintenant</a>`,
+    `</td></tr></table></td></tr></table>`,
+    `<p style="margin:0;font-family:${MAIL_FONT};font-size:12px;line-height:1.6;color:#64748B;text-align:center;">Si tu ne souhaites pas rejoindre, ignore cet email. Tu ne recevras pas de relance supplementaire.</p>`,
+    `</td></tr>`,
+  ].join("");
+  const html = emailShell(
+    "On t'attend toujours — rejoins HASHCODE REBOOT.",
+    inner,
+  );
+  return sendEmail({ to, subject, html, text });
+}
+
+/* ── Notification admin : email bounce ──────────────────────────────────── */
+
+export interface InviteBouncedNotificationInput {
+  adminEmail: string;
+  memberEmail: string;
+}
+
+export async function sendBouncedNotificationEmail({
+  adminEmail,
+  memberEmail,
+}: InviteBouncedNotificationInput): Promise<SendEmailResult> {
+  const safeEmail = escapeHtml(memberEmail);
+  const subject = `Email bounce : ${memberEmail}`;
+  const text = [
+    `L'email ${memberEmail} a bounce (adresse invalide).`,
+    "Le membre a ete marque BOUNCED et ne recevra plus d'emails.",
+    "",
+    "— HASHCODE REBOOT",
+  ].join("\n");
+  const inner = [
+    `<tr><td style="padding:24px 32px 28px 32px;background-color:#141414;">`,
+    monoLabel("EMAIL BOUNCE"),
+    `<h1 style="margin:0 0 12px 0;font-family:${MAIL_FONT};font-size:20px;line-height:1.25;font-weight:800;color:#F8FAFC;">Email invalide</h1>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;"><a href="mailto:${safeEmail}" style="color:#C5F441;">${safeEmail}</a> a renvoye un bounce (adresse invalide ou inexistante).</p>`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0;background-color:#0A0A0A;border:1px solid #333B1E;border-radius:8px;">`,
+    `<tr><td style="padding:14px 16px;">`,
+    `<div style="font-family:${MAIL_FONT};font-size:13px;font-weight:700;color:#94A3B8;margin:0 0 4px 0;">Action</div>`,
+    `<div style="font-family:${MAIL_FONT};font-size:13px;line-height:1.6;color:#94A3B8;margin:0;">Le membre a ete marque BOUNCED. Il ne recevra plus d'emails d'invitation.</div>`,
+    `</td></tr></table>`,
+    `</td></tr>`,
+  ].join("");
+  const html = emailShell(subject, inner);
+  return sendEmail({ to: adminEmail, subject, html, text });
+}
+
 /**
  * Envoi d'notification email à tous les membres APPROVED à la création d'un événement.
  * Fire-and-forget : ne bloque pas la réponse API.
