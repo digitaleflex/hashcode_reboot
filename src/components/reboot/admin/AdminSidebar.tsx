@@ -12,6 +12,7 @@ const ITEMS = [
   { path: "/admin/members", id: "section-members", label: "Membres", icon: Users },
   { path: "/admin/invitations", id: "section-invitations", label: "Invitations", icon: Mail },
   { path: "/admin/marketing", id: "section-marketing", label: "Marketing", icon: Megaphone },
+  { path: "/admin/email-deliverability", id: "section-email-deliverability", label: "Suivi délivrabilité", icon: Mail },
   { path: "/admin/events", id: "section-events", label: "Événements", icon: Calendar },
   { path: "/admin/activity", id: "section-activity", label: "Activité", icon: Activity },
   { path: "/admin/exports", id: "section-exports", label: "Exports", icon: FileJson },

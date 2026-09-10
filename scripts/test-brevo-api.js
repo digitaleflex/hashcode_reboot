@@ -10,6 +10,7 @@
 
 // Vérifier la clé API
 const brevoApiKey = process.env.BREVO_API_KEY;
+const brevoEmailFrom = process.env.BREVO_EMAIL_FROM;
 
 if (!brevoApiKey) {
   console.error("❌ BREVO_API_KEY non définie dans les variables d'environnement");
@@ -17,13 +18,24 @@ if (!brevoApiKey) {
   process.exit(1);
 }
 
+if (!brevoEmailFrom) {
+  console.error("❌ BREVO_EMAIL_FROM non définie dans les variables d'environnement");
+  console.error("💡 Ajoutez BREVO_EMAIL_FROM=\"Nom <email@domaine>\" à votre .env");
+  process.exit(1);
+}
+
 console.log("✅ Clé API Brevo détectée\n");
 
-// Préparer un e-mail de test avec l'adresse eflexcloud@gmail.com
+// Extraire l'expéditeur depuis BREVO_EMAIL_FROM (format "Nom <email@domaine>")
+const emailMatch = brevoEmailFrom.match(/<([^>]+)>/);
+const fromEmail = emailMatch ? emailMatch[1] : brevoEmailFrom;
+const fromName = brevoEmailFrom.replace(/<[^>]+>/, "").trim() || "HASHCODE REBOOT";
+
+// Préparer un e-mail de test
 const testEmailPayload = {
   sender: {
-    name: "Hashcode Reboot Test",
-    email: "test@reboot.joinhashcode.com"
+    name: fromName,
+    email: fromEmail
   },
   to: [
     {
@@ -31,18 +43,18 @@ const testEmailPayload = {
     }
   ],
   subject: "🧪 Test API Brevo - Hashcode Reboot",
-  text: "Ceci est un test pour vérifier que l'API Brevo fonctionne correctement.",
-  html: "<p>Ceci est un test pour vérifier que l'API Brevo fonctionne correctement.</p>"
+  textContent: "Ceci est un test pour vérifier que l'API Brevo fonctionne correctement.",
+  htmlContent: "<p>Ceci est un test pour vérifier que l'API Brevo fonctionne correctement.</p>"
 };
 
-const brevoApiUrl = "https://api.brevo.com/v3/send";
+const brevoApiUrl = "https://api.brevo.com/v3/smtp/email";
 
 console.log("📤 Envoi du e-mail de test via Brevo API à eflexcloud@gmail.com...\n");
 
 fetch(brevoApiUrl, {
   method: "POST",
   headers: {
-    "Authorization": `Bearer ${brevoApiKey}`,
+    "api-key": brevoApiKey,
     "Content-Type": "application/json",
   },
   body: JSON.stringify(testEmailPayload),
@@ -72,6 +84,7 @@ fetch(brevoApiUrl, {
     console.error("   1. Vérifiez que BREVO_API_KEY est correcte");
     console.error("   2. Assurez-vous que l'adresse expéditrice est validée dans Brevo");
     console.error("   3. Vérifiez votre quota d'envoi");
+    console.error("   4. Vérifiez que BREVO_EMAIL_FROM est au format \"Nom <email@domaine>\"");
     console.error("   5. L'adresse eflexcloud@gmail.com doit être ajoutée à la liste des expéditeurs dans Brevo");
     process.exit(1);
   });
