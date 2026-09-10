@@ -161,7 +161,9 @@ async function sendViaBrevo({
 }
 
 /**
- * Envoi d'email avec stratégie : Resend (primary) → Brevo (fallback si quota).
+ * Envoi d'email avec stratégie de provider configurable :
+ * - EMAIL_PROVIDER=brevo → Brevo (primary) → Resend (fallback systématique)
+ * - défaut → Resend (primary) → Brevo (fallback si BREVO_FALLBACK_ON_429=true)
  * Ne lève jamais : toute erreur retourne { ok: false } silencieusement.
  */
 export async function sendEmail({
@@ -170,20 +172,35 @@ export async function sendEmail({
   html,
   text,
 }: SendEmailInput): Promise<SendEmailResult> {
-  // 1. Essayer Resend (primary)
-  const resendResult = await sendViaResend({ to, subject, html, text });
+  const input = { to, subject, html, text };
+
+  // 1. Brevo prioritaire (quota Resend atteint → bascule manuelle via env)
+  if (process.env.EMAIL_PROVIDER === "brevo") {
+    const brevoResult = await sendViaBrevo(input);
+    if (brevoResult.ok) {
+      return brevoResult;
+    }
+    // Fallback systématique vers Resend si Brevo échoue
+    if (process.env.NODE_ENV !== "production") {
+      console.info("[Email] Basculement Brevo → Resend pour", to);
+    }
+    return sendViaResend(input);
+  }
+
+  // 2. Défaut : Resend (primary)
+  const resendResult = await sendViaResend(input);
 
   // Si Resend réussit, retourner le résultat
   if (resendResult.ok) {
     return resendResult;
   }
 
-  // 2. Vérifier si on doit basculer vers Brevo (fallback)
+  // 3. Vérifier si on doit basculer vers Brevo (fallback)
   const fallbackOn429 = process.env.BREVO_FALLBACK_ON_429 === "true";
 
   if (fallbackOn429) {
     // Essayer Brevo comme fallback
-    const brevoResult = await sendViaBrevo({ to, subject, html, text });
+    const brevoResult = await sendViaBrevo(input);
 
     // Logger le basculement (en dev seulement)
     if (process.env.NODE_ENV !== "production") {
@@ -193,7 +210,7 @@ export async function sendEmail({
     return brevoResult;
   }
 
-  // 3. Sinon retourner l'erreur Resend (pas de fallback)
+  // 4. Sinon retourner l'erreur Resend (pas de fallback)
   return resendResult;
 }
 
