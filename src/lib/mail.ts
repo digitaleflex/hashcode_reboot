@@ -12,6 +12,12 @@ export interface SendEmailInput {
   subject: string;
   html: string;
   text?: string;
+  /**
+   * Tags de suivi (ex: ["invitation"]). Transmis aux providers :
+   * Brevo `tags: string[]`, Resend `tags: [{name, value}]`.
+   * Servent à filtrer les logs et à router les webhooks.
+   */
+  tags?: string[];
 }
 
 export interface SendEmailResult {
@@ -74,6 +80,7 @@ async function sendViaResend({
   subject,
   html,
   text,
+  tags,
 }: SendEmailInput): Promise<SendEmailResult> {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.EMAIL_FROM;
@@ -87,7 +94,16 @@ async function sendViaResend({
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ from, to: [to], subject, html, text }),
+      body: JSON.stringify({
+        from,
+        to: [to],
+        subject,
+        html,
+        text,
+        ...(tags?.length
+          ? { tags: tags.map((name) => ({ name, value: "1" })) }
+          : {}),
+      }),
       signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
     });
     if (!res.ok) {
@@ -116,6 +132,7 @@ async function sendViaBrevo({
   subject,
   html,
   text,
+  tags,
 }: SendEmailInput): Promise<SendEmailResult> {
   const apiKey = process.env.BREVO_API_KEY;
   const from = process.env.BREVO_EMAIL_FROM;
@@ -140,6 +157,7 @@ async function sendViaBrevo({
         subject,
         htmlContent: html,
         textContent: text,
+        ...(tags?.length ? { tags } : {}),
       }),
       signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
     });
@@ -171,8 +189,9 @@ export async function sendEmail({
   subject,
   html,
   text,
+  tags,
 }: SendEmailInput): Promise<SendEmailResult> {
-  const input = { to, subject, html, text };
+  const input = { to, subject, html, text, tags };
 
   // 1. Brevo prioritaire (quota Resend atteint → bascule manuelle via env)
   if (process.env.EMAIL_PROVIDER === "brevo") {
@@ -1036,7 +1055,7 @@ export async function sendInvitationWithActions({
     "Tu es invité à rejoindre HASHCODE REBOOT — accepte ou refuse.",
     inner,
   );
-  return sendEmail({ to, subject, html, text });
+  return sendEmail({ to, subject, html, text, tags: ["invitation"] });
 }
 
 /* ── Notification admin : membre a accepté ─────────────────────────────── */
@@ -1170,7 +1189,7 @@ export async function sendInviteRelanceEmail({
     "On t'attend toujours — rejoins HASHCODE REBOOT.",
     inner,
   );
-  return sendEmail({ to, subject, html, text });
+  return sendEmail({ to, subject, html, text, tags: ["invitation", "relance"] });
 }
 
 /* ── Notification admin : email bounce ──────────────────────────────────── */
