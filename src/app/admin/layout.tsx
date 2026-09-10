@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 const SECTION_MAP: Record<string, string> = {
   "/admin/stats": "section-stats",
   "/admin/members": "section-members",
+  "/admin/invitations": "section-invitations",
   "/admin/events": "section-events",
   "/admin/activity": "section-activity",
   "/admin/exports": "section-exports",
@@ -30,6 +31,7 @@ const SECTION_MAP: Record<string, string> = {
 const routeMap: Record<string, string> = {
   "section-stats": "/admin/stats",
   "section-members": "/admin/members",
+  "section-invitations": "/admin/invitations",
   "section-events": "/admin/events",
   "section-activity": "/admin/activity",
   "section-exports": "/admin/exports",
