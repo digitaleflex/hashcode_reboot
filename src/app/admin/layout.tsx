@@ -52,7 +52,23 @@ export default function AdminLayout({
   const { toast } = useToast();
 
   const [isPaletteOpen, setIsPaletteOpen] = React.useState(false);
+  const [notificationsCount, setNotificationsCount] = React.useState(0);
 
+  // Fetch notifications count on mount
+  React.useEffect(() => {
+    async function fetchCount() {
+      try {
+        const res = await fetch("/api/admin/stats", { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          setNotificationsCount(data.pendingCount ?? 0);
+        }
+      } catch {
+        setNotificationsCount(0);
+      }
+    }
+    fetchCount();
+  }, []);
   const activeSectionId = SECTION_MAP[pathname] || "section-stats";
 
   const handleLogout = React.useCallback(async () => {
@@ -94,10 +110,11 @@ export default function AdminLayout({
     <div
       className={`${adminSans.variable} ${adminMono.variable} admin-scope min-h-screen flex flex-col`}
     >
-      <header className="sticky top-0 z-40 h-14 border-b border-border/60 bg-card/80 backdrop-blur-sm">
-        <div className="h-full px-4 flex items-center justify-between gap-4">
+<header className="sticky top-0 z-40 h-14 border-b border-border/60 bg-card/80 backdrop-blur-sm">
+        <div className="h-full px-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Logo className="size-6 text-lime shrink-0" />
+            <span className="mono-label text-sm text-lime/80">HASHCODE Admin</span>
           </div>
 
           <div className="flex items-center gap-1">
@@ -108,8 +125,12 @@ export default function AdminLayout({
               className="gap-2"
             >
               <Command className="size-4" />
-              <span className="hidden sm:inline mono-label text-xs">Ctrl K</span>
+              <span className="mono-label text-xs">Ctrl K</span>
             </RebootButton>
+
+            <span className="ml-2 text-xs text-muted-foreground">
+              {notificationsCount} nouveaux
+            </span>
 
             <ChangePasscodeDialog
               onSessionExpired={handleLogout}
