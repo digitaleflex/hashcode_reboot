@@ -110,7 +110,7 @@ export default function AdminStatsPage() {
         </div>
       )}
 
-      {stats && <PendingApprovalsBanner pendingCount={stats.pendingCount ?? 0} />}
+      {stats && <PendingApprovalsBanner pendingCount={stats.totals?.pending ?? 0} />}
 
       <div className="flex items-center justify-between">
         <section aria-label="Vue d'ensemble" className="flex-1 min-w-0">

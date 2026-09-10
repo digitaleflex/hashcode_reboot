@@ -22,7 +22,6 @@ export interface Stats {
     registered: number;
     invited: number;
   };
-  pendingCount: number;
   domains: { web: number; cyber: number; ai: number };
   mentoring: number;
   byCountry: { country: string; count: number }[];
