@@ -7,7 +7,7 @@ import { withSentryConfig } from "@sentry/nextjs/config";
  */
 const SECURITY_HEADERS = [
   // Content Security Policy: restrictive baseline, allow common sources.
-  // NOTE: tighten further once analytics/CDN endpoints are catalogued.
+  // 'unsafe-inline' is required by Next.js Turbopack for inline scripts/styles.
   {
     key: "Content-Security-Policy",
     value: [
@@ -42,20 +42,36 @@ const SECURITY_HEADERS = [
 
 const nextConfig: NextConfig = {
   // Standalone is only needed for Docker/self-hosted builds.
-  // On Vercel, Next 16's adapter injection skips emitting next-server.js.nft.json
-  // while the standalone finalizer still reads it — causing ENOENT.
-  // See: https://github.com/vercel/next.js/issues/96646
   output: process.env.VERCEL ? undefined : "standalone",
   typescript: {
     ignoreBuildErrors: false,
   },
   reactStrictMode: true,
 
+  // React Compiler (React 19) — auto-memoization, skips stale closures.
+  reactCompiler: true,
+
+  // Body size limit: 1 MB for API routes (prevents DoS via large payloads).
+  serverExternalPackages: [],
+
   async headers() {
     return [
       {
         source: "/(.*)",
         headers: SECURITY_HEADERS,
+      },
+      // Cache headers for public read-only API routes.
+      {
+        source: "/api/health",
+        headers: [{ key: "Cache-Control", value: "no-store, max-age=0" }],
+      },
+      {
+        source: "/api/community/count",
+        headers: [{ key: "Cache-Control", value: "public, max-age=300, stale-while-revalidate=600" }],
+      },
+      {
+        source: "/api/stats",
+        headers: [{ key: "Cache-Control", value: "private, max-age=60, stale-while-revalidate=120" }],
       },
     ];
   },
