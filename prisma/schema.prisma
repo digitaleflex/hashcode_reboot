@@ -74,10 +74,20 @@ model Member {
   adminNote        String?
   deletedAt        DateTime? // null = active, set = soft-deleted
 
+  // --- Invitation tracking ---
+  invitationStatus String   @default("NOT_INVITED") // NOT_INVITED | INVITED | ACCEPTED | REFUSED | BOUNCED | EXPIRED
+  invitedAt        DateTime? // quand l'invitation a été envoyée
+  invitationClicks Int       @default(0) // nombre de clics sur le lien
+  lastClickedAt    DateTime? // dernier clic
+  refusedAt        DateTime? // quand le membre a refusé
+  refusedReason    String?   // raison du refus (optionnel)
+  bouncedAt        DateTime? // quand le email a bounce
+
   @@index([email])
   @@index([country])
   @@index([primaryDomain])
   @@index([profileStatus])
+  @@index([invitationStatus])
   @@index([communityStatus])
   @@index([createdAt])
   @@index([deletedAt])
