@@ -438,7 +438,7 @@ export default function AdminEventsPage() {
             ) : (
               <Save className="size-4" />
             )}
-            {loading ? "Création..." : "Créer l&apos;événement"}
+            {loading ? "Création..." : "Créer l'événement"}
           </button>
         </div>
       </form>

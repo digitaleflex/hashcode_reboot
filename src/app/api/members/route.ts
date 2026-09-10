@@ -11,6 +11,7 @@ import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { isAdminAuthed } from "@/lib/admin-auth";
 import { isEmailBlacklisted } from "@/lib/blacklist";
 import { blockIfTesting } from "@/lib/test-guard";
+import { bodyLimit } from "@/lib/body-limit";
 
 export const runtime = "nodejs";
 
@@ -20,6 +21,8 @@ export const runtime = "nodejs";
 export async function POST(req: NextRequest) {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
+  const tooLarge = bodyLimit(req);
+  if (tooLarge) return tooLarge;
   // Anti-spam: 5 submissions per IP per 10 minutes (bucket dédié).
   const rl = await rateLimit(`members-submit:${rateKey(req)}`, { capacity: 5, windowMs: 600000 });
   if (!rl.ok) {

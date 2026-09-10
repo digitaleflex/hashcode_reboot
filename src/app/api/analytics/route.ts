@@ -6,6 +6,7 @@ import { isAdminAuthed } from "@/lib/admin-auth";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { subDays } from "date-fns";
 import { blockIfTesting } from "@/lib/test-guard";
+import { bodyLimit } from "@/lib/body-limit";
 
 export const runtime = "nodejs";
 
@@ -22,6 +23,8 @@ const eventSchema = z.object({
 export async function POST(req: NextRequest) {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
+  const tooLarge = bodyLimit(req);
+  if (tooLarge) return tooLarge;
   // Anti-abus : 120 événements par IP toutes les 10 minutes.
   // refillPerSec = 1/5 req/sec = 12 req/min = 120 req/10min (window)
   const rl = await rateLimit(`analytics:${rateKey(req)}`, {
