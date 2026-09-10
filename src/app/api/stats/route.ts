@@ -4,6 +4,8 @@ import { isAdminAuthed } from "@/lib/admin-auth";
 import { startOfWeek, startOfMonth, subDays, subWeeks, subMonths } from "date-fns";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 /** Fusionne les entrées source en double (ex: NULL → "direct" + "direct" stocké).
  *  Cause racine du `duplicate key: direct` côté Breakdown. */

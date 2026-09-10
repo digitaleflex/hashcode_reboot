@@ -60,10 +60,10 @@ export default function AdminLayout({
   React.useEffect(() => {
     async function fetchCount() {
       try {
-        const res = await fetch("/api/admin/stats", { cache: "no-store" });
+        const res = await fetch("/api/stats", { cache: "no-store" });
         if (res.ok) {
           const data = await res.json();
-          setNotificationsCount(data.pendingCount ?? 0);
+          setNotificationsCount(data.totals?.pending ?? 0);
         }
       } catch {
         setNotificationsCount(0);

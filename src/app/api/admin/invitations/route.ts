@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { isAdminAuthed } from "@/lib/admin-auth";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const querySchema = z.object({
   status: z.string().optional(),

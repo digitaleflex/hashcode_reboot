@@ -9,6 +9,8 @@ import { blockIfTesting } from "@/lib/test-guard";
 import { bodyLimit } from "@/lib/body-limit";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const eventSchema = z.object({
   type: z.enum(EVENT_TYPES),
