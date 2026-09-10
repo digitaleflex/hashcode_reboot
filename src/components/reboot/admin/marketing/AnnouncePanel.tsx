@@ -10,9 +10,8 @@ const LOT = 15;
 
 export function AnnouncePanel({ onSessionExpired }: { onSessionExpired: () => void }) {
   const { toast } = useToast();
-  const [total, setTotal] = React.useState<number | null>(null);
-  const [offset, setOffset] = React.useState(0);
-  const [sent, setSent] = React.useState(0);
+  const [remaining, setRemaining] = React.useState<number | null>(null);
+  const [sentTotal, setSentTotal] = React.useState(0);
   const [loading, setLoading] = React.useState(false);
   const [done, setDone] = React.useState(false);
 
@@ -26,7 +25,10 @@ export function AnnouncePanel({ onSessionExpired }: { onSessionExpired: () => vo
       onSessionExpired();
       return;
     }
-    if (res.ok && typeof data?.total === "number") setTotal(data.total);
+    if (res.ok && typeof data?.total === "number") {
+      setRemaining(data.total);
+      if (data.total === 0) setDone(true);
+    }
   }, [onSessionExpired]);
 
   React.useEffect(() => {
@@ -40,7 +42,7 @@ export function AnnouncePanel({ onSessionExpired }: { onSessionExpired: () => vo
       const { res, data, error, code, retryAfterSec } = await fetchJson("/api/admin/announce-dashboard", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirm: true, limit: LOT, offset }),
+        body: JSON.stringify({ confirm: true, limit: LOT }),
       });
       if (res.status === 401 || code === "UNAUTHORIZED") {
         onSessionExpired();
@@ -55,8 +57,8 @@ export function AnnouncePanel({ onSessionExpired }: { onSessionExpired: () => vo
         });
         return;
       }
-      setSent((s) => s + (data.sent as number));
-      setOffset(data.nextOffset as number);
+      setSentTotal((s) => s + (data.sent as number));
+      if (typeof data?.remaining === "number") setRemaining(data.remaining as number);
       if (data.done) setDone(true);
       toast({ title: "Lot envoyé", description: `${data.sent} email(s) envoyé(s).` });
     } finally {
@@ -70,10 +72,14 @@ export function AnnouncePanel({ onSessionExpired }: { onSessionExpired: () => vo
         <div className="min-w-0">
           <MonoLabel className="text-muted-foreground">Annonce espace membre</MonoLabel>
           <p className="mt-1 text-sm text-muted-foreground">
-            {total === null ? "Chargement…" : `${sent}/${total} envoyés${done ? " — terminé." : "."} Envois par lots de ${LOT}.`}
+            {remaining === null
+              ? "Chargement…"
+              : done
+                ? `Terminé — ${sentTotal} email(s) envoyé(s) au total. Chaque membre ne reçoit l'annonce qu'une fois.`
+                : `${sentTotal} envoyé(s), ${remaining} restant(s). Envois par lots de ${LOT}, sans doublon.`}
           </p>
         </div>
-        <RebootButton size="sm" onClick={() => void handleSendLot()} disabled={loading || done || total === null}>
+        <RebootButton size="sm" onClick={() => void handleSendLot()} disabled={loading || done || remaining === null}>
           {loading ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Send className="size-4" aria-hidden />}
           <span>{done ? "Terminé" : "Envoyer le lot suivant"}</span>
         </RebootButton>

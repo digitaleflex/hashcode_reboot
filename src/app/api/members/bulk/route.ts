@@ -85,6 +85,14 @@ export async function POST(req: NextRequest) {
         data,
       });
       affected = r.count;
+      if (action === "invite") {
+        // Ne pas écraser ACCEPTED/REFUSED/BOUNCED/EXPIRED : seuls les
+        // NOT_INVITED deviennent INVITED côté suivi d'invitation.
+        await db.member.updateMany({
+          where: { id: { in: ids }, invitationStatus: "NOT_INVITED" },
+          data: { invitationStatus: "INVITED", invitedAt: new Date() },
+        });
+      }
     }
 
     await audit("member.bulk-soft-delete", "member", ids.join(","), {

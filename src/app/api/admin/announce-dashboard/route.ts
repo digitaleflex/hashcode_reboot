@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { isAdminAuthed } from "@/lib/admin-auth";
@@ -6,6 +7,7 @@ import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { generateOtp, hashOtp } from "@/lib/account-otp";
 import { createPendingSession } from "@/lib/account-auth";
 import { sendDashboardInviteEmail } from "@/lib/mail";
+import { logMemberEmail } from "@/lib/member-email-log";
 
 export const runtime = "nodejs";
 
@@ -70,19 +72,25 @@ export async function POST(req: NextRequest) {
       { status: 422 },
     );
   }
-  const { confirm, limit, offset } = parsed.data;
+  const { confirm, limit } = parsed.data;
 
-  const where = { deletedAt: null, profileStatus: "APPROVED" } as const;
+  // Anti-doublon : seuls les APPROVED n'ayant jamais reçu l'annonce.
+  // (L'offset est conservé pour compatibilité mais ignoré : la sélection
+  // se fait sur l'absence de log, donc rejouer est sans risque.)
+  const where: Prisma.MemberWhereInput = {
+    deletedAt: null,
+    profileStatus: "APPROVED",
+    NOT: { emailLogs: { some: { kind: "annonce" } } },
+  };
   const total = await db.member.count({ where });
 
   if (!confirm) {
-    return NextResponse.json({ dryRun: true, total, limit, offset });
+    return NextResponse.json({ dryRun: true, total, limit });
   }
 
   const members = await db.member.findMany({
     where,
     orderBy: { createdAt: "asc" },
-    skip: offset,
     take: limit,
     select: { id: true, email: true, firstName: true },
   });
@@ -123,6 +131,13 @@ export async function POST(req: NextRequest) {
       });
       if (res.ok) {
         sent += 1;
+        await logMemberEmail({
+          memberId: member.id,
+          email: member.email,
+          kind: "annonce",
+          provider: res.provider,
+          providerId: res.id,
+        });
       } else {
         failed.push(member.email);
       }
@@ -137,20 +152,22 @@ export async function POST(req: NextRequest) {
     await db.analyticsEvent.create({
       data: {
         type: "admin_announce_dashboard",
-        ref: `sent=${sent} failed=${failed.length} offset=${offset}`,
+        ref: `sent=${sent} failed=${failed.length}`,
       },
     });
   } catch {
     /* audit best-effort */
   }
 
-  const nextOffset = offset + members.length;
+  const remaining = await db.member.count({ where }).catch(() => 0);
+  const nextOffset = 0;
   return NextResponse.json({
     ok: true,
     sent,
     failed,
     total,
+    remaining,
     nextOffset,
-    done: nextOffset >= total,
+    done: remaining === 0,
   });
 }

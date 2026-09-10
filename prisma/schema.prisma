@@ -94,6 +94,7 @@ model Member {
 
   sessions MemberSession[]
   rsvps    EventRsvp[]
+  emailLogs MemberEmailLog[]
 }
 
 // Clés admin persistées (rotation, expiration, invalidation)
@@ -177,9 +178,34 @@ model EmailEvent {
   @@index([createdAt])
 }
 
+/// Per-member batch email send log — anti-doublon pour les envois par lot.
+/// Un enregistrement = un email de campagne effectivement envoyé à un membre.
+/// Les routes de lot (relance, annonce, import) excluent les membres déjà loggés.
+model MemberEmailLog {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  memberId String
+  member   Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  /// Email du destinataire (redondance utile pour l'audit)
+  email String
+  /// Nature de l'envoi : invite | relance | annonce | rejoin | engagement
+  kind  String
+  /// Provider utilisé : resend | brevo (si connu)
+  provider String?
+  /// ID retourné par le provider (messageId)
+  providerId String?
+
+  @@index([memberId])
+  @@index([kind])
+  @@index([memberId, kind])
+  @@index([createdAt])
+}
+
 /// Partial profiling drafts saved on abandon — enables relance emails
 model ProfilingDraft {
-  id             String    @id @default(cuid())
+  id             String   @id @default(cuid())
   email          String    @unique
   firstName      String?
   answers        String // JSON of ProfileAnswers
@@ -311,4 +337,44 @@ model EventRsvp {
   @@index([eventId])
   @@index([memberId])
   @@index([status])
+}
+
+/// Email deliverability metrics aggregated daily per provider (Brevo, Resend)
+model EmailProviderMetric {
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  /// Provider: "brevo" | "resend"
+  provider      String
+  /// Date bucket (UTC midnight)
+  date          DateTime @db.Date
+
+  // Volume
+  sent          Int      @default(0)
+  delivered     Int      @default(0)
+  bounced       Int      @default(0)
+  complained    Int      @default(0)
+  unsubscribed  Int      @default(0)
+
+  // Engagement
+  opened        Int      @default(0)
+  clicked       Int      @default(0)
+  uniqueOpened  Int      @default(0)
+  uniqueClicked Int      @default(0)
+
+  // Bounce details
+  hardBounce    Int      @default(0)
+  softBounce    Int      @default(0)
+
+  // Computed rates (stored for performance)
+  deliveryRate  Float?
+  openRate      Float?
+  clickRate     Float?
+  bounceRate    Float?
+  complaintRate Float?
+
+  @@unique([provider, date])
+  @@index([provider, createdAt])
+  @@index([date])
 }

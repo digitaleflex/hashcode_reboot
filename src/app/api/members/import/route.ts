@@ -150,7 +150,7 @@ export async function POST(req: NextRequest) {
           budgetRange: null,
           profileStatus: "PENDING",
           communityStatus: "NOT_INVITED",
-          accessLane: "immediate",
+          accessLane: "pending",
           country: r.country || "",
           availability: "5-10h",
           learningStyle: "practice",

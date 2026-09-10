@@ -55,6 +55,28 @@ const BUDGET_LABEL: Record<string, string> = {
   ">30000": "> 30k",
   unknown: "NSP",
 };
+const INVITATION_LABEL: Record<string, { label: string; className: string }> = {
+  INVITED: {
+    label: "Invité",
+    className: "border-blue-500/50 text-blue-300 bg-blue-500/5",
+  },
+  ACCEPTED: {
+    label: "Accepté",
+    className: "border-lime/50 text-lime bg-lime/5",
+  },
+  REFUSED: {
+    label: "Refusé",
+    className: "border-amber-500/50 text-amber-300 bg-amber-500/5",
+  },
+  BOUNCED: {
+    label: "Bounce",
+    className: "border-destructive/50 text-destructive bg-destructive/5",
+  },
+  EXPIRED: {
+    label: "Expirée",
+    className: "border-border text-muted-foreground",
+  },
+};
 
 export function MemberTableSkeleton({ rows = 6 }: { rows?: number }) {
   return (
@@ -640,12 +662,16 @@ export function MemberTable({
                     </div>
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
-                    {countryFlag(m.country)} {countryName(m.country)}
+                    {m.country ? (
+                      <>{countryFlag(m.country)} {countryName(m.country)}</>
+                    ) : (
+                      "—"
+                    )}
                   </TableCell>
                   <TableCell>{DOMAIN_LABEL[m.primaryDomain] ?? m.primaryDomain}</TableCell>
                   <TableCell>{LEVEL_LABEL[m.level] ?? m.level}</TableCell>
                   <TableCell className="hidden md:table-cell">
-                    {GOAL_LABEL[m.goal] ?? m.goal}
+                    {m.goal.trim() ? (GOAL_LABEL[m.goal] ?? m.goal) : "—"}
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
                     {m.mentoringInterest === "yes"
@@ -664,10 +690,13 @@ export function MemberTable({
                       <StatusBadge status={m.profileStatus} />
                       {m.invitationStatus && m.invitationStatus !== "NOT_INVITED" && (
                         <span
-                          className="inline-flex items-center rounded-sm border border-blue-500/50 text-blue-300 bg-blue-500/5 px-2 py-0.5 text-xs mono-label"
+                          className={cn(
+                            "inline-flex items-center rounded-sm border px-2 py-0.5 text-xs mono-label",
+                            INVITATION_LABEL[m.invitationStatus]?.className ?? "border-border text-muted-foreground",
+                          )}
                           title={`Invitation : ${m.invitationStatus}`}
                         >
-                          Invité
+                          {INVITATION_LABEL[m.invitationStatus]?.label ?? m.invitationStatus}
                         </span>
                       )}
                     </span>

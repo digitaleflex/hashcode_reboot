@@ -9,6 +9,7 @@ import { Send, Loader2 } from "lucide-react";
 export function RelancePanel({ onSessionExpired }: { onSessionExpired: () => void }) {
   const { toast } = useToast();
   const [relanceable, setRelanceable] = React.useState<string[] | null>(null);
+  const [alreadyRelanced, setAlreadyRelanced] = React.useState(0);
   const [loading, setLoading] = React.useState(false);
 
   const load = React.useCallback(async () => {
@@ -18,11 +19,27 @@ export function RelancePanel({ onSessionExpired }: { onSessionExpired: () => voi
       return;
     }
     if (res.ok && data?.ok && Array.isArray(data.members)) {
-      setRelanceable(
-        (data.members as { id: string; invitationClicks: number }[])
-          .filter((m) => m.invitationClicks === 0)
-          .map((m) => m.id),
-      );
+      const ids = (data.members as { id: string; invitationClicks: number }[])
+        .filter((m) => m.invitationClicks === 0)
+        .map((m) => m.id);
+      setRelanceable(ids);
+      // Dry-run : combien ont déjà été relancés (ignorés à l'envoi) ?
+      if (ids.length > 0) {
+        try {
+          const dry = await fetchJson("/api/invite/relance", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ memberIds: ids }),
+          });
+          if (dry.res.ok && typeof dry.data?.alreadyRelanced === "number") {
+            setAlreadyRelanced(dry.data.alreadyRelanced as number);
+          }
+        } catch {
+          /* best-effort */
+        }
+      } else {
+        setAlreadyRelanced(0);
+      }
     }
   }, [onSessionExpired]);
 
@@ -52,8 +69,15 @@ export function RelancePanel({ onSessionExpired }: { onSessionExpired: () => voi
         });
         return;
       }
-      toast({ title: "Relance envoyée", description: `${data.sent} email(s) envoyé(s).` });
+      toast({
+        title: "Relance envoyée",
+        description:
+          (data.skippedRelanced as number) > 0
+            ? `${data.sent} email(s) envoyé(s), ${data.skippedRelanced} déjà relancé(s) ignoré(s).`
+            : `${data.sent} email(s) envoyé(s).`,
+      });
       setRelanceable(null);
+      setAlreadyRelanced(0);
       await load();
     } finally {
       setLoading(false);
@@ -70,7 +94,7 @@ export function RelancePanel({ onSessionExpired }: { onSessionExpired: () => voi
               ? "Chargement…"
               : relanceable.length === 0
                 ? "Aucune invitation en attente de clic."
-                : `${relanceable.length} invitation(s) sans clic à relancer.`}
+                : `${relanceable.length - alreadyRelanced} invitation(s) à relancer${alreadyRelanced > 0 ? ` (${alreadyRelanced} déjà relancée(s), ignorée(s)).` : "."}`}
           </p>
         </div>
         <RebootButton size="sm" onClick={() => void handleRelance()} disabled={loading || !relanceable?.length}>

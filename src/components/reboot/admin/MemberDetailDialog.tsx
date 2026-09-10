@@ -530,6 +530,8 @@ function MemberDetail({
         </div>
       )}
 
+      <MemberEmailHistory memberId={m.id} />
+
       {/* Member journey timeline — activation path recap (steps are not strictly sequential) */}
       <div className="pt-4 border-t border-border/60">
         <MonoLabel className="text-muted-foreground">Parcours d&apos;activation</MonoLabel>
@@ -848,6 +850,69 @@ function TimelineStep({
       <div className="flex-1 pb-1">
         <div className="text-sm font-medium text-foreground">{label}</div>
         <div className="text-xs text-muted-foreground mt-0.5">{detail}</div>
+      </div>
+    </div>
+  );
+}
+
+/** Historique des emails reçus par le membre (envois par lot + engagement). */
+function MemberEmailHistory({ memberId }: { memberId: string }) {
+  const [data, setData] = React.useState<{
+    sends: { at: string; label: string; kind: string; provider: string | null }[];
+    engagement: { at: string; type: string; category: string | null }[];
+  } | null>(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { res, data } = await fetchJson(
+          `/api/admin/member-emails?memberId=${encodeURIComponent(memberId)}`,
+          { cache: "no-store" },
+        );
+        if (!cancelled && res.ok && data?.ok) {
+          setData({ sends: data.sends ?? [], engagement: data.engagement ?? [] });
+        }
+      } catch {
+        /* silencieux */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [memberId]);
+
+  if (!data || (data.sends.length === 0 && data.engagement.length === 0)) {
+    return null;
+  }
+
+  const fmt = (at: string) =>
+    new Date(at).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
+  const engagementLabel = (type: string) =>
+    type === "email.opened" ? "Ouvert" : type === "email.clicked" ? "Clic" : "Envoyé";
+
+  return (
+    <div className="pt-4 border-t border-border/60">
+      <MonoLabel className="text-muted-foreground">E-mails reçus</MonoLabel>
+      <div className="mt-2 space-y-1.5">
+        {data.sends.map((s, i) => (
+          <div key={`s-${i}`} className="flex items-center justify-between gap-2 text-xs">
+            <span className="text-foreground">
+              {s.label}
+              {s.provider ? <span className="text-muted-foreground"> · {s.provider}</span> : null}
+            </span>
+            <span className="mono-label text-muted-foreground shrink-0">{fmt(s.at)}</span>
+          </div>
+        ))}
+        {data.engagement.slice(0, 10).map((e, i) => (
+          <div key={`e-${i}`} className="flex items-center justify-between gap-2 text-xs">
+            <span className="text-muted-foreground">
+              {engagementLabel(e.type)}
+              {e.category ? ` · ${e.category}` : null}
+            </span>
+            <span className="mono-label text-muted-foreground shrink-0">{fmt(e.at)}</span>
+          </div>
+        ))}
       </div>
     </div>
   );

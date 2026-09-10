@@ -7,6 +7,7 @@ import { blockIfTesting } from "@/lib/test-guard";
 import { generateOtp, hashOtp } from "@/lib/account-otp";
 import { createPendingSession } from "@/lib/account-auth";
 import { sendRejoinEmail } from "@/lib/mail";
+import { logMemberEmail, memberIdsWithEmailLog } from "@/lib/member-email-log";
 
 export const runtime = "nodejs";
 
@@ -271,9 +272,16 @@ export async function POST(req: NextRequest) {
     // Vérifier quels emails existent déjà
     const existing = await db.member.findMany({
       where: { email: { in: validRows.map((r) => r.email) } },
-      select: { email: true },
+      select: { id: true, email: true, invitationStatus: true },
     });
     const existingSet = new Set(existing.map((e) => e.email));
+    // Existants INVITED jamais envoyés → ré-envoi possible (anti-doublon via log).
+    const invitedExisting = existing.filter((e) => e.invitationStatus === "INVITED");
+    const logged = await memberIdsWithEmailLog(
+      invitedExisting.map((e) => e.id),
+      "invite",
+    );
+    const resendable = invitedExisting.filter((e) => !logged.has(e.id)).length;
 
     return NextResponse.json({
       dryRun: true,
@@ -281,6 +289,7 @@ export async function POST(req: NextRequest) {
       validRows: validRows.length,
       newMembers: validRows.filter((r) => !existingSet.has(r.email)).length,
       alreadyExist: validRows.filter((r) => existingSet.has(r.email)).length,
+      resendable,
       sample: validRows.slice(0, 5),
     });
   }
@@ -288,15 +297,16 @@ export async function POST(req: NextRequest) {
   // ── Exécution ───────────────────────────────────────────────────────────
   const existing = await db.member.findMany({
     where: { email: { in: validRows.map((r) => r.email) } },
-    select: { email: true },
+    select: { id: true, email: true, firstName: true, invitationStatus: true },
   });
-  const existingSet = new Set(existing.map((e) => e.email));
+  const existingByEmail = new Map(existing.map((e) => [e.email, e]));
 
-  const toCreate = validRows.filter((r) => !existingSet.has(r.email));
-  const skipped = validRows.filter((r) => existingSet.has(r.email));
+  const toCreate = validRows.filter((r) => !existingByEmail.has(r.email));
+  const skipped = validRows.filter((r) => existingByEmail.has(r.email));
 
   let created = 0;
   let emailsSent = 0;
+  let resent = 0;
   const failedEmails: string[] = [];
 
   const base =
@@ -322,7 +332,7 @@ export async function POST(req: NextRequest) {
             communityStatus: "NOT_INVITED",
             invitationStatus: "INVITED",
             invitedAt: new Date(),
-            accessLane: "immediate",
+            accessLane: "pending",
             country: row.country,
             availability: "5-10h",
             learningStyle: "practice",
@@ -352,6 +362,13 @@ export async function POST(req: NextRequest) {
 
         if (res.ok) {
           emailsSent++;
+          await logMemberEmail({
+            memberId: member.id,
+            email: member.email,
+            kind: "invite",
+            provider: res.provider,
+            providerId: res.id,
+          });
           // Mettre à jour le statut d'invitation après envoi réussi
           await db.member.update({
             where: { id: member.id },
@@ -370,6 +387,62 @@ export async function POST(req: NextRequest) {
         failedEmails.push(row.email);
       }
     }
+
+    // Ré-envoi aux existants INVITED jamais envoyés (échec précédent).
+    // Anti-doublon : on exclut ceux qui ont déjà un log "invite".
+    const resendCandidates = skipped
+      .map((r) => existingByEmail.get(r.email))
+      .filter(
+        (m): m is { id: string; email: string; firstName: string; invitationStatus: string } =>
+          !!m && m.invitationStatus === "INVITED",
+      );
+    const resendLogged = await memberIdsWithEmailLog(
+      resendCandidates.map((m) => m.id),
+      "invite",
+    );
+    for (const member of resendCandidates) {
+      if (resendLogged.has(member.id)) continue;
+      try {
+        await db.memberSession.updateMany({
+          where: { memberId: member.id, otpHash: { not: null }, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+        const otp = generateOtp();
+        const otpHash = await hashOtp(otp);
+        await createPendingSession({
+          memberId: member.id,
+          otpHash,
+          ttlMs: INVITE_TTL_MS,
+          ip: null,
+          userAgent: "admin-import-invite",
+        });
+        const url = `${base.replace(/\/$/, "")}/verify-otp?email=${encodeURIComponent(member.email)}&code=${encodeURIComponent(otp)}&next=${encodeURIComponent("/dashboard")}`;
+        const res = await sendRejoinEmail({
+          to: member.email,
+          firstName: member.firstName || "toi",
+          url,
+        });
+        if (res.ok) {
+          resent++;
+          await logMemberEmail({
+            memberId: member.id,
+            email: member.email,
+            kind: "invite",
+            provider: res.provider,
+            providerId: res.id,
+          });
+          await db.member.update({
+            where: { id: member.id },
+            data: { invitedAt: new Date() },
+          });
+        } else {
+          failedEmails.push(member.email);
+        }
+        await new Promise((r) => setTimeout(r, SEND_DELAY_MS));
+      } catch {
+        failedEmails.push(member.email);
+      }
+    }
   } catch (err) {
     console.error("Import-invite error:", err);
     return NextResponse.json(
@@ -383,7 +456,7 @@ export async function POST(req: NextRequest) {
     await db.analyticsEvent.create({
       data: {
         type: "admin_import_invite",
-        ref: `created=${created} sent=${emailsSent} failed=${failedEmails.length} skipped=${skipped.length}`,
+        ref: `created=${created} sent=${emailsSent} resent=${resent} failed=${failedEmails.length} skipped=${skipped.length}`,
         value: created,
       },
     });
@@ -396,6 +469,7 @@ export async function POST(req: NextRequest) {
     totalRows: dataLines.length,
     created,
     emailsSent,
+    resent,
     failed: failedEmails,
     skippedAlreadyExist: skipped.length,
     skippedEmails: skipped.map((r) => r.email),
