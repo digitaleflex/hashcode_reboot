@@ -384,24 +384,26 @@ export async function sendWelcomeEmail({
 export interface InvitationEmailInput {
   to: string;
   firstName: string;
-  whatsappUrl: string;
+  dashboardUrl: string;
 }
 
-/** Mail d'invitation avec le lien WhatsApp en bouton cliquable. */
+/** Mail d'invitation : passe toujours par le site (espace membre tracé), jamais de lien WhatsApp direct. */
 export async function sendInvitationEmail({
   to,
   firstName,
-  whatsappUrl,
+  dashboardUrl,
 }: InvitationEmailInput): Promise<SendEmailResult> {
   const name = firstName.trim() || "bienvenue";
   const safeName = escapeHtml(name);
-  const safeUrl = escapeHtml(whatsappUrl);
+  const safeUrl = escapeHtml(dashboardUrl);
   const subject = "Ton invitation — rejoins la communauté HASHCODE";
   const text = [
     `Bonjour ${name},`,
     "",
-    "Bonne nouvelle : ton invitation est prête. Rejoins la communauté officielle HASHCODE sur WhatsApp :",
-    whatsappUrl,
+    "Bonne nouvelle : ton invitation est prête. Accède à ton espace membre HASHCODE :",
+    dashboardUrl,
+    "",
+    "Depuis ton espace, tu pourras rejoindre le groupe WhatsApp officiel en 1 clic.",
     "",
     "En arrivant, présente-toi brièvement et partage ton objectif des 3 prochains mois. C'est comme ça que les premiers échanges commencent.",
     "",
@@ -416,13 +418,13 @@ export async function sendInvitationEmail({
     `<tr><td style="padding:24px 32px 28px 32px;background-color:#141414;">`,
     monoLabel("INVITATION PRÊTE"),
     `<h1 style="margin:0 0 12px 0;font-family:${MAIL_FONT};font-size:24px;line-height:1.25;font-weight:800;color:#F8FAFC;">Rejoins la communauté officielle, ${safeName}.</h1>`,
-    `<p style="margin:0 0 20px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">Bonne nouvelle : ton invitation est prête. Il ne te reste qu&apos;un pas — rejoindre le groupe WhatsApp officiel.</p>`,
+    `<p style="margin:0 0 20px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">Bonne nouvelle : ton invitation est prête. Accède à ton espace membre, puis rejoins le groupe WhatsApp officiel en 1 clic.</p>`,
     // Bouton lime, centré, bulletproof (table + padding sur td pour Outlook).
     `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;">`,
     `<tr><td align="center" style="padding:0;">`,
     `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">`,
     `<tr><td align="center" bgcolor="#C5F441" style="background-color:#C5F441;border-radius:8px;padding:14px 32px;">`,
-    `<a href="${safeUrl}" target="_blank" rel="noopener" style="font-family:${MAIL_FONT};font-size:16px;font-weight:800;color:#0A0A0A;text-decoration:none;display:inline-block;">Rejoindre le groupe WhatsApp</a>`,
+    `<a href="${safeUrl}" target="_blank" rel="noopener" style="font-family:${MAIL_FONT};font-size:16px;font-weight:800;color:#0A0A0A;text-decoration:none;display:inline-block;">Accéder à mon espace</a>`,
     `</td></tr>`,
     `</table>`,
     `</td></tr>`,
@@ -512,6 +514,7 @@ export async function sendEngagementEmail({
 }: EngagementEmailInput): Promise<SendEmailResult> {
   const name = firstName.trim() || "member";
   const safeName = escapeHtml(name);
+  const joinUrl = getCommunityJoinUrlForEmail();
   const subject = "On t'attend sur HASHCODE — rejoins le groupe";
   const text = [
     `Bonjour ${name},`,
@@ -520,8 +523,8 @@ export async function sendEngagementEmail({
     "",
     "Tu l'as peut-être manquée ? La communauté est active et on t'attend pour les prochaines sessions.",
     "",
-    "Rejoins le groupe ici :",
-    process.env.WHATSAPP_URL ?? "https://chat.whatsapp.com/join",
+    "Rejoins le groupe ici (via ton espace membre) :",
+    joinUrl,
     "",
     "À tout de suite dans le groupe,",
     "L'équipe HASHCODE",
@@ -535,7 +538,7 @@ export async function sendEngagementEmail({
     `<tr><td align="center" style="padding:0;">`,
     `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">`,
     `<tr><td align="center" bgcolor="#C5F441" style="background-color:#C5F441;border-radius:8px;padding:14px 32px;">`,
-    `<a href="${escapeHtml(process.env.WHATSAPP_URL ?? "https://chat.whatsapp.com/join")}" target="_blank" rel="noopener" style="font-family:${MAIL_FONT};font-size:16px;font-weight:800;color:#0A0A0A;text-decoration:none;display:inline-block;">Rejoindre maintenant</a>`,
+    `<a href="${escapeHtml(joinUrl)}" target="_blank" rel="noopener" style="font-family:${MAIL_FONT};font-size:16px;font-weight:800;color:#0A0A0A;text-decoration:none;display:inline-block;">Rejoindre maintenant</a>`,
     `</td></tr></table>`,
     `</td></tr></table>`,
     `<p style="margin:0;font-family:${MAIL_FONT};font-size:13px;line-height:1.6;color:#94A3B8;text-align:center;">La communauté avance sans toi — retrouve les derniers membres et partage ton objectif.</p>`,
@@ -625,7 +628,7 @@ export async function sendRelanceEmail({
   const text = [
     `Bonjour ${name},`,
     "",
-    "Il y a un jour, tu commençais ton profil HASHCODE mais tu es parti avant de le finir.",
+    "Il y a quelques jours, tu commençais ton profil HASHCODE mais tu es parti avant de le finir.",
     "",
     "Ton profil est presque prêt. Reprends là où tu t'étais arrêté :",
     resumeUrl,
@@ -639,7 +642,7 @@ export async function sendRelanceEmail({
     `<tr><td style="padding:24px 32px 28px 32px;background-color:#141414;">`,
     monoLabel("TON PROFIL T'ATTEND"),
     `<h1 style="margin:0 0 12px 0;font-family:${MAIL_FONT};font-size:24px;line-height:1.25;font-weight:800;color:#F8FAFC;">Tu es à quelques clics de ton accès ${safeName}.</h1>`,
-    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">Il y a un jour, tu commençais ton profil HASHCODE mais tu es parti avant de le finir. Tes réponses sont enregistrées — tu reprends exactement où tu t'es arrêté.</p>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">Il y a quelques jours, tu commençais ton profil HASHCODE mais tu es parti avant de le finir. Tes réponses sont enregistrées — tu reprends exactement où tu t'es arrêté.</p>`,
     `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;">`,
     `<tr><td align="center" style="padding:0;">`,
     `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">`,
@@ -745,8 +748,9 @@ const STATUS_LABEL: Record<StatusChangeType, string> = {
 };
 
 // Helpers d'URL pour les emails (toujours absolu, jamais localhost)
-function getWhatsAppUrlForEmail(): string {
-  return process.env.WHATSAPP_URL || process.env.NEXT_PUBLIC_WHATSAPP_URL || "https://chat.whatsapp.com/JwJGgoQpS46I9r81QPrCs4";
+function getCommunityJoinUrlForEmail(): string {
+  const base = process.env.NEXT_PUBLIC_SITE_URL || "https://reboot.joinhashcode.com";
+  return `${base}/login?next=${encodeURIComponent("/api/community/join")}`;
 }
 function getAccountUrlForEmail(): string {
   const base = process.env.NEXT_PUBLIC_SITE_URL || "https://reboot.joinhashcode.com";
@@ -790,8 +794,8 @@ export async function sendStatusChangeEmail({
       "",
       `${archLine} Bienvenue dans la communauté.`,
       "",
-      "Voici ton lien direct pour rejoindre le groupe WhatsApp officiel :",
-      getWhatsAppUrlForEmail(),
+      "Voici ton lien pour rejoindre le groupe WhatsApp officiel (via ton espace membre, suivi) :",
+      getCommunityJoinUrlForEmail(),
       "",
       "Tu y retrouveras :",
       "• Les sessions pratiques de la communauté",
@@ -840,6 +844,7 @@ export async function sendStatusChangeEmail({
 }
 
 function approvedHtml(safeName: string, archetype: string | null | undefined) {
+  const joinUrl = escapeHtml(getCommunityJoinUrlForEmail());
   const archLine = archetype
     ? `Profil confirmé : <strong style="color:#C5F441;">${escapeHtml(archetype)}</strong>.`
     : "Ton profil a été examiné et confirmé.";
@@ -847,10 +852,10 @@ function approvedHtml(safeName: string, archetype: string | null | undefined) {
     `<tr><td style="padding:24px 32px 28px 32px;background-color:#141414;">`,
     monoLabel("VALIDÉ"),
     `<h1 style="margin:0 0 12px 0;font-family:${MAIL_FONT};font-size:24px;line-height:1.25;font-weight:800;color:#F8FAFC;">Bienvenue, ${safeName}.</h1>`,
-    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">${archLine} Voici ton lien direct pour rejoindre le groupe WhatsApp officiel :</p>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">${archLine} Voici ton lien pour rejoindre le groupe WhatsApp officiel :</p>`,
     `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;background-color:#0A0A0A;border:1px solid #333B1E;border-radius:8px;">`,
     `<tr><td align="center" style="padding:16px 12px;">`,
-    `<a href="${escapeHtml(getWhatsAppUrlForEmail())}" style="display:inline-block;padding:12px 24px;background-color:#C5F441;color:#0A0A0A;text-decoration:none;font-family:${MAIL_FONT};font-size:14px;font-weight:700;border-radius:6px;">Rejoindre le groupe WhatsApp</a>`,
+    `<a href="${joinUrl}" style="display:inline-block;padding:12px 24px;background-color:#C5F441;color:#0A0A0A;text-decoration:none;font-family:${MAIL_FONT};font-size:14px;font-weight:700;border-radius:6px;">Rejoindre le groupe WhatsApp</a>`,
     `</td></tr></table>`,
     `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;background-color:#0A0A0A;border:1px solid #262626;border-radius:8px;">`,
     `<tr><td style="padding:14px 16px;">`,

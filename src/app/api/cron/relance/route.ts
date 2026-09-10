@@ -1,7 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { sendEngagementEmail } from "@/lib/mail";
+import { sendRelanceEmail } from "@/lib/mail";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -78,9 +78,10 @@ export async function GET(req: NextRequest) {
         } catch {
           /* ignore */
         }
-        sendEngagementEmail({
+        sendRelanceEmail({
           to: draft.email,
           firstName,
+          lastQuestionId: draft.lastQuestionId ?? undefined,
         })
           .then(() => {
             sent7 += 1;

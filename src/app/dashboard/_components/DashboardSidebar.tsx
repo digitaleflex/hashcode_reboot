@@ -27,7 +27,7 @@ const NAV_ITEMS = [
 const BOTTOM_ITEMS = [
   {
     label: "WhatsApp",
-    href: "https://chat.whatsapp.com/GBh0XJfGpPq3RJrmylVljl",
+    href: "/api/community/join",
     icon: MessageCircle,
     external: true,
   },

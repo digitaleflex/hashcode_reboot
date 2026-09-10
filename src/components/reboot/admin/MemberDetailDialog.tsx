@@ -165,7 +165,7 @@ export function MemberDetailDialog({
 
   async function invite(): Promise<{
     inviteMessage: string;
-    whatsappUrl: string;
+    joinUrl: string;
   } | null> {
     if (!id) return null;
     setDialogError(null);
@@ -196,12 +196,12 @@ export function MemberDetailDialog({
         setMember(refreshed.data.member as Record<string, unknown>);
       }
       onChanged();
-      if (!data?.inviteMessage || !data?.whatsappUrl) {
+      if (!data?.inviteMessage || !data?.joinUrl) {
         throw new Error("Réponse d'invitation incomplète.");
       }
       return {
         inviteMessage: data.inviteMessage,
-        whatsappUrl: data.whatsappUrl,
+        joinUrl: data.joinUrl,
       };
     } catch (e) {
       if (isAbortError(e)) return null;
@@ -307,7 +307,7 @@ function MemberDetail({
   onPatch: (b: Record<string, unknown>) => Promise<boolean>;
   onInvite: () => Promise<{
     inviteMessage: string;
-    whatsappUrl: string;
+    joinUrl: string;
   } | null>;
   onDelete: () => Promise<void>;
 }) {
@@ -348,7 +348,7 @@ function MemberDetail({
   );
   const [invitePreview, setInvitePreview] = React.useState<{
     inviteMessage: string;
-    whatsappUrl: string;
+    joinUrl: string;
   } | null>(null);
   const [inviteCopyError, setInviteCopyError] = React.useState<string | null>(null);
   const [noteDraft, setNoteDraft] = React.useState(m.adminNote ?? "");
@@ -383,7 +383,7 @@ function MemberDetail({
     const res = await onInvite();
     if (res) {
       setInvitePreview(res);
-      const text = `${res.inviteMessage} ${res.whatsappUrl}`;
+      const text = `${res.inviteMessage} ${res.joinUrl}`;
       try {
         await navigator.clipboard.writeText(text);
         setInviteState("sent");
@@ -400,7 +400,7 @@ function MemberDetail({
     if (!invitePreview) return;
     try {
       await navigator.clipboard.writeText(
-        `${invitePreview.inviteMessage} ${invitePreview.whatsappUrl}`,
+        `${invitePreview.inviteMessage} ${invitePreview.joinUrl}`,
       );
       setInviteState("sent");
       setTimeout(() => setInviteState("idle"), 2000);
@@ -680,16 +680,16 @@ function MemberDetail({
                   {invitePreview.inviteMessage}
                 </p>
                 <p className="mt-1.5 text-xs font-mono text-lime break-all">
-                  {invitePreview.whatsappUrl}
+                  {invitePreview.joinUrl}
                 </p>
                 <div className="mt-2.5 flex flex-wrap gap-2">
                   <a
-                    href={invitePreview.whatsappUrl}
+                    href={invitePreview.joinUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 min-h-[44px] px-3.5 rounded-md bg-lime text-black text-sm font-medium hover:bg-lime/90 transition-colors focus-lime"
                   >
-                    Ouvrir WhatsApp
+                    Ouvrir le lien
                     <ExternalLink className="size-3.5" aria-hidden />
                   </a>
                   <button

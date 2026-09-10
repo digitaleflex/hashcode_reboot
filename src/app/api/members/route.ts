@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { profileSchema, answersToCreatePayload } from "@/lib/profiling/validate";
-import { runAutoControls, WHATSAPP_URL } from "@/lib/profiling/auto-controls";
+import { runAutoControls } from "@/lib/profiling/auto-controls";
 import { generateProfile } from "@/lib/profiling/engine";
 import { sendInvitationEmail, sendWelcomeEmail, sendWaitlistEmail, sendVerificationLinkEmail } from "@/lib/mail";
 import { requestEmailLink, buildVerifyUrl } from "@/lib/verify-email";
@@ -193,9 +193,14 @@ export async function POST(req: NextRequest) {
       /* email must never break the flow */
     }
     if (lane === "immediate") {
+      const siteBase =
+        process.env.NEXT_PUBLIC_SITE_URL ||
+        process.env.NEXT_PUBLIC_URL ||
+        "https://reboot.joinhashcode.com";
+      const dashboardUrl = `${siteBase.replace(/\/$/, "")}/dashboard`;
       await Promise.allSettled([
         sendWelcomeEmail({ to: email, firstName, archetype }),
-        sendInvitationEmail({ to: email, firstName, whatsappUrl: WHATSAPP_URL }),
+        sendInvitationEmail({ to: email, firstName, dashboardUrl }),
       ]);
     } else {
       try {

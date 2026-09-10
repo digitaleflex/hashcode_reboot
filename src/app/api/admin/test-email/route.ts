@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdminRole, checkCSRF } from "@/lib/admin-auth";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
-import { WHATSAPP_URL } from "@/lib/profiling/auto-controls";
 import { sendInvitationEmail, sendWelcomeEmail } from "@/lib/mail";
 
 export const runtime = "nodejs";
@@ -71,10 +70,14 @@ export async function POST(req: NextRequest) {
     if (res.ok) sent.push("welcome");
   }
   if (kind === "invite" || kind === "both") {
+    const siteBase =
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      process.env.NEXT_PUBLIC_URL ||
+      "https://reboot.joinhashcode.com";
     const res = await sendInvitationEmail({
       to: email,
       firstName: "Test",
-      whatsappUrl: WHATSAPP_URL,
+      dashboardUrl: `${siteBase.replace(/\/$/, "")}/dashboard`,
     });
     if (res.ok) sent.push("invite");
   }

@@ -4,7 +4,9 @@ import {
   Pencil,
   ArrowRight,
 } from "lucide-react";
-import { WHATSAPP_URL } from "@/lib/profiling/auto-controls";
+
+/** Tous les accès WhatsApp passent par /api/community/join (traçage + redirection). */
+const COMMUNITY_JOIN_URL = "/api/community/join";
 
 /**
  * Actions rapides — boutons pour les actions courantes.
@@ -26,7 +28,7 @@ export function QuickActions({
         {/* WhatsApp */}
         {communityStatus === "JOINED" ? (
           <a
-            href={WHATSAPP_URL}
+            href={COMMUNITY_JOIN_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-3 rounded-md border border-border/60 bg-background/50 p-4 hover:border-lime/40 hover:bg-lime/5 transition-colors group"
@@ -40,7 +42,7 @@ export function QuickActions({
           </a>
         ) : (
           <a
-            href={WHATSAPP_URL}
+            href={COMMUNITY_JOIN_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-3 rounded-md border border-lime/30 bg-lime/5 p-4 hover:bg-lime/10 transition-colors group"
