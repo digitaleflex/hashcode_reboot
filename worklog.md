@@ -1443,3 +1443,67 @@ précédente ont été implémentées, puis la documentation complète a été r
 - Tests `runAutoControls` (4 raisons), `generateProfile` (archétypes/tags),
   `POST /members` invalides (intégration).
 - Relire le drop-off par question après ~100 visites.
+
+---
+
+## 2026-09-10 — Sécurité tests, fix middleware, documentation
+
+### Problème identifié
+Les tests d'intégration tournaient contre la base de production (pas de base
+dev séparée). Les tests POST /api/events, POST /api/analytics, POST /api/members
+créaient des données réelles en prod.
+
+### Corrections appliquées
+
+#### 1. Guard anti-écriture (`src/lib/test-guard.ts`)
+- Nouveau fichier : `blockIfTesting()` retourne 403 quand `TESTING=1`.
+- Appliqué à **14 handlers** d'écriture : events (POST/PATCH/DELETE),
+  events/[id]/rsvp (POST/DELETE), members (POST), members/[id] (PATCH/DELETE),
+  members/[id]/invite (POST), members/import (POST), members/bulk (POST),
+  analytics (POST), account/phone (POST), account/profile (PATCH).
+- Comportement : `TESTING=1` → tous les writes bloqués (403). Sans `TESTING`
+  → aucune action (Vercel prod, dev local).
+
+#### 2. Fix middleware Edge (1.03 MB → ~5 KB)
+- Le middleware importait `SESSION_COOKIE_NAME` depuis `account-auth.ts` qui
+  importe `db` (Prisma). Vercel bundleait tout Prisma dans le chunk Edge.
+- Fix : inline `const SESSION_COOKIE_NAME = "hashcode_session"` directement
+  dans `middleware.ts`. Aucune dépendance lourde dans le bundle Edge.
+
+#### 3. Tests intégration nettoyés (29/29 read-only)
+- Supprimé : POST /api/analytics (créait des events en prod)
+- Supprimé : POST /api/members (créait des membres en prod)
+- Supprimé : POST /api/events (créait des events en prod)
+- Ajouté : GET /api/events/notify-count (auth + params + domain filter)
+- Ajouté : GET /api/admin/audit-log (auth + CSV format)
+- Ajouté : GET /api/admin/activity (auth + limit param)
+- Ajouté : POST /api/account/phone (test 401 sans cookie, middleware auth)
+- Les tests écrivent **zéro donnée** en base.
+
+#### 4. tsconfig fix
+- Exclu `.next/dev/types/**/*.ts` du scope tsc (fichier généré cassé par le
+  dev server : `routes.d.ts` avec erreurs de syntaxe).
+- `tsc --noEmit` : 0 erreur.
+
+#### 5. Nettoyage base de production
+- 5 events « Integration Test Event » supprimés (créés par les anciens tests).
+- 296 analytics `reboot_page_view` sans memberId supprimés (pollution tests).
+- Zéro données critiques perdues (membres, profils, emails, audit intacts).
+
+### Documentation mise à jour
+- **README.md** : env vars (`TESTING`, `BREVO_FALLBACK_ON_429`, `SENTRY_DSN`,
+  `NEXT_PUBLIC_SENTRY_DSN`), scripts (`test:unit`, `test:integration`,
+  `typecheck`), section « Sécurité des tests », middleware inline, structure
+  (`test-guard.ts`).
+- **worklog.md** : entrée 2026-09-10.
+
+### Git :
+- `development` : `5e79690` → `fc3c2dc` (4 commits)
+- `main` : sync complet avec `development` (`d4de4d5`, tree 1:1)
+- Push origin : les deux branches.
+
+### État vérifié :
+- `tsc --noEmit` : 0 erreur dans `src/`.
+- `npm run test:unit` : 103/103 pass.
+- Tests intégration : 29/29 pass (read-only, zero writes).
+- Build compile (standalone Windows KO, sans impact Vercel).
