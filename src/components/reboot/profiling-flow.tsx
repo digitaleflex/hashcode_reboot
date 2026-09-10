@@ -319,6 +319,7 @@ export function ProfilingFlow({
         onBack={goBack}
         stepLabel="Ton profil HASHCODE est prêt"
         group="vision"
+        showCompletionIndicator
       >
         <div className="animate-hash-in">
           <div className="max-w-xl mx-auto text-center">
@@ -373,6 +374,7 @@ export function ProfilingFlow({
         progress={1}
         onBack={goBack}
         stepLabel="Finalisation…"
+        showCompletionIndicator
       >
         <div className="text-center animate-hash-in">
           <div className="relative inline-flex">
@@ -397,6 +399,7 @@ export function ProfilingFlow({
       stepLabel={current.group === "contact" ? "WhatsApp (presque fini)" : "Ton profil HASHCODE"}
       microcopy={current.microcopy}
       group={current.group}
+      showCompletionIndicator
     >
       <AnimatePresence mode="wait" custom={direction}>
         <motion.div
@@ -456,6 +459,7 @@ function ProfilingShell({
   stepLabel,
   microcopy,
   group,
+  showCompletionIndicator,
 }: {
   children: React.ReactNode;
   progress: number;
@@ -463,6 +467,7 @@ function ProfilingShell({
   stepLabel: string;
   microcopy?: string;
   group?: string;
+  showCompletionIndicator?: boolean;
 }) {
   const MILESTONES: { key: string; label: string }[] = [
     { key: "profil", label: "Profil" },
@@ -487,7 +492,7 @@ function ProfilingShell({
           </button>
           <MonoLabel>{stepLabel}</MonoLabel>
           <span className="text-xs text-muted-foreground mono-label tabular-nums flex items-center gap-2">
-            <span>~{Math.max(1, Math.round((1 - progress) * 120))}s restantes</span>
+            <span>~{Math.max(1, Math.round((1 - progress) * 120))} min restantes</span>
             <span className="text-border">·</span>
             <span>{Math.round(progress * 100)}%</span>
           </span>
@@ -497,6 +502,11 @@ function ProfilingShell({
             className="h-full bg-lime transition-[width] duration-320 ease-out"
             style={{ width: `${Math.max(2, progress * 100)}%` }}
           />
+          {showCompletionIndicator && progress < 1 && (
+            <span className="ml-2 text-xs text-muted-foreground mono-label">
+              {Math.round(progress * 100)}%
+            </span>
+          )}
         </div>
         {/* Milestone group indicator — subtle stage tracker */}
         {activeIdx >= 0 && (
@@ -504,6 +514,7 @@ function ProfilingShell({
             {MILESTONES.map((m, i) => {
               const done = i < activeIdx;
               const active = i === activeIdx;
+              const isCurrentGroup = group === m.key;
               return (
                 <React.Fragment key={m.key}>
                   <span
@@ -513,6 +524,8 @@ function ProfilingShell({
                         ? "text-lime"
                         : done
                           ? "text-muted-foreground"
+                          : isCurrentGroup
+                          ? "text-lime/80"
                           : "text-border",
                     )}
                   >
@@ -522,7 +535,7 @@ function ProfilingShell({
                     <span
                       className={cn(
                         "h-px w-3 shrink-0 transition-colors",
-                        done ? "bg-muted-foreground/40" : "bg-border",
+                        done ? "bg-muted-foreground/40" : isCurrentGroup ? "bg-lime/20" : "bg-border",
                       )}
                     />
                   )}

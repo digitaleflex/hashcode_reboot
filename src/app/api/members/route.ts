@@ -142,7 +142,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Écritures secondaires en parallèle (analytics + draft) — jamais bloquantes.
+// Écritures secondaires en parallèle (analytics + draft) — jamais bloquantes.
+  const drafting = controls.profileStatus === "PENDING";
   await Promise.allSettled([
     db.analyticsEvent.create({
       data: {
@@ -151,10 +152,25 @@ export async function POST(req: NextRequest) {
         ref: controls.accessLane,
       },
     }),
-    db.profilingDraft.updateMany({
-      where: { email: data.email.toLowerCase(), completedAt: null },
-      data: { completedAt: new Date() },
-    }),
+    ...(drafting
+      ? [
+          db.profilingDraft.upsert({
+            where: { email: data.email.toLowerCase() },
+            update: {
+              answers: JSON.stringify(data),
+              updatedAt: new Date(),
+              relanceSentAt: null,
+            },
+            create: {
+              email: data.email.toLowerCase(),
+              answers: JSON.stringify(data),
+              firstName: data.firstName?.slice(0, 40) ?? "",
+              lastQuestionId: null,
+              relanceSentAt: null,
+            },
+          }),
+        ]
+      : []),
   ]);
 
   // Emails en arrière-plan : on répond 201 sans attendre les providers

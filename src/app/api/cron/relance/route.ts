@@ -1,14 +1,14 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { sendRelanceEmail } from "@/lib/mail";
+import { sendEngagementEmail } from "@/lib/mail";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const RELANCE_DELAY_MS = 24 * 60 * 60 * 1000; // 24h après le premier abandon
+const RELANCE_DELAY_MS = 7 * 24 * 60 * 60 * 1000; // 7 jours J+7
 
-/** GET /api/cron/relance — envoie la relance aux profils abandonnés (cron-job.org). */
+/** GET /api/cron/relance — envoie la relance engagement J+7 aux profils abandonnés (cron-job.org). */
 export async function GET(req: NextRequest) {
   if (!process.env.CRON_SECRET) {
     return NextResponse.json(
@@ -58,10 +58,9 @@ export async function GET(req: NextRequest) {
           } catch {
             /* ignore — answers json may be empty */
           }
-          return sendRelanceEmail({
+          return sendEngagementEmail({
             to: draft.email,
             firstName,
-            lastQuestionId: draft.lastQuestionId ?? undefined,
           }).then((res) => ({ id: draft.id, ok: res.ok }));
         }),
       );
