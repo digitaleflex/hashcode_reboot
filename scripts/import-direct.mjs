@@ -162,14 +162,22 @@ function parseCsv2(filePath) {
   return members;
 }
 
+// ── .env parser (autonome, sans dépendance) ───────────────────────────────
+try {
+  const envContent = readFileSync(join(ROOT, ".env"), "utf8");
+  for (const line of envContent.split("\n")) {
+    const m = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
+    if (m && !process.env[m[1]]) {
+      process.env[m[1]] = m[2].trim().replace(/^['"]|['"]$/g, "");
+    }
+  }
+} catch { /* .env optionnel — vars déjà dans l'environnement */ }
+
 // ── Send email via Resend API (simple HTTP) ──────────────────────────────
-async function sendEmail(to, subject, html, text) {
+async function sendViaResend(to, subject, html, text) {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.EMAIL_FROM;
-  if (!apiKey || !from) {
-    console.log(`     ⚠️  Pas de RESEND_API_KEY — email non envoyé à ${to}`);
-    return false;
-  }
+  if (!apiKey || !from) return false;
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -184,6 +192,55 @@ async function sendEmail(to, subject, html, text) {
   } catch {
     return false;
   }
+}
+
+// ── Send email via Brevo API (simple HTTP) ───────────────────────────────
+async function sendViaBrevo(to, subject, html, text) {
+  const apiKey = process.env.BREVO_API_KEY;
+  const from = process.env.BREVO_EMAIL_FROM;
+  if (!apiKey || !from) return false;
+  const emailMatch = from.match(/<([^>]+)>/);
+  const fromEmail = emailMatch ? emailMatch[1] : from;
+  const fromName = from.replace(/<[^>]+>/, "").trim() || "HASHCODE REBOOT";
+  try {
+    const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: {
+        "api-key": apiKey,
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+      body: JSON.stringify({
+        sender: { email: fromEmail, name: fromName },
+        to: [{ email: to }],
+        subject,
+        htmlContent: html,
+        textContent: text,
+      }),
+      signal: AbortSignal.timeout(10000),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+// ── Send email avec stratégie EMAIL_PROVIDER (brevo prioritaire si défini) ─
+async function sendEmail(to, subject, html, text) {
+  const brevoFirst = process.env.EMAIL_PROVIDER === "brevo";
+  const first = brevoFirst ? sendViaBrevo : sendViaResend;
+  const second = brevoFirst ? sendViaResend : sendViaBrevo;
+  const firstName = brevoFirst ? "Brevo" : "Resend";
+  const secondName = brevoFirst ? "Resend" : "Brevo";
+
+  if (await first(to, subject, html, text)) return { ok: true, via: firstName };
+  // Fallback systématique vers l'autre provider
+  if (await second(to, subject, html, text)) {
+    console.log(`     ℹ️  Fallback ${firstName} → ${secondName} pour ${to}`);
+    return { ok: true, via: secondName };
+  }
+  console.log(`     ⚠️  Échec envoi (${firstName}+${secondName}) à ${to}`);
+  return { ok: false, via: null };
 }
 
 // ── Email template (invitation avec Accepter/Refuser) ────────────────────
@@ -319,7 +376,7 @@ async function main() {
       const acceptUrl = `${base.replace(/\/$/, "")}/verify-otp?email=${encodeURIComponent(member.email)}&code=${encodeURIComponent(otp)}&next=${encodeURIComponent("/dashboard")}`;
       const refuseUrl = `${base.replace(/\/$/, "")}/api/invite/refuse?email=${encodeURIComponent(member.email)}&token=${encodeURIComponent(otp)}`;
       const { subject, html, text } = buildRejoinEmail(m.firstName, acceptUrl, refuseUrl);
-      const ok = await sendEmail(m.email, subject, html, text);
+      const { ok, via } = await sendEmail(m.email, subject, html, text);
       if (ok) sent++;
       else failed.push(m.email);
 
@@ -331,7 +388,7 @@ async function main() {
         });
       }
 
-      console.log(`  ✅ ${m.email} (${m.source}) — email ${ok ? "envoyé" : "échoué"}`);
+      console.log(`  ✅ ${m.email} (${m.source}) — email ${ok ? `envoyé via ${via}` : "échoué"}`);
       await new Promise(r => setTimeout(r, SEND_DELAY_MS));
     } catch (e) {
       failed.push(m.email);
