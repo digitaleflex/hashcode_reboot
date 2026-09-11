@@ -1,11 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { MonoLabel } from "../shared";
+import { MonoLabel, Card } from "../shared";
 import { DonutChart } from "../donut-chart";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AdminStatsSkeleton } from "./skeletons/AdminStatsSkeleton";
 import { cn } from "@/lib/utils";
+import { LEVEL_LABEL, BUDGET_LABEL } from "@/lib/profiling/labels";
 import { countryFlag, countryName } from "@/lib/profiling/countries";
 import { CheckCircle2, ChevronRight, Clock, XCircle, Users, ArrowRight } from "lucide-react";
 
@@ -91,23 +92,6 @@ export interface FunnelData {
     completionRatePct: number;
   };
 }
-
-const LEVEL_LABEL: Record<string, string> = {
-  beginner: "Débutant",
-  practicing: "Pratique",
-  autonomous: "Autonome",
-  advanced: "Avancé",
-};
-
-const BUDGET_LABEL: Record<string, string> = {
-  "<2500": "< 2.5k",
-  "2500-5000": "2.5–5k",
-  "5000-10000": "5–10k",
-  "10000-20000": "10–20k",
-  "20000-30000": "20–30k",
-  ">30000": "> 30k",
-  unknown: "NSP",
-};
 
 const QUESTION_LABEL: Record<string, string> = {
   firstName: "Prénom",
@@ -243,12 +227,12 @@ export function AdminStats({
     <>
       {/* Empty state — no data at all */}
       {!stats && (
-        <div className="rounded-md border border-border/60 bg-card/40 p-8 text-center">
+        <Card className="p-8 text-center">
           <p className="text-sm font-medium text-foreground">Aucune donnée disponible.</p>
           <p className="mt-1 text-xs text-muted-foreground">
             Les statistiques apparaîtront dès la première inscription.
           </p>
-        </div>
+        </Card>
       )}
       {stats && (
         <>
@@ -290,11 +274,7 @@ export function AdminStats({
 
       {/* Inscrits vs invités — le total mélange les deux, on l'explicite */}
       {stats?.invitations && (
-        <div
-          className="rounded-md border border-border/60 bg-card/40 p-4 flex flex-wrap items-center gap-x-6 gap-y-2"
-          role="status"
-          aria-label="Répartition inscrits et invités"
-        >
+        <Card className="p-4 flex flex-wrap items-center gap-x-6 gap-y-2" role="status" aria-label="Répartition inscrits et invités">
           <span className="flex items-center gap-2 text-sm text-foreground">
             <span className="size-2 rounded-full bg-lime" aria-hidden />
             <strong className="font-semibold tabular-nums">{stats.invitations.registered} inscrits réels</strong>
@@ -305,11 +285,11 @@ export function AdminStats({
             <strong className="font-semibold tabular-nums">{stats.invitations.invited} invités</strong>
             <span className="text-muted-foreground">— importés, en attente d'acceptation</span>
           </span>
-          <span className="ml-auto mono-label text-xs text-muted-foreground tabular-nums">
+<span className="ml-auto mono-label text-xs text-muted-foreground tabular-nums">
             Total base : {stats?.totals.total ?? "—"}
           </span>
-        </div>
-      )}
+        </Card>
+       )}
 
       {/* Stat overview */}
       <section aria-label="Vue d'ensemble et filtres rapides">
@@ -390,9 +370,9 @@ export function AdminStats({
 
       {/* Domain distribution donut + breakdowns */}
       <section className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="rounded-md border border-border/60 bg-card p-4 sm:p-5">
-          <div className="flex items-center justify-between">
-            <MonoLabel className="text-muted-foreground">Par domaine</MonoLabel>
+<Card className="p-4 sm:p-5">
+	          <div className="flex items-center justify-between">
+	            <MonoLabel className="text-muted-foreground">Par domaine</MonoLabel>
             <span className="mono-label text-muted-foreground">
               {stats ? stats.domains.web + stats.domains.cyber + stats.domains.ai : 0}
             </span>
@@ -409,11 +389,11 @@ export function AdminStats({
                 centerLabel="membres"
               />
             ) : (
-              <p className="text-xs text-muted-foreground">Aucune donnée.</p>
-            )}
-          </div>
-        </div>
-        <Breakdown
+<p className="text-xs text-muted-foreground">Aucune donnée.</p>
+	            )}
+	          </div>
+	        </Card>
+	        <Breakdown
           title="Par pays"
           rows={(stats?.byCountry ?? []).map((c) => [
             `${countryFlag(c.country)} ${countryName(c.country)}`,
@@ -462,9 +442,9 @@ export function AdminStats({
             ]),
           )}
         />
-        <div className="rounded-md border border-border/60 bg-card p-4 sm:p-5">
-<div className="flex items-center justify-between">
-             <MonoLabel className="text-muted-foreground">Par archétype</MonoLabel>
+<Card>
+	        <div className="flex items-center justify-between">
+	          <MonoLabel className="text-muted-foreground">Par archétype</MonoLabel>
              <span className="mono-label text-muted-foreground">
                {(stats?.byArchetype ?? []).length}
              </span>
@@ -502,15 +482,15 @@ export function AdminStats({
                   onClick={() => onFilter("archetype", a.archetype)}
                   title={`Filtrer : ${a.archetype}`}
                   aria-label={`Filtrer la liste : ${a.archetype} (${a.count})`}
-                  className="group w-full flex items-center gap-3 rounded-sm px-1 py-0.5 text-left transition-colors hover:bg-lime/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-inset min-h-[28px]"
+                className="group w-full flex items-center gap-3 rounded-sm px-1 py-0.5 text-left transition-colors hover:bg-lime/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-inset min-h-[44px]"
                 >
                   {content}
                 </button>
               );
-            })}
-          </div>
-        </div>
-        <Breakdown
+})}
+           </div>
+         </Card>
+         <Breakdown
           title="Par source d'acquisition"
           rows={(stats?.bySource ?? []).map((s) => [s.source, s.count])}
           onRowClick={onFilter}
@@ -749,10 +729,10 @@ function StatCard({
             aria-hidden
           />
         )}
-      </div>
-      <div className="mt-2 font-display font-bold text-2xl sm:text-3xl text-foreground animate-hash-roll tabular-nums admin-num">
-        {value}
-      </div>
+       </div>
+       <div className="mt-2 font-display font-extrabold text-3xl sm:text-4xl text-foreground animate-hash-roll tabular-nums admin-num">
+         {value}
+       </div>
       <span className="mt-1 block text-[11px] text-muted-foreground">
         {active ? (
           <span className="inline-flex items-center gap-1 text-lime">
@@ -835,7 +815,7 @@ function Breakdown({
                 onClick={() => onRowClick!(filterKey!, filterValue!)}
                 title={`Filtrer : ${label}`}
                 aria-label={`Filtrer la liste : ${label} (${count})`}
-                className="group w-full flex items-center gap-3 rounded-sm px-1 py-0.5 text-left transition-colors hover:bg-lime/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-inset min-h-[28px]"
+                className="group w-full flex items-center gap-3 rounded-sm px-1 py-0.5 text-left transition-colors hover:bg-lime/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-inset min-h-[44px]"
               >
                 {content}
               </button>
