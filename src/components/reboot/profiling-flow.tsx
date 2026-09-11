@@ -19,7 +19,7 @@ import type { ProfileAnswers, Question } from "@/lib/profiling/types";
 import { track } from "@/lib/analytics";
 import { RebootButton, CtaArrow, MonoLabel } from "./shared";
 import { HashSymbol } from "@/components/brand/logo";
-import { OptionCard, MultiOptionCard } from "./option-card";
+import { OptionCard } from "./option-card";
 import { CountrySelect } from "./country-select";
 import { ProfileCard } from "./profile-card";
 import {
@@ -805,11 +805,12 @@ function MultiChoiceView({
     <div className="space-y-3">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         {options.map((o) => (
-          <MultiOptionCard
+          <OptionCard
             key={o.value}
             option={o}
             selected={selected.includes(o.value)}
             onToggle={onToggle}
+            variant="checkbox"
           />
         ))}
       </div>
