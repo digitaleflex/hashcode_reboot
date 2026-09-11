@@ -17,6 +17,9 @@ const SECURITY_HEADERS = [
       "img-src 'self' data: blob: https:",
       "font-src 'self' data:",
       "connect-src 'self' https: wss:",
+      // Autorise les Web Workers créés depuis des blobs (dépendances clientes).
+      // Sans ça, worker-src retombe sur script-src et les workers blob: sont bloqués.
+      "worker-src 'self' blob:",
       "frame-src 'self' https://vercel.live",
       "frame-ancestors 'none'",
       "base-uri 'self'",
