@@ -174,7 +174,7 @@ export function Tag({
     "inline-flex items-center rounded-full border px-3.5 py-2 text-[13px] font-medium tracking-[0.01em] leading-none transition-colors focus-lime",
     onClick
       ? "min-h-[44px] cursor-pointer hover:border-lime/60 hover:text-foreground hover:bg-lime/5 active:bg-lime/10"
-      : "min-h-[36px]",
+      : "min-h-[44px]",
     active
       ? "border-lime/60 text-lime bg-lime/5"
       : "border-border text-muted-foreground",
@@ -218,6 +218,23 @@ export function RebootTitle({
         REBOOT
       </span>
     </h1>
+  );
+}
+
+/** Simple card — rounded border, subtle bg. For flat containers only (no divide-y, no max-h). */
+export function Card({
+  className,
+  children,
+  ...rest
+}: {
+  className?: string;
+  children: React.ReactNode;
+  [key: string]: unknown;
+}) {
+  return (
+    <div className={cn("rounded-md border border-border/60 bg-card/40", className)} {...rest}>
+      {children}
+    </div>
   );
 }
 

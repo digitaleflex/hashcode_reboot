@@ -218,7 +218,7 @@ export function MemberDetailDialog({
 
   return (
     <Dialog open={!!id} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="bg-card border-border max-w-lg max-h-[85vh] overflow-y-auto scroll-slim">
+      <DialogContent className="bg-card border-border max-w-[100vw] max-h-[90vh] rounded-none md:rounded-lg overflow-y-auto scroll-slim">
         <DialogHeader>
           <DialogTitle className="font-display tracking-tight">
             {memberName ? `Membre — ${memberName}` : "Détail du membre"}
@@ -465,7 +465,7 @@ function MemberDetail({
         <button
           type="button"
           onClick={() => copyField("email", m.email)}
-          className="shrink-0 size-7 inline-flex items-center justify-center rounded-sm text-muted-foreground hover:text-lime hover:bg-lime/5 transition-colors focus-lime"
+          className="shrink-0 size-7 inline-flex items-center justify-center rounded-sm text-muted-foreground hover:text-lime hover:bg-lime/5 transition-colors focus-lime min-h-[44px] min-w-[44px]"
           title="Copier l'email"
           aria-label={copiedField === "email" ? "Email copié" : "Copier l'email"}
         >
@@ -485,7 +485,7 @@ function MemberDetail({
           <button
             type="button"
             onClick={() => copyField("phone", m.phone!)}
-            className="shrink-0 size-7 inline-flex items-center justify-center rounded-sm text-muted-foreground hover:text-lime hover:bg-lime/5 transition-colors focus-lime"
+          className="shrink-0 size-7 inline-flex items-center justify-center rounded-sm text-muted-foreground hover:text-lime hover:bg-lime/5 transition-colors focus-lime min-h-[44px] min-w-[44px]"
             title="Copier le téléphone"
             aria-label={copiedField === "phone" ? "Téléphone copié" : "Copier le téléphone"}
           >
