@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { MonoLabel } from "@/components/reboot/shared";
+import { cn } from "@/lib/utils";
 import { DonutChart, type DonutSegment } from "@/components/reboot/donut-chart";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Mail, MailOpen, Pointer, UserCheck } from "lucide-react";
@@ -23,6 +24,13 @@ export interface InviteStatusStats {
   EXPIRED: number;
 }
 
+export interface InviteFunnel {
+  accepted: number;
+  approvedFromAccepted: number;
+  joined: number;
+  incompleteProfiles: number;
+}
+
 const CATEGORY_LABEL: Record<string, string> = {
   welcome: "Bienvenue",
   waitlist: "Waitlist",
@@ -39,14 +47,16 @@ export function MarketingGraphs({
   emailStats,
   audience,
   inviteStats,
+  funnel,
   loading,
 }: {
   emailStats: EmailStatsData | null;
   audience: AudienceSplit | null;
   inviteStats: InviteStatusStats | null;
+  funnel: InviteFunnel | null;
   loading: boolean;
 }) {
-  const hasAny = emailStats !== null || audience !== null || inviteStats !== null;
+  const hasAny = emailStats !== null || audience !== null || inviteStats !== null || funnel !== null;
 
   if (loading && !hasAny) {
     return (
@@ -119,6 +129,35 @@ export function MarketingGraphs({
     <section aria-label="Graphes marketing" className="space-y-2">
       <MonoLabel className="text-muted-foreground">Graphes & statistiques</MonoLabel>
 
+      {funnel && (
+        <div className="rounded-md border border-border/60 bg-card/40 p-4">
+          <MonoLabel className="text-muted-foreground">Entonnoir invitation</MonoLabel>
+          <div className="mt-3 flex flex-col sm:flex-row sm:items-stretch gap-2">
+            <FunnelStep label="Invités" value={invitedPool} tone="sky" />
+            <FunnelArrow />
+            <FunnelStep
+              label="Acceptés"
+              value={funnel.accepted}
+              sub={invitedPool > 0 ? `${pct(funnel.accepted, invitedPool)}%` : undefined}
+              tone="lime"
+            />
+            <FunnelArrow />
+            <FunnelStep
+              label="Approuvés"
+              value={funnel.approvedFromAccepted}
+              sub={funnel.accepted > 0 ? `${pct(funnel.approvedFromAccepted, funnel.accepted)}%` : undefined}
+            />
+            <FunnelArrow />
+            <FunnelStep label="Rejoints" value={funnel.joined} tone="lime" />
+          </div>
+          {funnel.incompleteProfiles > 0 && (
+            <p className="mt-3 text-xs text-amber-300">
+              ⚠ {funnel.incompleteProfiles} profil(s) en attente de complétion (invités sans profil rempli).
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {kpis.map((k) => (
           <div key={k.label} className="rounded-md border border-border/60 bg-card/60 p-3 text-center">
@@ -164,5 +203,49 @@ export function MarketingGraphs({
         )}
       </div>
     </section>
+  );
+}
+
+function FunnelStep({
+  label,
+  value,
+  sub,
+  tone,
+}: {
+  label: string;
+  value: number;
+  sub?: string;
+  tone?: "lime" | "sky";
+}) {
+  return (
+    <div
+      className={cn(
+        "flex-1 rounded-md border p-3 text-center",
+        tone === "lime"
+          ? "border-lime/40 bg-lime/[0.05]"
+          : tone === "sky"
+            ? "border-sky-400/40 bg-sky-400/5"
+            : "border-border/60 bg-card/60",
+      )}
+    >
+      <div
+        className={cn(
+          "text-xl font-bold tabular-nums",
+          tone === "lime" ? "text-lime" : tone === "sky" ? "text-sky-300" : "text-foreground",
+        )}
+      >
+        {value}
+      </div>
+      <div className="mt-0.5 text-[10px] text-muted-foreground uppercase tracking-wider">{label}</div>
+      {sub && <div className="mt-0.5 text-[11px] mono-label text-lime">{sub}</div>}
+    </div>
+  );
+}
+
+function FunnelArrow() {
+  return (
+    <div className="flex items-center justify-center text-border shrink-0" aria-hidden>
+      <span className="text-lg sm:-rotate-90">↓</span>
+    </div>
   );
 }

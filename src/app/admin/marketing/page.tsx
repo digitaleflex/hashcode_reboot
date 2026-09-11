@@ -12,6 +12,7 @@ import {
   MarketingGraphs,
   type AudienceSplit,
   type InviteStatusStats,
+  type InviteFunnel,
 } from "@/components/reboot/admin/marketing/MarketingGraphs";
 import { fetchJson } from "@/components/reboot/admin/lib/fetchJson";
 import { cn } from "@/lib/utils";
@@ -38,6 +39,7 @@ export default function AdminMarketingPage() {
   const [emailStats, setEmailStats] = React.useState<EmailStatsData | null>(null);
   const [audience, setAudience] = React.useState<AudienceSplit | null>(null);
   const [inviteStats, setInviteStats] = React.useState<InviteStatusStats | null>(null);
+  const [funnel, setFunnel] = React.useState<InviteFunnel | null>(null);
   const [loadingStats, setLoadingStats] = React.useState(true);
 
   const handleSessionExpired = React.useCallback(() => {
@@ -90,6 +92,9 @@ export default function AdminMarketingPage() {
         if (invites.res.ok && invites.data?.ok && invites.data?.stats) {
           setInviteStats(invites.data.stats as InviteStatusStats);
         }
+        if (invites.res.ok && invites.data?.ok && invites.data?.funnel) {
+          setFunnel(invites.data.funnel as InviteFunnel);
+        }
       })
       .catch(() => {
         /* silencieux — les sections gèrent l'absence de données */
@@ -131,6 +136,7 @@ export default function AdminMarketingPage() {
             emailStats={emailStats}
             audience={audience}
             inviteStats={inviteStats}
+            funnel={funnel}
             loading={loadingStats}
           />
           <div>

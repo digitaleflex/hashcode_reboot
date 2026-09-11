@@ -139,6 +139,7 @@ export async function GET(req: NextRequest) {
       BOUNCED: statsMap["BOUNCED"] || 0,
       EXPIRED: statsMap["EXPIRED"] || 0,
     },
+    funnel: await invitationFunnel(),
     members: members.map((m) => ({
       ...m,
       recentEvents: eventsByMember[m.id] || [],
@@ -150,4 +151,24 @@ export async function GET(req: NextRequest) {
       totalPages: Math.ceil(total / pageSize),
     },
   });
+}
+
+/**
+ * Entonnoir invitation bout-en-bout + profils incomplets.
+ * - accepted : invitation acceptée (clic / login via lien)
+ * - approvedFromAccepted : acceptés dont le profil est validé
+ * - joined : communauté rejointe (via /api/community/join)
+ * - incompleteProfiles : PENDING au goal vide (profil factice d'import)
+ */
+async function invitationFunnel() {
+  const [accepted, approvedFromAccepted, joined, incompleteProfiles] =
+    await Promise.all([
+      db.member.count({ where: { deletedAt: null, invitationStatus: "ACCEPTED" } }),
+      db.member.count({
+        where: { deletedAt: null, invitationStatus: "ACCEPTED", profileStatus: "APPROVED" },
+      }),
+      db.member.count({ where: { deletedAt: null, communityStatus: "JOINED" } }),
+      db.member.count({ where: { deletedAt: null, profileStatus: "PENDING", goal: "" } }),
+    ]);
+  return { accepted, approvedFromAccepted, joined, incompleteProfiles };
 }
