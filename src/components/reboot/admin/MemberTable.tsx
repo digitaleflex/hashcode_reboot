@@ -19,42 +19,14 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { countryFlag, countryName } from "@/lib/profiling/countries";
-import { StickyNote } from "lucide-react";
+import { DOMAIN_LABEL, LEVEL_LABEL, GOAL_LABEL, BUDGET_LABEL } from "@/lib/profiling/labels";
+import { StickyNote, UserX } from "lucide-react";
 import type {
   MemberRow,
   SortDir,
   SortKey,
 } from "./hooks/useMembers";
 
-const DOMAIN_LABEL: Record<string, string> = {
-  web: "Web",
-  cybersecurity: "Cyber",
-  ai: "AI",
-};
-const LEVEL_LABEL: Record<string, string> = {
-  beginner: "Débutant",
-  practicing: "Pratique",
-  autonomous: "Autonome",
-  advanced: "Avancé",
-};
-const GOAL_LABEL: Record<string, string> = {
-  project: "Projet",
-  employment: "Emploi",
-  freelance: "Freelance",
-  upskill: "Compétences",
-  business: "Activité",
-  career: "Carrière",
-  other: "Autre",
-};
-const BUDGET_LABEL: Record<string, string> = {
-  "<2500": "< 2.5k",
-  "2500-5000": "2.5–5k",
-  "5000-10000": "5–10k",
-  "10000-20000": "10–20k",
-  "20000-30000": "20–30k",
-  ">30000": "> 30k",
-  unknown: "NSP",
-};
 const INVITATION_LABEL: Record<string, { label: string; className: string }> = {
   INVITED: {
     label: "Invité",
@@ -86,12 +58,12 @@ export function MemberTableSkeleton({ rows = 6 }: { rows?: number }) {
     >
       {Array.from({ length: rows }).map((_, i) => (
         <div key={i} className="flex items-center gap-3">
-          <div className="admin-skeleton admin-skeleton-avatar" />
+          <div className="admin-skeleton admin-skeleton-avatar bg-lime/10" />
           <div className="flex-1 space-y-2">
-            <div className="admin-skeleton admin-skeleton-line w-2/5" />
-            <div className="admin-skeleton admin-skeleton-line w-3/5" />
+            <div className="admin-skeleton admin-skeleton-line w-2/5 bg-lime/10" />
+            <div className="admin-skeleton admin-skeleton-line w-3/5 bg-lime/10" />
           </div>
-          <div className="admin-skeleton admin-skeleton-pill hidden sm:block" />
+          <div className="admin-skeleton admin-skeleton-pill hidden sm:block bg-lime/10" />
         </div>
       ))}
       <span className="sr-only">Chargement des membres…</span>
@@ -471,7 +443,7 @@ export function MemberTable({
             )}
           </div>
         )}
-        <div className="rounded-md border border-border/60 overflow-hidden bg-card/30">
+        <div className="rounded-md border border-border/60 overflow-hidden overflow-x-auto bg-card/30">
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent border-border/60 bg-secondary/30">
@@ -598,7 +570,10 @@ export function MemberTable({
               {displayed.length === 0 && !loading && (
                 <TableRow>
                   <TableCell colSpan={11} className="text-center text-muted-foreground py-10">
-                    Aucun membre pour ces filtres.
+                    <span className="flex flex-col items-center gap-2 animate-hash-in">
+                      <UserX className="size-10 text-muted-foreground/30" />
+                      Aucun membre pour ces filtres.
+                    </span>
                   </TableCell>
                 </TableRow>
               )}
@@ -794,7 +769,7 @@ function FilterSelect({
     <Select value={value} onValueChange={onChange} disabled={loading}>
       <SelectTrigger
         className={cn(
-          "h-9 w-auto gap-2 rounded-full px-4 text-sm min-w-32 transition-colors",
+          "h-11 min-h-[44px] w-auto gap-2 rounded-full px-4 text-sm min-w-32 transition-colors",
           active
             ? "border-lime/60 bg-lime/10 text-lime"
             : "border-border bg-card text-muted-foreground hover:text-foreground",
@@ -833,7 +808,7 @@ function SortHeader({
     <button
       onClick={onClick}
       className={cn(
-        "inline-flex items-center gap-1 hover:text-lime transition-colors focus-lime",
+        "inline-flex items-center min-h-[44px] gap-1 hover:text-lime transition-colors focus-lime",
         active && "text-lime",
         align === "right" && "flex-row-reverse",
       )}

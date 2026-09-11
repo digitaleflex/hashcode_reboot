@@ -157,7 +157,7 @@ export function AdminSidebar({ activeSection, onNavigate, onOpenPalette }: Admin
           aria-label={collapsed ? "Ouvrir le menu" : "Réduire le menu"}
           aria-expanded={!collapsed}
           className={cn(
-            "min-h-[32px] min-w-[32px] size-8 flex items-center justify-center rounded-sm text-muted-foreground hover:text-foreground hover:bg-lime/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-inset ml-auto shrink-0",
+            "min-h-[44px] min-w-[44px] size-8 flex items-center justify-center rounded-sm text-muted-foreground hover:text-foreground hover:bg-lime/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-inset ml-auto shrink-0",
             collapsed && "ml-0",
           )}
         >
@@ -295,7 +295,7 @@ export function AdminSidebar({ activeSection, onNavigate, onOpenPalette }: Admin
         <button
           ref={mobileCloseRef}
           type="button"
-          className="absolute top-3 right-3 size-8 min-h-[32px] min-w-[32px] flex items-center justify-center rounded-sm text-muted-foreground hover:text-foreground hover:bg-lime/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-inset"
+          className="absolute top-3 right-3 size-8 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-sm text-muted-foreground hover:text-foreground hover:bg-lime/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-inset"
           onClick={() => closeMobile(true)}
           aria-label="Fermer le menu"
         >
