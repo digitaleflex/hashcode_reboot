@@ -60,6 +60,15 @@ interface DeliverabilityData {
   chartData: ChartDatum[];
 }
 
+interface CronHealth {
+  key: string;
+  label: string;
+  expectedEveryH: number | null;
+  lastRun: string | null;
+  summary: string | null;
+  status: "ok" | "stale" | "never" | "manual";
+}
+
 function formatNumber(value: number): string {
   return new Intl.NumberFormat("fr-FR").format(value);
 }
@@ -106,6 +115,7 @@ function TrendBadge({ value, label }: { value: number; label: string }) {
 
 export default function EmailDeliverabilityPage() {
   const [data, setData] = React.useState<DeliverabilityData | null>(null);
+  const [crons, setCrons] = React.useState<CronHealth[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
   const { toast } = useToast();
@@ -123,6 +133,15 @@ export default function EmailDeliverabilityPage() {
       setError(err instanceof Error ? err.message : "Erreur inconnue");
     } finally {
       setLoading(false);
+    }
+    try {
+      const res = await fetch("/api/admin/cron-health", { cache: "no-store" });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.ok && Array.isArray(json.crons)) setCrons(json.crons as CronHealth[]);
+      }
+    } catch {
+      /* la santé des crons ne bloque pas les métriques */
     }
   }, []);
 
@@ -269,6 +288,52 @@ export default function EmailDeliverabilityPage() {
                 </div>
               </div>
             ))}
+
+            {crons.length > 0 && (
+              <div className="bg-card border border-border/60 p-4 rounded-sm">
+                <div className="flex items-center gap-2 mb-1">
+                  <Activity className="size-4 text-lime" />
+                  <h3 className="font-semibold mono-label text-foreground">SANTÉ DES CRONS</h3>
+                </div>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Dernier passage de chaque tâche planifiée. Un cron quotidien en alerte = cron-job.org à vérifier.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {crons.map((c) => (
+                    <div
+                      key={c.key}
+                      className={cn(
+                        "rounded-sm border p-3",
+                        c.status === "ok" && "border-lime/40 bg-lime/[0.04]",
+                        c.status === "stale" && "border-red-500/40 bg-red-500/5",
+                        (c.status === "never" || c.status === "manual") && "border-border/60 bg-card/40",
+                      )}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        {c.status === "ok" ? (
+                          <CheckCircle2 className="size-3.5 text-lime" />
+                        ) : c.status === "stale" ? (
+                          <AlertTriangle className="size-3.5 text-red-400" />
+                        ) : (
+                          <Activity className="size-3.5 text-muted-foreground" />
+                        )}
+                        <span className="text-sm font-medium text-foreground">{c.label}</span>
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground mono-label">
+                        {c.lastRun
+                          ? `Dernier passage : ${new Date(c.lastRun).toLocaleString("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}`
+                          : "Jamais exécuté"}
+                      </div>
+                      {c.summary && (
+                        <div className="mt-0.5 text-xs text-muted-foreground font-mono truncate" title={c.summary}>
+                          {c.summary}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

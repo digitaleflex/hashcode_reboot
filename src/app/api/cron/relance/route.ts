@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sendRelanceEmail } from "@/lib/mail";
+import { logMemberEmail, memberIdsWithEmailLog } from "@/lib/member-email-log";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -32,9 +33,6 @@ export async function GET(req: NextRequest) {
 
   try {
     const now = new Date();
-    const cutoff7 = new Date(now.getTime() - RELANCE_7_JOURS_MS);
-    const cutoff15 = new Date(now.getTime() - RELANCE_15_JOURS_MS);
-    const cutoff30 = new Date(now.getTime() - RELANCE_30_JOURS_MS);
 
     const drafts = await db.profilingDraft.findMany({
       where: {
@@ -54,86 +52,116 @@ export async function GET(req: NextRequest) {
       },
     });
 
+    // J+7 : envois réels (reprise du profil). J+15/J+30 : estimations.
+    const targets7 = drafts.filter((d) => {
+      const ageMs = now.getTime() - d.createdAt.getTime();
+      return ageMs >= RELANCE_7_JOURS_MS && !d.relanceSentAt;
+    });
+
+    // Anti-doublon : membres déjà relancés (log d'envoi).
+    const memberByEmail = new Map(
+      (
+        await db.member.findMany({
+          where: { email: { in: targets7.map((d) => d.email.toLowerCase()) } },
+          select: { id: true, email: true, firstName: true },
+        })
+      ).map((m) => [m.email.toLowerCase(), m]),
+    );
+    const loggedRelance = await memberIdsWithEmailLog(
+      [...memberByEmail.values()].map((m) => m.id),
+      "relance",
+    );
+
     let sent7 = 0;
+    let errors = 0;
+    const sentIds7: string[] = [];
+
+    for (let i = 0; i < targets7.length; i += 10) {
+      const chunk = targets7.slice(i, i + 10);
+      const results = await Promise.allSettled(
+        chunk.map(async (draft) => {
+          let firstName = draft.firstName ?? "";
+          try {
+            const answers = JSON.parse(draft.answers) as Record<string, unknown>;
+            if (!firstName && typeof answers.firstName === "string") {
+              firstName = answers.firstName;
+            }
+          } catch {
+            /* ignore */
+          }
+          const member = memberByEmail.get(draft.email.toLowerCase());
+          if (member && loggedRelance.has(member.id)) {
+            return { id: draft.id, ok: true, skipped: true as const };
+          }
+          const res = await sendRelanceEmail({
+            to: draft.email,
+            firstName,
+            lastQuestionId: draft.lastQuestionId ?? undefined,
+          });
+          if (res.ok && member) {
+            await logMemberEmail({
+              memberId: member.id,
+              email: draft.email,
+              kind: "relance",
+              provider: res.provider,
+              providerId: res.id,
+            });
+          }
+          return { id: draft.id, ok: res.ok, skipped: false as const };
+        }),
+      );
+      for (const r of results) {
+        if (r.status === "fulfilled" && r.value.ok) {
+          sent7 += 1;
+          if (!r.value.skipped) sentIds7.push(r.value.id);
+        } else {
+          errors += 1;
+        }
+      }
+    }
+
     let sent15 = 0;
     let sent30 = 0;
-    const sentIds7: string[] = [];
-    const sentIds15: string[] = [];
-    const sentIds30: string[] = [];
 
     for (const draft of drafts) {
       const ageMs = now.getTime() - draft.createdAt.getTime();
-      const alreadySent7 = draft.relanceSentAt 
-        ? new Date(draft.relanceSentAt).getTime() 
-        : 0;
 
-      // J+7 relance (seulement si jamais envoyé avant)
-      if (ageMs >= RELANCE_7_JOURS_MS && !alreadySent7) {
-        let firstName = draft.firstName ?? "";
-        try {
-          const answers = JSON.parse(draft.answers) as Record<string, unknown>;
-          if (!firstName && typeof answers.firstName === "string") {
-            firstName = answers.firstName;
-          }
-        } catch {
-          /* ignore */
-        }
-        sendRelanceEmail({
-          to: draft.email,
-          firstName,
-          lastQuestionId: draft.lastQuestionId ?? undefined,
-        })
-          .then(() => {
-            sent7 += 1;
-          })
-          .catch(() => {
-            sent7 += 1; // compte tout de même pour le tracking
-          });
-      }
-
-      // J+15 relance (si âge >= 15j et pas encore marqué J+15)
-      // On utilise le créneau entre 7j et 15j
+      // J+15 / J+30 : estimations (aucun envoi supplémentaire pour l'instant).
       if (ageMs >= RELANCE_15_JOURS_MS && ageMs < RELANCE_30_JOURS_MS) {
         sent15 += 1;
-        sentIds15.push(draft.id);
       }
-
-      // J+30 relance (expiration finale)
       if (ageMs >= RELANCE_30_JOURS_MS) {
         sent30 += 1;
-        sentIds30.push(draft.id);
       }
     }
 
-    // Mise à jour groupée du statut J+7 pour ceux qui ont été envoyés
-    // On ne peut pas mettre à jour individuellement sans savoir qui a reçu
-    // Donnons simplement un statut global "relance effectuée" via la date
-    const nowDate = new Date();
-    
-    // Pour simplifier, on marque tous les drafts aged > 7j comme relance envoyée
-    // Cela évite de bloquer le cron si certains envois échouent
-    const idsToUpdate: string[] = [];
-    for (const draft of drafts) {
-      const ageMs = now.getTime() - draft.createdAt.getTime();
-      if (ageMs >= RELANCE_7_JOURS_MS) {
-        idsToUpdate.push(draft.id);
-      }
-    }
-
-    if (idsToUpdate.length) {
+    if (sentIds7.length) {
       await db.profilingDraft.updateMany({
-        where: { id: { in: idsToUpdate } },
-        data: { relanceSentAt: nowDate },
+        where: { id: { in: sentIds7 } },
+        data: { relanceSentAt: new Date() },
       });
+    }
+
+    // Heartbeat : dernier passage visible au dashboard.
+    try {
+      await db.analyticsEvent.create({
+        data: {
+          type: "cron_relance",
+          ref: `sent7=${sent7} errors=${errors} scanned=${drafts.length}`,
+          value: sent7,
+        },
+      });
+    } catch {
+      /* ignore */
     }
 
     return NextResponse.json({
       ok: true,
       sent7,
-      sent15: sent15, // comptage estimé
-      sent30: sent30, // comptage estimé
+      sent15,
+      sent30,
+      errors,
       scanned: drafts.length,
-      note: "Comptages estimés - envois en cours en arrière-plan"
     });
   } catch (err) {
     return NextResponse.json(

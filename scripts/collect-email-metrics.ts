@@ -347,6 +347,18 @@ async function main() {
     }
     
     console.log('✨ Collection complete');
+
+    // Heartbeat : dernier passage visible au dashboard (santé des crons).
+    try {
+      await prisma.analyticsEvent.create({
+        data: {
+          type: 'cron_collect_metrics',
+          ref: `date=${formatDateForApi(date)} provider=${provider}`,
+        },
+      });
+    } catch {
+      /* best-effort */
+    }
   } finally {
     await prisma.$disconnect();
   }
