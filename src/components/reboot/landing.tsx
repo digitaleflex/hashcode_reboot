@@ -249,7 +249,7 @@ export function Landing({
         <div className="relative z-10 mx-auto max-w-6xl px-5 sm:px-8 pt-14 sm:pt-28 pb-14 sm:pb-32">
           <Eyebrow>Bienvenue dans le Reboot — où que tu sois</Eyebrow>
           <RebootTitle className="mt-4" />
-          <h2 className="mt-7 max-w-xl text-2xl sm:text-3xl text-foreground font-display font-bold leading-tight text-balance">
+          <h2 className="mt-7 max-w-xl text-3xl sm:text-4xl text-foreground font-display font-bold leading-tight text-balance">
             Rejoins la nouvelle communauté dev, cyber &amp; IA.
           </h2>
           <p className="mt-3 max-w-xl text-muted-foreground text-base sm:text-lg leading-relaxed">
@@ -584,8 +584,8 @@ export function Landing({
         </div>
       </section>
 
-      {/* Sticky footer */}
-      <footer className="mt-auto border-t border-border/60 bg-background">
+       {/* Sticky footer */}
+       <footer className="mt-auto border-t border-border/60 bg-background pb-24">
         {/* Social proof stats bar — modeste et crédible */}
         <div className="border-b border-border/60 bg-card/30">
           <div className="mx-auto max-w-6xl px-5 sm:px-8 py-6 grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
