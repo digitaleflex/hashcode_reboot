@@ -27,34 +27,19 @@ export interface ProviderMetrics {
   complaintRate?: number | null;
 }
 
-interface ResendMetricsResponse {
-  data: Array<{
-    period: string;
-    sent: number;
-    delivered: number;
-    bounced: number;
-    complained: number;
-    unsubscribed: number;
-    opened: number;
-    clicked: number;
-    unique_opened: number;
-    unique_clicked: number;
-  }> | null;
-}
-
 interface BrevoAggregatedReport {
   reports: Array<{
     date: string;
     requests: number;
     delivered: number;
-    hard_bounces: number;
-    soft_bounces: number;
+    hardBounces: number;
+    softBounces: number;
     opens: number;
     clicks: number;
-    unique_opens: number;
-    unique_clicks: number;
+    uniqueOpens: number;
+    uniqueClicks: number;
     unsubscriptions: number;
-    complaints: number;
+    spamReports: number;
   }>;
 }
 
@@ -134,49 +119,48 @@ export async function upsertMetric(metrics: ProviderMetrics): Promise<ProviderMe
 }
 
 export async function collectResend(date: Date): Promise<ProviderMetrics> {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) throw new Error("RESEND_API_KEY not configured");
-  const dateStr = formatDateForApi(date);
-  const response = await fetch(
-    `https://api.resend.com/metrics?start_date=${dateStr}&end_date=${dateStr}&dimensions=period`,
-    {
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-    },
-  );
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Resend API error (${response.status}): ${error}`);
-  }
-  const data = (await response.json()) as ResendMetricsResponse;
-  const periods = data.data || [];
-  const totals = periods.reduce(
-    (acc, period) => ({
-      sent: acc.sent + (period.sent || 0),
-      delivered: acc.delivered + (period.delivered || 0),
-      bounced: acc.bounced + (period.bounced || 0),
-      complained: acc.complained + (period.complained || 0),
-      unsubscribed: acc.unsubscribed + (period.unsubscribed || 0),
-      opened: acc.opened + (period.opened || 0),
-      clicked: acc.clicked + (period.clicked || 0),
-      uniqueOpened: acc.uniqueOpened + (period.unique_opened || 0),
-      uniqueClicked: acc.uniqueClicked + (period.unique_clicked || 0),
-    }),
-    {
-      sent: 0,
-      delivered: 0,
-      bounced: 0,
-      complained: 0,
-      unsubscribed: 0,
-      opened: 0,
-      clicked: 0,
-      uniqueOpened: 0,
-      uniqueClicked: 0,
-    },
-  );
-  return { provider: "resend", date, ...totals, hardBounce: 0, softBounce: 0 };
+  // Pas d'endpoint métriques public fiable + clés souvent restreintes au seul
+  // envoi : on agrège nos propres événements webhook (email.sent/delivered/
+  // opened/clicked/bounced/complained), stockés dans EmailEvent.
+  const start = new Date(date);
+  start.setUTCHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + 1);
+
+  const rows = await db.emailEvent.groupBy({
+    by: ["type"],
+    where: { createdAt: { gte: start, lt: end } },
+    _count: true,
+  });
+  const byType = new Map(rows.map((r) => [r.type, r._count]));
+  const count = (t: string) => byType.get(t) ?? 0;
+
+  const uniqueOpened = await db.emailEvent.groupBy({
+    by: ["email"],
+    where: { type: "email.opened", createdAt: { gte: start, lt: end } },
+  });
+  const uniqueClicked = await db.emailEvent.groupBy({
+    by: ["email"],
+    where: { type: "email.clicked", createdAt: { gte: start, lt: end } },
+  });
+
+  const sent = count("email.sent");
+  const delivered = count("email.delivered") || sent;
+  return {
+    provider: "resend",
+    date: start,
+    sent,
+    delivered,
+    bounced: count("email.bounced"),
+    complained: count("email.complained"),
+    unsubscribed: 0,
+    opened: count("email.opened"),
+    clicked: count("email.clicked"),
+    uniqueOpened: uniqueOpened.length,
+    uniqueClicked: uniqueClicked.length,
+    hardBounce: 0,
+    softBounce: 0,
+  };
 }
 
 export async function collectBrevo(date: Date): Promise<ProviderMetrics> {
@@ -184,7 +168,7 @@ export async function collectBrevo(date: Date): Promise<ProviderMetrics> {
   if (!apiKey) throw new Error("BREVO_API_KEY not configured");
   const dateStr = formatDateForApi(date);
   const response = await fetch(
-    `https://api.brevo.com/v3/statistics/aggregatedReport?startDate=${dateStr}&endDate=${dateStr}`,
+    `https://api.brevo.com/v3/smtp/statistics/reports?startDate=${dateStr}&endDate=${dateStr}`,
     {
       headers: { "api-key": apiKey, Accept: "application/json" },
     },
@@ -194,7 +178,7 @@ export async function collectBrevo(date: Date): Promise<ProviderMetrics> {
     throw new Error(`Brevo API error (${response.status}): ${error}`);
   }
   const data = (await response.json()) as BrevoAggregatedReport;
-  const report = data.reports?.[0];
+  const report = data.reports?.find((r) => r.date === dateStr) ?? data.reports?.[0];
   if (!report) {
     return {
       provider: "brevo",
@@ -217,15 +201,15 @@ export async function collectBrevo(date: Date): Promise<ProviderMetrics> {
     date,
     sent: report.requests || 0,
     delivered: report.delivered || 0,
-    bounced: (report.hard_bounces || 0) + (report.soft_bounces || 0),
-    complained: report.complaints || 0,
+    bounced: (report.hardBounces || 0) + (report.softBounces || 0),
+    complained: report.spamReports || 0,
     unsubscribed: report.unsubscriptions || 0,
     opened: report.opens || 0,
     clicked: report.clicks || 0,
-    uniqueOpened: report.unique_opens || 0,
-    uniqueClicked: report.unique_clicks || 0,
-    hardBounce: report.hard_bounces || 0,
-    softBounce: report.soft_bounces || 0,
+    uniqueOpened: report.uniqueOpens || 0,
+    uniqueClicked: report.uniqueClicks || 0,
+    hardBounce: report.hardBounces || 0,
+    softBounce: report.softBounces || 0,
   };
 }
 
