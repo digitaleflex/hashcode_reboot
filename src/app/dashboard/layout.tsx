@@ -5,6 +5,7 @@ import { buildAccountData } from "@/lib/account-data";
 import { Logo } from "@/components/brand/logo";
 import { DashboardSidebar } from "./_components/DashboardSidebar";
 import { LogoutButton } from "@/app/account/logout-button";
+import { MobileBottomNav } from "@/components/reboot/mobile-bottom-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -57,10 +58,11 @@ export default async function DashboardLayout({
         />
 
         {/* Main content */}
-        <main className="flex-1 min-w-0 overflow-auto bg-muted/10 pb-16 md:pb-0">
+        <main className="flex-1 min-w-0 overflow-auto bg-muted/10 pb-20 md:pb-0">
           {children}
         </main>
       </div>
+      <MobileBottomNav />
     </div>
   );
 }
