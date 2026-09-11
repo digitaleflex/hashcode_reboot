@@ -324,7 +324,7 @@ export function AdminEventList({ refreshSignal }: { refreshSignal: number }) {
                     type="button"
                     disabled={busy}
                     onClick={() => void handleStatus(ev.id, s)}
-                    className="rounded-md border border-border/60 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-lime/40 hover:text-foreground cursor-pointer disabled:opacity-50"
+                    className="min-h-[44px] rounded-md border border-border/60 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-lime/40 hover:text-foreground cursor-pointer disabled:opacity-50"
                   >
                     → {STATUS_LABELS[s]}
                   </button>
@@ -335,7 +335,7 @@ export function AdminEventList({ refreshSignal }: { refreshSignal: number }) {
                 disabled={busy}
                 onClick={() => void handleRenotify(ev.id)}
                 title="Renvoyer l'email aux membres concernés (ciblage domaine/niveau)"
-                className="inline-flex items-center gap-1.5 rounded-md border border-border/60 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-lime/40 hover:text-lime cursor-pointer disabled:opacity-50"
+                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-md border border-border/60 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-lime/40 hover:text-lime cursor-pointer disabled:opacity-50"
               >
                 <Send className="size-3.5" />
                 Renotifier
@@ -344,7 +344,7 @@ export function AdminEventList({ refreshSignal }: { refreshSignal: number }) {
                 type="button"
                 disabled={busy}
                 onClick={() => openEdit(ev)}
-                className="inline-flex items-center gap-1.5 rounded-md border border-border/60 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-lime/40 hover:text-foreground cursor-pointer disabled:opacity-50"
+                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-md border border-border/60 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-lime/40 hover:text-foreground cursor-pointer disabled:opacity-50"
               >
                 <Pencil className="size-3.5" />
                 Éditer
@@ -353,7 +353,7 @@ export function AdminEventList({ refreshSignal }: { refreshSignal: number }) {
                 type="button"
                 disabled={busy}
                 onClick={() => void handleDelete(ev.id, ev.title)}
-                className="inline-flex items-center gap-1.5 rounded-md border border-red-500/30 px-2.5 py-1.5 text-xs text-red-300/80 transition-colors hover:bg-red-500/10 hover:text-red-300 cursor-pointer disabled:opacity-50"
+                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-md border border-red-500/30 px-2.5 py-1.5 text-xs text-red-300/80 transition-colors hover:bg-red-500/10 hover:text-red-300 cursor-pointer disabled:opacity-50"
               >
                 <Trash2 className="size-3.5" />
                 Supprimer
@@ -369,7 +369,7 @@ export function AdminEventList({ refreshSignal }: { refreshSignal: number }) {
           onClick={() => setEditing(null)}
         >
           <div
-            className="w-full max-w-lg rounded-lg border border-border/60 bg-card p-5 space-y-4 max-h-[90vh] overflow-auto"
+            className="w-full max-w-[100vw] md:max-w-lg rounded-lg border border-border/60 bg-card p-5 space-y-4 max-h-[90vh] overflow-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">

@@ -157,7 +157,7 @@ export function CommandPalette({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogOverlay />
       <DialogContent
-        className="bg-card border-border/60 max-w-lg p-0 overflow-hidden animate-hash-in"
+        className="bg-card border-border/60 max-w-[100vw] md:max-w-lg p-0 overflow-hidden animate-hash-in"
         showCloseButton={false}
       >
         <DialogTitle className="sr-only">Palette de commandes</DialogTitle>
@@ -219,7 +219,7 @@ export function CommandPalette({
                         onMouseMove={() => setSelectedIndex(idx)}
                         onClick={() => runItem(item)}
                         className={cn(
-                          "w-full flex items-center justify-between gap-3 rounded-sm px-3 py-2.5 text-left text-sm min-h-[40px]",
+                          "w-full flex items-center justify-between gap-3 rounded-sm px-3 py-2.5 text-left text-sm min-h-[44px]",
                           "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-inset",
                           active ? "bg-lime/10 text-lime" : "text-foreground hover:bg-lime/5",
                         )}
