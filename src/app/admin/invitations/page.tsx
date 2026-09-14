@@ -431,6 +431,10 @@ export default function AdminInvitationsPage() {
 
   const handleRelance = React.useCallback(
     async (ids: string[]) => {
+      if (ids.length === 0) {
+        toast({ title: "Aucune invitation à relancer", variant: "destructive" });
+        return;
+      }
       setRelanceLoading(true);
       try {
         const { res, data: d, error, code, retryAfterSec } = await fetchJson(
@@ -755,7 +759,7 @@ export default function AdminInvitationsPage() {
       <RelanceDialog
         open={relanceOpen}
         onClose={() => { setRelanceOpen(false); setSelectedIds(new Set()); }}
-        onConfirm={() => handleRelance(selectedIds.size > 0 ? Array.from(selectedIds) : relanceableIds)}
+        onConfirm={() => handleRelance((selectedIds.size > 0 ? Array.from(selectedIds) : relanceableIds).slice(0, 50))}
         count={selectedIds.size > 0 ? selectedIds.size : relanceableIds.length}
         loading={relanceLoading}
       />

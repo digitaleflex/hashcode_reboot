@@ -29,7 +29,7 @@ export function RelancePanel({ onSessionExpired }: { onSessionExpired: () => voi
           const dry = await fetchJson("/api/invite/relance", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ memberIds: ids }),
+            body: JSON.stringify({ memberIds: ids.slice(0, 50) }),
           });
           if (dry.res.ok && typeof dry.data?.alreadyRelanced === "number") {
             setAlreadyRelanced(dry.data.alreadyRelanced as number);
@@ -54,7 +54,7 @@ export function RelancePanel({ onSessionExpired }: { onSessionExpired: () => voi
       const { res, data, error, code, retryAfterSec } = await fetchJson("/api/invite/relance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ memberIds: relanceable, confirm: true }),
+        body: JSON.stringify({ memberIds: relanceable.slice(0, 50), confirm: true }),
       });
       if (res.status === 401 || code === "UNAUTHORIZED") {
         onSessionExpired();
