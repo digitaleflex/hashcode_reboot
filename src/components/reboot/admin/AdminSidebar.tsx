@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { LayoutDashboard, Users, Activity, FileJson, Settings, Shield, ShieldBan, Calendar, Mail, Megaphone, ChevronLeft, ChevronRight, Command, FileText } from "lucide-react";
+import { LayoutDashboard, Users, Activity, FileJson, Settings, Shield, ShieldBan, Calendar, Mail, Megaphone, ChevronLeft, ChevronRight, Command, FileText, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 
@@ -10,6 +10,7 @@ const SIDEBAR_KEY = "hashcode-admin-sidebar";
 const ITEMS = [
   { path: "/admin/stats", id: "section-stats", label: "Vue d'ensemble", icon: LayoutDashboard },
   { path: "/admin/members", id: "section-members", label: "Membres", icon: Users },
+  { path: "/admin/ateliers", id: "section-ateliers", label: "Ateliers", icon: BookOpen },
   { path: "/admin/invitations", id: "section-invitations", label: "Invitations", icon: Mail },
   { path: "/admin/marketing", id: "section-marketing", label: "Marketing", icon: Megaphone },
   { path: "/admin/email-deliverability", id: "section-email-deliverability", label: "Suivi délivrabilité", icon: Mail },

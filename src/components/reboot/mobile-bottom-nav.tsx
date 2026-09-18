@@ -7,6 +7,7 @@ import {
   Calendar,
   User,
   Settings,
+  BookOpen,
   Shield,
   Users,
   Mail,
@@ -23,16 +24,16 @@ interface NavItem {
 
 const DASHBOARD_ITEMS: NavItem[] = [
   { label: "Accueil", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Ateliers", href: "/dashboard/ateliers", icon: BookOpen },
   { label: "Agenda", href: "/dashboard/agenda", icon: Calendar },
   { label: "Profil", href: "/dashboard/profile", icon: User },
-  { label: "Paramètres", href: "/dashboard/settings", icon: Settings },
 ];
 
 const ADMIN_ITEMS: NavItem[] = [
   { label: "Accueil", href: "/admin/stats", icon: LayoutDashboard },
+  { label: "Ateliers", href: "/admin/ateliers", icon: BookOpen },
   { label: "Événements", href: "/admin/events", icon: Calendar },
   { label: "Membres", href: "/admin/members", icon: Users },
-  { label: "Paramètres", href: "/admin/settings", icon: Settings },
 ];
 
 export function MobileBottomNav() {

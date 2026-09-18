@@ -8,6 +8,7 @@ import {
   Settings,
   MessageCircle,
   Calendar,
+  BookOpen,
   Menu,
   X,
   ChevronsLeft,
@@ -19,6 +20,7 @@ import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { label: "Vue d'ensemble", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Ateliers", href: "/dashboard/ateliers", icon: BookOpen },
   { label: "Agenda", href: "/dashboard/agenda", icon: Calendar },
   { label: "Mon profil", href: "/dashboard/profile", icon: User },
   { label: "Paramètres", href: "/dashboard/settings", icon: Settings },
