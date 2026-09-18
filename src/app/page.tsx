@@ -332,7 +332,6 @@ function SharedProfileView({
       mentoring: string | null;
       threeMonthGoal: string | null;
       tags: string[];
-      accessLane: string;
     };
   } | null>(null);
   const [error, setError] = React.useState<string | null>(null);

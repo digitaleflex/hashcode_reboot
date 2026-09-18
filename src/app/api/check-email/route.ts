@@ -1,16 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
-import { timingSafeEqual } from "node:crypto";
 
 export const runtime = "nodejs";
 
-/** GET /api/check-email?email=... — used for "already started" detection
- * before submitting, so the UI can offer a resume / status view. */
+/** GET /api/check-email?email=... — sonde de santé technique.
+ *
+ * F4 : cette route renvoyait { exists: true/false } — un oracle
+ * d'énumération des emails inscrits (un booléen suffit à moissonner).
+ * Aucune interface ne consomme ce champ : la reprise de profil passe par
+ * ?resume=1 + brouillon local, et seul le manifeste de santé référence ce
+ * chemin. La réponse est donc constante, sans requête DB, sans oracle.
+ * Le rate-limit est conservé en défense en profondeur.
+ */
 export async function GET(req: NextRequest) {
-  // Anti-abus : 10 vérifications par IP toutes les 10 minutes (réduit de 30).
+  // Anti-abus : 10 vérifications par IP toutes les 10 minutes.
   const rl = await rateLimit(`check-email:${rateKey(req)}`, {
-    capacity: 10,  // Réduit de 30 pour ralentir l'énumération
+    capacity: 10,
     windowMs: 600000, // 10 minutes
   });
   if (!rl.ok) {
@@ -22,22 +27,5 @@ export async function GET(req: NextRequest) {
       },
     );
   }
-  const email = new URL(req.url).searchParams.get("email")?.trim().toLowerCase();
-
-  // Timing normalization: always do a dummy hash comparison for invalid emails
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
-    const dummy = Buffer.from("dummy");
-    const dummy2 = Buffer.from("dummy");
-    timingSafeEqual(dummy, dummy2); // Normalize timing for invalid emails
-    return NextResponse.json({ exists: false });
-  }
-  const existing = await db.member.findUnique({
-    where: { email },
-    select: { id: true },
-  });
-  // Anti-énumération : on garde { exists } pour l'UX reprise, mais on ne
-  // renvoie AUCUNE donnée membre (ni id, ni prénom, ni statuts) — un attaquant
-  // ne peut plus moissonner la base email par email.
-  if (!existing) return NextResponse.json({ exists: false });
-  return NextResponse.json({ exists: true });
+  return NextResponse.json({ exists: false });
 }

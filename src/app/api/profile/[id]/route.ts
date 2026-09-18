@@ -9,6 +9,8 @@ export async function GET(
 
   const m = await db.member.findUnique({
     where: { id },
+    // F5 : accessLane est un champ interne d'auto-contrôle — jamais exposé
+    // sur une route publique sans rate-limit (voir aussi /members/[id]/share).
     select: {
       id: true,
       firstName: true,
@@ -20,7 +22,6 @@ export async function GET(
       mentoringInterest: true,
       threeMonthGoal: true,
       tags: true,
-      accessLane: true,
     },
   });
 
@@ -45,7 +46,6 @@ export async function GET(
       mentoring: m.mentoringInterest,
       threeMonthGoal: m.threeMonthGoal,
       tags: decode<string[]>(m.tags, []),
-      accessLane: m.accessLane,
     },
   });
 }

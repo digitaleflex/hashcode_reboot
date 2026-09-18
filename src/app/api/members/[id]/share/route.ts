@@ -11,8 +11,9 @@ export const runtime = "nodejs";
  *
  * Vie privée : inchangé volontairement. L'id est un cuid indrôlable (pas
  * d'énumération séquentielle possible) et seuls les champs publics de la
- * carte profil sont exposés — jamais email, téléphone, ville ni statuts
- * internes. La chaîne est donc cassée à la source : connaître un lien share
+ * carte profil sont exposés — jamais email, téléphone, ville, statuts
+ * internes (dont accessLane, champ d'auto-contrôle retiré, F5) ni statuts.
+ * La chaîne est donc cassée à la source : connaître un lien share
  * ne révèle rien d'exploitable et ne permet pas de lister les membres.
  */
 export async function GET(
@@ -47,7 +48,6 @@ export async function GET(
       mentoringInterest: true,
       threeMonthGoal: true,
       tags: true,
-      accessLane: true,
     },
   });
   if (!m) return NextResponse.json({ error: "Introuvable." }, { status: 404 });
@@ -67,7 +67,6 @@ export async function GET(
       mentoring: m.mentoringInterest,
       threeMonthGoal: m.threeMonthGoal,
       tags: decode<string[]>(m.tags, []),
-      accessLane: m.accessLane,
     },
   });
 }
