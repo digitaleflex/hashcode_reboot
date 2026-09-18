@@ -165,7 +165,7 @@ export function MemberDetailDialog({
 
   async function invite(): Promise<{
     inviteMessage: string;
-    whatsappUrl: string;
+    joinUrl: string;
   } | null> {
     if (!id) return null;
     setDialogError(null);
@@ -196,12 +196,12 @@ export function MemberDetailDialog({
         setMember(refreshed.data.member as Record<string, unknown>);
       }
       onChanged();
-      if (!data?.inviteMessage || !data?.whatsappUrl) {
+      if (!data?.inviteMessage || !data?.joinUrl) {
         throw new Error("Réponse d'invitation incomplète.");
       }
       return {
         inviteMessage: data.inviteMessage,
-        whatsappUrl: data.whatsappUrl,
+        joinUrl: data.joinUrl,
       };
     } catch (e) {
       if (isAbortError(e)) return null;
@@ -218,7 +218,7 @@ export function MemberDetailDialog({
 
   return (
     <Dialog open={!!id} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="bg-card border-border max-w-lg max-h-[85vh] overflow-y-auto scroll-slim">
+      <DialogContent className="bg-card border-border max-w-[100vw] max-h-[90vh] rounded-none md:rounded-lg overflow-y-auto scroll-slim">
         <DialogHeader>
           <DialogTitle className="font-display tracking-tight">
             {memberName ? `Membre — ${memberName}` : "Détail du membre"}
@@ -307,7 +307,7 @@ function MemberDetail({
   onPatch: (b: Record<string, unknown>) => Promise<boolean>;
   onInvite: () => Promise<{
     inviteMessage: string;
-    whatsappUrl: string;
+    joinUrl: string;
   } | null>;
   onDelete: () => Promise<void>;
 }) {
@@ -339,6 +339,10 @@ function MemberDetail({
     profileStatus: string;
     communityStatus: string;
     accessLane: string;
+    invitedAt: string | null;
+    acceptedAt: string | null;
+    approvedAt: string | null;
+    joinedAt: string | null;
     createdAt: string;
     adminNote: string | null;
   };
@@ -348,7 +352,7 @@ function MemberDetail({
   );
   const [invitePreview, setInvitePreview] = React.useState<{
     inviteMessage: string;
-    whatsappUrl: string;
+    joinUrl: string;
   } | null>(null);
   const [inviteCopyError, setInviteCopyError] = React.useState<string | null>(null);
   const [noteDraft, setNoteDraft] = React.useState(m.adminNote ?? "");
@@ -383,7 +387,7 @@ function MemberDetail({
     const res = await onInvite();
     if (res) {
       setInvitePreview(res);
-      const text = `${res.inviteMessage} ${res.whatsappUrl}`;
+      const text = `${res.inviteMessage} ${res.joinUrl}`;
       try {
         await navigator.clipboard.writeText(text);
         setInviteState("sent");
@@ -400,7 +404,7 @@ function MemberDetail({
     if (!invitePreview) return;
     try {
       await navigator.clipboard.writeText(
-        `${invitePreview.inviteMessage} ${invitePreview.whatsappUrl}`,
+        `${invitePreview.inviteMessage} ${invitePreview.joinUrl}`,
       );
       setInviteState("sent");
       setTimeout(() => setInviteState("idle"), 2000);
@@ -442,6 +446,15 @@ function MemberDetail({
   const savedNote = m.adminNote ?? "";
   const draftDirty = noteDraft.trim() !== savedNote.trim();
 
+  const fmtDate = (at: string | null | undefined) =>
+    at
+      ? new Date(at).toLocaleDateString("fr-FR", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        })
+      : "—";
+
   const rows: [string, React.ReactNode][] = [
     ["Identité", `${m.firstName} ${m.lastName ?? ""}`.trim()],
     [
@@ -452,7 +465,7 @@ function MemberDetail({
         <button
           type="button"
           onClick={() => copyField("email", m.email)}
-          className="shrink-0 size-7 inline-flex items-center justify-center rounded-sm text-muted-foreground hover:text-lime hover:bg-lime/5 transition-colors focus-lime"
+          className="shrink-0 size-7 inline-flex items-center justify-center rounded-sm text-muted-foreground hover:text-lime hover:bg-lime/5 transition-colors focus-lime min-h-[44px] min-w-[44px]"
           title="Copier l'email"
           aria-label={copiedField === "email" ? "Email copié" : "Copier l'email"}
         >
@@ -472,7 +485,7 @@ function MemberDetail({
           <button
             type="button"
             onClick={() => copyField("phone", m.phone!)}
-            className="shrink-0 size-7 inline-flex items-center justify-center rounded-sm text-muted-foreground hover:text-lime hover:bg-lime/5 transition-colors focus-lime"
+          className="shrink-0 size-7 inline-flex items-center justify-center rounded-sm text-muted-foreground hover:text-lime hover:bg-lime/5 transition-colors focus-lime min-h-[44px] min-w-[44px]"
             title="Copier le téléphone"
             aria-label={copiedField === "phone" ? "Téléphone copié" : "Copier le téléphone"}
           >
@@ -506,6 +519,9 @@ function MemberDetail({
     ["Budget", m.budgetRange ? BUDGET_LABEL[m.budgetRange] ?? m.budgetRange : "—"],
     ["Objectif 3 mois", m.threeMonthGoal ? `« ${m.threeMonthGoal} »` : "—"],
     ["Archétype", m.profileArchetype ?? "—"],
+    ["Invitation acceptée", fmtDate(m.acceptedAt)],
+    ["Profil validé", fmtDate(m.approvedAt)],
+    ["Communauté rejointe", fmtDate(m.joinedAt)],
   ];
 
   return (
@@ -529,6 +545,8 @@ function MemberDetail({
           </div>
         </div>
       )}
+
+      <MemberEmailHistory memberId={m.id} />
 
       {/* Member journey timeline — activation path recap (steps are not strictly sequential) */}
       <div className="pt-4 border-t border-border/60">
@@ -680,16 +698,16 @@ function MemberDetail({
                   {invitePreview.inviteMessage}
                 </p>
                 <p className="mt-1.5 text-xs font-mono text-lime break-all">
-                  {invitePreview.whatsappUrl}
+                  {invitePreview.joinUrl}
                 </p>
                 <div className="mt-2.5 flex flex-wrap gap-2">
                   <a
-                    href={invitePreview.whatsappUrl}
+                    href={invitePreview.joinUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 min-h-[44px] px-3.5 rounded-md bg-lime text-black text-sm font-medium hover:bg-lime/90 transition-colors focus-lime"
                   >
-                    Ouvrir WhatsApp
+                    Ouvrir le lien
                     <ExternalLink className="size-3.5" aria-hidden />
                   </a>
                   <button
@@ -848,6 +866,69 @@ function TimelineStep({
       <div className="flex-1 pb-1">
         <div className="text-sm font-medium text-foreground">{label}</div>
         <div className="text-xs text-muted-foreground mt-0.5">{detail}</div>
+      </div>
+    </div>
+  );
+}
+
+/** Historique des emails reçus par le membre (envois par lot + engagement). */
+function MemberEmailHistory({ memberId }: { memberId: string }) {
+  const [data, setData] = React.useState<{
+    sends: { at: string; label: string; kind: string; provider: string | null }[];
+    engagement: { at: string; type: string; category: string | null }[];
+  } | null>(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { res, data } = await fetchJson(
+          `/api/admin/member-emails?memberId=${encodeURIComponent(memberId)}`,
+          { cache: "no-store" },
+        );
+        if (!cancelled && res.ok && data?.ok) {
+          setData({ sends: data.sends ?? [], engagement: data.engagement ?? [] });
+        }
+      } catch {
+        /* silencieux */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [memberId]);
+
+  if (!data || (data.sends.length === 0 && data.engagement.length === 0)) {
+    return null;
+  }
+
+  const fmt = (at: string) =>
+    new Date(at).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
+  const engagementLabel = (type: string) =>
+    type === "email.opened" ? "Ouvert" : type === "email.clicked" ? "Clic" : "Envoyé";
+
+  return (
+    <div className="pt-4 border-t border-border/60">
+      <MonoLabel className="text-muted-foreground">E-mails reçus</MonoLabel>
+      <div className="mt-2 space-y-1.5">
+        {data.sends.map((s, i) => (
+          <div key={`s-${i}`} className="flex items-center justify-between gap-2 text-xs">
+            <span className="text-foreground">
+              {s.label}
+              {s.provider ? <span className="text-muted-foreground"> · {s.provider}</span> : null}
+            </span>
+            <span className="mono-label text-muted-foreground shrink-0">{fmt(s.at)}</span>
+          </div>
+        ))}
+        {data.engagement.slice(0, 10).map((e, i) => (
+          <div key={`e-${i}`} className="flex items-center justify-between gap-2 text-xs">
+            <span className="text-muted-foreground">
+              {engagementLabel(e.type)}
+              {e.category ? ` · ${e.category}` : null}
+            </span>
+            <span className="mono-label text-muted-foreground shrink-0">{fmt(e.at)}</span>
+          </div>
+        ))}
       </div>
     </div>
   );

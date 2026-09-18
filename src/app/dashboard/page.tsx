@@ -24,6 +24,11 @@ export default async function DashboardPage() {
   });
   if (!member || member.deletedAt) redirect("/login?next=/dashboard");
 
+  // Profil invité jamais complété (ex : import) → parcours de confirmation.
+  if (member.profileStatus === "PENDING" && !member.goal?.trim()) {
+    redirect("/dashboard/profile-complet");
+  }
+
   const data = buildAccountData(member);
 
   return (

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireAdminRole } from "@/lib/admin-auth";
+import { requireAdminRole, readAdminCookie, getAdminRoleFromToken } from "@/lib/admin-auth";
+import { audit } from "@/lib/admin-audit";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
-import { WHATSAPP_URL } from "@/lib/profiling/auto-controls";
 import { blockIfTesting } from "@/lib/test-guard";
 
 export const runtime = "nodejs";
@@ -10,7 +10,9 @@ export const runtime = "nodejs";
 /**
  * POST /api/members/[id]/invite — admin marks the member as INVITED (community
  * status) and APPROVED (profile status). Records an analytics event. Returns
- * the WhatsApp community URL the admin can copy/paste into a personal message.
+ * a site-tracked join link (via /api/community/join) that the admin can
+ * copy/paste into a personal message — never the raw WhatsApp URL, so every
+ * join is visible on the admin dashboard.
  */
 export async function POST(
   req: NextRequest,
@@ -41,7 +43,7 @@ export async function POST(
   const { id } = await params;
   const member = await db.member.findUnique({
     where: { id },
-    select: { id: true, firstName: true, email: true, profileStatus: true, communityStatus: true },
+    select: { id: true, firstName: true, email: true, profileStatus: true, communityStatus: true, invitationStatus: true },
   });
   if (!member) {
     return NextResponse.json({ error: "Membre introuvable." }, { status: 404 });
@@ -53,8 +55,20 @@ export async function POST(
       profileStatus: "APPROVED",
       communityStatus: "INVITED",
       accessLane: "immediate",
+      ...(member.profileStatus !== "APPROVED" ? { approvedAt: new Date() } : {}),
+      ...(member.invitationStatus === "NOT_INVITED"
+        ? { invitationStatus: "INVITED", invitedAt: new Date() }
+        : {}),
     },
   });
+
+  void audit(
+    "member.invite",
+    "member",
+    id,
+    { email: member.email },
+    { type: "admin", role: getAdminRoleFromToken(readAdminCookie(req)) ?? "operator" },
+  );
 
   try {
     await db.analyticsEvent.create({
@@ -68,10 +82,16 @@ export async function POST(
     /* ignore */
   }
 
+  const siteBase =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.NEXT_PUBLIC_URL ||
+    "https://reboot.joinhashcode.com";
+  const joinUrl = `${siteBase.replace(/\/$/, "")}/login?next=${encodeURIComponent("/api/community/join")}`;
+
   return NextResponse.json({
     ok: true,
     member: updated,
-    whatsappUrl: WHATSAPP_URL,
+    joinUrl,
     inviteMessage:
       `Bonjour ${member.firstName}, tu fais partie des premiers membres du Reboot HASHCODE. Rejoins la communauté officielle ici :`,
   });

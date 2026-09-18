@@ -259,6 +259,19 @@
   letter-spacing: -0.01em;
 }
 
+/* Sous-wordmark "REBOOT" du logo : tracking de marque (0.42em, identité) avec
+   compensation du trailing space. Le letter-spacing s'applique AUSSI après le
+   dernier caractère : sans le margin-right négatif, le mot paraissait décalé
+   vers la gauche par rapport au filet et au gap du flex. */
+.wordmark-tracking,
+.admin-scope .font-display.wordmark-tracking {
+  /* Le sélecteur admin (0,3,0) est requis et volontairement plus spécifique que
+     .admin-scope .font-display (0,2,0), qui impose sinon -0.01em et effacerait
+     le tracking de marque dans la sidebar admin. Indépendant de l'ordre du CSS. */
+  letter-spacing: 0.42em;
+  margin-right: -0.42em;
+}
+
 /* Lime focus ring for keyboard nav */
 .focus-lime:focus-visible {
   outline: 2px solid var(--primary);

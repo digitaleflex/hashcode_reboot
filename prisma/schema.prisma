@@ -13,41 +13,41 @@ datasource db {
 }
 
 model Member {
-  id              String   @id @default(cuid())
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // --- Identité ---
-  firstName       String
-  lastName        String?
-  email           String   @unique
-  phone           String?
-  country         String
-  city            String?
-  gender          String? // Homme | Femme | Autre | Préfère ne pas répondre | null
+  firstName String
+  lastName  String?
+  email     String  @unique
+  phone     String?
+  country   String
+  city      String?
+  gender    String? // Homme | Femme | Autre | Préfère ne pas répondre | null
 
   // --- Profil ---
-  primaryDomain     String   // web | cybersecurity | ai
-  secondaryDomains  String   @default("[]") // JSON string[]
-  domainSpecialty   String   @default("[]") // JSON string[] (multi-select)
-  level             String   // beginner | practicing | autonomous | advanced
+  primaryDomain    String // web | cybersecurity | ai
+  secondaryDomains String @default("[]") // JSON string[]
+  domainSpecialty  String @default("[]") // JSON string[] (multi-select)
+  level            String // beginner | practicing | autonomous | advanced
 
   // --- Objectifs ---
-  goal            String   // project | employment | freelance | upskill | business | career | other
+  goal             String // project | employment | freelance | upskill | business | career | other
   goalProjectStage String? // conditional (if goal=project/entrepreneurship)
-  goalSituation    String?  // conditional (if goal=employment)
+  goalSituation    String? // conditional (if goal=employment)
 
   // --- Disponibilité ---
-  availability      String   // <2h | 2-5h | 5-10h | 10-15h | 15h+
+  availability      String // <2h | 2-5h | 5-10h | 10-15h | 15h+
   availabilityTimes String? // moments (light)
 
   // --- Apprentissage ---
-  learningStyle   String   // practice | path | group | mentor | project
+  learningStyle String // practice | path | group | mentor | project
 
   // --- Mentorat (conditionnel) ---
-  mentoringInterest     String? // no | maybe | yes
-  mentoringMaybeReason  String? // if maybe
-  mentoringTypes        String  @default("[]") // JSON string[] (if yes)
+  mentoringInterest    String? // no | maybe | yes
+  mentoringMaybeReason String? // if maybe
+  mentoringTypes       String  @default("[]") // JSON string[] (if yes)
   mentoringFrequency   String? // if yes
   mentoringDomain      String? // if yes
 
@@ -56,32 +56,51 @@ model Member {
   budgetRange       String? // <2500 | 2500-5000 | 5000-10000 | 10000-20000 | 20000-30000 | >30000 | unknown
 
   // --- Question ouverte ---
-  threeMonthGoal    String?
+  threeMonthGoal String?
 
   // --- Profil généré ---
-  profileArchetype  String? // CYBER BUILDER | WEB BUILDER | AI EXPLORER | ...
+  profileArchetype String? // CYBER BUILDER | WEB BUILDER | AI EXPLORER | ...
   tags             String  @default("[]") // JSON string[]
 
   // --- Acquisition ---
   source String? // utm_source/medium/campaign, e.g. "whatsapp/post?reboot" | "direct"
 
   // --- Statuts ---
-  profileStatus    String   @default("PENDING")  // PENDING | APPROVED | REJECTED | WAITLIST
-  communityStatus  String   @default("NOT_INVITED") // NOT_INVITED | INVITED | JOINED
-  accessLane       String   @default("immediate") // immediate | pending (result of auto-controls)
+  profileStatus   String @default("PENDING") // PENDING | APPROVED | REJECTED | WAITLIST
+  communityStatus String @default("NOT_INVITED") // NOT_INVITED | INVITED | JOINED
+  accessLane      String @default("immediate") // immediate | pending (result of auto-controls)
 
   // --- Admin ---
-  adminNote        String?
-  deletedAt        DateTime? // null = active, set = soft-deleted
+  adminNote String?
+  deletedAt DateTime? // null = active, set = soft-deleted
+
+  // --- Mentorat (#61) ---
+  mentorContactedAt DateTime? // l'admin a contacté ce lead mentorat
 
   // --- Invitation tracking ---
-  invitationStatus String   @default("NOT_INVITED") // NOT_INVITED | INVITED | ACCEPTED | REFUSED | BOUNCED | EXPIRED
+  invitationStatus String    @default("NOT_INVITED") // NOT_INVITED | INVITED | ACCEPTED | REFUSED | BOUNCED | EXPIRED
   invitedAt        DateTime? // quand l'invitation a été envoyée
   invitationClicks Int       @default(0) // nombre de clics sur le lien
   lastClickedAt    DateTime? // dernier clic
   refusedAt        DateTime? // quand le membre a refusé
-  refusedReason    String?   // raison du refus (optionnel)
+  refusedReason    String? // raison du refus (optionnel)
   bouncedAt        DateTime? // quand le email a bounce
+  acceptedAt       DateTime? // quand l'invitation a été acceptée
+  approvedAt       DateTime? // quand le profil a été validé
+  joinedAt         DateTime? // quand le membre a rejoint la communauté
+
+  sessions  MemberSession[]
+  rsvps     EventRsvp[]
+  emailLogs MemberEmailLog[]
+
+  // Ateliers (domaine pédagogique — cf. docs/ateliers/)
+  workshopSubmissions  WorkshopSubmission[]
+  workshopQuizAttempts WorkshopQuizAttempt[]
+  workshopEnrollments  WorkshopEnrollment[]
+
+  // Mentorat (#61)
+  mentorshipsAsMentor Mentorship[] @relation("Mentor")
+  mentorshipsAsMentee Mentorship[] @relation("Mentee")
 
   @@index([email])
   @@index([country])
@@ -91,9 +110,6 @@ model Member {
   @@index([communityStatus])
   @@index([createdAt])
   @@index([deletedAt])
-
-  sessions MemberSession[]
-  rsvps    EventRsvp[]
 }
 
 // Clés admin persistées (rotation, expiration, invalidation)
@@ -104,7 +120,7 @@ model AdminKey {
   createdAt    DateTime  @default(now())
   expiresAt    DateTime? // null = jamais expiré
   revokedAt    DateTime? // null = pas révoqué
-  createdBy    String?   // qui a créé la clé (audit)
+  createdBy    String? // qui a créé la clé (audit)
 
   @@index([kid])
   @@index([revokedAt])
@@ -113,8 +129,8 @@ model AdminKey {
 
 /// Audit log for admin actions (write-only from API routes)
 model AuditLog {
-  id         String   @id @default(cuid())
-  createdAt  DateTime @default(now())
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
 
   /// Who performed the action ("admin:operator", "system", "ip:xxx")
   actor      String?
@@ -159,21 +175,52 @@ model EmailEvent {
   createdAt DateTime @default(now())
 
   /// Member email (matched from webhook payload)
-  email     String
+  email    String
   /// Optional member id (matched after lookup)
-  memberId  String?
+  memberId String?
   /// Event type: email.sent | email.opened | email.clicked
-  type      String
+  type     String
   /// Email subject or category (welcome, waitlist, engagement, relance)
-  category  String?
+  category String?
   /// Click URL (for email.clicked events)
-  clickUrl  String?
+  clickUrl String?
   /// Raw webhook payload (for debugging)
-  metadata  String?
+  metadata String?
+  /// Provider ayant accepté l'envoi : resend | brevo (null = historique).
+  /// Permet de compter les envois réels par provider pour le garde-fou de
+  /// quota — EmailEvent est écrit à chaque envoi réussi, c'est le seul
+  /// registre temps réel dont dispose le code.
+  provider String?
 
   @@index([email])
   @@index([memberId])
   @@index([type])
+  @@index([createdAt])
+  @@index([provider, createdAt])
+}
+
+/// Per-member batch email send log — anti-doublon pour les envois par lot.
+/// Un enregistrement = un email de campagne effectivement envoyé à un membre.
+/// Les routes de lot (relance, annonce, import) excluent les membres déjà loggés.
+model MemberEmailLog {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  memberId String
+  member   Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  /// Email du destinataire (redondance utile pour l'audit)
+  email      String
+  /// Nature de l'envoi : invite | relance | annonce | rejoin | engagement
+  kind       String
+  /// Provider utilisé : resend | brevo (si connu)
+  provider   String?
+  /// ID retourné par le provider (messageId)
+  providerId String?
+
+  @@index([memberId])
+  @@index([kind])
+  @@index([memberId, kind])
   @@index([createdAt])
 }
 
@@ -202,8 +249,8 @@ model MemberSession {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
 
-  memberId  String
-  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  memberId String
+  member   Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
   /// Hashed OTP (bcrypt). null = OTP consumed (verified).
   otpHash   String?
@@ -216,7 +263,7 @@ model MemberSession {
   userAgent String?
 
   /// When the session was last refreshed (cookie sliding window).
-  lastSeenAt DateTime @default(now())
+  lastSeenAt DateTime  @default(now())
   /// When the session was invalidated (logout or hard-revoke).
   revokedAt  DateTime?
 
@@ -232,7 +279,7 @@ model MemberBlacklist {
   createdAt DateTime @default(now())
 
   /// Email blocked (lowercased, unique). No wildcards (e.g. *@gmail.com) — too dangerous.
-  email     String   @unique
+  email     String    @unique
   /// Reason: spammer | harassment | duplicate | abuser | admin | other
   reason    String
   /// Free-form note (max 500 chars).
@@ -241,7 +288,7 @@ model MemberBlacklist {
   expiresAt DateTime?
   /// Whether the member's soft-delete triggered this blacklist entry.
   /// (true = auto-added, false = manually added by an admin)
-  autoAdded Boolean  @default(false)
+  autoAdded Boolean   @default(false)
 
   @@index([email])
   @@index([expiresAt])
@@ -250,42 +297,48 @@ model MemberBlacklist {
 
 /// Agenda — événements HASHCODE (sessions, workshops, meetups).
 model Event {
-  id          String   @id @default(cuid())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   title       String
   description String?
 
   // Timing
-  startsAt    DateTime
-  endsAt      DateTime?
+  startsAt DateTime
+  endsAt   DateTime?
 
   // Location
-  location    String?  // "WhatsApp", "Discord", "Salle 1", etc.
-  url         String?  // Lien externe (Zoom, Google Meet, etc.)
+  location String? // "WhatsApp", "Discord", "Salle 1", etc.
+  url      String? // Lien externe (Zoom, Google Meet, etc.)
 
   // Type
-  type        String   @default("session") // session | workshop | meetup | webinar | other
+  type String @default("session") // session | workshop | meetup | webinar | other
 
   // Visibility (null = tous les membres)
-  domain      String?  // web | cybersecurity | ai
-  level       String?  // beginner | practicing | autonomous | advanced
+  domain String? // web | cybersecurity | ai
+  level  String? // beginner | practicing | autonomous | advanced
 
   // Status
-  status      String   @default("scheduled") // scheduled | live | completed | cancelled
+  status String @default("scheduled") // scheduled | live | completed | cancelled
 
   // Recurrence
-  recurrence  String?  // weekly | biweekly | monthly | null = one-shot
+  recurrence   String? // weekly | biweekly | monthly | null = one-shot
   recurrenceId String? // shared ID for grouped recurring events
 
   // Capacity
-  maxAttendees Int?    // null = unlimited
+  maxAttendees Int? // null = unlimited
 
   // Notifications
-  notifiedAt   DateTime? // when members were notified
+  notifiedAt DateTime? // when members were notified
 
-  rsvps       EventRsvp[]
+  rsvps EventRsvp[]
+
+  // Ateliers : une séance pédagogique PEUT être reliée à un rendez-vous.
+  // EVENT ≠ SESSION — la suppression de l'Event ne touche pas le contenu
+  // (onDelete: SetNull côté WorkshopSession).
+  workshopSessions WorkshopSession[]
+  reminderLogs     EventReminderLog[]
 
   @@index([startsAt])
   @@index([status])
@@ -298,17 +351,414 @@ model EventRsvp {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
 
-  eventId   String
-  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
-  memberId  String
-  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  memberId String
+  member   Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
-  status    String   @default("going") // going | maybe | cancelled
-  note      String?
+  status String  @default("going") // going | maybe | cancelled
+  note   String?
 
   @@unique([eventId, memberId])
   @@index([eventId])
   @@index([memberId])
   @@index([status])
+}
+
+/// Trace d'envoi d'une relance automatique (J-3 / J-1 / H-1) pour un événement.
+/// Une seule ligne par (événement, offset) : l'idempotence est garantie par la
+/// contrainte unique. Les envois individuels sont tracés dans MemberEmailLog.
+model EventReminderLog {
+  id             String   @id @default(cuid())
+  createdAt      DateTime @default(now())
+  eventId        String
+  event          Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  /// Décalage en minutes avant le début : 4320 = J-3, 1440 = J-1, 60 = H-1.
+  offsetMinutes  Int
+  /// Nombre de membres ciblés par cet envoi.
+  recipientCount Int      @default(0)
+  /// Nombre d'envois réellement acceptés par le provider.
+  sentCount      Int      @default(0)
+
+  @@unique([eventId, offsetMinutes])
+  @@index([eventId])
+  @@index([createdAt])
+}
+
+/// Email deliverability metrics aggregated daily per provider (Brevo, Resend)
+model EmailProviderMetric {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Provider: "brevo" | "resend"
+  provider String
+  /// Date bucket (UTC midnight)
+  date     DateTime @db.Date
+
+  // Volume
+  sent         Int @default(0)
+  delivered    Int @default(0)
+  bounced      Int @default(0)
+  complained   Int @default(0)
+  unsubscribed Int @default(0)
+
+  // Engagement
+  opened        Int @default(0)
+  clicked       Int @default(0)
+  uniqueOpened  Int @default(0)
+  uniqueClicked Int @default(0)
+
+  // Bounce details
+  hardBounce Int @default(0)
+  softBounce Int @default(0)
+
+  // Computed rates (stored for performance)
+  deliveryRate  Float?
+  openRate      Float?
+  clickRate     Float?
+  bounceRate    Float?
+  complaintRate Float?
+
+  @@unique([provider, date])
+  @@index([provider, createdAt])
+  @@index([date])
+}
+
+/// Templates d'email pilotables depuis l'admin (Phase 1 : catégorie marketing).
+///
+/// Tant que `isActive` vaut false, l'envoi réel utilise le HTML par défaut de
+/// src/lib/mail.ts : activer un template est un geste explicite, testable et
+/// réversible (rollback = décocher).
+///
+/// `bodyHtml` porte le fragment de corps (équivalent exact du `inner` de
+/// src/lib/mail.ts, mis dans emailShell au rendu) : l'aperçu admin est donc
+/// byte-identique à l'email réellement envoyé.
+///
+/// Les catégories `notification` et `code` sont verrouillées en édition : elles
+/// transportent des liens et des secrets d'authentification (magic link, OTP).
+model EmailTemplate {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Clé stable et unique (ex: "welcome"), référencée par le code.
+  key      String @unique
+  /// Libellé affiché dans l'admin.
+  name     String
+  /// marketing | notification | code.
+  category String
+
+  subject   String
+  /// Texte d'aperçu (preheader), invisible dans le corps.
+  preheader String
+  /// Fragment HTML du corps (lignes <tr>), inséré dans emailShell().
+  bodyHtml  String
+
+  /// false = le code garde son HTML par défaut (déploiement sans risque).
+  isActive Boolean @default(false)
+
+  version   Int     @default(1)
+  /// Dernier admin ayant modifié le template.
+  updatedBy String?
+
+  @@index([category])
+  @@index([isActive])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ATELIERS — domaine pédagogique (cf. docs/ateliers/00-audit-phase1.md §21)
+//
+// Workshop = parcours → WorkshopWeek = semaine → WorkshopSession = séance
+//   → activités / livrable / quiz → soumission → review → validation
+//
+// Conventions du repo : pas d'enums Prisma (String + union TS validées par
+// fonctions pures dans src/lib/workshop-*.ts), JSON en String, timestamps,
+// index sur les colonnes de filtre, cascade sur les enfants possédés.
+//
+// Décisions ADR-001 : progression DÉRIVÉE (pas de table de progression) ;
+// admin v1 = review + pilotage (structure par seed).
+// ═══════════════════════════════════════════════════════════════════════════
+
+model Workshop {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  slug        String  @unique
+  title       String
+  description String?
+
+  // Status : draft | published | archived (union TS, cf. workshop-validation)
+  status String @default("draft")
+
+  // Ciblage (mêmes valeurs que Event)
+  domain String? // web | cybersecurity | ai
+  level  String? // beginner | practicing | autonomous | advanced
+
+  weeks       WorkshopWeek[]
+  enrollments WorkshopEnrollment[]
+
+  @@index([status])
+}
+
+model WorkshopWeek {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workshopId String
+  number     Int // 1..N (ordre pédagogique)
+  title      String
+  objective  String?
+
+  workshop Workshop          @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+  sessions WorkshopSession[]
+
+  @@unique([workshopId, number])
+  @@index([workshopId])
+}
+
+model WorkshopSession {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  weekId String
+  number Int // 1..12 global (S01..S12) — ordre d'unlock
+
+  title     String
+  objective String?
+  program   String? // déroulé de la séance (texte libre)
+  skills    String  @default("[]") // JSON string
+
+  // Conditions de validation — EFFECTIVES seulement si la ressource existe :
+  // un flag true sans livrable/quiz associé n'est jamais une condition fantôme
+  // (le moteur de progression intersecte avec l'existence réelle).
+  deliverableRequired Boolean @default(true)
+  quizRequired        Boolean @default(true)
+
+  // EVENT ≠ SESSION : le rendez-vous est optionnel, horaire modifiable
+  // sans toucher au contenu pédagogique.
+  eventId String?
+
+  // Déblocage calendaire : la séance reste LOCKED tant que cette date n'est
+  // pas atteinte, même si la chaîne séquentielle l'aurait débloquée (#bug
+  // livrables en avance). null = pas de gate date (repli : startsAt de
+  // l'Event lié, sinon déblocage séquentiel seul).
+  scheduledAt DateTime?
+
+  week        WorkshopWeek         @relation(fields: [weekId], references: [id], onDelete: Cascade)
+  event       Event?               @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  activities  WorkshopActivity[]
+  deliverable WorkshopDeliverable?
+  quiz        WorkshopQuiz?
+
+  @@unique([weekId, number])
+  @@index([weekId])
+  @@index([eventId])
+}
+
+model WorkshopActivity {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessionId String
+  order     Int
+
+  // kind : practice | resource (ressource externe référencée, pas recopiée)
+  kind        String  @default("practice")
+  title       String
+  description String?
+  url         String? // ressource externe / lien d'exercice
+
+  session WorkshopSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, order])
+}
+
+model WorkshopDeliverable {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessionId String @unique // un livrable par séance
+
+  // type : url | github_repo | pull_request | project | deployed_url |
+  //        screenshot | text (union TS + validation URL http(s) côté serveur)
+  type        String  @default("url")
+  title       String
+  description String?
+  isRequired  Boolean @default(true)
+
+  session     WorkshopSession      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  submissions WorkshopSubmission[]
+}
+
+model WorkshopSubmission {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  deliverableId String
+  memberId      String
+
+  // Append-only : chaque resoumission crée une NOUVELLE ligne (attempt n+1).
+  // Historique complet conservé (protocole §15).
+  attempt Int    @default(1)
+  content String
+
+  // status : PENDING | IN_REVIEW | APPROVED | REVISION | REJECTED
+  status String @default("PENDING")
+
+  submittedAt DateTime
+  reviewedAt  DateTime?
+
+  deliverable WorkshopDeliverable @relation(fields: [deliverableId], references: [id], onDelete: Cascade)
+  member      Member              @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  reviews     WorkshopReview[]
+
+  @@unique([deliverableId, memberId, attempt])
+  @@index([memberId])
+  @@index([deliverableId, status])
+}
+
+model WorkshopReview {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  submissionId String
+
+  // Append-only : la dernière review d'une soumission fait foi.
+  // reviewer = identité admin (limitation documentée : "unknown" tant que
+  // le login admin ne capture pas d'identité — cf. audit §7).
+  reviewer String
+  // decision : APPROVED | REVISION | REJECTED
+  decision String
+  feedback String
+
+  submission WorkshopSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([submissionId])
+}
+
+model WorkshopQuiz {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessionId String @unique // un quiz par séance
+
+  title         String
+  passThreshold Int     @default(70) // pourcentage 0..100
+  maxAttempts   Int? // null = tentatives illimitées (défaut, protocole §17)
+  isRequired    Boolean @default(true)
+
+  session   WorkshopSession       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  questions WorkshopQuestion[]
+  attempts  WorkshopQuizAttempt[]
+}
+
+model WorkshopQuestion {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  quizId String
+  order  Int
+
+  // type : single | multiple | true_false (short_answer reporté — audit §21)
+  type   String
+  prompt String
+
+  // Conventions maison : JSON en String, validé par fonctions pures.
+  optionsJson String @default("[]")
+  // correctJson ne quitte JAMAIS le serveur — projection via publicQuestions()
+  // (cf. src/lib/workshop-quiz.ts) + test de non-fuite.
+  correctJson String
+  points      Int    @default(1)
+
+  quiz WorkshopQuiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@index([quizId, order])
+}
+
+model WorkshopQuizAttempt {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  quizId   String
+  memberId String
+
+  answersJson String
+  score       Int // points gagnés (scoring serveur, cf. workshop-quiz.ts)
+  passed      Boolean
+  submittedAt DateTime @default(now())
+
+  quiz   WorkshopQuiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  member Member       @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([quizId, memberId])
+  @@index([memberId])
+}
+
+model WorkshopEnrollment {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workshopId String
+  memberId   String
+
+  // status : active | completed | dropped
+  status     String   @default("active")
+  enrolledAt DateTime @default(now())
+
+  workshop Workshop @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+  member   Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([workshopId, memberId])
+  @@index([memberId])
+}
+
+/// Mentorat — programme de mentorat (#61).
+/// Un Mentorship lie un mentor (membre) à un mentoré (membre).
+/// status : ACTIVE | PAUSED | ENDED.
+model Mentorship {
+  id        String    @id @default(cuid())
+  mentorId  String
+  menteeId  String
+  status    String    @default("ACTIVE")
+  frequency String    @default("monthly")
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+
+  mentor   Member              @relation("Mentor", fields: [mentorId], references: [id], onDelete: Cascade)
+  mentee   Member              @relation("Mentee", fields: [menteeId], references: [id], onDelete: Cascade)
+  sessions MentorshipSession[]
+
+  @@unique([mentorId, menteeId, status])
+  @@index([mentorId])
+  @@index([menteeId])
+  @@index([status])
+}
+
+/// Séances planifiées dans le cadre d'un Mentorship (#61).
+/// rating : 1-5, donné par le mentoré après la séance.
+model MentorshipSession {
+  id           String    @id @default(cuid())
+  mentorshipId String
+  scheduledAt  DateTime
+  completedAt  DateTime?
+  notes        String?
+  rating       Int?
+  createdAt    DateTime  @default(now())
+
+  mentorship Mentorship @relation(fields: [mentorshipId], references: [id], onDelete: Cascade)
+
+  @@index([mentorshipId])
+  @@index([scheduledAt])
 }

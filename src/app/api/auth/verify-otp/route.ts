@@ -8,6 +8,7 @@ import {
   SESSION_TTL_MS,
   setSessionCookieOnResponse,
 } from "@/lib/account-auth";
+import { audit } from "@/lib/admin-audit";
 
 export const runtime = "nodejs";
 
@@ -74,7 +75,7 @@ export async function POST(req: NextRequest) {
   // Trouver le membre
   const member = await db.member.findUnique({
     where: { email },
-    select: { id: true, deletedAt: true },
+    select: { id: true, deletedAt: true, invitationStatus: true },
   });
   if (!member || member.deletedAt) {
     // Anti-enumeration : même message que "code invalide"
@@ -156,6 +157,36 @@ export async function POST(req: NextRequest) {
       lastSeenAt: new Date(),
     },
   });
+
+  // Les liens magiques envoyés par les campagnes d'invitation contournent
+  // /api/invite/accept. Marquer l'invitation comme acceptée ici, sinon le
+  // dashboard reste figé sur INVITED alors que le membre s'est connecté.
+  const isInviteLogin =
+    session.userAgent === "admin-import-invite" ||
+    session.userAgent === "admin-invite-relance";
+  if (
+    isInviteLogin &&
+    (member.invitationStatus === "INVITED" ||
+      member.invitationStatus === "NOT_INVITED")
+  ) {
+    try {
+      await db.member.update({
+        where: { id: member.id },
+        data: {
+          invitationStatus: "ACCEPTED",
+          acceptedAt: new Date(),
+          lastClickedAt: new Date(),
+          invitationClicks: { increment: 1 },
+        },
+      });
+      void audit("member.invite-accept", "member", member.id, {
+        via: "verify-otp",
+        inviteSession: session.userAgent,
+      });
+    } catch {
+      // Best-effort : la connexion reste valide même si le statut échoue.
+    }
+  }
 
   // Construire la réponse avec le cookie
   const res = NextResponse.json({

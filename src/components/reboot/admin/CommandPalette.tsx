@@ -54,6 +54,7 @@ export function CommandPalette({
       // Navigation
       { id: "nav-stats", label: "Vue d'ensemble", group: "navigation", action: () => onNavigate("section-stats") },
       { id: "nav-members", label: "Membres", group: "navigation", action: () => onNavigate("section-members") },
+      { id: "nav-marketing", label: "Marketing", group: "navigation", action: () => onNavigate("section-marketing") },
       { id: "nav-activity", label: "Activité", group: "navigation", action: () => onNavigate("section-activity") },
       { id: "nav-exports", label: "Exports", group: "navigation", action: () => onNavigate("section-exports") },
       { id: "nav-audit", label: "Audit", group: "navigation", action: () => onNavigate("section-audit-log") },
@@ -156,7 +157,7 @@ export function CommandPalette({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogOverlay />
       <DialogContent
-        className="bg-card border-border/60 max-w-lg p-0 overflow-hidden animate-hash-in"
+        className="bg-card border-border/60 max-w-[100vw] md:max-w-lg p-0 overflow-hidden animate-hash-in"
         showCloseButton={false}
       >
         <DialogTitle className="sr-only">Palette de commandes</DialogTitle>
@@ -179,7 +180,7 @@ export function CommandPalette({
             className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none"
             aria-label="Rechercher une commande"
           />
-          <kbd className="mono-label text-muted-foreground border border-border rounded-sm px-1.5 py-0.5 text-[10px] shrink-0">
+          <kbd className="mono-label text-muted-foreground border border-border rounded-sm px-1.5 py-0.5 shrink-0">
             Esc
           </kbd>
         </div>
@@ -218,7 +219,7 @@ export function CommandPalette({
                         onMouseMove={() => setSelectedIndex(idx)}
                         onClick={() => runItem(item)}
                         className={cn(
-                          "w-full flex items-center justify-between gap-3 rounded-sm px-3 py-2.5 text-left text-sm min-h-[40px]",
+                          "w-full flex items-center justify-between gap-3 rounded-sm px-3 py-2.5 text-left text-sm min-h-[44px]",
                           "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-inset",
                           active ? "bg-lime/10 text-lime" : "text-foreground hover:bg-lime/5",
                         )}
@@ -226,7 +227,7 @@ export function CommandPalette({
                         <span className="truncate">{item.label}</span>
                         <span className="flex items-center gap-2 shrink-0">
                           {item.hint && (
-                            <span className="mono-label text-muted-foreground border border-border rounded-sm px-1.5 py-0.5 text-[10px]">
+                            <span className="mono-label text-muted-foreground border border-border rounded-sm px-1.5 py-0.5">
                               {item.hint}
                             </span>
                           )}

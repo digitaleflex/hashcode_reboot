@@ -4,6 +4,10 @@ import { db } from "@/lib/db";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
 import { bodyLimit } from "@/lib/body-limit";
+import {
+  verifyPhoneFillTicket,
+  readPhoneFillTicket,
+} from "@/lib/phone-fill-ticket";
 
 export const runtime = "nodejs";
 
@@ -14,8 +18,16 @@ export const runtime = "nodejs";
  * quand le membre n'a pas encore de session. Remplissage unique :
  * on ne remplit que si aucun numéro n'est enregistré (pas d'écrasement).
  *
- * Réponse volontairement générique ({ ok: true }) que le membre existe
- * ou non — anti-énumération (le memberId n'est connu que du membre).
+ * Autorisation (S3) : la requête doit présenter le ticket HMAC posé en
+ * cookie par POST /api/members à la création FRAÎCHE du membre, ET ce
+ * ticket doit être lié au memberId demandé. Sans ticket valide → réponse
+ * générique ({ ok: true }) et AUCUNE écriture. Un memberId public
+ * (profils partagés) ne suffit donc plus à écrire sur le compte d'autrui.
+ * Exiger une session ici casserait le flux d'inscription — le ticket est
+ * la preuve de possession du navigateur d'inscription.
+ *
+ * Réponse volontairement générique ({ ok: true }) dans tous les cas —
+ * anti-énumération.
  *
  * Anti-abus : 5 requêtes / IP / 10 min.
  */
@@ -67,6 +79,13 @@ export async function POST(req: NextRequest) {
       { error: parsed.error.issues[0]?.message ?? "Données invalides." },
       { status: 422 },
     );
+  }
+
+  // Ticket requis et lié au memberId demandé — sinon, réponse générique
+  // sans écriture (pas d'oracle).
+  const ticketMemberId = verifyPhoneFillTicket(readPhoneFillTicket(req) ?? "");
+  if (!ticketMemberId || ticketMemberId !== parsed.data.memberId) {
+    return NextResponse.json({ ok: true });
   }
 
   // Remplissage unique : membre existant ET sans numéro → on enregistre.

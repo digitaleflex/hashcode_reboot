@@ -7,6 +7,7 @@ import { sendInviteRelanceEmail } from "@/lib/mail";
 import { isAdminAuthed } from "@/lib/admin-auth";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
+import { logMemberEmail, memberIdsWithEmailLog } from "@/lib/member-email-log";
 
 export const runtime = "nodejs";
 
@@ -74,12 +75,20 @@ export async function POST(req: NextRequest) {
     select: { id: true, email: true, firstName: true },
   });
 
+  // Anti-doublon : exclure les membres déjà relancés (log d'envoi).
+  const alreadyRelanced = await memberIdsWithEmailLog(
+    members.map((m) => m.id),
+    "relance",
+  );
+  const targets = members.filter((m) => !alreadyRelanced.has(m.id));
+
   if (!confirm) {
     return NextResponse.json({
       dryRun: true,
-      eligible: members.length,
+      eligible: targets.length,
+      alreadyRelanced: members.length - targets.length,
       requested: memberIds.length,
-      sample: members.slice(0, 5).map((m) => ({ email: m.email, name: m.firstName })),
+      sample: targets.slice(0, 5).map((m) => ({ email: m.email, name: m.firstName })),
     });
   }
 
@@ -91,7 +100,7 @@ export async function POST(req: NextRequest) {
   let sent = 0;
   const failed: string[] = [];
 
-  for (const member of members) {
+  for (const member of targets) {
     try {
       // Révoquer les anciennes sessions OTP
       await db.memberSession.updateMany({
@@ -120,6 +129,13 @@ export async function POST(req: NextRequest) {
 
       if (res.ok) {
         sent++;
+        await logMemberEmail({
+          memberId: member.id,
+          email: member.email,
+          kind: "relance",
+          provider: res.provider,
+          providerId: res.id,
+        });
         // Mettre à jour le statut
         await db.member.update({
           where: { id: member.id },
@@ -152,6 +168,7 @@ export async function POST(req: NextRequest) {
     ok: true,
     sent,
     failed,
-    total: members.length,
+    total: targets.length,
+    skippedRelanced: members.length - targets.length,
   });
 }

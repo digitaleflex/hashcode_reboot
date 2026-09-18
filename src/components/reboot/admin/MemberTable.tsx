@@ -19,41 +19,35 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { countryFlag, countryName } from "@/lib/profiling/countries";
-import { StickyNote } from "lucide-react";
+import { DOMAIN_LABEL, LEVEL_LABEL, GOAL_LABEL, BUDGET_LABEL } from "@/lib/profiling/labels";
+import { StickyNote, UserX } from "lucide-react";
 import type {
   MemberRow,
   SortDir,
   SortKey,
 } from "./hooks/useMembers";
 
-const DOMAIN_LABEL: Record<string, string> = {
-  web: "Web",
-  cybersecurity: "Cyber",
-  ai: "AI",
-};
-const LEVEL_LABEL: Record<string, string> = {
-  beginner: "Débutant",
-  practicing: "Pratique",
-  autonomous: "Autonome",
-  advanced: "Avancé",
-};
-const GOAL_LABEL: Record<string, string> = {
-  project: "Projet",
-  employment: "Emploi",
-  freelance: "Freelance",
-  upskill: "Compétences",
-  business: "Activité",
-  career: "Carrière",
-  other: "Autre",
-};
-const BUDGET_LABEL: Record<string, string> = {
-  "<2500": "< 2.5k",
-  "2500-5000": "2.5–5k",
-  "5000-10000": "5–10k",
-  "10000-20000": "10–20k",
-  "20000-30000": "20–30k",
-  ">30000": "> 30k",
-  unknown: "NSP",
+const INVITATION_LABEL: Record<string, { label: string; className: string }> = {
+  INVITED: {
+    label: "Invité",
+    className: "border-blue-500/50 text-blue-300 bg-blue-500/5",
+  },
+  ACCEPTED: {
+    label: "Accepté",
+    className: "border-lime/50 text-lime bg-lime/5",
+  },
+  REFUSED: {
+    label: "Refusé",
+    className: "border-amber-500/50 text-amber-300 bg-amber-500/5",
+  },
+  BOUNCED: {
+    label: "Bounce",
+    className: "border-destructive/50 text-destructive bg-destructive/5",
+  },
+  EXPIRED: {
+    label: "Expirée",
+    className: "border-border text-muted-foreground",
+  },
 };
 
 export function MemberTableSkeleton({ rows = 6 }: { rows?: number }) {
@@ -64,12 +58,12 @@ export function MemberTableSkeleton({ rows = 6 }: { rows?: number }) {
     >
       {Array.from({ length: rows }).map((_, i) => (
         <div key={i} className="flex items-center gap-3">
-          <div className="admin-skeleton admin-skeleton-avatar" />
+          <div className="admin-skeleton admin-skeleton-avatar bg-lime/10" />
           <div className="flex-1 space-y-2">
-            <div className="admin-skeleton admin-skeleton-line w-2/5" />
-            <div className="admin-skeleton admin-skeleton-line w-3/5" />
+            <div className="admin-skeleton admin-skeleton-line w-2/5 bg-lime/10" />
+            <div className="admin-skeleton admin-skeleton-line w-3/5 bg-lime/10" />
           </div>
-          <div className="admin-skeleton admin-skeleton-pill hidden sm:block" />
+          <div className="admin-skeleton admin-skeleton-pill hidden sm:block bg-lime/10" />
         </div>
       ))}
       <span className="sr-only">Chargement des membres…</span>
@@ -210,6 +204,15 @@ export function MemberTable({
               ["REJECTED", "Rejeté"],
             ]}
           />
+          <FilterSelect
+            placeholder="Type"
+            value={filters.type ?? "all"}
+            onChange={(v) => onFilter("type", v)}
+            options={[
+              ["registered", "Inscrits réels"],
+              ["invited", "Invités"],
+            ]}
+          />
           {/* Advanced filters — collapsed by default (progressive disclosure L2) */}
           {advancedOpen && (
             <>
@@ -262,7 +265,7 @@ export function MemberTable({
           >
             {advancedOpen ? "− Moins de filtres" : "+ Filtres avancés"}
             {activeAdvancedCount > 0 && (
-              <span className="mono-label text-[10px] border border-lime/50 rounded-sm px-1">
+              <span className="mono-label border border-lime/50 rounded-sm px-1">
                 {activeAdvancedCount}
               </span>
             )}
@@ -440,7 +443,7 @@ export function MemberTable({
             )}
           </div>
         )}
-        <div className="rounded-md border border-border/60 overflow-hidden bg-card/30">
+        <div className="rounded-md border border-border/60 overflow-hidden overflow-x-auto bg-card/30">
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent border-border/60 bg-secondary/30">
@@ -567,7 +570,10 @@ export function MemberTable({
               {displayed.length === 0 && !loading && (
                 <TableRow>
                   <TableCell colSpan={11} className="text-center text-muted-foreground py-10">
-                    Aucun membre pour ces filtres.
+                    <span className="flex flex-col items-center gap-2 animate-hash-in">
+                      <UserX className="size-10 text-muted-foreground/30" />
+                      Aucun membre pour ces filtres.
+                    </span>
                   </TableCell>
                 </TableRow>
               )}
@@ -631,12 +637,16 @@ export function MemberTable({
                     </div>
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
-                    {countryFlag(m.country)} {countryName(m.country)}
+                    {m.country ? (
+                      <>{countryFlag(m.country)} {countryName(m.country)}</>
+                    ) : (
+                      "—"
+                    )}
                   </TableCell>
                   <TableCell>{DOMAIN_LABEL[m.primaryDomain] ?? m.primaryDomain}</TableCell>
                   <TableCell>{LEVEL_LABEL[m.level] ?? m.level}</TableCell>
                   <TableCell className="hidden md:table-cell">
-                    {GOAL_LABEL[m.goal] ?? m.goal}
+                    {m.goal.trim() ? (GOAL_LABEL[m.goal] ?? m.goal) : "—"}
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
                     {m.mentoringInterest === "yes"
@@ -651,7 +661,20 @@ export function MemberTable({
                     {m.budgetRange ? BUDGET_LABEL[m.budgetRange] ?? m.budgetRange : "—"}
                   </TableCell>
                   <TableCell>
-                    <StatusBadge status={m.profileStatus} />
+                    <span className="inline-flex flex-col items-start gap-1">
+                      <StatusBadge status={m.profileStatus} />
+                      {m.invitationStatus && m.invitationStatus !== "NOT_INVITED" && (
+                        <span
+                          className={cn(
+                            "inline-flex items-center rounded-sm border px-2 py-0.5 text-xs mono-label",
+                            INVITATION_LABEL[m.invitationStatus]?.className ?? "border-border text-muted-foreground",
+                          )}
+                          title={`Invitation : ${m.invitationStatus}`}
+                        >
+                          {INVITATION_LABEL[m.invitationStatus]?.label ?? m.invitationStatus}
+                        </span>
+                      )}
+                    </span>
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">
                     <Tag active={m.accessLane === "immediate"}>
@@ -746,7 +769,7 @@ function FilterSelect({
     <Select value={value} onValueChange={onChange} disabled={loading}>
       <SelectTrigger
         className={cn(
-          "h-9 w-auto gap-2 rounded-full px-4 text-sm min-w-32 transition-colors",
+          "h-11 min-h-[44px] w-auto gap-2 rounded-full px-4 text-sm min-w-32 transition-colors",
           active
             ? "border-lime/60 bg-lime/10 text-lime"
             : "border-border bg-card text-muted-foreground hover:text-foreground",
@@ -785,7 +808,7 @@ function SortHeader({
     <button
       onClick={onClick}
       className={cn(
-        "inline-flex items-center gap-1 hover:text-lime transition-colors focus-lime",
+        "inline-flex items-center min-h-[44px] gap-1 hover:text-lime transition-colors focus-lime",
         active && "text-lime",
         align === "right" && "flex-row-reverse",
       )}

@@ -11,6 +11,8 @@ import {
   Users,
   Loader2,
   Filter,
+  AlertCircle,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -114,6 +116,9 @@ export default function AgendaPage() {
   const [filterType, setFilterType] = React.useState<string>("all");
   const [filterDomain, setFilterDomain] = React.useState<string>("all");
   const [rsvpStates, setRsvpStates] = React.useState<Record<string, "going" | "maybe" | null>>({});
+  // Erreur RSVP isolée de `error` (chargement) : un refus de RSVP ne doit
+  // pas remplacer toute la liste de l'agenda.
+  const [rsvpError, setRsvpError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -146,20 +151,32 @@ export default function AgendaPage() {
     const current = rsvpStates[eventId];
     const newStatus = current === status ? "cancelled" : status;
 
+    // Optimiste — mais roulé arrière si l'API refuse : l'UI ne doit jamais
+    // afficher « Inscrit » sur un 409 (complet), 404, 429 ou 403.
     setRsvpStates((prev) => ({ ...prev, [eventId]: newStatus === "cancelled" ? null : status }));
+    setRsvpError(null);
+
+    const rollback = () =>
+      setRsvpStates((prev) => ({ ...prev, [eventId]: current }));
 
     try {
-      if (newStatus === "cancelled") {
-        await fetch(`/api/events/${eventId}/rsvp`, { method: "DELETE" });
-      } else {
-        await fetch(`/api/events/${eventId}/rsvp`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: newStatus }),
-        });
+      const res =
+        newStatus === "cancelled"
+          ? await fetch(`/api/events/${eventId}/rsvp`, { method: "DELETE" })
+          : await fetch(`/api/events/${eventId}/rsvp`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ status: newStatus }),
+            });
+      if (!res.ok) {
+        rollback();
+        const data = (await res.json().catch(() => null)) as { error?: string } | null;
+        setRsvpError(data?.error ?? "Impossible d'enregistrer ta réponse.");
       }
     } catch {
-      setRsvpStates((prev) => ({ ...prev, [eventId]: current }));
+      // Erreur réseau : même rollback, message dédié.
+      rollback();
+      setRsvpError("Connexion interrompue — ta réponse n'a pas été enregistrée.");
     }
   };
 
@@ -240,6 +257,21 @@ export default function AgendaPage() {
         </div>
       )}
 
+      {/* Erreur RSVP (isolée de l'erreur de chargement) */}
+      {rsvpError && (
+        <div className="flex items-start gap-2 rounded-md bg-amber-500/10 border border-amber-500/30 px-4 py-3 text-sm text-amber-500">
+          <AlertCircle className="size-4 shrink-0 mt-0.5" />
+          <span className="flex-1">{rsvpError}</span>
+          <button
+            onClick={() => setRsvpError(null)}
+            className="p-0.5 rounded text-amber-500/70 hover:text-foreground transition-colors cursor-pointer"
+            aria-label="Fermer le message"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
+
       {error && (
         <div className="text-center py-12">
           <p className="text-sm text-muted-foreground">{error}</p>
@@ -290,19 +322,19 @@ export default function AgendaPage() {
                           <div className="flex items-center gap-2 flex-wrap">
                             <h3 className="text-base font-medium">{event.title}</h3>
                             <span className={cn(
-                              "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium mono-label",
+                              "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium",
                               config.color,
                               "border-current/20 bg-current/5",
                             )}>
                               {config.label}
                             </span>
                             {event.domain && (
-                              <span className="inline-flex items-center rounded-full border border-border/60 bg-secondary/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground mono-label">
+                              <span className="inline-flex items-center rounded-full border border-border/60 bg-secondary/50 px-2.5 py-1 text-xs font-medium text-muted-foreground">
                                 {DOMAIN_LABELS[event.domain] ?? event.domain}
                               </span>
                             )}
                             {event.level && (
-                              <span className="inline-flex items-center rounded-full border border-border/60 bg-secondary/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground mono-label">
+                              <span className="inline-flex items-center rounded-full border border-border/60 bg-secondary/50 px-2.5 py-1 text-xs font-medium text-muted-foreground">
                                 {LEVEL_LABELS[event.level] ?? event.level}
                               </span>
                             )}
@@ -359,7 +391,7 @@ export default function AgendaPage() {
                       {/* Badge "live" */}
                       {event.status === "live" && (
                         <div className="mt-3">
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500/15 border border-red-500/30 px-2.5 py-0.5 text-[10px] font-medium text-red-400 mono-label">
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-500/15 px-2.5 py-1 text-xs font-medium text-red-400">
                             <span className="inline-block size-1.5 rounded-full bg-red-400 animate-pulse" />
                             EN DIRECT
                           </span>

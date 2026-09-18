@@ -42,6 +42,8 @@ export async function GET(req: NextRequest) {
     const budget = searchParams.get("budget");
     const status = searchParams.get("status");
     const lane = searchParams.get("lane");
+    const type = searchParams.get("type");
+    const invitationStatus = searchParams.get("invitationStatus");
     const q = searchParams.get("q");
     const fieldsParam = searchParams.get("fields");
 
@@ -54,6 +56,9 @@ export async function GET(req: NextRequest) {
     if (budget) where.budgetRange = budget;
     if (status) where.profileStatus = status;
     if (lane) where.accessLane = lane;
+    if (invitationStatus) where.invitationStatus = invitationStatus;
+    else if (type === "registered") where.invitationStatus = "NOT_INVITED";
+    else if (type === "invited") where.invitationStatus = { not: "NOT_INVITED" };
     if (q)
       where.OR = [
         { firstName: { contains: q, mode: "insensitive" } },
@@ -99,6 +104,8 @@ export async function GET(req: NextRequest) {
       "profileStatus",
       "communityStatus",
       "accessLane",
+      "invitationStatus",
+      "source",
       "adminNote",
     ];
 
@@ -150,6 +157,8 @@ export async function GET(req: NextRequest) {
       profileStatus: m.profileStatus,
       communityStatus: m.communityStatus,
       accessLane: m.accessLane,
+      invitationStatus: m.invitationStatus,
+      source: m.source,
       adminNote: m.adminNote,
     });
 

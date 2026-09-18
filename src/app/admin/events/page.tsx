@@ -222,7 +222,7 @@ export default function AdminEventsPage() {
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Titre */}
         <div className="space-y-2">
-          <label className="text-sm font-medium mono-label text-muted-foreground uppercase">
+          <label className="mono-label text-muted-foreground">
             Titre
           </label>
           <input
@@ -239,7 +239,7 @@ export default function AdminEventsPage() {
 
         {/* Description */}
         <div className="space-y-2">
-          <label className="text-sm font-medium mono-label text-muted-foreground uppercase">
+          <label className="mono-label text-muted-foreground">
             Description
           </label>
           <textarea
@@ -255,7 +255,7 @@ export default function AdminEventsPage() {
         {/* Dates */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium mono-label text-muted-foreground uppercase">
+            <label className="mono-label text-muted-foreground">
               Date de début
             </label>
             <input
@@ -267,7 +267,7 @@ export default function AdminEventsPage() {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium mono-label text-muted-foreground uppercase">
+            <label className="mono-label text-muted-foreground">
               Date de fin (optionnel)
             </label>
             <input
@@ -282,7 +282,7 @@ export default function AdminEventsPage() {
         {/* Type + Domaine + Niveau */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium mono-label text-muted-foreground uppercase">
+            <label className="mono-label text-muted-foreground">
               Type
             </label>
             <select
@@ -298,7 +298,7 @@ export default function AdminEventsPage() {
             </select>
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium mono-label text-muted-foreground uppercase">
+            <label className="mono-label text-muted-foreground">
               Domaine
             </label>
             <select
@@ -315,7 +315,7 @@ export default function AdminEventsPage() {
             </select>
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium mono-label text-muted-foreground uppercase">
+            <label className="mono-label text-muted-foreground">
               Niveau
             </label>
             <select
@@ -336,7 +336,7 @@ export default function AdminEventsPage() {
         {/* Lieu + URL + Capacité */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium mono-label text-muted-foreground uppercase">
+            <label className="mono-label text-muted-foreground">
               Lieu
             </label>
             <input
@@ -348,7 +348,7 @@ export default function AdminEventsPage() {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium mono-label text-muted-foreground uppercase">
+            <label className="mono-label text-muted-foreground">
               Lien externe
             </label>
             <input
@@ -360,7 +360,7 @@ export default function AdminEventsPage() {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium mono-label text-muted-foreground uppercase">
+            <label className="mono-label text-muted-foreground">
               Places max (optionnel)
             </label>
             <input
@@ -378,7 +378,7 @@ export default function AdminEventsPage() {
         {/* Récurrence + Notification */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium mono-label text-muted-foreground uppercase">
+            <label className="mono-label text-muted-foreground">
               Récurrence
             </label>
             <select

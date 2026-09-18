@@ -18,6 +18,8 @@ export interface MemberRow {
   profileStatus: string;
   communityStatus: string;
   accessLane: string;
+  invitationStatus?: string;
+  source?: string | null;
   createdAt: string;
   adminNote?: string | null;
 }
@@ -45,6 +47,7 @@ const FILTER_KEYS = [
   "budget",
   "status",
   "lane",
+  "type",
 ] as const;
 
 function readInitialUrl(): {

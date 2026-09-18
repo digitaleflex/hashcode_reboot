@@ -45,6 +45,8 @@ export async function GET(req: NextRequest) {
     const budget = searchParams.get("budget");
     const status = searchParams.get("status");
     const lane = searchParams.get("lane");
+    const type = searchParams.get("type");
+    const invitationStatus = searchParams.get("invitationStatus");
     const q = searchParams.get("q");
 
     const where: Prisma.MemberWhereInput = {};
@@ -56,6 +58,9 @@ export async function GET(req: NextRequest) {
     if (budget) where.budgetRange = budget;
     if (status) where.profileStatus = status;
     if (lane) where.accessLane = lane;
+    if (invitationStatus) where.invitationStatus = invitationStatus;
+    else if (type === "registered") where.invitationStatus = "NOT_INVITED";
+    else if (type === "invited") where.invitationStatus = { not: "NOT_INVITED" };
     if (q)
       where.OR = [
         { firstName: { contains: q, mode: "insensitive" } },

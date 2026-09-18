@@ -259,7 +259,7 @@ export function SessionReminder() {
             <button
               type="button"
               onClick={() => clearRestoreNotice(true)}
-              className="min-h-[36px] rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-lime/60 focus-lime"
+              className="min-h-[44px] rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-lime/60 focus-lime"
             >
               Écarter
             </button>
@@ -288,7 +288,7 @@ export function SessionReminder() {
                 <button
                   type="button"
                   onClick={handleManualSave}
-                  className="inline-flex min-h-[36px] items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs text-foreground hover:border-lime/60 hover:text-lime focus-lime"
+                  className="inline-flex min-h-[44px] items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs text-foreground hover:border-lime/60 hover:text-lime focus-lime"
                 >
                   <Save className="size-3.5" aria-hidden />
                   Enregistrer le brouillon
@@ -296,7 +296,7 @@ export function SessionReminder() {
                 <button
                   type="button"
                   onClick={handleReconnect}
-                  className="inline-flex min-h-[36px] items-center gap-1.5 rounded-md border border-lime/50 bg-lime/10 px-3 py-1.5 text-xs font-medium text-lime hover:bg-lime/15 focus-lime"
+                  className="inline-flex min-h-[44px] items-center gap-1.5 rounded-md border border-lime/50 bg-lime/10 px-3 py-1.5 text-xs font-medium text-lime hover:bg-lime/15 focus-lime"
                 >
                   <RotateCcw className="size-3.5" aria-hidden />
                   Se reconnecter
@@ -304,7 +304,7 @@ export function SessionReminder() {
                 <button
                   type="button"
                   onClick={() => (showLast ? setDismissedLast(true) : setDismissedFirst(true))}
-                  className="min-h-[36px] rounded-md px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground focus-lime"
+                  className="min-h-[44px] rounded-md px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground focus-lime"
                 >
                   Plus tard
                 </button>

@@ -124,7 +124,9 @@ vers `/dashboard/settings`), `/dashboard` (statut, profil, prochaines étapes,
 agenda), `/dashboard/agenda` (RSVP going/maybe/cancelled, contrôle capacité),
 `/dashboard/profile` (vitrine + partage public `/profile/[id]`),
 `/dashboard/settings` (coordonnées, email, WhatsApp). Voir
-`docs/espace-membre.md` pour le détail complet.
+`docs/espace-membre.md` pour le détail complet, et
+`docs/interface-utilisateur.md` pour l'inventaire exhaustif de toute l'interface
+utilisateur (landing, profilage, auth, événements, dashboard).
 Middleware Edge : cookie name inline (`hashcode_session`), aucune dépendance
 lourde (pas de Prisma/DB dans le bundle Edge). Validation réelle via
 `getSession()` dans les API routes. Guard `TESTING=1` sur toutes les routes

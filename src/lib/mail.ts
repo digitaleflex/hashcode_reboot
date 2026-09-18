@@ -2,6 +2,20 @@
 // Ne journalise ni ne retourne JAMAIS de secret (RESEND_API_KEY / BREVO_API_KEY).
 
 import { db } from "@/lib/db";
+import {
+  MAIL_FONT,
+  escapeHtml,
+  emailShell,
+  monoLabel,
+} from "@/lib/email-templates/shell";
+import { resolveActiveTemplate } from "@/lib/email-templates/active";
+import {
+  REFERENCE_LABEL,
+  formatClock,
+  formatEventMoment,
+  localTimeNote,
+  safeTimeZone,
+} from "@/lib/events-timezone";
 
 const RESEND_URL = "https://api.resend.com/emails";
 const BREVO_URL = "https://api.brevo.com/v3/smtp/email";
@@ -18,22 +32,31 @@ export interface SendEmailInput {
    * Servent à filtrer les logs et à router les webhooks.
    */
   tags?: string[];
+  /**
+   * Catégorie d'email : utilisée par sendEmail() pour router le provider.
+   * - "marketing" → Brevo (primary) → Resend (fallback)
+   * - "transactional" → Resend (primary) → Brevo (fallback si BREVO_FALLBACK_ON_429=true)
+   * - "notification" → Resend (primary) — codes, accept/refuse, bounce
+   * - "code" → Resend (primary) — liens de connexion, OTP, magic link
+   */
+  category?:
+    | "marketing"
+    | "transactional"
+    | "notification"
+    | "code";
+
+  /**
+   * Forcer un provider spécifique (ex. Brevo pour les lots > 20). Si absent,
+   * le routage par catégorie s'applique. Un fallback automatique sur l'autre
+   * provider reste possible en cas de 429 (si BREVO_FALLBACK_ON_429=true).
+   */
+  forceProvider?: "resend" | "brevo";
 }
 
 export interface SendEmailResult {
   ok: boolean;
   id?: string;
   provider?: "resend" | "brevo";
-}
-
-/** Échappement HTML minimal pour les valeurs interpolées. */
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
 }
 
 /** Track email.sent in EmailEvent table (fire-and-forget). */
@@ -52,7 +75,11 @@ function categorizeEmail(subject: string): string {
   return "other";
 }
 
-async function trackEmailSent(to: string, subject: string): Promise<void> {
+async function trackEmailSent(
+  to: string,
+  subject: string,
+  provider: "resend" | "brevo",
+): Promise<void> {
   try {
     const member = await db.member.findUnique({
       where: { email: to },
@@ -64,6 +91,9 @@ async function trackEmailSent(to: string, subject: string): Promise<void> {
         memberId: member?.id ?? null,
         type: "email.sent",
         category: categorizeEmail(subject),
+        // Enregistré pour que le garde-fou de quota (email-budget) puisse
+        // compter les envois par provider en temps réel.
+        provider,
       },
     });
   } catch {
@@ -112,10 +142,10 @@ async function sendViaResend({
     try {
       const payload = (await res.json()) as { id?: unknown };
       const id = typeof payload.id === "string" ? payload.id : undefined;
-      trackEmailSent(to, subject).catch(() => {});
+      trackEmailSent(to, subject, "resend").catch(() => {});
       return id ? { ok: true, id, provider: "resend" } : { ok: true, provider: "resend" };
     } catch {
-      trackEmailSent(to, subject).catch(() => {});
+      trackEmailSent(to, subject, "resend").catch(() => {});
       return { ok: true, provider: "resend" };
     }
   } catch {
@@ -167,10 +197,10 @@ async function sendViaBrevo({
     try {
       const payload = (await res.json()) as { messageId?: unknown };
       const id = typeof payload.messageId === "string" ? payload.messageId : undefined;
-      trackEmailSent(to, subject).catch(() => {});
+      trackEmailSent(to, subject, "brevo").catch(() => {});
       return id ? { ok: true, id, provider: "brevo" } : { ok: true, provider: "brevo" };
     } catch {
-      trackEmailSent(to, subject).catch(() => {});
+      trackEmailSent(to, subject, "brevo").catch(() => {});
       return { ok: true, provider: "brevo" };
     }
   } catch {
@@ -179,9 +209,11 @@ async function sendViaBrevo({
 }
 
 /**
- * Envoi d'email avec stratégie de provider configurable :
- * - EMAIL_PROVIDER=brevo → Brevo (primary) → Resend (fallback systématique)
- * - défaut → Resend (primary) → Brevo (fallback si BREVO_FALLBACK_ON_429=true)
+ * Envoi d'email avec routage provider par catégorie :
+ * - category="marketing" → Brevo (primary) → Resend (fallback)
+ * - category="notification" / "code" → Resend (primary) ou Brevo si EMAIL_PROVIDER=brevo → fallback sur l'autre si BREVO_FALLBACK_ON_429=true
+ * - category="transactional" / défaut → Resend (primary) → Brevo (fallback si BREVO_FALLBACK_ON_429=true)
+ * - EMAIL_PROVIDER=brevo → Brevo prioritaire pour toutes les catégories (notification, code, transactional)
  * Ne lève jamais : toute erreur retourne { ok: false } silencieusement.
  */
 export async function sendEmail({
@@ -190,101 +222,88 @@ export async function sendEmail({
   html,
   text,
   tags,
+  category,
+  forceProvider,
 }: SendEmailInput): Promise<SendEmailResult> {
   const input = { to, subject, html, text, tags };
 
-  // 1. Brevo prioritaire (quota Resend atteint → bascule manuelle via env)
+  // ── Provider forcé (lots > 20 → Brevo) ────────────────────────────────
+  // Le routage par catégorie est court-circuité, mais le fallback 429 reste
+  // actif : si le provider forcé est en erreur, on tente l'autre.
+  if (forceProvider) {
+    const primary = forceProvider === "brevo" ? sendViaBrevo : sendViaResend;
+    const fallback = forceProvider === "brevo" ? sendViaResend : sendViaBrevo;
+    const result = await primary(input);
+    if (result.ok) return result;
+    if (process.env.BREVO_FALLBACK_ON_429 === "true") {
+      const fb = await fallback(input);
+      if (fb.ok) return fb;
+    }
+    return result;
+  }
+
+  // ── Routage par catégorie (par défaut) ─────────────────────────────────
+
+  // Notification / code → Resend en primary, ou Brevo si EMAIL_PROVIDER=brevo
+  if (category === "notification" || category === "code") {
+    const isBrevo = process.env.EMAIL_PROVIDER === "brevo";
+    const primary = isBrevo ? sendViaBrevo : sendViaResend;
+    const fallback = isBrevo ? sendViaResend : sendViaBrevo;
+    const primaryName = isBrevo ? "Brevo" : "Resend";
+    const fallbackName = isBrevo ? "Resend" : "Brevo";
+    const result = await primary(input);
+    if (result.ok) return result;
+    if (process.env.BREVO_FALLBACK_ON_429 === "true") {
+      if (process.env.NODE_ENV !== "production") {
+        console.info(`[Email] Basculement ${primaryName} → ${fallbackName} (fallback) pour`, to);
+      }
+      const fb = await fallback(input);
+      if (fb.ok) return fb;
+    }
+    return result;
+  }
+
+  // Marketing → Brevo primary, Resend fallback
+  if (category === "marketing") {
+    const brevoResult = await sendViaBrevo(input);
+    if (brevoResult.ok) return brevoResult;
+    if (process.env.NODE_ENV !== "production") {
+      console.info("[Email] Basculement Brevo → Resend pour", to);
+    }
+    const resendResult = await sendViaResend(input);
+    if (resendResult.ok) return resendResult;
+    return brevoResult;
+  }
+
+  // EMAIL_PROVIDER=brevo → Brevo prioritaire (sauf notification/code déjà traités)
   if (process.env.EMAIL_PROVIDER === "brevo") {
     const brevoResult = await sendViaBrevo(input);
     if (brevoResult.ok) {
       return brevoResult;
     }
-    // Fallback systématique vers Resend si Brevo échoue
     if (process.env.NODE_ENV !== "production") {
       console.info("[Email] Basculement Brevo → Resend pour", to);
     }
     return sendViaResend(input);
   }
 
-  // 2. Défaut : Resend (primary)
+  // Défaut : Resend (primary)
   const resendResult = await sendViaResend(input);
-
-  // Si Resend réussit, retourner le résultat
   if (resendResult.ok) {
     return resendResult;
   }
 
-  // 3. Vérifier si on doit basculer vers Brevo (fallback)
+  // Fallback vers Brevo si activé
   const fallbackOn429 = process.env.BREVO_FALLBACK_ON_429 === "true";
-
   if (fallbackOn429) {
-    // Essayer Brevo comme fallback
-    const brevoResult = await sendViaBrevo(input);
-
-    // Logger le basculement (en dev seulement)
     if (process.env.NODE_ENV !== "production") {
       console.info("[Brevo Fallback] Basculement Resend → Brevo pour", to);
     }
-
-    return brevoResult;
+    const brevoResult = await sendViaBrevo(input);
+    if (brevoResult.ok) return brevoResult;
   }
 
-  // 4. Sinon retourner l'erreur Resend (pas de fallback)
   return resendResult;
-}
-
-/* ------------------------------------------------------------------ */
-/* Templates — charte HASHCODE REBOOT                                  */
-/* LIME #C5F441 (accent rare) · VOID #0A0A0A · SURFACE #141414          */
-/* Texte #F8FAFC · Secondaire #94A3B8 · Police système (email-safe)     */
-/* Mise en page en tableaux, CSS 100% inline, max 600px.                */
-/* Header : wordmark 100% texte (aucune image externe, rend partout). */
-/* ------------------------------------------------------------------ */
-
-const MAIL_FONT =
-  "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
-
-/**
- * Coquille commune : fond VOID, carte SURFACE 600px, liseré lime,
- * header logo centré, footer sobre. `inner` = lignes <tr> du contenu.
- */
-function emailShell(preheader: string, inner: string): string {
-  return [
-    `<!doctype html>`,
-    `<html lang="fr">`,
-    `<body style="margin:0;padding:0;background-color:#0A0A0A;">`,
-    `<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;line-height:1px;font-size:1px;">${preheader}</div>`,
-    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0;padding:0;background-color:#0A0A0A;">`,
-    `<tr><td align="center" style="padding:32px 16px;">`,
-    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="width:100%;max-width:600px;background-color:#141414;border:1px solid #262626;border-radius:12px;overflow:hidden;">`,
-    // Liseré lime — accent rare, signature visuelle.
-    `<tr><td style="background-color:#C5F441;font-size:0;line-height:0;height:3px;">&nbsp;</td></tr>`,
-    // Header wordmark 100% texte — aucun asset externe.
-    `<tr><td align="center" style="padding:28px 32px 0 32px;background-color:#141414;">`,
-    `<div style="font-family:${MAIL_FONT};font-size:24px;font-weight:800;font-style:italic;color:#F8FAFC;letter-spacing:0.5px;line-height:1;text-align:center;">HASHCODE</div>`,
-    `<div style="font-family:${MAIL_FONT};font-size:12px;font-weight:700;letter-spacing:4px;color:#C5F441;line-height:1;text-align:center;margin:6px 0 0 0;padding-left:4px;">REBOOT</div>`,
-    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:12px auto 0 auto;">`,
-    `<tr><td width="48" height="2" bgcolor="#C5F441" style="width:48px;height:2px;background-color:#C5F441;font-size:0;line-height:0;">&nbsp;</td></tr>`,
-    `</table>`,
-    `</td></tr>`,
-    inner,
-    // Footer sobre, dans la carte.
-    `<tr><td style="padding:0 32px 28px 32px;background-color:#141414;">`,
-    `<div style="border-top:1px solid #262626;padding-top:16px;">`,
-    `<p style="margin:0;font-family:${MAIL_FONT};font-size:12px;line-height:1.6;color:#94A3B8;text-align:center;">HASHCODE · REBOOT — Une nouvelle génération de la communauté commence.</p>`,
-    `<p style="margin:8px 0 0 0;font-family:${MAIL_FONT};font-size:11px;line-height:1.6;color:#64748B;text-align:center;">Tu reçois cet e-mail car tu t&apos;es inscrit sur reboot.joinhashcode.com.</p>`,
-    `</div>`,
-    `</td></tr>`,
-    `</table>`,
-    `</td></tr>`,
-    `</table>`,
-    `</body>`,
-    `</html>`,
-  ].join("");
-}
-
-function monoLabel(label: string): string {
-  return `<div style="font-family:${MAIL_FONT};font-size:11px;font-weight:700;letter-spacing:2px;color:#C5F441;margin:0 0 12px 0;">${label}</div>`;
 }
 
 export interface WelcomeEmailInput {
@@ -346,30 +365,41 @@ export async function sendWelcomeEmail({
     "Ton profil est validé — bienvenue dans HASHCODE REBOOT.",
     inner,
   );
-  return sendEmail({ to, subject, html, text });
+  // Template actif en base ? Sinon le HTML du code fait foi (repli sûr).
+  const active = await resolveActiveTemplate("welcome", { firstName: name, archetype: archetype.trim() || "Membre HASHCODE" });
+
+  return sendEmail({
+    to,
+    subject: active?.subject ?? subject,
+    html: active?.html ?? html,
+    text: active?.text ?? text,
+    category: "marketing",
+  });
 }
 
 export interface InvitationEmailInput {
   to: string;
   firstName: string;
-  whatsappUrl: string;
+  dashboardUrl: string;
 }
 
-/** Mail d'invitation avec le lien WhatsApp en bouton cliquable. */
+/** Mail d'invitation : passe toujours par le site (espace membre tracé), jamais de lien WhatsApp direct. */
 export async function sendInvitationEmail({
   to,
   firstName,
-  whatsappUrl,
+  dashboardUrl,
 }: InvitationEmailInput): Promise<SendEmailResult> {
   const name = firstName.trim() || "bienvenue";
   const safeName = escapeHtml(name);
-  const safeUrl = escapeHtml(whatsappUrl);
+  const safeUrl = escapeHtml(dashboardUrl);
   const subject = "Ton invitation — rejoins la communauté HASHCODE";
   const text = [
     `Bonjour ${name},`,
     "",
-    "Bonne nouvelle : ton invitation est prête. Rejoins la communauté officielle HASHCODE sur WhatsApp :",
-    whatsappUrl,
+    "Bonne nouvelle : ton invitation est prête. Accède à ton espace membre HASHCODE :",
+    dashboardUrl,
+    "",
+    "Depuis ton espace, tu pourras rejoindre le groupe WhatsApp officiel en 1 clic.",
     "",
     "En arrivant, présente-toi brièvement et partage ton objectif des 3 prochains mois. C'est comme ça que les premiers échanges commencent.",
     "",
@@ -384,13 +414,13 @@ export async function sendInvitationEmail({
     `<tr><td style="padding:24px 32px 28px 32px;background-color:#141414;">`,
     monoLabel("INVITATION PRÊTE"),
     `<h1 style="margin:0 0 12px 0;font-family:${MAIL_FONT};font-size:24px;line-height:1.25;font-weight:800;color:#F8FAFC;">Rejoins la communauté officielle, ${safeName}.</h1>`,
-    `<p style="margin:0 0 20px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">Bonne nouvelle : ton invitation est prête. Il ne te reste qu&apos;un pas — rejoindre le groupe WhatsApp officiel.</p>`,
+    `<p style="margin:0 0 20px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">Bonne nouvelle : ton invitation est prête. Accède à ton espace membre, puis rejoins le groupe WhatsApp officiel en 1 clic.</p>`,
     // Bouton lime, centré, bulletproof (table + padding sur td pour Outlook).
     `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;">`,
     `<tr><td align="center" style="padding:0;">`,
     `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">`,
     `<tr><td align="center" bgcolor="#C5F441" style="background-color:#C5F441;border-radius:8px;padding:14px 32px;">`,
-    `<a href="${safeUrl}" target="_blank" rel="noopener" style="font-family:${MAIL_FONT};font-size:16px;font-weight:800;color:#0A0A0A;text-decoration:none;display:inline-block;">Rejoindre le groupe WhatsApp</a>`,
+    `<a href="${safeUrl}" target="_blank" rel="noopener" style="font-family:${MAIL_FONT};font-size:16px;font-weight:800;color:#0A0A0A;text-decoration:none;display:inline-block;">Accéder à mon espace</a>`,
     `</td></tr>`,
     `</table>`,
     `</td></tr>`,
@@ -410,7 +440,16 @@ export async function sendInvitationEmail({
     "Ton invitation est prête — rejoins le groupe WhatsApp officiel.",
     inner,
   );
-  return sendEmail({ to, subject, html, text });
+  // Template actif en base ? Sinon le HTML du code fait foi (repli sûr).
+  const active = await resolveActiveTemplate("invitation", { firstName: name, dashboardUrl });
+
+  return sendEmail({
+    to,
+    subject: active?.subject ?? subject,
+    html: active?.html ?? html,
+    text: active?.text ?? text,
+    category: "marketing",
+  });
 }
 
 /* ── Waitlist Email ─────────────────────────────────────────────────────── */
@@ -464,7 +503,16 @@ export async function sendWaitlistEmail({
     "Ton inscription est confirmée — ton profil est en cours de validation.",
     inner,
   );
-  return sendEmail({ to, subject, html, text });
+  // Template actif en base ? Sinon le HTML du code fait foi (repli sûr).
+  const active = await resolveActiveTemplate("waitlist", { firstName: name });
+
+  return sendEmail({
+    to,
+    subject: active?.subject ?? subject,
+    html: active?.html ?? html,
+    text: active?.text ?? text,
+    category: "marketing",
+  });
 }
 
 /* ── Engagement Email ───────────────────────────────────────────────────── */
@@ -480,6 +528,7 @@ export async function sendEngagementEmail({
 }: EngagementEmailInput): Promise<SendEmailResult> {
   const name = firstName.trim() || "member";
   const safeName = escapeHtml(name);
+  const joinUrl = getCommunityJoinUrlForEmail();
   const subject = "On t'attend sur HASHCODE — rejoins le groupe";
   const text = [
     `Bonjour ${name},`,
@@ -488,8 +537,8 @@ export async function sendEngagementEmail({
     "",
     "Tu l'as peut-être manquée ? La communauté est active et on t'attend pour les prochaines sessions.",
     "",
-    "Rejoins le groupe ici :",
-    process.env.WHATSAPP_URL ?? "https://chat.whatsapp.com/join",
+    "Rejoins le groupe ici (via ton espace membre) :",
+    joinUrl,
     "",
     "À tout de suite dans le groupe,",
     "L'équipe HASHCODE",
@@ -503,7 +552,7 @@ export async function sendEngagementEmail({
     `<tr><td align="center" style="padding:0;">`,
     `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">`,
     `<tr><td align="center" bgcolor="#C5F441" style="background-color:#C5F441;border-radius:8px;padding:14px 32px;">`,
-    `<a href="${escapeHtml(process.env.WHATSAPP_URL ?? "https://chat.whatsapp.com/join")}" target="_blank" rel="noopener" style="font-family:${MAIL_FONT};font-size:16px;font-weight:800;color:#0A0A0A;text-decoration:none;display:inline-block;">Rejoindre maintenant</a>`,
+    `<a href="${escapeHtml(joinUrl)}" target="_blank" rel="noopener" style="font-family:${MAIL_FONT};font-size:16px;font-weight:800;color:#0A0A0A;text-decoration:none;display:inline-block;">Rejoindre maintenant</a>`,
     `</td></tr></table>`,
     `</td></tr></table>`,
     `<p style="margin:0;font-family:${MAIL_FONT};font-size:13px;line-height:1.6;color:#94A3B8;text-align:center;">La communauté avance sans toi — retrouve les derniers membres et partage ton objectif.</p>`,
@@ -514,7 +563,16 @@ export async function sendEngagementEmail({
     "On t'attend — rejoins le groupe WhatsApp officiel.",
     inner,
   );
-  return sendEmail({ to, subject, html, text });
+  // Template actif en base ? Sinon le HTML du code fait foi (repli sûr).
+  const active = await resolveActiveTemplate("engagement", { firstName: name, joinUrl });
+
+  return sendEmail({
+    to,
+    subject: active?.subject ?? subject,
+    html: active?.html ?? html,
+    text: active?.text ?? text,
+    category: "marketing",
+  });
 }
 
 /* ── Vérification Email (lien magique 1-clic) ────────────────────────────── */
@@ -569,7 +627,7 @@ export async function sendVerificationLinkEmail({
     "Vérifie ton email HASHCODE — 1 clic, valide 24 h.",
     inner,
   );
-  return sendEmail({ to, subject, html, text });
+  return sendEmail({ to, subject, html, text, category: "code" });
 }
 
 /* ── Relance Email (profil abandonné) ────────────────────────────────────── */
@@ -578,12 +636,14 @@ export interface RelanceEmailInput {
   to: string;
   firstName: string;
   lastQuestionId?: string;
+  forceProvider?: "resend" | "brevo";
 }
 
 export async function sendRelanceEmail({
   to,
   firstName,
   lastQuestionId,
+  forceProvider,
 }: RelanceEmailInput): Promise<SendEmailResult> {
   const name = firstName.trim() || "toi";
   const safeName = escapeHtml(name);
@@ -593,7 +653,7 @@ export async function sendRelanceEmail({
   const text = [
     `Bonjour ${name},`,
     "",
-    "Il y a un jour, tu commençais ton profil HASHCODE mais tu es parti avant de le finir.",
+    "Il y a quelques jours, tu commençais ton profil HASHCODE mais tu es parti avant de le finir.",
     "",
     "Ton profil est presque prêt. Reprends là où tu t'étais arrêté :",
     resumeUrl,
@@ -607,7 +667,7 @@ export async function sendRelanceEmail({
     `<tr><td style="padding:24px 32px 28px 32px;background-color:#141414;">`,
     monoLabel("TON PROFIL T'ATTEND"),
     `<h1 style="margin:0 0 12px 0;font-family:${MAIL_FONT};font-size:24px;line-height:1.25;font-weight:800;color:#F8FAFC;">Tu es à quelques clics de ton accès ${safeName}.</h1>`,
-    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">Il y a un jour, tu commençais ton profil HASHCODE mais tu es parti avant de le finir. Tes réponses sont enregistrées — tu reprends exactement où tu t'es arrêté.</p>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">Il y a quelques jours, tu commençais ton profil HASHCODE mais tu es parti avant de le finir. Tes réponses sont enregistrées — tu reprends exactement où tu t'es arrêté.</p>`,
     `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;">`,
     `<tr><td align="center" style="padding:0;">`,
     `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">`,
@@ -627,7 +687,17 @@ export async function sendRelanceEmail({
     "Ton profil HASHCODE t'attend encore — finis-le en 1 min.",
     inner,
   );
-  return sendEmail({ to, subject, html, text });
+  // Template actif en base ? Sinon le HTML du code fait foi (repli sûr).
+  const active = await resolveActiveTemplate("relance", { firstName: name, resumeUrl });
+
+  return sendEmail({
+    to,
+    subject: active?.subject ?? subject,
+    html: active?.html ?? html,
+    text: active?.text ?? text,
+    category: "marketing",
+    forceProvider,
+  });
 }
 
 /* ── Magic Link / Login OTP ────────────────────────────────────────────────── */
@@ -692,7 +762,7 @@ export async function sendMagicLinkEmail({
     "Ton code de connexion HASHCODE — valide 15 minutes.",
     inner,
   );
-  return sendEmail({ to, subject, html, text });
+  return sendEmail({ to, subject, html, text, category: "code" });
 }
 
 /* ── Status change notification (PENDING → APPROVED / WAITLIST / REJECTED) ── */
@@ -713,8 +783,9 @@ const STATUS_LABEL: Record<StatusChangeType, string> = {
 };
 
 // Helpers d'URL pour les emails (toujours absolu, jamais localhost)
-function getWhatsAppUrlForEmail(): string {
-  return process.env.WHATSAPP_URL || process.env.NEXT_PUBLIC_WHATSAPP_URL || "https://chat.whatsapp.com/JwJGgoQpS46I9r81QPrCs4";
+function getCommunityJoinUrlForEmail(): string {
+  const base = process.env.NEXT_PUBLIC_SITE_URL || "https://reboot.joinhashcode.com";
+  return `${base}/login?next=${encodeURIComponent("/api/community/join")}`;
 }
 function getAccountUrlForEmail(): string {
   const base = process.env.NEXT_PUBLIC_SITE_URL || "https://reboot.joinhashcode.com";
@@ -758,8 +829,8 @@ export async function sendStatusChangeEmail({
       "",
       `${archLine} Bienvenue dans la communauté.`,
       "",
-      "Voici ton lien direct pour rejoindre le groupe WhatsApp officiel :",
-      getWhatsAppUrlForEmail(),
+      "Voici ton lien pour rejoindre le groupe WhatsApp officiel (via ton espace membre, suivi) :",
+      getCommunityJoinUrlForEmail(),
       "",
       "Tu y retrouveras :",
       "• Les sessions pratiques de la communauté",
@@ -804,10 +875,9 @@ export async function sendStatusChangeEmail({
     inner = rejectedHtml(safeName);
   }
 
-  return sendEmail({ to, subject, html: emailShell(subject, inner), text });
-}
-
-function approvedHtml(safeName: string, archetype: string | null | undefined) {
+  return sendEmail({ to, subject, html: emailShell(subject, inner), text, category: "notification" });
+}function approvedHtml(safeName: string, archetype: string | null | undefined) {
+  const joinUrl = escapeHtml(getCommunityJoinUrlForEmail());
   const archLine = archetype
     ? `Profil confirmé : <strong style="color:#C5F441;">${escapeHtml(archetype)}</strong>.`
     : "Ton profil a été examiné et confirmé.";
@@ -815,10 +885,10 @@ function approvedHtml(safeName: string, archetype: string | null | undefined) {
     `<tr><td style="padding:24px 32px 28px 32px;background-color:#141414;">`,
     monoLabel("VALIDÉ"),
     `<h1 style="margin:0 0 12px 0;font-family:${MAIL_FONT};font-size:24px;line-height:1.25;font-weight:800;color:#F8FAFC;">Bienvenue, ${safeName}.</h1>`,
-    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">${archLine} Voici ton lien direct pour rejoindre le groupe WhatsApp officiel :</p>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">${archLine} Voici ton lien pour rejoindre le groupe WhatsApp officiel :</p>`,
     `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;background-color:#0A0A0A;border:1px solid #333B1E;border-radius:8px;">`,
     `<tr><td align="center" style="padding:16px 12px;">`,
-    `<a href="${escapeHtml(getWhatsAppUrlForEmail())}" style="display:inline-block;padding:12px 24px;background-color:#C5F441;color:#0A0A0A;text-decoration:none;font-family:${MAIL_FONT};font-size:14px;font-weight:700;border-radius:6px;">Rejoindre le groupe WhatsApp</a>`,
+    `<a href="${joinUrl}" style="display:inline-block;padding:12px 24px;background-color:#C5F441;color:#0A0A0A;text-decoration:none;font-family:${MAIL_FONT};font-size:14px;font-weight:700;border-radius:6px;">Rejoindre le groupe WhatsApp</a>`,
     `</td></tr></table>`,
     `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;background-color:#0A0A0A;border:1px solid #262626;border-radius:8px;">`,
     `<tr><td style="padding:14px 16px;">`,
@@ -860,6 +930,7 @@ export interface DashboardInviteEmailInput {
   firstName: string;
   /** Lien magique 1-clic vers /verify-otp (valide 72 h). */
   url: string;
+  forceProvider?: "resend" | "brevo";
 }
 
 /**
@@ -870,6 +941,7 @@ export async function sendDashboardInviteEmail({
   to,
   firstName,
   url,
+  forceProvider,
 }: DashboardInviteEmailInput): Promise<SendEmailResult> {
   const name = firstName.trim() || "toi";
   const safeName = escapeHtml(name);
@@ -922,7 +994,17 @@ export async function sendDashboardInviteEmail({
     "Ton espace membre HASHCODE est en ligne — connecte-toi en 1 clic.",
     inner,
   );
-  return sendEmail({ to, subject, html, text });
+  // Template actif en base ? Sinon le HTML du code fait foi (repli sûr).
+  const active = await resolveActiveTemplate("dashboard_invite", { firstName: name, url: url.trim(), loginUrl: getLoginUrlForEmail() });
+
+  return sendEmail({
+    to,
+    subject: active?.subject ?? subject,
+    html: active?.html ?? html,
+    text: active?.text ?? text,
+    category: "marketing",
+    forceProvider,
+  });
 }
 
 /* ── Rejoin Email (anciens membres → magic link 1-clic) ──────────────────── */
@@ -931,6 +1013,7 @@ export interface RejoinEmailInput {
   to: string;
   firstName: string;
   url: string;
+  forceProvider?: "resend" | "brevo";
 }
 
 /**
@@ -941,6 +1024,7 @@ export async function sendRejoinEmail({
   to,
   firstName,
   url,
+  forceProvider,
 }: RejoinEmailInput): Promise<SendEmailResult> {
   const name = firstName.trim() || "toi";
   const safeName = escapeHtml(name);
@@ -991,7 +1075,17 @@ export async function sendRejoinEmail({
     "Rejoins HASHCODE REBOOT — ton compte t'attend.",
     inner,
   );
-  return sendEmail({ to, subject, html, text });
+  // Template actif en base ? Sinon le HTML du code fait foi (repli sûr).
+  const active = await resolveActiveTemplate("rejoin", { firstName: name, url: url.trim() });
+
+  return sendEmail({
+    to,
+    subject: active?.subject ?? subject,
+    html: active?.html ?? html,
+    text: active?.text ?? text,
+    category: "marketing",
+    forceProvider,
+  });
 }
 
 /* ── Invitation avec Accepter/Refuser ──────────────────────────────────── */
@@ -1055,7 +1149,17 @@ export async function sendInvitationWithActions({
     "Tu es invité à rejoindre HASHCODE REBOOT — accepte ou refuse.",
     inner,
   );
-  return sendEmail({ to, subject, html, text, tags: ["invitation"] });
+  // Template actif en base ? Sinon le HTML du code fait foi (repli sûr).
+  const active = await resolveActiveTemplate("invitation_actions", { firstName: name, acceptUrl, refuseUrl });
+
+  return sendEmail({
+    to,
+    subject: active?.subject ?? subject,
+    html: active?.html ?? html,
+    text: active?.text ?? text,
+    tags: ["invitation"],
+    category: "marketing",
+  });
 }
 
 /* ── Notification admin : membre a accepté ─────────────────────────────── */
@@ -1093,7 +1197,7 @@ export async function sendAcceptNotificationEmail({
     `</td></tr>`,
   ].join("");
   const html = emailShell(subject, inner);
-  return sendEmail({ to: adminEmail, subject, html, text });
+  return sendEmail({ to: adminEmail, subject, html, text, category: "notification" });
 }
 
 /* ── Notification admin : membre a refuse ──────────────────────────────── */
@@ -1139,7 +1243,7 @@ export async function sendRefuseNotificationEmail({
     `</td></tr>`,
   ].join("");
   const html = emailShell(subject, inner);
-  return sendEmail({ to: adminEmail, subject, html, text });
+  return sendEmail({ to: adminEmail, subject, html, text, category: "notification" });
 }
 
 /* ── Relance invitation (J+7) ──────────────────────────────────────────── */
@@ -1189,7 +1293,17 @@ export async function sendInviteRelanceEmail({
     "On t'attend toujours — rejoins HASHCODE REBOOT.",
     inner,
   );
-  return sendEmail({ to, subject, html, text, tags: ["invitation", "relance"] });
+  // Template actif en base ? Sinon le HTML du code fait foi (repli sûr).
+  const active = await resolveActiveTemplate("invite_relance", { firstName: name, acceptUrl });
+
+  return sendEmail({
+    to,
+    subject: active?.subject ?? subject,
+    html: active?.html ?? html,
+    text: active?.text ?? text,
+    tags: ["invitation", "relance"],
+    category: "marketing",
+  });
 }
 
 /* ── Notification admin : email bounce ──────────────────────────────────── */
@@ -1224,7 +1338,7 @@ export async function sendBouncedNotificationEmail({
     `</td></tr>`,
   ].join("");
   const html = emailShell(subject, inner);
-  return sendEmail({ to: adminEmail, subject, html, text });
+  return sendEmail({ to: adminEmail, subject, html, text, category: "notification" });
 }
 
 /**
@@ -1236,6 +1350,8 @@ export async function sendEventNotificationEmail({
   firstName,
   event,
   rsvpUrl,
+  timeZone,
+  forceProvider,
 }: {
   to: string;
   firstName: string;
@@ -1250,6 +1366,17 @@ export async function sendEventNotificationEmail({
     level: string | null;
   };
   rsvpUrl: string;
+  /**
+   * Zone IANA du destinataire (cf. `zoneForCountry`). Absente = fuseau de
+   * référence. Indispensable : sans elle, l'heure est rendue dans le fuseau
+   * du serveur (UTC sur Vercel), donc fausse pour la quasi-totalité des
+   * membres — c'est le bug que ce paramètre corrige.
+   */
+  timeZone?: string | null;
+  /**
+   * Forcer un provider (ex. Brevo pour les lots > 20). Transmis à sendEmail.
+   */
+  forceProvider?: "resend" | "brevo";
 }): Promise<SendEmailResult> {
   const name = firstName.trim() || "membre";
   const safeName = escapeHtml(name);
@@ -1258,21 +1385,20 @@ export async function sendEventNotificationEmail({
   const safeDomain = event.domain ? escapeHtml(event.domain) : "";
   const safeLevel = event.level ? escapeHtml(event.level) : "";
 
+  const zone = safeTimeZone(timeZone);
   const subject = "Nouvel événement HASHCODE REBOOT — " + safeTitle;
-  const startsStr = event.startsAt.toLocaleDateString("fr-FR", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+
+  // Rendu dans le fuseau du destinataire, au format exact de l'affichage web
+  // (« samedi 19 septembre à 20:00 ») : email et page ne peuvent plus se
+  // contredire.
+  const startsStr = formatEventMoment(event.startsAt, zone);
   const endsStr =
     event.endsAt && event.endsAt !== event.startsAt
-      ? event.endsAt.toLocaleDateString("fr-FR", {
-          hour: "2-digit",
-          minute: "2-digit",
-        })
+      ? formatClock(event.endsAt, zone)
       : null;
+  // Précision ajoutée seulement si le destinataire lit une heure différente.
+  const tzNote = localTimeNote(event.startsAt, zone);
+  const safeTzNote = tzNote ? escapeHtml(tzNote) : null;
 
   const text = [
     `Bonjour ${name},`,
@@ -1285,6 +1411,7 @@ export async function sendEventNotificationEmail({
     safeLevel && `Niveau : ${safeLevel}`,
     `Date : ${startsStr}`,
     endsStr && `Fin : ${endsStr}`,
+    tzNote && tzNote,
     event.location && `Lieu : ${event.location}`,
     event.description && `Description : ${event.description}`,
     "",
@@ -1308,8 +1435,9 @@ export async function sendEventNotificationEmail({
     safeLevel && `<div style="font-family:${MAIL_FONT};font-size:11px;font-weight:700;letter-spacing:1px;color:#94A3B8;margin:2px 0 0 0;">Niveau : ${safeLevel}</div>`,
     `<div style="font-family:${MAIL_FONT};font-size:11px;font-weight:700;letter-spacing:2px;color:#94A3B8;margin:4px 0 0 0;">Date : ${startsStr}</div>`,
     endsStr && `<div style="font-family:${MAIL_FONT};font-size:11px;font-weight:700;letter-spacing:2px;color:#94A3B8;margin:2px 0 0 0;">Fin : ${endsStr}</div>`,
-    event.location && `<div style="font-family:${MAIL_FONT};font-size:11px;font-weight:700;letter-spacing:2px;color:#94A3B8;margin:2px 0 0 0;">Lieu : ${event.location}</div>`,
-    event.description && `<div style="font-family:${MAIL_FONT};font-size:11px;line-height:1.5;color:#F8FAFC;margin:4px 0 0 0;">${event.description}</div>`,
+    safeTzNote && `<div style="font-family:${MAIL_FONT};font-size:11px;line-height:1.5;color:#64748B;margin:6px 0 0 0;">${safeTzNote}</div>`,
+    event.location && `<div style="font-family:${MAIL_FONT};font-size:11px;font-weight:700;letter-spacing:2px;color:#94A3B8;margin:2px 0 0 0;">Lieu : ${escapeHtml(event.location)}</div>`,
+    event.description && `<div style="font-family:${MAIL_FONT};font-size:11px;line-height:1.5;color:#F8FAFC;margin:4px 0 0 0;">${escapeHtml(event.description)}</div>`,
     `</td></tr>`,
     `</table>`,
     `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:14px;line-height:1.65;color:#94A3B8;">Vous pouvez vous inscrire (RSVP) ici : <a href="${escapeHtml(rsvpUrl)}" style="color:#C5F441;">${rsvpUrl}</a></p>`,
@@ -1318,5 +1446,101 @@ export async function sendEventNotificationEmail({
     `</td></tr>`,
   ].join("");
 
-  return sendEmail({ to, subject, html: emailShell(subject, inner), text });
+  return sendEmail({ to, subject, html: emailShell(subject, inner), text, category: "notification" });
+}
+
+/* ── Relance automatique d'événement (J−3 / J−1 / H−1) ──────────────────── */
+
+const REMINDER_SUBJECTS: Record<string, string> = {
+  "J-3": "Dans 3 jours",
+  "J-1": "Demain",
+  "H-1": "C'est dans 1 heure !",
+};
+
+const REMINDER_LABELS: Record<string, string> = {
+  "J-3": "RAPPEL",
+  "J-1": "DEMAIN",
+  "H-1": "DANS 1 HEURE",
+};
+
+export interface EventReminderEmailInput {
+  to: string;
+  firstName: string;
+  event: {
+    title: string;
+    startsAt: Date;
+    location: string | null;
+    url: string | null;
+  };
+  rsvpUrl: string;
+  offsetLabel: string;
+  timeZone?: string | null;
+  forceProvider?: "resend" | "brevo";
+}
+
+export async function sendEventReminderEmail({
+  to,
+  firstName,
+  event,
+  rsvpUrl,
+  offsetLabel,
+  timeZone,
+  forceProvider,
+}: EventReminderEmailInput): Promise<SendEmailResult> {
+  const name = firstName.trim() || "membre";
+  const safeName = escapeHtml(name);
+  const safeTitle = escapeHtml(event.title);
+  const zone = safeTimeZone(timeZone);
+  const startsStr = formatEventMoment(event.startsAt, zone);
+  const tzNote = localTimeNote(event.startsAt, zone);
+  const safeTzNote = tzNote ? escapeHtml(tzNote) : null;
+
+  const subjectPrefix = REMINDER_SUBJECTS[offsetLabel] ?? "Rappel";
+  const subject = `${subjectPrefix} — ${safeTitle}`;
+  const label = REMINDER_LABELS[offsetLabel] ?? "RAPPEL";
+
+  const text = [
+    `Bonjour ${name},`,
+    "",
+    `Rappel : ${safeTitle}`,
+    "",
+    `Date : ${startsStr}`,
+    event.location && `Lieu : ${event.location}`,
+    tzNote && tzNote,
+    "",
+    event.url ? `Rejoindre : ${event.url}` : null,
+    `Inscription / détails : ${rsvpUrl}`,
+    "",
+    "À bientôt sur HASHCODE REBOOT !",
+    "",
+    "HASHCODE · REBOOT",
+  ].filter(Boolean).join("\n");
+
+  const inner = [
+    `<tr><td style="padding:24px 32px 28px 32px;background-color:#141414;">`,
+    monoLabel(label),
+    `<h1 style="margin:0 0 12px 0;font-family:${MAIL_FONT};font-size:24px;line-height:1.25;font-weight:800;color:#F8FAFC;">${safeTitle}</h1>`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;background-color:#0A0A0A;border:1px solid #333B1E;border-radius:8px;">`,
+    `<tr><td style="padding:14px 16px;">`,
+    `<div style="font-family:${MAIL_FONT};font-size:11px;font-weight:700;letter-spacing:2px;color:#94A3B8;margin:0 0 4px 0;">${offsetLabel}</div>`,
+    `<div style="font-family:${MAIL_FONT};font-size:16px;font-weight:700;color:#C5F441;margin:0;">${startsStr}</div>`,
+    safeTzNote && `<div style="font-family:${MAIL_FONT};font-size:11px;line-height:1.5;color:#64748B;margin:6px 0 0 0;">${safeTzNote}</div>`,
+    event.location && `<div style="font-family:${MAIL_FONT};font-size:11px;font-weight:700;letter-spacing:1px;color:#94A3B8;margin:4px 0 0 0;">Lieu : ${escapeHtml(event.location)}</div>`,
+    `</td></tr>`,
+    `</table>`,
+    // Pour H-1 : lien Meet en gros bouton. Pour J-3/J-1 : lien RSVP.
+    offsetLabel === "H-1" && event.url
+      ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;">` +
+        `<tr><td align="center">` +
+        `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">` +
+        `<tr><td align="center" bgcolor="#C5F441" style="background-color:#C5F441;border-radius:8px;padding:14px 32px;">` +
+        `<a href="${escapeHtml(event.url)}" target="_blank" rel="noopener" style="font-family:${MAIL_FONT};font-size:16px;font-weight:800;color:#0A0A0A;text-decoration:none;display:inline-block;">Rejoindre maintenant</a>` +
+        `</td></tr></table></td></tr></table>`
+      : `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:14px;line-height:1.65;color:#94A3B8;">Voir les détails et s'inscrire : <a href="${escapeHtml(rsvpUrl)}" style="color:#C5F441;">${rsvpUrl}</a></p>`,
+    `<p style="margin:0;font-family:${MAIL_FONT};font-size:12px;line-height:1.6;color:#64748B;">À bientôt sur HASHCODE REBOOT !</p>`,
+    `<p style="margin:8px 0 0 0;font-family:${MAIL_FONT};font-size:11px;line-height:1.6;color:#64748B;">HASHCODE · REBOOT — Une nouvelle génération de la communauté commence.</p>`,
+    `</td></tr>`,
+  ].filter(Boolean).join("");
+
+  return sendEmail({ to, subject, html: emailShell(subject, inner), text, category: "notification", forceProvider });
 }

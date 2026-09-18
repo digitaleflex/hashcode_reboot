@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { isAdminAuthed } from "@/lib/admin-auth";
+import { requireAdminRole, checkCSRF } from "@/lib/admin-auth";
+import { blockIfTesting } from "@/lib/test-guard";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { generateOtp, hashOtp } from "@/lib/account-otp";
 import { createPendingSession } from "@/lib/account-auth";
 import { sendDashboardInviteEmail } from "@/lib/mail";
+import { logMemberEmail } from "@/lib/member-email-log";
+import { planBatch } from "@/lib/email-budget";
 
 export const runtime = "nodejs";
 
@@ -36,10 +40,21 @@ const bodySchema = z.object({
  *   Rappeler avec offset=nextOffset jusqu'à done=true.
  */
 export async function POST(req: NextRequest) {
-  if (!isAdminAuthed(req)) {
+  const blocked = blockIfTesting();
+  if (blocked) return blocked;
+
+  // Envoi de masse : rôle `operator` exigé + CSRF (défense en profondeur
+  // avec SameSite=Lax, comme les 9 autres routes d'écriture admin).
+  if (!requireAdminRole(req, "operator")) {
     return NextResponse.json(
-      { error: "Non autorisé.", code: "UNAUTHORIZED" },
-      { status: 401 },
+      { error: "Accès refusé. Rôle operator requis.", code: "FORBIDDEN" },
+      { status: 403 },
+    );
+  }
+  if (!checkCSRF(req)) {
+    return NextResponse.json(
+      { error: "CSRF validation failed.", code: "CSRF_FAILED" },
+      { status: 403 },
     );
   }
 
@@ -70,22 +85,34 @@ export async function POST(req: NextRequest) {
       { status: 422 },
     );
   }
-  const { confirm, limit, offset } = parsed.data;
+  const { confirm, limit } = parsed.data;
 
-  const where = { deletedAt: null, profileStatus: "APPROVED" } as const;
+  // Anti-doublon : seuls les APPROVED n'ayant jamais reçu l'annonce.
+  // (L'offset est conservé pour compatibilité mais ignoré : la sélection
+  // se fait sur l'absence de log, donc rejouer est sans risque.)
+  const where: Prisma.MemberWhereInput = {
+    deletedAt: null,
+    profileStatus: "APPROVED",
+    NOT: { emailLogs: { some: { kind: "annonce" } } },
+  };
   const total = await db.member.count({ where });
 
   if (!confirm) {
-    return NextResponse.json({ dryRun: true, total, limit, offset });
+    return NextResponse.json({ dryRun: true, total, limit });
   }
 
   const members = await db.member.findMany({
     where,
     orderBy: { createdAt: "asc" },
-    skip: offset,
     take: limit,
     select: { id: true, email: true, firstName: true },
   });
+
+  // Garde-fou : vérifier le budget avant d'envoyer. Si le lot dépasse le quota,
+  // on envoie uniquement ce qui est autorisé, le reste est reporté (pas marqué).
+  const plan = await planBatch({ category: "marketing", requested: members.length });
+  const toSend = members.slice(0, plan.allowed);
+  const deferred = members.length - plan.allowed;
 
   const base =
     process.env.NEXT_PUBLIC_SITE_URL ||
@@ -95,7 +122,7 @@ export async function POST(req: NextRequest) {
   let sent = 0;
   const failed: string[] = [];
 
-  for (const member of members) {
+  for (const member of toSend) {
     try {
       // Invalider les sessions OTP en attente (anti double-code), comme /request-magic-link.
       await db.memberSession
@@ -120,9 +147,17 @@ export async function POST(req: NextRequest) {
         to: member.email,
         firstName: member.firstName || "toi",
         url,
+        forceProvider: plan.provider,
       });
       if (res.ok) {
         sent += 1;
+        await logMemberEmail({
+          memberId: member.id,
+          email: member.email,
+          kind: "annonce",
+          provider: res.provider,
+          providerId: res.id,
+        });
       } else {
         failed.push(member.email);
       }
@@ -137,20 +172,24 @@ export async function POST(req: NextRequest) {
     await db.analyticsEvent.create({
       data: {
         type: "admin_announce_dashboard",
-        ref: `sent=${sent} failed=${failed.length} offset=${offset}`,
+        ref: `sent=${sent} failed=${failed.length}`,
       },
     });
   } catch {
     /* audit best-effort */
   }
 
-  const nextOffset = offset + members.length;
+  const remaining = await db.member.count({ where }).catch(() => 0);
+  const nextOffset = 0;
   return NextResponse.json({
     ok: true,
     sent,
     failed,
+    deferred,
+    budget: { provider: plan.provider, level: plan.level },
     total,
+    remaining,
     nextOffset,
-    done: nextOffset >= total,
+    done: remaining === 0,
   });
 }

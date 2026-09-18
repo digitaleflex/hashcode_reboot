@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { isAdminAuthed, requireAdminRole } from "@/lib/admin-auth";
+import { isAdminAuthed, requireAdminRole, readAdminCookie, getAdminRoleFromToken } from "@/lib/admin-auth";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { audit } from "@/lib/admin-audit";
 import { sendStatusChangeEmail, type StatusChangeType } from "@/lib/mail";
@@ -157,6 +157,15 @@ export async function PATCH(
       );
     }
 
+    const statusTransition =
+      typeof data.profileStatus === "string" &&
+      data.profileStatus !== before.profileStatus
+        ? { from: before.profileStatus, to: data.profileStatus as string }
+        : null;
+    if (statusTransition?.to === "APPROVED") {
+      data.approvedAt = new Date();
+    }
+
     const updated = await db.member.update({ where: { id }, data });
 
     // Notification email si le statut a changé vers un statut "terminal"
@@ -191,6 +200,16 @@ export async function PATCH(
       });
     } catch {
       /* ignore */
+    }
+    if (statusTransition) {
+      const role = getAdminRoleFromToken(readAdminCookie(req)) ?? "operator";
+      void audit(
+        "member.status-change",
+        "member",
+        id,
+        { from: statusTransition.from, to: statusTransition.to },
+        { type: "admin", role },
+      );
     }
     return NextResponse.json({ member: updated });
   } catch (e) {

@@ -3,12 +3,15 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { EVENT_TYPES } from "@/lib/analytics";
 import { isAdminAuthed } from "@/lib/admin-auth";
+import { getSession } from "@/lib/account-auth";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { subDays } from "date-fns";
 import { blockIfTesting } from "@/lib/test-guard";
 import { bodyLimit } from "@/lib/body-limit";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const eventSchema = z.object({
   type: z.enum(EVENT_TYPES),
@@ -51,12 +54,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false }, { status: 422 });
   }
   const d = parsed.data;
+  // F6 : le memberId fourni par le client n'est honoré que s'il correspond
+  // à la session en cours — sinon il est ignoré (pas d'empoisonnement des
+  // analyses par fausse attribution). Visiteurs anonymes : toujours null.
+  let memberId: string | null = null;
+  if (d.memberId) {
+    const session = await getSession(req);
+    if (session && session.member.id === d.memberId) {
+      memberId = d.memberId;
+    }
+  }
   try {
     await db.analyticsEvent.create({
       data: {
         type: d.type,
         sessionId: d.sessionId ?? null,
-        memberId: d.memberId ?? null,
+        memberId,
         ref: d.ref ?? null,
         value: d.value ?? null,
       },

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdminRole, checkCSRF } from "@/lib/admin-auth";
+import { blockIfTesting } from "@/lib/test-guard";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
-import { WHATSAPP_URL } from "@/lib/profiling/auto-controls";
 import { sendInvitationEmail, sendWelcomeEmail } from "@/lib/mail";
 
 export const runtime = "nodejs";
@@ -14,6 +14,9 @@ const testEmailSchema = z.object({
 
 /** POST /api/admin/test-email — envoi réel de test (admin-operator only). */
 export async function POST(req: NextRequest) {
+  const blocked = blockIfTesting();
+  if (blocked) return blocked;
+
   if (!requireAdminRole(req, "operator")) {
     return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
   }
@@ -71,10 +74,14 @@ export async function POST(req: NextRequest) {
     if (res.ok) sent.push("welcome");
   }
   if (kind === "invite" || kind === "both") {
+    const siteBase =
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      process.env.NEXT_PUBLIC_URL ||
+      "https://reboot.joinhashcode.com";
     const res = await sendInvitationEmail({
       to: email,
       firstName: "Test",
-      whatsappUrl: WHATSAPP_URL,
+      dashboardUrl: `${siteBase.replace(/\/$/, "")}/dashboard`,
     });
     if (res.ok) sent.push("invite");
   }

@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { profileSchema, answersToCreatePayload } from "@/lib/profiling/validate";
-import { runAutoControls, WHATSAPP_URL } from "@/lib/profiling/auto-controls";
+import { runAutoControls } from "@/lib/profiling/auto-controls";
 import { generateProfile } from "@/lib/profiling/engine";
 import { sendInvitationEmail, sendWelcomeEmail, sendWaitlistEmail, sendVerificationLinkEmail } from "@/lib/mail";
 import { requestEmailLink, buildVerifyUrl } from "@/lib/verify-email";
@@ -12,6 +12,10 @@ import { isAdminAuthed } from "@/lib/admin-auth";
 import { isEmailBlacklisted } from "@/lib/blacklist";
 import { blockIfTesting } from "@/lib/test-guard";
 import { bodyLimit } from "@/lib/body-limit";
+import {
+  issuePhoneFillTicket,
+  phoneFillSetCookie,
+} from "@/lib/phone-fill-ticket";
 
 export const runtime = "nodejs";
 
@@ -111,6 +115,7 @@ export async function POST(req: NextRequest) {
         profileStatus: controls.profileStatus,
         communityStatus: controls.communityStatus,
         accessLane: controls.accessLane,
+        ...(controls.profileStatus === "APPROVED" ? { approvedAt: new Date() } : {}),
       },
       select: { id: true, accessLane: true, profileStatus: true, communityStatus: true },
     })
@@ -142,7 +147,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Écritures secondaires en parallèle (analytics + draft) — jamais bloquantes.
+// Écritures secondaires en parallèle (analytics + draft) — jamais bloquantes.
+  const drafting = controls.profileStatus === "PENDING";
   await Promise.allSettled([
     db.analyticsEvent.create({
       data: {
@@ -151,10 +157,25 @@ export async function POST(req: NextRequest) {
         ref: controls.accessLane,
       },
     }),
-    db.profilingDraft.updateMany({
-      where: { email: data.email.toLowerCase(), completedAt: null },
-      data: { completedAt: new Date() },
-    }),
+    ...(drafting
+      ? [
+          db.profilingDraft.upsert({
+            where: { email: data.email.toLowerCase() },
+            update: {
+              answers: JSON.stringify(data),
+              updatedAt: new Date(),
+              relanceSentAt: null,
+            },
+            create: {
+              email: data.email.toLowerCase(),
+              answers: JSON.stringify(data),
+              firstName: data.firstName?.slice(0, 40) ?? "",
+              lastQuestionId: null,
+              relanceSentAt: null,
+            },
+          }),
+        ]
+      : []),
   ]);
 
   // Emails en arrière-plan : on répond 201 sans attendre les providers
@@ -177,9 +198,14 @@ export async function POST(req: NextRequest) {
       /* email must never break the flow */
     }
     if (lane === "immediate") {
+      const siteBase =
+        process.env.NEXT_PUBLIC_SITE_URL ||
+        process.env.NEXT_PUBLIC_URL ||
+        "https://reboot.joinhashcode.com";
+      const dashboardUrl = `${siteBase.replace(/\/$/, "")}/dashboard`;
       await Promise.allSettled([
         sendWelcomeEmail({ to: email, firstName, archetype }),
-        sendInvitationEmail({ to: email, firstName, whatsappUrl: WHATSAPP_URL }),
+        sendInvitationEmail({ to: email, firstName, dashboardUrl }),
       ]);
     } else {
       try {
@@ -190,7 +216,7 @@ export async function POST(req: NextRequest) {
     }
   })();
 
-  return NextResponse.json(
+  const res = NextResponse.json(
     {
       ok: true,
       duplicate: false,
@@ -203,6 +229,15 @@ export async function POST(req: NextRequest) {
     },
     { status: 201 },
   );
+
+  // Ticket de remplissage WhatsApp (S3) : prouve que ce navigateur vient de
+  // créer ce membre — autorise POST /api/account/phone sans session.
+  // Création fraîche uniquement, jamais sur doublon.
+  const fillTicket = issuePhoneFillTicket(created.id);
+  if (fillTicket) {
+    res.headers.append("Set-Cookie", phoneFillSetCookie(fillTicket));
+  }
+  return res;
 }
 
 /** GET /api/members — admin list with filters (admin-only).
@@ -228,6 +263,8 @@ export async function GET(req: NextRequest) {
     const budget = searchParams.get("budget");
     const status = searchParams.get("status");
     const lane = searchParams.get("lane");
+    const type = searchParams.get("type");
+    const invitationStatus = searchParams.get("invitationStatus");
     const q = searchParams.get("q");
 
     // --- Pagination : Zod strict, erreurs {error, code} façon Phase 1B ---
@@ -323,6 +360,10 @@ export async function GET(req: NextRequest) {
     if (budget) where.budgetRange = budget;
     if (status) where.profileStatus = status;
     if (lane) where.accessLane = lane;
+    // Distingue vrais inscrits vs invités importés (additif, défaut = tous).
+    if (invitationStatus) where.invitationStatus = invitationStatus;
+    else if (type === "registered") where.invitationStatus = "NOT_INVITED";
+    else if (type === "invited") where.invitationStatus = { not: "NOT_INVITED" };
     if (q) {
       // Support `email:user@example.com` syntax for email-only search
       const emailPrefix = q.match(/^email:(.+)$/i);
@@ -363,6 +404,8 @@ export async function GET(req: NextRequest) {
           profileStatus: true,
           communityStatus: true,
           accessLane: true,
+          invitationStatus: true,
+          source: true,
           createdAt: true,
           adminNote: true,
         },

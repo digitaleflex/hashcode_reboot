@@ -1,7 +1,9 @@
 import * as React from "react";
 import { CheckCircle2, Clock, Hourglass, MessageCircle, XCircle } from "lucide-react";
-import { WHATSAPP_URL } from "@/lib/profiling/auto-controls";
 import type { AccountStatus } from "./types";
+
+/** Tous les accès WhatsApp passent par /api/community/join (traçage + redirection). */
+const COMMUNITY_JOIN_URL = "/api/community/join";
 
 /**
  * Section "Statut & prochaines étapes".
@@ -42,7 +44,7 @@ function Approved() {
         </div>
       </div>
       <a
-        href={WHATSAPP_URL}
+        href={COMMUNITY_JOIN_URL}
         target="_blank"
         rel="noopener noreferrer"
         className="inline-flex items-center justify-center gap-2 rounded-md bg-lime text-black hover:bg-lime/90 font-medium border border-transparent min-h-[48px] h-12 px-6 text-base w-full sm:w-auto"

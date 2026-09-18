@@ -247,3 +247,83 @@ export function notifyWhere(event: { domain: string | null; level: string | null
     ...(event.level ? { level: event.level } : {}),
   };
 }
+
+// ── Option notify ────────────────────────────────────────────────────────────
+
+/**
+ * Valide l'option `notify` : optionnelle, booléen strict.
+ *
+ * Historiquement, `notify` était lu sans validation (`if (notify !== false)`) :
+ * une chaîne `"no"`, un `0` ou `"false"` déclenchaient donc un envoi de masse
+ * involontaire. Désormais, toute valeur non booléenne est rejetée (422) ;
+ * `undefined` conserve le comportement par défaut (notification envoyée).
+ */
+export function parseNotify(
+  value: unknown,
+): { ok: true; notify?: boolean } | { ok: false; error: string } {
+  if (value === undefined) return { ok: true };
+  if (typeof value === "boolean") return { ok: true, notify: value };
+  return { ok: false, error: "notify doit être un booléen (true | false)." };
+}
+
+// ── RSVP ─────────────────────────────────────────────────────────────────────
+export interface RsvpDecisionInput {
+  eventExists: boolean;
+  eventStatus: string | null;
+  startsAt: Date | null;
+  maxAttendees: number | null;
+  goingCount: number;
+  /** Statut RSVP actuel du membre (null = pas encore inscrit). */
+  currentStatus: string | null;
+  requestedStatus: string;
+  now: Date;
+}
+
+export type RsvpDecision =
+  | { ok: true }
+  | {
+      ok: false;
+      code: "INVALID_STATUS" | "NOT_FOUND" | "PAST_EVENT" | "FULL";
+      error: string;
+    };
+
+/**
+ * Décision RSVP — pure, testable, exécutable dans ou hors transaction.
+ *
+ * L'ordre des contrôles suit le contrat HTTP historique :
+ * 422 (statut) → 404 (introuvable/terminé) → 400 (passé) → 409 (complet).
+ *
+ * Le contrôle de capacité ne s'applique qu'à une NOUVELLE inscription
+ * `going` : un membre déjà inscrit qui reconfirme ou passe en `maybe`
+ * ne consomme pas de place et reste accepté même quand l'événement
+ * est complet.
+ */
+export function decideRsvp(input: RsvpDecisionInput): RsvpDecision {
+  if (!["going", "maybe", "cancelled"].includes(input.requestedStatus)) {
+    return {
+      ok: false,
+      code: "INVALID_STATUS",
+      error: "Status invalide. Use: going | maybe | cancelled.",
+    };
+  }
+  if (!input.eventExists || input.eventStatus !== "scheduled") {
+    return { ok: false, code: "NOT_FOUND", error: "Événement introuvable ou terminé." };
+  }
+  if (input.startsAt && input.startsAt.getTime() < input.now.getTime()) {
+    return {
+      ok: false,
+      code: "PAST_EVENT",
+      error: "Impossible de s'inscrire à un événement passé.",
+    };
+  }
+  const isNewGoing =
+    input.requestedStatus === "going" && input.currentStatus !== "going";
+  if (
+    input.maxAttendees !== null &&
+    isNewGoing &&
+    input.goingCount >= input.maxAttendees
+  ) {
+    return { ok: false, code: "FULL", error: "L'événement est complet." };
+  }
+  return { ok: true };
+}

@@ -33,9 +33,16 @@ interface AdminEvent {
   recurrence: string | null;
   maxAttendees: number | null;
   notifiedAt: string | null;
+  reminderLogs: Array<{ offsetMinutes: number; sentAt: string; sentCount: number }>;
   goingCount: number;
   maybeCount: number;
 }
+
+const OFFSET_LABELS: Record<number, string> = {
+  4320: "J−3",
+  1440: "J−1",
+  60: "H−1",
+};
 
 const STATUS_STYLES: Record<string, string> = {
   scheduled: "bg-blue-500/15 text-blue-300 border-blue-500/30",
@@ -280,7 +287,7 @@ export function AdminEventList({ refreshSignal }: { refreshSignal: number }) {
                   <h3 className="text-sm font-medium truncate">{ev.title}</h3>
                   <span
                     className={cn(
-                      "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium mono-label",
+                      "inline-flex items-center rounded-full border px-2 py-0.5 mono-label",
                       STATUS_STYLES[ev.status] ?? STATUS_STYLES.scheduled,
                     )}
                   >
@@ -311,6 +318,20 @@ export function AdminEventList({ refreshSignal }: { refreshSignal: number }) {
                     </span>
                   )}
                 </div>
+                {/* Badges relances auto (J−3 / J−1 / H−1) */}
+                {ev.reminderLogs.length > 0 && (
+                  <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                    {ev.reminderLogs.map((rl) => (
+                      <span
+                        key={rl.offsetMinutes}
+                        className="inline-flex items-center gap-1 rounded-full border border-lime/30 bg-lime/[0.06] px-2 py-0.5 text-[10px] font-medium text-lime mono-label"
+                        title={`Envoyé le ${new Date(rl.sentAt).toLocaleString("fr-FR")} à ${rl.sentCount} membre(s)`}
+                      >
+                        ✓ {OFFSET_LABELS[rl.offsetMinutes] ?? `${rl.offsetMinutes}min`}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -324,7 +345,7 @@ export function AdminEventList({ refreshSignal }: { refreshSignal: number }) {
                     type="button"
                     disabled={busy}
                     onClick={() => void handleStatus(ev.id, s)}
-                    className="rounded-md border border-border/60 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-lime/40 hover:text-foreground cursor-pointer disabled:opacity-50"
+                    className="min-h-[44px] rounded-md border border-border/60 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-lime/40 hover:text-foreground cursor-pointer disabled:opacity-50"
                   >
                     → {STATUS_LABELS[s]}
                   </button>
@@ -335,7 +356,7 @@ export function AdminEventList({ refreshSignal }: { refreshSignal: number }) {
                 disabled={busy}
                 onClick={() => void handleRenotify(ev.id)}
                 title="Renvoyer l'email aux membres concernés (ciblage domaine/niveau)"
-                className="inline-flex items-center gap-1.5 rounded-md border border-border/60 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-lime/40 hover:text-lime cursor-pointer disabled:opacity-50"
+                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-md border border-border/60 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-lime/40 hover:text-lime cursor-pointer disabled:opacity-50"
               >
                 <Send className="size-3.5" />
                 Renotifier
@@ -344,7 +365,7 @@ export function AdminEventList({ refreshSignal }: { refreshSignal: number }) {
                 type="button"
                 disabled={busy}
                 onClick={() => openEdit(ev)}
-                className="inline-flex items-center gap-1.5 rounded-md border border-border/60 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-lime/40 hover:text-foreground cursor-pointer disabled:opacity-50"
+                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-md border border-border/60 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-lime/40 hover:text-foreground cursor-pointer disabled:opacity-50"
               >
                 <Pencil className="size-3.5" />
                 Éditer
@@ -353,7 +374,7 @@ export function AdminEventList({ refreshSignal }: { refreshSignal: number }) {
                 type="button"
                 disabled={busy}
                 onClick={() => void handleDelete(ev.id, ev.title)}
-                className="inline-flex items-center gap-1.5 rounded-md border border-red-500/30 px-2.5 py-1.5 text-xs text-red-300/80 transition-colors hover:bg-red-500/10 hover:text-red-300 cursor-pointer disabled:opacity-50"
+                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-md border border-red-500/30 px-2.5 py-1.5 text-xs text-red-300/80 transition-colors hover:bg-red-500/10 hover:text-red-300 cursor-pointer disabled:opacity-50"
               >
                 <Trash2 className="size-3.5" />
                 Supprimer
@@ -369,7 +390,7 @@ export function AdminEventList({ refreshSignal }: { refreshSignal: number }) {
           onClick={() => setEditing(null)}
         >
           <div
-            className="w-full max-w-lg rounded-lg border border-border/60 bg-card p-5 space-y-4 max-h-[90vh] overflow-auto"
+            className="w-full max-w-[100vw] md:max-w-lg rounded-lg border border-border/60 bg-card p-5 space-y-4 max-h-[90vh] overflow-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">

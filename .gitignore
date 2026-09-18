@@ -64,3 +64,6 @@ db/*.db
 *.csv
 *.xlsx
 *.xls
+
+# outillage local opencode (plugin better-compact + node_modules propres)
+/.opencode/

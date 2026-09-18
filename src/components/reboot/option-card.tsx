@@ -5,24 +5,34 @@ import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
 import type { QuestionOption } from "@/lib/profiling/types";
 
-/** Single-choice option card — click selects & advances. */
+type Variant = "radio" | "checkbox";
+
 export function OptionCard({
   option,
   selected,
-  onSelect,
+  onSelect = () => {},
+  onToggle,
   compact,
   index,
+  variant = "radio",
 }: {
   option: QuestionOption;
   selected: boolean;
-  onSelect: (v: string) => void;
+  onSelect?: (v: string) => void;
+  onToggle?: (v: string) => void;
   compact?: boolean;
   index?: number;
+  variant?: Variant;
 }) {
+  const isCheckbox = variant === "checkbox";
+  const handleClick = isCheckbox && onToggle
+    ? () => onToggle(option.value)
+    : () => onSelect(option.value);
+
   return (
     <button
       type="button"
-      onClick={() => onSelect(option.value)}
+      onClick={handleClick}
       aria-pressed={selected}
       className={cn(
         "group relative w-full text-left rounded-md border bg-card transition-colors duration-180 focus-lime",
@@ -37,7 +47,7 @@ export function OptionCard({
       {typeof index === "number" && index < 9 && (
         <span
           className={cn(
-            "absolute top-2 right-2.5 size-5 rounded-sm flex items-center justify-center text-[10px] font-mono transition-opacity duration-180",
+            "absolute top-2 right-2.5 size-5 rounded-sm flex items-center justify-center text-[11px] font-mono transition-opacity duration-180",
             "border border-border/70 text-muted-foreground",
             "hidden sm:flex",
             selected && "border-lime/60 text-lime",
@@ -48,7 +58,7 @@ export function OptionCard({
           {index + 1}
         </span>
       )}
-      <div className="flex items-center gap-3.5">
+      <div className={cn("flex items-center gap-3.5", isCheckbox && "gap-3")}>
         {option.emoji && (
           <span
             className={cn(
@@ -93,51 +103,11 @@ export function OptionCard({
             <span className="block size-full rounded-full bg-black" />
           )}
         </span>
-      </div>
-    </button>
-  );
-}
-
-/** Multi-choice option card — toggle, no auto-advance. */
-export function MultiOptionCard({
-  option,
-  selected,
-  onToggle,
-}: {
-  option: QuestionOption;
-  selected: boolean;
-  onToggle: (v: string) => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={() => onToggle(option.value)}
-      aria-pressed={selected}
-      className={cn(
-        "group relative w-full text-left rounded-md border bg-card transition-colors duration-180 focus-lime",
-        "hover:border-lime/60 hover:bg-elevated/50",
-        selected ? "border-lime bg-lime/5" : "border-border",
-        "p-3.5",
-      )}
-    >
-      <div className="flex items-center gap-3">
-        {option.emoji && (
-          <span className="shrink-0 text-lg leading-none" aria-hidden>
-            {option.emoji}
+        {isCheckbox && selected && (
+          <span className="shrink-0 size-5 rounded border-2 flex items-center justify-center border-lime bg-lime">
+            <Check className="size-3.5 text-black" strokeWidth={3} />
           </span>
         )}
-        <span className="flex-1 text-sm font-medium text-foreground">
-          {option.label}
-        </span>
-        <span
-          className={cn(
-            "shrink-0 size-5 rounded border-2 flex items-center justify-center transition-colors duration-180",
-            selected ? "border-lime bg-lime" : "border-border group-hover:border-lime/50",
-          )}
-          aria-hidden
-        >
-          {selected && <Check className="size-3.5 text-black" strokeWidth={3} />}
-        </span>
       </div>
     </button>
   );

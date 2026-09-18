@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { verifyOtpHash, MAX_OTP_ATTEMPTS } from "@/lib/account-otp";
 import { sendRefuseNotificationEmail } from "@/lib/mail";
+import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
 const bodySchema = z.object({
   email: z.string().email(),
-  token: z.string().min(1),
+  token: z.string().min(1).max(64),
   reason: z.string().max(500).optional(),
 });
 
@@ -20,8 +22,29 @@ const bodySchema = z.object({
  * 2. Met à jour invitationStatus → REFUSED
  * 3. Notifie l'admin
  * 4. Redirige vers une page de confirmation
+ *
+ * Anti-bruteforce (le token est un OTP à 6 chiffres) :
+ * - 10 essais / IP / 10 min (429 au-delà)
+ * - max 3 tentatives par session d'invitation, puis révocation
+ *   (même compteur que /api/auth/verify-otp)
+ * - membre absent, supprimé ou token invalide/expiré → même réponse
+ *   (anti-énumération)
  */
 export async function POST(req: NextRequest) {
+  const rl = await rateLimit(`invite-refuse:${rateKey(req)}`, {
+    capacity: 10,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Trop de tentatives. Réessaie dans quelques minutes." },
+      {
+        status: 429,
+        headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) },
+      },
+    );
+  }
+
   let body: unknown;
   try {
     body = await req.json();
@@ -42,38 +65,70 @@ export async function POST(req: NextRequest) {
   // Trouver le membre
   const member = await db.member.findUnique({
     where: { email: email.toLowerCase() },
-    select: { id: true, email: true, firstName: true, invitationStatus: true },
+    select: {
+      id: true,
+      email: true,
+      firstName: true,
+      invitationStatus: true,
+      deletedAt: true,
+    },
   });
 
-  if (!member) {
-    return NextResponse.json({ error: "Membre introuvable" }, { status: 404 });
+  if (!member || member.deletedAt) {
+    return NextResponse.json(
+      { error: "Lien invalide ou expiré." },
+      { status: 403 },
+    );
   }
 
-  // Vérifier le token (OTP)
+  // Vérifier le token (OTP) — seules les sessions non épuisées et
+  // non expirées sont testées.
   const sessions = await db.memberSession.findMany({
     where: {
       memberId: member.id,
       otpHash: { not: null },
       revokedAt: null,
+      expiresAt: { gt: new Date() },
     },
     orderBy: { createdAt: "desc" },
     take: 5,
   });
 
+  const candidates = sessions.filter(
+    (s) => s.otpHash && s.attempts < MAX_OTP_ATTEMPTS,
+  );
+
   let matched = false;
-  for (const session of sessions) {
-    if (session.otpHash) {
-      const bcrypt = await import("bcryptjs");
-      const ok = await bcrypt.compare(token, session.otpHash);
-      if (ok) {
-        matched = true;
-        break;
-      }
+  for (const session of candidates) {
+    if (session.otpHash && (await verifyOtpHash(token, session.otpHash))) {
+      matched = true;
+      break;
     }
   }
 
   if (!matched) {
-    return NextResponse.json({ error: "Token invalide" }, { status: 403 });
+    // Chaque échec consomme une tentative sur toutes les candidates ;
+    // les sessions épuisées sont révoquées (forcent une nouvelle demande).
+    if (candidates.length > 0) {
+      const ids = candidates.map((s) => s.id);
+      await db.memberSession.updateMany({
+        where: { id: { in: ids } },
+        data: { attempts: { increment: 1 } },
+      });
+      const exhausted = candidates
+        .filter((s) => s.attempts + 1 >= MAX_OTP_ATTEMPTS)
+        .map((s) => s.id);
+      if (exhausted.length > 0) {
+        await db.memberSession.updateMany({
+          where: { id: { in: exhausted } },
+          data: { revokedAt: new Date() },
+        });
+      }
+    }
+    return NextResponse.json(
+      { error: "Lien invalide ou expiré." },
+      { status: 403 },
+    );
   }
 
   // Mettre à jour le statut

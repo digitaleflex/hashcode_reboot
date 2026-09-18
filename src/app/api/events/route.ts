@@ -4,7 +4,10 @@ import { getSession } from "@/lib/account-auth";
 import { requireAdminRole, checkCSRF, readAdminCookie, getAdminRoleFromToken } from "@/lib/admin-auth";
 import { sendEventNotificationEmail } from "@/lib/mail";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
-import { validateEventCreate, notifyWhere } from "@/lib/events-validation";
+import { validateEventCreate, notifyWhere, parseNotify } from "@/lib/events-validation";
+import { zoneForCountry } from "@/lib/events-timezone";
+import { sendPacedBatch } from "@/lib/email-batch";
+import { planBatch } from "@/lib/email-budget";
 import { audit } from "@/lib/admin-audit";
 import { blockIfTesting } from "@/lib/test-guard";
 import { bodyLimit } from "@/lib/body-limit";
@@ -31,9 +34,13 @@ export async function GET(req: NextRequest) {
   const status = url.searchParams.get("status");
   const limit = Math.min(Number(url.searchParams.get("limit") || "20"), 50);
   const memberIdParam = url.searchParams.get("memberId");
-  // memberId=me → membre connecté (utilisé par /dashboard/agenda et AgendaCard)
+  // memberId=me → membre connecté (utilisé par /dashboard/agenda et AgendaCard).
+  // Anti-IDOR (F3) : un memberId arbitraire n'est honoré que pour les admins ;
+  // les membres voient toujours leurs propres RSVP.
   const memberId =
-    memberIdParam === "me" ? (session?.member.id ?? null) : memberIdParam;
+    isAdmin && memberIdParam && memberIdParam !== "me"
+      ? memberIdParam
+      : (session?.member.id ?? null);
 
   // Filtres
   const where: Record<string, unknown> = {};
@@ -96,6 +103,20 @@ export async function GET(req: NextRequest) {
   ]);
   const maybeMap = new Map(maybeGroups.map((g) => [g.eventId, g._count]));
   const myMap = new Map(myRsvps.map((r) => [r.eventId, r.status]));
+
+  // Batché : relances auto par événement (J-3 / J-1 / H-1).
+  const reminderLogsAll = eventIds.length
+    ? await db.eventReminderLog.findMany({
+        where: { eventId: { in: eventIds } },
+        select: { eventId: true, offsetMinutes: true, createdAt: true, sentCount: true },
+      })
+    : [];
+  const reminderMap = new Map<string, typeof reminderLogsAll>();
+  for (const rl of reminderLogsAll) {
+    const arr = reminderMap.get(rl.eventId) ?? [];
+    arr.push(rl);
+    reminderMap.set(rl.eventId, arr);
+  }
   const enriched = events.map((event) => {
     const goingCount = event._count.rsvps;
     const maybeCount = maybeMap.get(event.id) ?? 0;
@@ -115,6 +136,11 @@ export async function GET(req: NextRequest) {
         recurrence: event.recurrence,
         maxAttendees: event.maxAttendees,
         notifiedAt: event.notifiedAt,
+        reminderLogs: (reminderMap.get(event.id) ?? []).map((rl) => ({
+          offsetMinutes: rl.offsetMinutes,
+          sentAt: rl.createdAt.toISOString(),
+          sentCount: rl.sentCount,
+        })),
         goingCount,
         maybeCount,
         myRsvp,
@@ -173,7 +199,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { notify } = body;
+  // notify : optionnel, booléen strict. Sans ce contrôle, une chaîne "no"
+  // ou un 0 déclencherait un envoi de masse involontaire (notify !== false).
+  const notifyCheck = parseNotify(body.notify);
+  if (!notifyCheck.ok) {
+    return NextResponse.json(
+      { error: notifyCheck.error, code: "INVALID_PAYLOAD" },
+      { status: 422 },
+    );
+  }
+  const { notify } = notifyCheck;
 
   // Validation stricte partagée (enums, longueurs, dates, url, capacité).
   const validated = validateEventCreate(body);
@@ -221,7 +256,7 @@ export async function POST(req: NextRequest) {
     // de l'event quand renseignés (même filtre que notify-count).
     const members = await db.member.findMany({
       where: notifyWhere({ domain: v.domain, level: v.level }),
-      select: { email: true, firstName: true },
+      select: { email: true, firstName: true, country: true },
     });
 
     // Fire-and-forget: on n'attend pas chaque envoi.
@@ -236,33 +271,50 @@ export async function POST(req: NextRequest) {
       domain: v.domain,
       level: v.level,
     };
+    // Pré-contrôle du budget AVANT de rendre la main : l'admin doit savoir
+    // immédiatement combien de membres seront servis, et combien sont reportés.
+    // Le lot réel recalcule son plan (mesure fraîche) — ceci n'est qu'un rapport.
+    const budgetPlan = await planBatch({
+      category: "notification",
+      requested: members.length,
+    });
+
     const notifyPromise = (async () => {
-      let sent = 0;
-      let failed = 0;
       const payload = notifyPayload;
-      for (let i = 0; i < members.length; i += 10) {
-        const chunk = members.slice(i, i + 10);
-        const results = await Promise.allSettled(
-          chunk.map((member) =>
-            sendEventNotificationEmail({
+      // Lot à pacing adaptatif : la taille et la pause suivent le budget du
+      // provider (cf. src/lib/email-budget.ts). Les destinataires reportés
+      // faute de quota ne sont pas perdus — ils ne sont simplement pas marqués.
+      const result = await sendPacedBatch({
+        category: "notification",
+        recipients: members,
+        send: (member) =>
+          sendEventNotificationEmail({
               to: member.email,
               firstName: member.firstName,
               event: payload,
               rsvpUrl,
+              // Chaque destinataire reçoit l'heure dans son propre fuseau :
+              // sinon le serveur (UTC) annoncerait une heure fausse.
+              timeZone: zoneForCountry(member.country),
+              // Lots > 20 → Brevo (quota 300/j vs 100/j Resend).
+              forceProvider: budgetPlan.provider,
             }),
-          ),
-        );
-        for (const r of results) {
-          if (r.status === "fulfilled") sent++;
-          else failed++;
-        }
-      }
-      // Marquer l'événement comme notifié
-      await db.event.update({
-        where: { id: event.id },
-        data: { notifiedAt: new Date() },
       });
-      return { sent, failed, total: members.length };
+
+      // Ne marquer comme notifié que si tout le lot est parti : sinon le champ
+      // laisserait croire à une notification complète.
+      if (result.deferred === 0) {
+        await db.event.update({
+          where: { id: event.id },
+          data: { notifiedAt: new Date() },
+        });
+      }
+      return {
+        sent: result.sent,
+        failed: result.failed,
+        deferred: result.deferred,
+        total: members.length,
+      };
     })();
 
     // Ne pas bloquer la réponse — le client reçoit l'event immédiatement
@@ -279,7 +331,22 @@ export async function POST(req: NextRequest) {
       {
         ok: true,
         event,
-        notify: { status: "queued", recipientCount: members.length },
+        notify: {
+          status: "queued",
+          recipientCount: members.length,
+          budget: {
+            provider: budgetPlan.provider,
+            level: budgetPlan.level,
+            willSend: budgetPlan.allowed,
+            willDefer: budgetPlan.deferred,
+          },
+          warning:
+            budgetPlan.deferred > 0
+              ? `${budgetPlan.deferred} membre(s) reporté(s) : quota ` +
+                `${budgetPlan.provider} trop bas. Ils seront repris ` +
+                `automatiquement après 00:00 UTC.`
+              : null,
+        },
       },
       { status: 201 },
     );

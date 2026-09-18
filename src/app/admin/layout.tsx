@@ -16,11 +16,15 @@ import { useRouter, usePathname } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { MobileBottomNav } from "@/components/reboot/mobile-bottom-nav";
 
 const SECTION_MAP: Record<string, string> = {
+  "/admin/dashboard": "section-stats",
   "/admin/stats": "section-stats",
   "/admin/members": "section-members",
   "/admin/invitations": "section-invitations",
+  "/admin/marketing": "section-marketing",
+  "/admin/email-deliverability": "section-email-deliverability",
   "/admin/events": "section-events",
   "/admin/activity": "section-activity",
   "/admin/exports": "section-exports",
@@ -29,9 +33,11 @@ const SECTION_MAP: Record<string, string> = {
 };
 
 const routeMap: Record<string, string> = {
-  "section-stats": "/admin/stats",
+  "section-stats": "/admin/dashboard",
   "section-members": "/admin/members",
   "section-invitations": "/admin/invitations",
+  "section-marketing": "/admin/marketing",
+  "section-email-deliverability": "/admin/email-deliverability",
   "section-events": "/admin/events",
   "section-activity": "/admin/activity",
   "section-exports": "/admin/exports",
@@ -50,7 +56,23 @@ export default function AdminLayout({
   const { toast } = useToast();
 
   const [isPaletteOpen, setIsPaletteOpen] = React.useState(false);
+  const [notificationsCount, setNotificationsCount] = React.useState(0);
 
+  // Fetch notifications count on mount
+  React.useEffect(() => {
+    async function fetchCount() {
+      try {
+        const res = await fetch("/api/stats", { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          setNotificationsCount(data.totals?.pending ?? 0);
+        }
+      } catch {
+        setNotificationsCount(0);
+      }
+    }
+    fetchCount();
+  }, []);
   const activeSectionId = SECTION_MAP[pathname] || "section-stats";
 
   const handleLogout = React.useCallback(async () => {
@@ -92,10 +114,11 @@ export default function AdminLayout({
     <div
       className={`${adminSans.variable} ${adminMono.variable} admin-scope min-h-screen flex flex-col`}
     >
-      <header className="sticky top-0 z-40 h-14 border-b border-border/60 bg-card/80 backdrop-blur-sm">
-        <div className="h-full px-4 flex items-center justify-between gap-4">
+<header className="sticky top-0 z-40 h-14 border-b border-border/60 bg-card/80 backdrop-blur-sm">
+        <div className="h-full px-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Logo className="size-6 text-lime shrink-0" />
+            <span className="mono-label text-sm text-lime/80">HASHCODE Admin</span>
           </div>
 
           <div className="flex items-center gap-1">
@@ -106,8 +129,12 @@ export default function AdminLayout({
               className="gap-2"
             >
               <Command className="size-4" />
-              <span className="hidden sm:inline mono-label text-xs">Ctrl K</span>
+              <span className="mono-label text-xs">Ctrl K</span>
             </RebootButton>
+
+            <span className="ml-2 text-xs text-muted-foreground">
+              {notificationsCount} nouveaux
+            </span>
 
             <ChangePasscodeDialog
               onSessionExpired={handleLogout}
@@ -133,7 +160,7 @@ export default function AdminLayout({
           onNavigate={onNavigate}
           onOpenPalette={openPalette}
         />
-        <main className="flex-1 min-w-0 overflow-auto bg-muted/10">
+        <main className="flex-1 min-w-0 overflow-auto bg-muted/10 pb-20 md:pb-0">
           <div className="mx-auto max-w-7xl w-full px-5 sm:px-8 py-8">
             {children}
           </div>
@@ -144,6 +171,7 @@ export default function AdminLayout({
           </footer>
         </main>
       </div>
+      <MobileBottomNav />
 
       <SessionReminder />
       <CommandPalette

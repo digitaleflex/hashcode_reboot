@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { PublicProfileCard, type PublicProfile } from "@/components/reboot/profile/PublicProfileCard";
+import { getSession } from "@/lib/account-auth";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -48,6 +49,9 @@ export default async function PublicProfilePage({ params }: Props) {
     notFound();
   }
 
+  // Session résolue côté serveur : l'entrée de compte est dans le HTML initial.
+  const session = await getSession().catch(() => null);
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="border-b border-border/60 py-4 shrink-0">
@@ -55,12 +59,20 @@ export default async function PublicProfilePage({ params }: Props) {
           <span className="mono-label text-lime text-sm font-bold tracking-widest">
             HASHCODE REBOOT
           </span>
-          <a
-            href="/"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            ← Retour au site
-          </a>
+          <span className="flex items-center gap-4">
+            <a
+              href="/"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              ← Retour au site
+            </a>
+            <a
+              href={session ? "/dashboard" : "/login"}
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {session ? "Mon espace" : "Se connecter"}
+            </a>
+          </span>
         </div>
       </header>
 

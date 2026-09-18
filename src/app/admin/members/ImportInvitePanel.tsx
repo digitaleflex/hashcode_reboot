@@ -11,6 +11,7 @@ interface DryRunResult {
   validRows: number;
   newMembers: number;
   alreadyExist: number;
+  resendable?: number;
   sample: { email: string; firstName: string; phone: string | null; country: string; level: string }[];
 }
 
@@ -19,6 +20,7 @@ interface SubmitResult {
   totalRows: number;
   created: number;
   emailsSent: number;
+  resent?: number;
   failed: string[];
   skippedAlreadyExist: number;
   skippedEmails: string[];
@@ -190,6 +192,12 @@ export function ImportInvitePanel({ onSessionExpired }: { onSessionExpired: () =
                   <div className="text-muted-foreground">Déjà existants</div>
                   <div className="text-lg font-bold text-muted-foreground">{dryRun.alreadyExist}</div>
                 </div>
+                {(dryRun.resendable ?? 0) > 0 && (
+                  <div className="rounded bg-amber-500/10 p-2">
+                    <div className="text-muted-foreground">À réinviter</div>
+                    <div className="text-lg font-bold text-amber-300">{dryRun.resendable}</div>
+                  </div>
+                )}
               </div>
               {dryRun.sample.length > 0 && (
                 <div className="text-xs text-muted-foreground">
@@ -217,6 +225,12 @@ export function ImportInvitePanel({ onSessionExpired }: { onSessionExpired: () =
                   <div className="text-muted-foreground">Emails envoyés</div>
                   <div className="text-lg font-bold text-foreground">{result.emailsSent}</div>
                 </div>
+                {(result.resent ?? 0) > 0 && (
+                  <div className="rounded bg-amber-500/10 p-2">
+                    <div className="text-muted-foreground">Réenvoyés</div>
+                    <div className="text-lg font-bold text-amber-300">{result.resent}</div>
+                  </div>
+                )}
                 <div className="rounded bg-background/50 p-2">
                   <div className="text-muted-foreground">Échoués</div>
                   <div className="text-lg font-bold text-destructive">{result.failed.length}</div>

@@ -434,6 +434,55 @@ describe("GET /api/admin/activity — auth + format", () => {
 // NOTE: POST /api/events intentionally omitted — it creates events in the
 // production database. Use unit tests or a dedicated test DB for write-path.
 
+describe("workshops — auth (read-only, aucune écriture sans session)", () => {
+  test("GET /api/workshops → 401 sans cookie", async () => {
+    const res = await httpRequest("GET", "/api/workshops");
+    assert.equal(res.status, 401);
+    assert.equal(res.json.code, "UNAUTHENTICATED");
+  });
+
+  test("GET /api/workshops/[slug] → 401 sans cookie", async () => {
+    const res = await httpRequest("GET", "/api/workshops/whatever-slug");
+    assert.equal(res.status, 401);
+    assert.equal(res.json.code, "UNAUTHENTICATED");
+  });
+
+  // POST enroll sans session → 401 AVANT toute écriture : sonde sûre en prod.
+  test("POST /api/workshops/[slug]/enroll → 401 sans cookie (aucune écriture)", async () => {
+    const res = await httpRequest("POST", "/api/workshops/maitrise-github-bases/enroll", {
+      body: {},
+    });
+    assert.equal(res.status, 401);
+    assert.equal(res.json.code, "UNAUTHENTICATED");
+  });
+
+  test("GET /api/workshops/sessions/[id] → 401 sans cookie", async () => {
+    const res = await httpRequest("GET", "/api/workshops/sessions/whatever-id");
+    assert.equal(res.status, 401);
+    assert.equal(res.json.code, "UNAUTHENTICATED");
+  });
+
+  test("POST /api/workshops/sessions/[id]/submissions → 401 sans cookie", async () => {
+    const res = await httpRequest("POST", "/api/workshops/sessions/whatever-id/submissions", {
+      body: { content: "x" },
+    });
+    assert.equal(res.status, 401);
+    assert.equal(res.json.code, "UNAUTHENTICATED");
+  });
+
+  test("POST /api/workshops/quizzes/[id]/attempts → 401 sans cookie", async () => {
+    const res = await httpRequest("POST", "/api/workshops/quizzes/whatever-id/attempts", {
+      body: { answers: [0] },
+    });
+    assert.equal(res.status, 401);
+    assert.equal(res.json.code, "UNAUTHENTICATED");
+  });
+});
+
+// NOTE: POST /api/workshops/[slug]/enroll avec session intentionally omitted —
+// it would create an enrollment row in the production database. Write-path
+// coverage requires a dedicated test DB (see TESTING_DATABASE_URL note above).
+
 // ── Cleanup ────────────────────────────────────────────────────
 
 after(async () => {

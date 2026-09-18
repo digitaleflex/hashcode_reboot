@@ -70,10 +70,10 @@ export function EmailEngagement({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border/60">
-                <th className="text-left py-2 pr-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Campagne</th>
-                <th className="text-right py-2 px-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Envoyés</th>
-                <th className="text-right py-2 px-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Ouverts</th>
-                <th className="text-right py-2 pl-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Clics</th>
+                <th className="py-2 pr-3 text-left text-xs font-semibold uppercase text-muted-foreground">Campagne</th>
+                <th className="py-2 px-3 text-right text-xs font-semibold uppercase text-muted-foreground">Envoyés</th>
+                <th className="py-2 px-3 text-right text-xs font-semibold uppercase text-muted-foreground">Ouverts</th>
+                <th className="py-2 pl-3 text-right text-xs font-semibold uppercase text-muted-foreground">Clics</th>
               </tr>
             </thead>
             <tbody>
@@ -87,7 +87,7 @@ export function EmailEngagement({
                     <td className="py-2.5 px-3 text-right tabular-nums text-muted-foreground">
                       {c.opened}
                       {c.sent > 0 && (
-                        <span className="ml-1.5 text-[10px]">{openRate}%</span>
+                        <span className="ml-1.5 text-xs">{openRate}%</span>
                       )}
                     </td>
                     <td className="py-2.5 pl-3 text-right tabular-nums text-muted-foreground">{c.clicked}</td>
@@ -142,7 +142,7 @@ function SummaryCard({
     <div className="rounded-md border border-border/60 bg-card/60 p-3 text-center">
       <div className="flex items-center justify-center text-muted-foreground">{icon}</div>
       <div className="mt-1 text-xl font-bold tabular-nums text-foreground">{value}</div>
-      <div className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</div>
+      <div className="mono-label text-muted-foreground">{label}</div>
     </div>
   );
 }
@@ -171,7 +171,7 @@ function RelanceStep({
       >
         {value}
       </div>
-      <div className="mt-0.5 text-[10px] text-muted-foreground uppercase tracking-wider">{label}</div>
+      <div className="mt-0.5 mono-label text-muted-foreground">{label}</div>
     </div>
   );
 }

@@ -24,7 +24,7 @@ export function PrivacyModal({
 }) {
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="bg-card border-border max-w-lg max-h-[85vh] overflow-y-auto scroll-slim">
+      <DialogContent className="bg-card border-border max-w-[100vw] md:max-w-lg max-h-[85vh] overflow-y-auto scroll-slim">
         <DialogHeader>
           <div className="flex items-center gap-2.5">
             <span className="text-lime">

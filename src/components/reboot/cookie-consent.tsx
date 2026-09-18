@@ -36,7 +36,7 @@ export function CookieConsent() {
   if (!visible) return null;
 
   return (
-    <div className="fixed bottom-[84px] sm:bottom-6 left-4 right-4 sm:left-6 sm:right-auto sm:max-w-md z-50 animate-hash-slide-up">
+    <div className="fixed bottom-4 sm:bottom-6 left-4 right-4 sm:left-6 sm:right-auto sm:max-w-md z-50 animate-hash-slide-up pb-[env(safe-area-inset-bottom)]">
       <div className="relative rounded-lg border border-border bg-card/95 backdrop-blur-sm p-4 sm:p-5 shadow-2xl">
         <div className="flex items-start gap-3">
           <span className="shrink-0 size-8 rounded-md border border-lime/40 bg-lime/5 text-lime flex items-center justify-center mt-0.5">

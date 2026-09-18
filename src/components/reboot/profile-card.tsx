@@ -63,7 +63,7 @@ export function ProfileCard({
             </MonoLabel>
           </div>
           {/* Archetype badge ribbon — premium stamp */}
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm border border-lime/40 bg-lime/5 text-lime mono-label text-[9px]">
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm border border-lime/40 bg-lime/5 text-lime mono-label">
             <span className="size-1 rounded-full bg-lime animate-hash-pulse" aria-hidden />
             REBOOT
           </span>

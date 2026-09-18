@@ -206,19 +206,19 @@ export function AgendaCard() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="text-sm font-medium truncate">{event.title}</h3>
                       <span className={cn(
-                        "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium mono-label",
+                        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium",
                         config.color,
                         "border-current/20 bg-current/5",
                       )}>
                         {config.label}
                       </span>
                       {event.domain && (
-                        <span className="inline-flex items-center rounded-full border border-border/60 bg-secondary/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground mono-label">
+                        <span className="inline-flex items-center rounded-full border border-border/60 bg-secondary/50 px-2.5 py-1 text-xs font-medium text-muted-foreground">
                           {DOMAIN_LABELS[event.domain] ?? event.domain}
                         </span>
                       )}
                       {event.level && (
-                        <span className="inline-flex items-center rounded-full border border-border/60 bg-secondary/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground mono-label">
+                        <span className="inline-flex items-center rounded-full border border-border/60 bg-secondary/50 px-2.5 py-1 text-xs font-medium text-muted-foreground">
                           {LEVEL_LABELS[event.level] ?? event.level}
                         </span>
                       )}
@@ -275,7 +275,7 @@ export function AgendaCard() {
                 {/* Badge "live" */}
                 {event.status === "live" && (
                   <div className="mt-2">
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500/15 border border-red-500/30 px-2.5 py-0.5 text-[10px] font-medium text-red-400 mono-label">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-500/15 px-2.5 py-1 text-xs font-medium text-red-400">
                       <span className="inline-block size-1.5 rounded-full bg-red-400 animate-pulse" />
                       EN DIRECT
                     </span>

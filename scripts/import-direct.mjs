@@ -225,9 +225,11 @@ async function sendViaBrevo(to, subject, html, text) {
   }
 }
 
-// ── Send email avec stratégie EMAIL_PROVIDER (brevo prioritaire si défini) ─
+// ── Send email avec stratégie Brevo-first (outil d'envoi de masse).
+// Sauf EMAIL_PROVIDER=resend explicite, Brevo passe en premier (volume),
+// Resend en fallback systématique.
 async function sendEmail(to, subject, html, text) {
-  const brevoFirst = process.env.EMAIL_PROVIDER === "brevo";
+  const brevoFirst = process.env.EMAIL_PROVIDER !== "resend";
   const first = brevoFirst ? sendViaBrevo : sendViaResend;
   const second = brevoFirst ? sendViaResend : sendViaBrevo;
   const firstName = brevoFirst ? "Brevo" : "Resend";
@@ -350,10 +352,12 @@ async function main() {
           profileStatus: "PENDING",
           communityStatus: "NOT_INVITED",
           invitationStatus: "INVITED",
+          invitedAt: new Date(),
           accessLane: "immediate",
           country: m.country,
           availability: "5-10h",
           learningStyle: "practice",
+          source: m.source,
         },
       });
       created++;

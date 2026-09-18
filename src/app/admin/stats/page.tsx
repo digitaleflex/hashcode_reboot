@@ -8,6 +8,7 @@ import { PendingApprovalsBanner } from "@/components/reboot/admin/PendingApprova
 import { fetchJson, isAbortError, withRetryAfter } from "@/components/reboot/admin/lib/fetchJson";
 import { AlertCircle, Clock } from "lucide-react";
 import { CohortRetention } from "@/components/reboot/admin/CohortRetention";
+import { LoginActivity } from "@/components/reboot/admin/LoginActivity";
 import { useRouter } from "next/navigation";
 
 const POLL_MS = 30_000;
@@ -110,7 +111,7 @@ export default function AdminStatsPage() {
         </div>
       )}
 
-      {stats && <PendingApprovalsBanner pendingCount={stats.pendingCount ?? 0} />}
+      {stats && <PendingApprovalsBanner pendingCount={stats.totals?.pending ?? 0} />}
 
       <div className="flex items-center justify-between">
         <section aria-label="Vue d'ensemble" className="flex-1 min-w-0">
@@ -137,6 +138,8 @@ export default function AdminStatsPage() {
       </div>
 
       <EmailEngagement data={emailStats} loading={loading} />
+
+      <LoginActivity />
 
       <CohortRetention />
     </div>

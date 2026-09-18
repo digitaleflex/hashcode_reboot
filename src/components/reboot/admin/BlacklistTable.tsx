@@ -175,7 +175,7 @@ export function BlacklistTable() {
                         </code>
                         {entry.autoAdded && (
                           <span
-                            className="text-[10px] mono-label text-muted-foreground border border-border/40 px-1.5 py-0.5 rounded"
+                            className="mono-label text-muted-foreground border border-border/40 px-1.5 py-0.5 rounded"
                             title="Ajouté automatiquement (ex: soft-delete)"
                           >
                             AUTO
@@ -352,7 +352,7 @@ function AddToBlacklistDialog({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-lg border border-border bg-card p-5 sm:p-6 space-y-4"
+        className="w-full max-w-[100vw] md:max-w-md rounded-lg border border-border bg-card p-5 sm:p-6 space-y-4"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
@@ -493,7 +493,7 @@ function RemoveConfirmDialog({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-sm rounded-lg border border-border bg-card p-5 space-y-3"
+        className="w-full max-w-[100vw] sm:max-w-sm rounded-lg border border-border bg-card p-5 space-y-3"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start gap-3">

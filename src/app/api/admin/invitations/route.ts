@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { isAdminAuthed } from "@/lib/admin-auth";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const querySchema = z.object({
   status: z.string().optional(),
@@ -26,10 +28,12 @@ export async function GET(req: NextRequest) {
   }
 
   const { searchParams } = new URL(req.url);
+  // searchParams.get() renvoie null si absent : convertir en undefined
+  // car z.string().optional() / z.coerce.number().optional() rejettent null (422).
   const parsed = querySchema.safeParse({
-    status: searchParams.get("status"),
-    page: searchParams.get("page"),
-    pageSize: searchParams.get("pageSize"),
+    status: searchParams.get("status") ?? undefined,
+    page: searchParams.get("page") ?? undefined,
+    pageSize: searchParams.get("pageSize") ?? undefined,
   });
 
   if (!parsed.success) {
@@ -41,10 +45,12 @@ export async function GET(req: NextRequest) {
 
   const { status, page, pageSize } = parsed.data;
 
-  // Stats globales
+  // Stats globales (tous les membres actifs — invités inclus, inscrits inclus).
+  // NB : pas de filtre `source` ici : les imports historiques ont `source=null`
+  // (backfillé depuis), et un invité reste un invité quelle que soit sa source.
   const stats = await db.member.groupBy({
     by: ["invitationStatus"],
-    where: { deletedAt: null, source: { not: null } },
+    where: { deletedAt: null },
     _count: { id: true },
   });
 
@@ -55,10 +61,9 @@ export async function GET(req: NextRequest) {
 
   const totalAll = Object.values(statsMap).reduce((a, b) => a + b, 0);
 
-  // Filtre
+  // Filtre (invités + inscrits — on distingue via `status`, pas via `source`)
   const where: Record<string, unknown> = {
     deletedAt: null,
-    source: { not: null },
   };
   if (status) {
     where.invitationStatus = status;
@@ -134,6 +139,7 @@ export async function GET(req: NextRequest) {
       BOUNCED: statsMap["BOUNCED"] || 0,
       EXPIRED: statsMap["EXPIRED"] || 0,
     },
+    funnel: await invitationFunnel(),
     members: members.map((m) => ({
       ...m,
       recentEvents: eventsByMember[m.id] || [],
@@ -145,4 +151,24 @@ export async function GET(req: NextRequest) {
       totalPages: Math.ceil(total / pageSize),
     },
   });
+}
+
+/**
+ * Entonnoir invitation bout-en-bout + profils incomplets.
+ * - accepted : invitation acceptée (clic / login via lien)
+ * - approvedFromAccepted : acceptés dont le profil est validé
+ * - joined : communauté rejointe (via /api/community/join)
+ * - incompleteProfiles : PENDING au goal vide (profil factice d'import)
+ */
+async function invitationFunnel() {
+  const [accepted, approvedFromAccepted, joined, incompleteProfiles] =
+    await Promise.all([
+      db.member.count({ where: { deletedAt: null, invitationStatus: "ACCEPTED" } }),
+      db.member.count({
+        where: { deletedAt: null, invitationStatus: "ACCEPTED", profileStatus: "APPROVED" },
+      }),
+      db.member.count({ where: { deletedAt: null, communityStatus: "JOINED" } }),
+      db.member.count({ where: { deletedAt: null, profileStatus: "PENDING", goal: "" } }),
+    ]);
+  return { accepted, approvedFromAccepted, joined, incompleteProfiles };
 }
