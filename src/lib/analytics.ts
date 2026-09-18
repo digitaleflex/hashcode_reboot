@@ -21,6 +21,9 @@ export const EVENT_TYPES = [
   "whatsapp_join_clicked",
   "share_profile_clicked",
   "status_change_email_sent",
+  // Événements publics : intérêt anonyme (non connecté) et RSVP membre.
+  "event_interest",
+  "event_rsvp",
 ] as const;
 
 export type EventType = (typeof EVENT_TYPES)[number];

@@ -192,6 +192,12 @@ export function Landing({
             >
               Axes
             </button>
+            <a
+              href="/evenements"
+              className="min-h-[44px] inline-flex items-center hover:text-lime transition-colors focus-lime"
+            >
+              Événements
+            </a>
             <button
               onClick={() => scrollToId("faq")}
               className="min-h-[44px] inline-flex items-center hover:text-lime transition-colors focus-lime"
@@ -213,22 +219,32 @@ export function Landing({
             </RebootButton>
           </nav>
           <div className="hidden sm:flex md:hidden items-center gap-6">
-            <span className="text-[13px] text-muted-foreground">
-              Reboot · 2026
-            </span>
+            <a
+              href="/evenements"
+              className="min-h-[44px] inline-flex items-center text-sm text-muted-foreground hover:text-lime transition-colors focus-lime"
+            >
+              Événements
+            </a>
             <RebootButton size="md" onClick={onJoin} className="group">
               Construire mon profil
               <CtaArrow />
             </RebootButton>
           </div>
-          <RebootButton
-            size="md"
-            variant="outline"
-            onClick={onJoin}
-            className="sm:hidden"
-          >
-            Rejoindre
-          </RebootButton>
+          <div className="flex sm:hidden items-center gap-2">
+            <a
+              href="/evenements"
+              className="min-h-[44px] inline-flex items-center text-sm text-muted-foreground hover:text-lime transition-colors focus-lime"
+            >
+              Événements
+            </a>
+            <RebootButton
+              size="md"
+              variant="outline"
+              onClick={onJoin}
+            >
+              Rejoindre
+            </RebootButton>
+          </div>
         </div>
       </header>
 
