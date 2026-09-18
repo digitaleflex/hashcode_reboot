@@ -39,7 +39,6 @@ const FORCE = process.argv.includes("--force");
 const MEET_URL =
   process.env.NEXT_PUBLIC_MEET_URL ?? "https://meet.google.com/pdr-qjei-zkk";
 const LOCATION = "Google Meet";
-const RECURRENCE = "weekly";
 
 /**
  * Fuseau de référence du programme (UTC+1, sans heure d'été).
@@ -47,6 +46,16 @@ const RECURRENCE = "weekly";
  * uniquement pour l'affichage lisible de l'aperçu, jamais pour le calcul.
  */
 const REFERENCE_TZ = "Africa/Porto-Novo";
+
+/**
+ * Libellé du fuseau affiché aux membres.
+ *
+ * Les écrans (web comme email) rendent l'heure dans le fuseau du lecteur :
+ * un membre en UTC+0 verrait « 19:00 » là où la majorité voit « 20:00 ».
+ * Annoncer le fuseau de référence dans la description est ce qui permet à
+ * chacun de comprendre l'écart, sans dépendre de son navigateur.
+ */
+const REFERENCE_LABEL = "UTC+1";
 
 /** Prérequis identique pour toutes les séances. */
 const PREREQUISITE = "Prérequis : un ordinateur et une connexion internet.";
@@ -220,6 +229,10 @@ function description(s: Seance): string {
     `Objectif : ${s.objectif}`,
     `Au programme : ${s.programme}`,
     "",
+    // Heure de référence annoncée explicitement : les écrans rendent l'heure
+    // dans le fuseau du lecteur, donc un membre en UTC+0 lirait une heure
+    // différente de celle annoncée au groupe sans cette précision.
+    `Horaire : ${heureDeReference(debut(s))} – ${heureDeReference(fin(s))} (heure de référence : ${REFERENCE_LABEL})`,
     PREREQUISITE,
   ].join("\n");
 }
@@ -264,7 +277,7 @@ async function main() {
   console.info(
     `\nProgramme « Maîtrise GitHub — Bases » — ${SEANCES.length} séances` +
       `${DRY_RUN ? " (DRY RUN, aucune écriture)" : ""}\n` +
-      `Heures de référence : UTC+1 (${REFERENCE_TZ})\n` +
+      `Heures de référence : ${REFERENCE_LABEL} (${REFERENCE_TZ})\n` +
       `Salle : ${LOCATION} · ${MEET_URL}\n`,
   );
 
@@ -281,7 +294,13 @@ async function main() {
       // (null = visible par l'ensemble des membres).
       domain: null,
       level: "beginner",
-      recurrence: RECURRENCE,
+      // Chaque séance n'a lieu QU'UNE FOIS : aucun badge « hebdomadaire ».
+      // Les 3 créneaux (samedi/dimanche/mercredi) se répètent sur 4 semaines,
+      // mais ce sont bien 12 séances distinctes, pas une série récurrente.
+      recurrence: null,
+      // Clé de regroupement interne du programme. Non affichée dans l'UI
+      // (seul `recurrence` l'est) : elle sert d'identité stable pour que
+      // relancer le script mette à jour au lieu de dupliquer.
       recurrenceId: SERIES[s.serie].id,
       maxAttendees: null,
     };
