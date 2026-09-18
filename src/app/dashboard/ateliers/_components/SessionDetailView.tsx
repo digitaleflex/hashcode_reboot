@@ -198,7 +198,7 @@ export function SessionDetailView({ slug, sessionId }: { slug: string; sessionId
   if (loading || !data) {
     return (
       <div className="py-16 text-center">
-        <Loader2 className="size-6 animate-spin text-muted-foreground mx-auto" />
+        <Loader2 className="size-6 animate-spin motion-reduce:animate-none text-muted-foreground mx-auto" />
       </div>
     );
   }
@@ -533,7 +533,7 @@ function SubmissionSection({
                 (loading || !content.trim()) && "opacity-60 cursor-not-allowed",
               )}
             >
-              {loading ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+              {loading ? <Loader2 className="size-4 animate-spin motion-reduce:animate-none" /> : <Send className="size-4" />}
               {latest ? "Resoumettre" : "Soumettre"}
             </button>
           </div>
@@ -712,7 +712,7 @@ function QuizSection({ quiz, reload }: { quiz: QuizData; reload: () => Promise<v
                 (loading || !allAnswered) && "opacity-60 cursor-not-allowed",
               )}
             >
-              {loading ? <Loader2 className="size-4 animate-spin" /> : <BookOpen className="size-4" />}
+              {loading ? <Loader2 className="size-4 animate-spin motion-reduce:animate-none" /> : <BookOpen className="size-4" />}
               {loading ? "Correction…" : "Valider mes réponses"}
             </button>
             {!allAnswered && (

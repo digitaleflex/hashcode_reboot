@@ -133,7 +133,7 @@ export default function AteliersPage() {
 
       {loading && (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+          <Loader2 className="size-6 animate-spin motion-reduce:animate-none text-muted-foreground" />
         </div>
       )}
 
@@ -203,7 +203,7 @@ export default function AteliersPage() {
                   </div>
                   <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-lime transition-all"
+                      className="h-full rounded-full bg-lime transition-[width]"
                       style={{ width: `${summary.percent}%` }}
                     />
                   </div>
@@ -229,7 +229,8 @@ export default function AteliersPage() {
                 <div className="mt-auto pt-1">
                   <Link
                     href={`/dashboard/ateliers/${workshop.slug}`}
-                    className="inline-flex items-center gap-2 rounded-md bg-lime px-4 py-2 text-sm font-medium text-background transition-colors hover:bg-lime/90"
+                    className="inline-flex items-center gap-2 rounded-md bg-lime px-4 py-2 text-sm font-medium text-background transition-colors hover:bg-lime/90 focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-offset-2"
+                    aria-label={`Continuer vers l'atelier ${workshop.title}`}
                   >
                     {enrolled ? "Continuer" : "Découvrir"}
                     <ArrowRight className="size-4" />

@@ -41,11 +41,12 @@ export function EnrollButton({ slug, className }: { slug: string; className?: st
         onClick={enroll}
         disabled={loading}
         className={cn(
-          "inline-flex items-center gap-2 rounded-md bg-lime px-5 py-2.5 text-sm font-medium text-background transition-colors cursor-pointer",
+          "inline-flex items-center gap-2 rounded-md bg-lime px-5 py-2.5 text-sm font-medium text-background transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-offset-2",
           loading && "opacity-60 cursor-not-allowed",
         )}
+        aria-label="Rejoindre cet atelier"
       >
-        {loading && <Loader2 className="size-4 animate-spin" />}
+        {loading && <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />}
         {loading ? "Inscription…" : "Rejoindre cet atelier"}
       </button>
       {error && (

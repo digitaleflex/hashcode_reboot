@@ -198,7 +198,7 @@ export default function AtelierDetailPage() {
 
       {loading && (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+          <Loader2 className="size-6 animate-spin motion-reduce:animate-none text-muted-foreground" />
         </div>
       )}
 
@@ -245,7 +245,7 @@ export default function AtelierDetailPage() {
               </span>
               <div className="flex-1 max-w-48 h-1.5 rounded-full bg-secondary overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-lime transition-all"
+                  className="h-full rounded-full bg-lime transition-[width]"
                   style={{ width: `${data.summary.percent}%` }}
                 />
               </div>
@@ -263,11 +263,12 @@ export default function AtelierDetailPage() {
                 onClick={handleEnroll}
                 disabled={enrolling}
                 className={cn(
-                  "inline-flex items-center gap-2 rounded-md bg-lime px-4 py-2 text-sm font-medium text-background transition-colors cursor-pointer",
+                  "inline-flex items-center gap-2 rounded-md bg-lime px-4 py-2 text-sm font-medium text-background transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-offset-2",
                   enrolling && "opacity-60 cursor-not-allowed",
                 )}
+                aria-label="S'inscrire à l'atelier"
               >
-                {enrolling && <Loader2 className="size-4 animate-spin" />}
+                {enrolling && <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />}
                 {enrolling ? "Inscription…" : "S'inscrire"}
               </button>
               {enrollError && <p className="text-xs text-red-400">{enrollError}</p>}
@@ -377,7 +378,8 @@ export default function AtelierDetailPage() {
                       <Link
                         key={s.id}
                         href={`/dashboard/ateliers/${slug}/sessions/${s.id}`}
-                        className="flex items-center gap-3 rounded-lg border border-border/60 bg-card/40 px-4 py-3 transition-colors hover:border-lime/40 group"
+                        className="flex items-center gap-3 rounded-lg border border-border/60 bg-card/40 px-4 py-3 transition-colors hover:border-lime/40 group focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-offset-2"
+                        aria-label={`Accéder à la séance ${s.title}`}
                       >
                         {inner}
                       </Link>
