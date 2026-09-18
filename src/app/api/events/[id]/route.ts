@@ -4,7 +4,7 @@ import { getSession } from "@/lib/account-auth";
 import { requireAdminRole, checkCSRF, readAdminCookie, getAdminRoleFromToken } from "@/lib/admin-auth";
 import { sendEventNotificationEmail } from "@/lib/mail";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
-import { validateEventPatch, notifyWhere } from "@/lib/events-validation";
+import { validateEventPatch, notifyWhere, parseNotify } from "@/lib/events-validation";
 import { zoneForCountry } from "@/lib/events-timezone";
 import { sendPacedBatch } from "@/lib/email-batch";
 import { planBatch } from "@/lib/email-budget";
@@ -118,6 +118,14 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   // Validation stricte partagée (mêmes règles que la création).
   // `notify: true` seul est valide (renotification sans modification).
+  // notify : booléen strict — même règle que la création (POST).
+  const notifyCheck = parseNotify(body.notify);
+  if (!notifyCheck.ok) {
+    return NextResponse.json(
+      { error: notifyCheck.error, code: "INVALID_PAYLOAD" },
+      { status: 422 },
+    );
+  }
   const validated = validateEventPatch(body, {
     startsAt: existing.startsAt,
     endsAt: existing.endsAt,

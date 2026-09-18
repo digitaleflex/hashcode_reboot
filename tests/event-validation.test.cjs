@@ -5,8 +5,8 @@
  * Run:  node --test tests/event-validation.test.cjs
  *
  * Mirrors (re-implemented pure logic — .cjs can't import TS):
- *  - validateEventCreate / validateEventPatch / notifyWhere / decideRsvp
- *    from src/lib/events-validation.ts
+ *  - validateEventCreate / validateEventPatch / notifyWhere / parseNotify /
+ *    decideRsvp from src/lib/events-validation.ts
  *  - mergeBySource from src/app/api/stats/route.ts
  * If the sources change, update the mirrors below accordingly.
  *
@@ -15,6 +15,7 @@
  *  - patch: partial updates, cross-check with existing bounds, empty patch
  *  - notifyWhere: APPROVED filter + domain/level targeting
  *  - mergeBySource: NULL→"direct" collision, trim, desc sort
+ *  - parseNotify: optional boolean, strict rejection of "no"/0/"true"/null
  *  - decideRsvp: invalid status, missing/completed/past event, capacity
  *    (new going rejected when full; already-going member never blocked)
  */
@@ -453,5 +454,40 @@ describe("decideRsvp (décision RSVP)", () => {
       decideRsvp({ ...base, maxAttendees: 30, goingCount: 30, requestedStatus: "cancelled" }).ok,
       true,
     );
+  });
+});
+
+// ── Mirror of parseNotify from src/lib/events-validation.ts ──
+
+function parseNotify(value) {
+  if (value === undefined) return { ok: true };
+  if (typeof value === "boolean") return { ok: true, notify: value };
+  return { ok: false, error: "notify doit être un booléen (true | false)." };
+}
+
+describe("parseNotify (option notify booléen strict)", () => {
+  test("undefined → ok, comportement par défaut (notification envoyée)", () => {
+    const r = parseNotify(undefined);
+    assert.deepEqual(r, { ok: true });
+    // Le route POST applique ensuite `notify !== false` → true par défaut.
+  });
+
+  test("true et false sont acceptés", () => {
+    assert.deepEqual(parseNotify(true), { ok: true, notify: true });
+    assert.deepEqual(parseNotify(false), { ok: true, notify: false });
+  });
+
+  test("une chaîne 'no' est rejetée (aurait déclenché un envoi de masse)", () => {
+    assert.deepEqual(parseNotify("no"), {
+      ok: false,
+      error: "notify doit être un booléen (true | false).",
+    });
+  });
+
+  test("0, 'true' (string) et null sont rejetés", () => {
+    const expected = { ok: false, error: "notify doit être un booléen (true | false)." };
+    assert.deepEqual(parseNotify(0), expected);
+    assert.deepEqual(parseNotify("true"), expected);
+    assert.deepEqual(parseNotify(null), expected);
   });
 });

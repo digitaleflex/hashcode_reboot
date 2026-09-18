@@ -4,7 +4,7 @@ import { getSession } from "@/lib/account-auth";
 import { requireAdminRole, checkCSRF, readAdminCookie, getAdminRoleFromToken } from "@/lib/admin-auth";
 import { sendEventNotificationEmail } from "@/lib/mail";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
-import { validateEventCreate, notifyWhere } from "@/lib/events-validation";
+import { validateEventCreate, notifyWhere, parseNotify } from "@/lib/events-validation";
 import { zoneForCountry } from "@/lib/events-timezone";
 import { sendPacedBatch } from "@/lib/email-batch";
 import { planBatch } from "@/lib/email-budget";
@@ -176,7 +176,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { notify } = body;
+  // notify : optionnel, booléen strict. Sans ce contrôle, une chaîne "no"
+  // ou un 0 déclencherait un envoi de masse involontaire (notify !== false).
+  const notifyCheck = parseNotify(body.notify);
+  if (!notifyCheck.ok) {
+    return NextResponse.json(
+      { error: notifyCheck.error, code: "INVALID_PAYLOAD" },
+      { status: 422 },
+    );
+  }
+  const { notify } = notifyCheck;
 
   // Validation stricte partagée (enums, longueurs, dates, url, capacité).
   const validated = validateEventCreate(body);

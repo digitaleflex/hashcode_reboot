@@ -248,8 +248,25 @@ export function notifyWhere(event: { domain: string | null; level: string | null
   };
 }
 
-// ── RSVP ─────────────────────────────────────────────────────────────────────
+// ── Option notify ────────────────────────────────────────────────────────────
 
+/**
+ * Valide l'option `notify` : optionnelle, booléen strict.
+ *
+ * Historiquement, `notify` était lu sans validation (`if (notify !== false)`) :
+ * une chaîne `"no"`, un `0` ou `"false"` déclenchaient donc un envoi de masse
+ * involontaire. Désormais, toute valeur non booléenne est rejetée (422) ;
+ * `undefined` conserve le comportement par défaut (notification envoyée).
+ */
+export function parseNotify(
+  value: unknown,
+): { ok: true; notify?: boolean } | { ok: false; error: string } {
+  if (value === undefined) return { ok: true };
+  if (typeof value === "boolean") return { ok: true, notify: value };
+  return { ok: false, error: "notify doit être un booléen (true | false)." };
+}
+
+// ── RSVP ─────────────────────────────────────────────────────────────────────
 export interface RsvpDecisionInput {
   eventExists: boolean;
   eventStatus: string | null;
