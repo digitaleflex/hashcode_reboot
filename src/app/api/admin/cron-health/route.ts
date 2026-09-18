@@ -10,6 +10,7 @@ const CRONS = [
   { key: "cron_relance", label: "Relance profils (J+7)", expectedEveryH: 24 },
   { key: "cron_email_alerts", label: "Alertes délivrabilité", expectedEveryH: 24 },
   { key: "cron_collect_metrics", label: "Collecte métriques", expectedEveryH: 24 },
+  { key: "cron_event_reminders", label: "Relances événements (J-3/J-1/H-1)", expectedEveryH: 1 },
   { key: "admin_announce_dashboard", label: "Annonce espace (manuel)", expectedEveryH: null },
   { key: "admin_invite_relance", label: "Relance invitations (manuel)", expectedEveryH: null },
   { key: "admin_import_invite", label: "Import invitations (manuel)", expectedEveryH: null },

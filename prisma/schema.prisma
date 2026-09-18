@@ -90,6 +90,11 @@ model Member {
   rsvps     EventRsvp[]
   emailLogs MemberEmailLog[]
 
+  // Ateliers (domaine pédagogique — cf. docs/ateliers/)
+  workshopSubmissions  WorkshopSubmission[]
+  workshopQuizAttempts WorkshopQuizAttempt[]
+  workshopEnrollments  WorkshopEnrollment[]
+
   @@index([email])
   @@index([country])
   @@index([primaryDomain])
@@ -322,6 +327,12 @@ model Event {
 
   rsvps EventRsvp[]
 
+  // Ateliers : une séance pédagogique PEUT être reliée à un rendez-vous.
+  // EVENT ≠ SESSION — la suppression de l'Event ne touche pas le contenu
+  // (onDelete: SetNull côté WorkshopSession).
+  workshopSessions WorkshopSession[]
+  reminderLogs EventReminderLog[]
+
   @@index([startsAt])
   @@index([status])
   @@index([type])
@@ -346,6 +357,26 @@ model EventRsvp {
   @@index([eventId])
   @@index([memberId])
   @@index([status])
+}
+
+/// Trace d'envoi d'une relance automatique (J-3 / J-1 / H-1) pour un événement.
+/// Une seule ligne par (événement, offset) : l'idempotence est garantie par la
+/// contrainte unique. Les envois individuels sont tracés dans MemberEmailLog.
+model EventReminderLog {
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now())
+  eventId       String
+  event         Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  /// Décalage en minutes avant le début : 4320 = J-3, 1440 = J-1, 60 = H-1.
+  offsetMinutes Int
+  /// Nombre de membres ciblés par cet envoi.
+  recipientCount Int      @default(0)
+  /// Nombre d'envois réellement acceptés par le provider.
+  sentCount     Int      @default(0)
+
+  @@unique([eventId, offsetMinutes])
+  @@index([eventId])
+  @@index([createdAt])
 }
 
 /// Email deliverability metrics aggregated daily per provider (Brevo, Resend)
@@ -427,4 +458,255 @@ model EmailTemplate {
 
   @@index([category])
   @@index([isActive])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ATELIERS — domaine pédagogique (cf. docs/ateliers/00-audit-phase1.md §21)
+//
+// Workshop = parcours → WorkshopWeek = semaine → WorkshopSession = séance
+//   → activités / livrable / quiz → soumission → review → validation
+//
+// Conventions du repo : pas d'enums Prisma (String + union TS validées par
+// fonctions pures dans src/lib/workshop-*.ts), JSON en String, timestamps,
+// index sur les colonnes de filtre, cascade sur les enfants possédés.
+//
+// Décisions ADR-001 : progression DÉRIVÉE (pas de table de progression) ;
+// admin v1 = review + pilotage (structure par seed).
+// ═══════════════════════════════════════════════════════════════════════════
+
+model Workshop {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  slug        String   @unique
+  title       String
+  description String?
+
+  // Status : draft | published | archived (union TS, cf. workshop-validation)
+  status String @default("draft")
+
+  // Ciblage (mêmes valeurs que Event)
+  domain String? // web | cybersecurity | ai
+  level  String? // beginner | practicing | autonomous | advanced
+
+  weeks       WorkshopWeek[]
+  enrollments WorkshopEnrollment[]
+
+  @@index([status])
+}
+
+model WorkshopWeek {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  workshopId String
+  number     Int // 1..N (ordre pédagogique)
+  title      String
+  objective  String?
+
+  workshop Workshop         @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+  sessions WorkshopSession[]
+
+  @@unique([workshopId, number])
+  @@index([workshopId])
+}
+
+model WorkshopSession {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  weekId String
+  number Int // 1..12 global (S01..S12) — ordre d'unlock
+
+  title     String
+  objective String?
+  program   String? // déroulé de la séance (texte libre)
+  skills    String  @default("[]") // JSON string
+
+  // Conditions de validation — EFFECTIVES seulement si la ressource existe :
+  // un flag true sans livrable/quiz associé n'est jamais une condition fantôme
+  // (le moteur de progression intersecte avec l'existence réelle).
+  deliverableRequired Boolean @default(true)
+  quizRequired        Boolean @default(true)
+
+  // EVENT ≠ SESSION : le rendez-vous est optionnel, horaire modifiable
+  // sans toucher au contenu pédagogique.
+  eventId String?
+
+  week        WorkshopWeek         @relation(fields: [weekId], references: [id], onDelete: Cascade)
+  event       Event?               @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  activities  WorkshopActivity[]
+  deliverable WorkshopDeliverable?
+  quiz        WorkshopQuiz?
+
+  @@unique([weekId, number])
+  @@index([weekId])
+  @@index([eventId])
+}
+
+model WorkshopActivity {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  sessionId String
+  order     Int
+
+  // kind : practice | resource (ressource externe référencée, pas recopiée)
+  kind        String @default("practice")
+  title       String
+  description String?
+  url         String? // ressource externe / lien d'exercice
+
+  session WorkshopSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, order])
+}
+
+model WorkshopDeliverable {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sessionId String @unique // un livrable par séance
+
+  // type : url | github_repo | pull_request | project | deployed_url |
+  //        screenshot | text (union TS + validation URL http(s) côté serveur)
+  type        String @default("url")
+  title       String
+  description String?
+  isRequired  Boolean @default(true)
+
+  session     WorkshopSession      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  submissions WorkshopSubmission[]
+}
+
+model WorkshopSubmission {
+  id          String    @id @default(cuid())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  deliverableId String
+  memberId      String
+
+  // Append-only : chaque resoumission crée une NOUVELLE ligne (attempt n+1).
+  // Historique complet conservé (protocole §15).
+  attempt Int @default(1)
+  content String
+
+  // status : PENDING | IN_REVIEW | APPROVED | REVISION | REJECTED
+  status String @default("PENDING")
+
+  submittedAt DateTime
+  reviewedAt  DateTime?
+
+  deliverable WorkshopDeliverable @relation(fields: [deliverableId], references: [id], onDelete: Cascade)
+  member      Member              @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  reviews     WorkshopReview[]
+
+  @@unique([deliverableId, memberId, attempt])
+  @@index([memberId])
+  @@index([deliverableId, status])
+}
+
+model WorkshopReview {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  submissionId String
+
+  // Append-only : la dernière review d'une soumission fait foi.
+  // reviewer = identité admin (limitation documentée : "unknown" tant que
+  // le login admin ne capture pas d'identité — cf. audit §7).
+  reviewer String
+  // decision : APPROVED | REVISION | REJECTED
+  decision String
+  feedback String
+
+  submission WorkshopSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([submissionId])
+}
+
+model WorkshopQuiz {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sessionId String @unique // un quiz par séance
+
+  title         String
+  passThreshold Int     @default(70) // pourcentage 0..100
+  maxAttempts   Int? // null = tentatives illimitées (défaut, protocole §17)
+  isRequired    Boolean @default(true)
+
+  session   WorkshopSession       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  questions WorkshopQuestion[]
+  attempts  WorkshopQuizAttempt[]
+}
+
+model WorkshopQuestion {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  quizId String
+  order  Int
+
+  // type : single | multiple | true_false (short_answer reporté — audit §21)
+  type   String
+  prompt String
+
+  // Conventions maison : JSON en String, validé par fonctions pures.
+  optionsJson String @default("[]")
+  // correctJson ne quitte JAMAIS le serveur — projection via publicQuestions()
+  // (cf. src/lib/workshop-quiz.ts) + test de non-fuite.
+  correctJson String
+  points      Int    @default(1)
+
+  quiz WorkshopQuiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@index([quizId, order])
+}
+
+model WorkshopQuizAttempt {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  quizId   String
+  memberId String
+
+  answersJson String
+  score       Int // points gagnés (scoring serveur, cf. workshop-quiz.ts)
+  passed      Boolean
+  submittedAt DateTime @default(now())
+
+  quiz   WorkshopQuiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  member Member        @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([quizId, memberId])
+  @@index([memberId])
+}
+
+model WorkshopEnrollment {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  workshopId String
+  memberId   String
+
+  // status : active | completed | dropped
+  status     String   @default("active")
+  enrolledAt DateTime @default(now())
+
+  workshop Workshop @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+  member   Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([workshopId, memberId])
+  @@index([memberId])
 }

@@ -1443,3 +1443,99 @@ export async function sendEventNotificationEmail({
 
   return sendEmail({ to, subject, html: emailShell(subject, inner), text, category: "notification" });
 }
+
+/* ── Relance automatique d'événement (J−3 / J−1 / H−1) ──────────────────── */
+
+const REMINDER_SUBJECTS: Record<string, string> = {
+  "J-3": "Dans 3 jours",
+  "J-1": "Demain",
+  "H-1": "C'est dans 1 heure !",
+};
+
+const REMINDER_LABELS: Record<string, string> = {
+  "J-3": "RAPPEL",
+  "J-1": "DEMAIN",
+  "H-1": "DANS 1 HEURE",
+};
+
+export interface EventReminderEmailInput {
+  to: string;
+  firstName: string;
+  event: {
+    title: string;
+    startsAt: Date;
+    location: string | null;
+    url: string | null;
+  };
+  rsvpUrl: string;
+  offsetLabel: string;
+  timeZone?: string | null;
+  forceProvider?: "resend" | "brevo";
+}
+
+export async function sendEventReminderEmail({
+  to,
+  firstName,
+  event,
+  rsvpUrl,
+  offsetLabel,
+  timeZone,
+  forceProvider,
+}: EventReminderEmailInput): Promise<SendEmailResult> {
+  const name = firstName.trim() || "membre";
+  const safeName = escapeHtml(name);
+  const safeTitle = escapeHtml(event.title);
+  const zone = safeTimeZone(timeZone);
+  const startsStr = formatEventMoment(event.startsAt, zone);
+  const tzNote = localTimeNote(event.startsAt, zone);
+  const safeTzNote = tzNote ? escapeHtml(tzNote) : null;
+
+  const subjectPrefix = REMINDER_SUBJECTS[offsetLabel] ?? "Rappel";
+  const subject = `${subjectPrefix} — ${safeTitle}`;
+  const label = REMINDER_LABELS[offsetLabel] ?? "RAPPEL";
+
+  const text = [
+    `Bonjour ${name},`,
+    "",
+    `Rappel : ${safeTitle}`,
+    "",
+    `Date : ${startsStr}`,
+    event.location && `Lieu : ${event.location}`,
+    tzNote && tzNote,
+    "",
+    event.url ? `Rejoindre : ${event.url}` : null,
+    `Inscription / détails : ${rsvpUrl}`,
+    "",
+    "À bientôt sur HASHCODE REBOOT !",
+    "",
+    "HASHCODE · REBOOT",
+  ].filter(Boolean).join("\n");
+
+  const inner = [
+    `<tr><td style="padding:24px 32px 28px 32px;background-color:#141414;">`,
+    monoLabel(label),
+    `<h1 style="margin:0 0 12px 0;font-family:${MAIL_FONT};font-size:24px;line-height:1.25;font-weight:800;color:#F8FAFC;">${safeTitle}</h1>`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;background-color:#0A0A0A;border:1px solid #333B1E;border-radius:8px;">`,
+    `<tr><td style="padding:14px 16px;">`,
+    `<div style="font-family:${MAIL_FONT};font-size:11px;font-weight:700;letter-spacing:2px;color:#94A3B8;margin:0 0 4px 0;">${offsetLabel}</div>`,
+    `<div style="font-family:${MAIL_FONT};font-size:16px;font-weight:700;color:#C5F441;margin:0;">${startsStr}</div>`,
+    safeTzNote && `<div style="font-family:${MAIL_FONT};font-size:11px;line-height:1.5;color:#64748B;margin:6px 0 0 0;">${safeTzNote}</div>`,
+    event.location && `<div style="font-family:${MAIL_FONT};font-size:11px;font-weight:700;letter-spacing:1px;color:#94A3B8;margin:4px 0 0 0;">Lieu : ${escapeHtml(event.location)}</div>`,
+    `</td></tr>`,
+    `</table>`,
+    // Pour H-1 : lien Meet en gros bouton. Pour J-3/J-1 : lien RSVP.
+    offsetLabel === "H-1" && event.url
+      ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;">` +
+        `<tr><td align="center">` +
+        `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">` +
+        `<tr><td align="center" bgcolor="#C5F441" style="background-color:#C5F441;border-radius:8px;padding:14px 32px;">` +
+        `<a href="${escapeHtml(event.url)}" target="_blank" rel="noopener" style="font-family:${MAIL_FONT};font-size:16px;font-weight:800;color:#0A0A0A;text-decoration:none;display:inline-block;">Rejoindre maintenant</a>` +
+        `</td></tr></table></td></tr></table>`
+      : `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:14px;line-height:1.65;color:#94A3B8;">Voir les détails et s'inscrire : <a href="${escapeHtml(rsvpUrl)}" style="color:#C5F441;">${rsvpUrl}</a></p>`,
+    `<p style="margin:0;font-family:${MAIL_FONT};font-size:12px;line-height:1.6;color:#64748B;">À bientôt sur HASHCODE REBOOT !</p>`,
+    `<p style="margin:8px 0 0 0;font-family:${MAIL_FONT};font-size:11px;line-height:1.6;color:#64748B;">HASHCODE · REBOOT — Une nouvelle génération de la communauté commence.</p>`,
+    `</td></tr>`,
+  ].filter(Boolean).join("");
+
+  return sendEmail({ to, subject, html: emailShell(subject, inner), text, category: "notification", forceProvider });
+}

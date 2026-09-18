@@ -12,7 +12,10 @@ export type MemberEmailKind =
   | "relance"
   | "annonce"
   | "rejoin"
-  | "engagement";
+  | "engagement"
+  | "relance_event_J-3"
+  | "relance_event_J-1"
+  | "relance_event_H-1";
 
 /** Enregistre un envoi (best-effort : n'échoue jamais l'envoi parent). */
 export async function logMemberEmail(input: {
