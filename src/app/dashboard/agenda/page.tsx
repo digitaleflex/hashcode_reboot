@@ -11,6 +11,8 @@ import {
   Users,
   Loader2,
   Filter,
+  AlertCircle,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -114,6 +116,9 @@ export default function AgendaPage() {
   const [filterType, setFilterType] = React.useState<string>("all");
   const [filterDomain, setFilterDomain] = React.useState<string>("all");
   const [rsvpStates, setRsvpStates] = React.useState<Record<string, "going" | "maybe" | null>>({});
+  // Erreur RSVP isolée de `error` (chargement) : un refus de RSVP ne doit
+  // pas remplacer toute la liste de l'agenda.
+  const [rsvpError, setRsvpError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -146,20 +151,32 @@ export default function AgendaPage() {
     const current = rsvpStates[eventId];
     const newStatus = current === status ? "cancelled" : status;
 
+    // Optimiste — mais roulé arrière si l'API refuse : l'UI ne doit jamais
+    // afficher « Inscrit » sur un 409 (complet), 404, 429 ou 403.
     setRsvpStates((prev) => ({ ...prev, [eventId]: newStatus === "cancelled" ? null : status }));
+    setRsvpError(null);
+
+    const rollback = () =>
+      setRsvpStates((prev) => ({ ...prev, [eventId]: current }));
 
     try {
-      if (newStatus === "cancelled") {
-        await fetch(`/api/events/${eventId}/rsvp`, { method: "DELETE" });
-      } else {
-        await fetch(`/api/events/${eventId}/rsvp`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: newStatus }),
-        });
+      const res =
+        newStatus === "cancelled"
+          ? await fetch(`/api/events/${eventId}/rsvp`, { method: "DELETE" })
+          : await fetch(`/api/events/${eventId}/rsvp`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ status: newStatus }),
+            });
+      if (!res.ok) {
+        rollback();
+        const data = (await res.json().catch(() => null)) as { error?: string } | null;
+        setRsvpError(data?.error ?? "Impossible d'enregistrer ta réponse.");
       }
     } catch {
-      setRsvpStates((prev) => ({ ...prev, [eventId]: current }));
+      // Erreur réseau : même rollback, message dédié.
+      rollback();
+      setRsvpError("Connexion interrompue — ta réponse n'a pas été enregistrée.");
     }
   };
 
@@ -237,6 +254,21 @@ export default function AgendaPage() {
       {loading && (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        </div>
+      )}
+
+      {/* Erreur RSVP (isolée de l'erreur de chargement) */}
+      {rsvpError && (
+        <div className="flex items-start gap-2 rounded-md bg-amber-500/10 border border-amber-500/30 px-4 py-3 text-sm text-amber-500">
+          <AlertCircle className="size-4 shrink-0 mt-0.5" />
+          <span className="flex-1">{rsvpError}</span>
+          <button
+            onClick={() => setRsvpError(null)}
+            className="p-0.5 rounded text-amber-500/70 hover:text-foreground transition-colors cursor-pointer"
+            aria-label="Fermer le message"
+          >
+            <X className="size-4" />
+          </button>
         </div>
       )}
 

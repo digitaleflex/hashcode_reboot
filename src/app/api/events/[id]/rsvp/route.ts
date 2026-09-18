@@ -1,15 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/account-auth";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
+import { decideRsvp } from "@/lib/events-validation";
 
 export const runtime = "nodejs";
+
+/** Codes de décision → statut HTTP (contrat historique conservé). */
+const RSVP_HTTP_STATUS: Record<string, number> = {
+  INVALID_STATUS: 422,
+  NOT_FOUND: 404,
+  PAST_EVENT: 400,
+  FULL: 409,
+};
+
+type RsvpOutcome =
+  | { ok: true; rsvp: { id: string; status: string; createdAt: Date } }
+  | { ok: false; code: string; error: string };
 
 /**
  * POST /api/events/[id]/rsvp — S'inscrire à un événement (RSVP).
  *
- * Body: { status: "going" | "maybe" }
+ * Body: { status: "going" | "maybe" | "cancelled" }
+ *
+ * Le contrôle de capacité s'exécute DANS la transaction (même vue de la
+ * base que l'écriture) : deux inscriptions concurrentes ne peuvent pas
+ * dépasser `maxAttendees`. Si la transaction interactive n'est pas
+ * supportée par l'infrastructure (pooler/connexion), repli sur le
+ * contrôle historique hors transaction.
  */
 export async function POST(
   req: NextRequest,
@@ -50,61 +70,69 @@ export async function POST(
     );
   }
 
-  const { status } = body;
-  if (!["going", "maybe", "cancelled"].includes(String(status))) {
-    return NextResponse.json(
-      { error: "Status invalide. Use: going | maybe | cancelled.", code: "INVALID_PAYLOAD" },
-      { status: 422 },
-    );
-  }
-
   const { id } = await params;
 
-  // Vérifier que l'événement existe et est à venir
-  const event = await db.event.findUnique({
-    where: { id },
-    select: { id: true, status: true, startsAt: true, maxAttendees: true },
-  });
-  if (!event || event.status !== "scheduled") {
-    return NextResponse.json(
-      { error: "Événement introuvable ou terminé.", code: "NOT_FOUND" },
-      { status: 404 },
-    );
-  }
-
-  if (event.startsAt < new Date()) {
-    return NextResponse.json(
-      { error: "Impossible de s'inscrire à un événement passé.", code: "PAST_EVENT" },
-      { status: 400 },
-    );
-  }
-
-  // Vérifier la capacité
-  if (event.maxAttendees) {
-    const goingCount = await db.eventRsvp.count({
-      where: { eventId: id, status: "going" },
+  /** Contrôle + écriture sur une même vue de la base (tx ou db directe). */
+  const decide = async (client: Prisma.TransactionClient): Promise<RsvpOutcome> => {
+    const event = await client.event.findUnique({
+      where: { id },
+      select: { id: true, status: true, startsAt: true, maxAttendees: true },
     });
-    if (goingCount >= event.maxAttendees) {
-      return NextResponse.json(
-        { error: "L'événement est complet.", code: "FULL" },
-        { status: 409 },
-      );
-    }
+    const existing = event
+      ? await client.eventRsvp.findUnique({
+          where: { eventId_memberId: { eventId: id, memberId: session.member.id } },
+          select: { status: true },
+        })
+      : null;
+    const goingCount = event
+      ? await client.eventRsvp.count({ where: { eventId: id, status: "going" } })
+      : 0;
+
+    const decision = decideRsvp({
+      eventExists: Boolean(event),
+      eventStatus: event?.status ?? null,
+      startsAt: event?.startsAt ?? null,
+      maxAttendees: event?.maxAttendees ?? null,
+      goingCount,
+      currentStatus: existing?.status ?? null,
+      requestedStatus: String(body.status),
+      now: new Date(),
+    });
+    if (!decision.ok) return decision;
+
+    return {
+      ok: true,
+      rsvp: await client.eventRsvp.upsert({
+        where: { eventId_memberId: { eventId: id, memberId: session.member.id } },
+        update: { status: String(body.status) as "going" | "maybe" | "cancelled" },
+        create: {
+          eventId: id,
+          memberId: session.member.id,
+          status: String(body.status) as "going" | "maybe" | "cancelled",
+        },
+        select: { id: true, status: true, createdAt: true },
+      }),
+    };
+  };
+
+  let outcome: RsvpOutcome;
+  try {
+    outcome = await db.$transaction(decide);
+  } catch (txErr) {
+    // Transaction interactive indisponible : repli sur le contrôle
+    // historique hors transaction (comportement d'avant, jamais pire).
+    console.warn("[rsvp] transaction indisponible, contrôle hors transaction :", txErr);
+    outcome = await decide(db);
   }
 
-  // Upsert RSVP
-  const rsvp = await db.eventRsvp.upsert({
-    where: { eventId_memberId: { eventId: id, memberId: session.member.id } },
-    update: { status: String(status) as "going" | "maybe" | "cancelled" },
-    create: {
-      eventId: id,
-      memberId: session.member.id,
-      status: String(status) as "going" | "maybe" | "cancelled",
-    },
-    select: { id: true, status: true, createdAt: true },
-  });
+  if (!outcome.ok) {
+    return NextResponse.json(
+      { error: outcome.error, code: outcome.code },
+      { status: RSVP_HTTP_STATUS[outcome.code] ?? 409 },
+    );
+  }
 
-  return NextResponse.json({ ok: true, rsvp });
+  return NextResponse.json({ ok: true, rsvp: outcome.rsvp });
 }
 
 /**

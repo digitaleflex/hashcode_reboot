@@ -5,7 +5,7 @@
  * Run:  node --test tests/event-validation.test.cjs
  *
  * Mirrors (re-implemented pure logic — .cjs can't import TS):
- *  - validateEventCreate / validateEventPatch / notifyWhere
+ *  - validateEventCreate / validateEventPatch / notifyWhere / decideRsvp
  *    from src/lib/events-validation.ts
  *  - mergeBySource from src/app/api/stats/route.ts
  * If the sources change, update the mirrors below accordingly.
@@ -15,6 +15,8 @@
  *  - patch: partial updates, cross-check with existing bounds, empty patch
  *  - notifyWhere: APPROVED filter + domain/level targeting
  *  - mergeBySource: NULL→"direct" collision, trim, desc sort
+ *  - decideRsvp: invalid status, missing/completed/past event, capacity
+ *    (new going rejected when full; already-going member never blocked)
  */
 
 "use strict";
@@ -333,5 +335,123 @@ describe("mergeBySource", () => {
       { source: "direct", count: 4 },
       { source: "whatsapp", count: 3 },
     ]);
+  });
+});
+
+// ── Mirror of decideRsvp from src/lib/events-validation.ts ──
+
+const RSVP_STATUSES = ["going", "maybe", "cancelled"];
+
+function decideRsvp(input) {
+  if (!RSVP_STATUSES.includes(input.requestedStatus)) {
+    return {
+      ok: false,
+      code: "INVALID_STATUS",
+      error: "Status invalide. Use: going | maybe | cancelled.",
+    };
+  }
+  if (!input.eventExists || input.eventStatus !== "scheduled") {
+    return { ok: false, code: "NOT_FOUND", error: "Événement introuvable ou terminé." };
+  }
+  if (input.startsAt && input.startsAt.getTime() < input.now.getTime()) {
+    return {
+      ok: false,
+      code: "PAST_EVENT",
+      error: "Impossible de s'inscrire à un événement passé.",
+    };
+  }
+  const isNewGoing =
+    input.requestedStatus === "going" && input.currentStatus !== "going";
+  if (
+    input.maxAttendees !== null &&
+    isNewGoing &&
+    input.goingCount >= input.maxAttendees
+  ) {
+    return { ok: false, code: "FULL", error: "L'événement est complet." };
+  }
+  return { ok: true };
+}
+
+describe("decideRsvp (décision RSVP)", () => {
+  const now = new Date("2026-09-18T12:00:00.000Z");
+  const future = new Date("2026-12-01T18:00:00.000Z");
+  const past = new Date("2026-01-01T18:00:00.000Z");
+  const base = {
+    eventExists: true,
+    eventStatus: "scheduled",
+    startsAt: future,
+    maxAttendees: null,
+    goingCount: 0,
+    currentStatus: null,
+    requestedStatus: "going",
+    now,
+  };
+
+  test("accepte un going sur un event scheduled futur", () => {
+    assert.equal(decideRsvp(base).ok, true);
+  });
+
+  test("rejette un statut invalide (contrat 422 conservé)", () => {
+    const d = decideRsvp({ ...base, requestedStatus: "yes" });
+    assert.deepEqual(d, {
+      ok: false,
+      code: "INVALID_STATUS",
+      error: "Status invalide. Use: going | maybe | cancelled.",
+    });
+  });
+
+  test("rejette un event manquant (404)", () => {
+    assert.equal(decideRsvp({ ...base, eventExists: false }).code, "NOT_FOUND");
+  });
+
+  test("rejette un event terminé ou annulé (404)", () => {
+    assert.equal(decideRsvp({ ...base, eventStatus: "completed" }).code, "NOT_FOUND");
+    assert.equal(decideRsvp({ ...base, eventStatus: "cancelled" }).code, "NOT_FOUND");
+  });
+
+  test("rejette un event passé (400)", () => {
+    assert.equal(decideRsvp({ ...base, startsAt: past }).code, "PAST_EVENT");
+  });
+
+  test("rejette une NOUVELLE inscription going sur un event complet (409)", () => {
+    const d = decideRsvp({ ...base, maxAttendees: 30, goingCount: 30 });
+    assert.equal(d.code, "FULL");
+  });
+
+  test("accepte la dernière place (goingCount < maxAttendees)", () => {
+    assert.equal(decideRsvp({ ...base, maxAttendees: 30, goingCount: 29 }).ok, true);
+  });
+
+  test("un membre déjà going peut reconfirmer quand complet (aucune place consommée)", () => {
+    const d = decideRsvp({
+      ...base,
+      maxAttendees: 30,
+      goingCount: 30,
+      currentStatus: "going",
+      requestedStatus: "going",
+    });
+    assert.equal(d.ok, true);
+  });
+
+  test("un membre déjà going peut passer en maybe quand complet", () => {
+    const d = decideRsvp({
+      ...base,
+      maxAttendees: 30,
+      goingCount: 30,
+      currentStatus: "going",
+      requestedStatus: "maybe",
+    });
+    assert.equal(d.ok, true);
+  });
+
+  test("la capacité ne bloque jamais maybe ni cancelled", () => {
+    assert.equal(
+      decideRsvp({ ...base, maxAttendees: 30, goingCount: 30, requestedStatus: "maybe" }).ok,
+      true,
+    );
+    assert.equal(
+      decideRsvp({ ...base, maxAttendees: 30, goingCount: 30, requestedStatus: "cancelled" }).ok,
+      true,
+    );
   });
 });
