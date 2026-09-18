@@ -2,48 +2,24 @@
 
 import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { cn } from "@/lib/utils";
-import { ArrowLeft, ArrowRight, Check, RotateCcw } from "lucide-react";
-import {
-  QUESTIONS,
-  getQuestionOptions,
-  THREE_MONTH_GOAL_SUGGESTIONS,
-} from "@/lib/profiling/questions";
 import {
   getVisibleQuestions,
   getProgress,
   validateAnswer,
-  generateProfile,
 } from "@/lib/profiling/engine";
 import type { ProfileAnswers, Question } from "@/lib/profiling/types";
 import { track } from "@/lib/analytics";
-import { RebootButton, CtaArrow, MonoLabel } from "./shared";
-import { HashSymbol } from "@/components/brand/logo";
-import { OptionCard } from "./option-card";
-import { CountrySelect } from "./country-select";
-import { ProfileCard } from "./profile-card";
+import { ProfilingShell } from "./profiling/shell";
+import { ResumePrompt } from "./profiling/resume-prompt";
+import { QuestionView } from "./profiling/question-view";
+import { ProfilePreview, FinalizingState } from "./profiling/preview";
+import { STORAGE_KEY, initialAnswers, type PersistedState } from "./profiling/storage";
+import { saveDraftBeacon } from "./profiling/draft";
 import {
   setEncryptedItem,
   getEncryptedItem,
   removeEncryptedItem,
 } from "@/lib/storage-crypto";
-
-function useDebounce<T>(value: T, delay: number): T {
-  const [debounced, setDebounced] = React.useState(value);
-  React.useEffect(() => {
-    const handler = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(handler);
-  }, [value, delay]);
-  return debounced;
-}
-
-const STORAGE_KEY = "hashcode:reboot:profiling";
-
-interface PersistedState {
-  answers: ProfileAnswers;
-  answeredIds: string[];
-  step: number; // index within visible list at save time
-}
 
 export function ProfilingFlow({
   onComplete,
@@ -52,14 +28,7 @@ export function ProfilingFlow({
   onComplete: (answers: ProfileAnswers) => void;
   onBack: () => void;
 }) {
-  const [answers, setAnswers] = React.useState<ProfileAnswers>({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    country: "",
-    city: "",
-  });
+  const [answers, setAnswers] = React.useState<ProfileAnswers>(initialAnswers);
   const [answeredIds, setAnsweredIds] = React.useState<string[]>([]);
   const [step, setStep] = React.useState(0); // index into visible list
   const [direction, setDirection] = React.useState(1);
@@ -100,35 +69,6 @@ export function ProfilingFlow({
     return () => { cancelled = true; };
   }, []);
 
-  // Save partial answers server-side on abandon — enables relance emails.
-  // Déclaré avant les effets qui l'utilisent (règle react-hooks/immutability).
-  function saveDraft() {
-    const email = answers.email;
-    if (!email || !email.trim()) return; // email not captured yet
-    const payload = {
-      email,
-      answers,
-      lastQuestionId: lastQuestionRef.current ?? undefined,
-    };
-    try {
-      if (navigator.sendBeacon) {
-        const blob = new Blob([JSON.stringify(payload)], {
-          type: "application/json",
-        });
-        navigator.sendBeacon("/api/profiling/draft", blob);
-      } else {
-        void fetch("/api/profiling/draft", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-          keepalive: true,
-        });
-      }
-    } catch {
-      /* best-effort — draft saving must never break UX */
-    }
-  }
-
   // --- Confirmation de sortie (beforeunload) + drop-off tracking ---
   React.useEffect(() => {
     if (!hydrated || answeredIds.length === 0) return;
@@ -137,7 +77,7 @@ export function ProfilingFlow({
       e.returnValue = "Tu es sûr de vouloir quitter ?";
       if (lastQuestionRef.current) {
         track({ type: "profiling_abandoned", ref: lastQuestionRef.current });
-        saveDraft();
+        saveDraftBeacon(answers, lastQuestionRef.current);
       }
       return "Tes réponses sont sauvegardées, tu peux reprendre plus tard.";
     };
@@ -156,7 +96,7 @@ export function ProfilingFlow({
         if (now - lastHiddenAt > 5000) {
           lastHiddenAt = now;
           track({ type: "profiling_abandoned", ref: lastQuestionRef.current });
-          saveDraft();
+          saveDraftBeacon(answers, lastQuestionRef.current);
         }
       }
     };
@@ -256,7 +196,7 @@ export function ProfilingFlow({
   }
   function restart() {
     void removeEncryptedItem(STORAGE_KEY);
-    setAnswers({ firstName: "", lastName: "", email: "", phone: "", country: "", city: "" });
+    setAnswers(initialAnswers());
     setAnsweredIds([]);
     setStep(0);
     setPhase("questions");
@@ -312,85 +252,26 @@ export function ProfilingFlow({
 
   // --- Profile preview interlude ---
   if (phase === "preview") {
-    const gen = generateProfile(answers);
     return (
-      <ProfilingShell
-        progress={0.98}
-        onBack={goBack}
-        stepLabel="Ton profil HASHCODE est prêt"
-        group="vision"
-        showCompletionIndicator
-      >
-        <div className="animate-hash-in">
-          <div className="max-w-xl mx-auto text-center">
-            <HashSymbol className="mx-auto text-lime" size={40} />
-            <h2 className="mt-5 font-display font-bold text-2xl sm:text-3xl tracking-tight">
-              Ton profil HASHCODE est prêt.
-            </h2>
-            <p className="mt-2 text-muted-foreground">
-              {gen.archetype} — {gen.domainLabel}. Voici la première orientation qu&apos;on tire de tes réponses.
-            </p>
-          </div>
-          <div className="mt-8 max-w-md mx-auto">
-            <ProfileCard profile={gen} goal={answers.threeMonthGoal} />
-          </div>
-          <div className="mt-8 max-w-md mx-auto flex flex-col sm:flex-row gap-3">
-            <RebootButton
-              size="lg"
-              className="group w-full"
-              onClick={() => {
-                setPhase("questions");
-                setDirection(1);
-                // La partie Contact (WhatsApp) a été retirée de l'inscription :
-                // on défile au-delà de la dernière question, ce qui déclenche
-                // l'envoi du profil via l'effet d'auto-finalisation.
-                setStep(visible.length);
-              }}
-            >
-              Finaliser mon profil
-              <CtaArrow />
-            </RebootButton>
-            <RebootButton
-              size="lg"
-              variant="outline"
-              onClick={goBack}
-              className="w-full sm:w-auto whitespace-nowrap"
-            >
-              <ArrowLeft className="size-4 shrink-0" /> Modifier mes réponses
-            </RebootButton>
-          </div>
-          <p className="mt-6 max-w-md mx-auto text-center text-xs text-muted-foreground">
-            Tu pourras compléter ton numéro WhatsApp plus tard, depuis ton espace membre.
-          </p>
-        </div>
-      </ProfilingShell>
+      <ProfilePreview
+        answers={answers}
+        onFinalize={() => {
+          setPhase("questions");
+          setDirection(1);
+          // La partie Contact (WhatsApp) a été retirée de l'inscription :
+          // on défile au-delà de la dernière question, ce qui déclenche
+          // l'envoi du profil via l'effet d'auto-finalisation.
+          setStep(visible.length);
+        }}
+        onEdit={goBack}
+      />
     );
   }
 
   if (!current) {
     // All done — show a transition state while maybeFinish fires.
     // Previously returned null which caused a brief black screen.
-    return (
-      <ProfilingShell
-        progress={1}
-        onBack={goBack}
-        stepLabel="Finalisation…"
-        showCompletionIndicator
-      >
-        <div className="text-center animate-hash-in">
-          <div className="relative inline-flex">
-            <HashSymbol className="text-lime" size={36} />
-            <span className="absolute inset-0 animate-hash-sweep rounded-sm overflow-hidden" />
-          </div>
-          <h2 className="mt-5 font-display font-bold text-lg text-foreground">
-            On finalise ton profil…
-          </h2>
-          <p className="mt-1.5 text-sm text-muted-foreground">
-            Une seconde.
-          </p>
-        </div>
-      </ProfilingShell>
-    );
+    return <FinalizingState onBack={goBack} />;
   }
 
   return (
@@ -446,541 +327,5 @@ export function ProfilingFlow({
         </motion.div>
       </AnimatePresence>
     </ProfilingShell>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Shell: nav + progress + back                                        */
-/* ------------------------------------------------------------------ */
-
-function ProfilingShell({
-  children,
-  progress,
-  onBack,
-  stepLabel,
-  microcopy,
-  group,
-  showCompletionIndicator,
-}: {
-  children: React.ReactNode;
-  progress: number;
-  onBack: () => void;
-  stepLabel: string;
-  microcopy?: string;
-  group?: string;
-  showCompletionIndicator?: boolean;
-}) {
-  const MILESTONES: { key: string; label: string }[] = [
-    { key: "profil", label: "Profil" },
-    { key: "objectifs", label: "Objectif" },
-    { key: "rythme", label: "Rythme" },
-    { key: "mentorat", label: "Mentorat" },
-    { key: "vision", label: "Vision" },
-  ];
-  const activeIdx = group ? MILESTONES.findIndex((m) => m.key === group) : -1;
-
-  return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <header className="sticky top-0 z-40 bg-background/85 backdrop-blur-sm border-b border-border/60">
-        <div className="mx-auto max-w-2xl px-5 sm:px-8 h-14 flex items-center justify-between">
-          <button
-            onClick={onBack}
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors focus-lime"
-          >
-            <ArrowLeft className="size-4" />
-            <span className="hidden sm:inline">Retour</span>
-          </button>
-          <MonoLabel>{stepLabel}</MonoLabel>
-          <span className="text-xs text-muted-foreground mono-label tabular-nums flex items-center gap-2">
-            <span>~{Math.max(1, Math.round((1 - progress) * 120))} min restantes</span>
-            <span className="text-border">·</span>
-            <span>{Math.round(progress * 100)}%</span>
-          </span>
-        </div>
-        <div className="h-0.5 bg-border">
-          <div
-            className="h-full bg-lime transition-[width] duration-320 ease-out"
-            style={{ width: `${Math.max(2, progress * 100)}%` }}
-          />
-          {showCompletionIndicator && progress < 1 && (
-            <span className="ml-2 text-xs text-muted-foreground mono-label">
-              {Math.round(progress * 100)}%
-            </span>
-          )}
-        </div>
-        {/* Milestone group indicator — subtle stage tracker */}
-        {activeIdx >= 0 && (
-          <div className="mx-auto max-w-2xl px-5 sm:px-8 py-2 flex items-center gap-1.5 overflow-x-auto scroll-slim">
-            {MILESTONES.map((m, i) => {
-              const done = i < activeIdx;
-              const active = i === activeIdx;
-              const isCurrentGroup = group === m.key;
-              return (
-                <React.Fragment key={m.key}>
-                  <span
-                    className={cn(
-                      "mono-label whitespace-nowrap transition-colors",
-                      active
-                        ? "text-lime"
-                        : done
-                          ? "text-muted-foreground"
-                          : isCurrentGroup
-                          ? "text-lime/80"
-                          : "text-border",
-                    )}
-                  >
-                    {m.label}
-                  </span>
-                  {i < MILESTONES.length - 1 && (
-                    <span
-                      className={cn(
-                        "h-px w-3 shrink-0 transition-colors",
-                        done ? "bg-muted-foreground/40" : isCurrentGroup ? "bg-lime/20" : "bg-border",
-                      )}
-                    />
-                  )}
-                </React.Fragment>
-              );
-            })}
-          </div>
-        )}
-      </header>
-
-      <main className="flex-1 flex items-start sm:items-center justify-center px-5 sm:px-8 py-10 sm:py-16">
-        <div className="w-full max-w-2xl">
-          {microcopy && (
-            <p className="mb-5 text-center text-sm text-lime font-display italic animate-hash-in">
-              {microcopy}
-            </p>
-          )}
-          {children}
-        </div>
-      </main>
-
-      <footer className="border-t border-border/60">
-        <div className="mx-auto max-w-2xl px-5 sm:px-8 py-3 flex items-center justify-between gap-4">
-          <p className="text-xs text-muted-foreground hidden sm:block">
-            Tes réponses servent à mieux comprendre ton profil.
-          </p>
-          {/* Keyboard shortcut hint — only on single-choice questions */}
-          {group && group !== "vision" && (
-            <span className="text-xs text-muted-foreground mono-label flex items-center gap-1.5">
-              <kbd className="inline-flex items-center justify-center size-4 rounded-sm border border-border bg-card text-[11px] font-mono">1</kbd>
-              <span>–</span>
-              <kbd className="inline-flex items-center justify-center size-4 rounded-sm border border-border bg-card text-[11px] font-mono">9</kbd>
-              <span className="hidden sm:inline">pour choisir</span>
-            </span>
-          )}
-        </div>
-      </footer>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Resume prompt                                                       */
-/* ------------------------------------------------------------------ */
-
-function ResumePrompt({
-  onResume,
-  onRestart,
-  progress,
-  answeredCount,
-  duplicate,
-}: {
-  onResume: () => void;
-  onRestart: () => void;
-  progress: number;
-  answeredCount: number;
-  duplicate: boolean;
-}) {
-  return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <header className="border-b border-border/60">
-        <div className="mx-auto max-w-2xl px-5 sm:px-8 h-14 flex items-center justify-between">
-          <MonoLabel>Ton profil HASHCODE</MonoLabel>
-          <span className="text-xs text-muted-foreground mono-label">
-            {Math.round(progress * 100)}%
-          </span>
-        </div>
-        <div className="h-0.5 bg-border">
-          <div
-            className="h-full bg-lime"
-            style={{ width: `${Math.max(2, progress * 100)}%` }}
-          />
-        </div>
-      </header>
-      <main className="flex-1 flex items-center justify-center px-5 sm:px-8">
-        <div className="w-full max-w-md text-center animate-hash-in">
-          <HashSymbol className="mx-auto text-lime" size={40} />
-          <h2 className="mt-5 font-display font-bold text-2xl tracking-tight">
-            {duplicate
-              ? "Tu as déjà un compte HASHCODE."
-              : "Tu avais un brouillon en cours."}
-          </h2>
-          <p className="mt-2 text-muted-foreground">
-            {duplicate
-              ? "Reprends là où tu en étais — on a retrouvé ton profil."
-              : `Tu as déjà répondu à ${answeredCount} question${
-                  answeredCount > 1 ? "s" : ""
-                }. Tu peux reprendre là où tu t'étais arrêté.`}
-          </p>
-          <div className="mt-7 flex flex-col sm:flex-row gap-3 justify-center">
-            <RebootButton size="lg" className="group w-full sm:w-auto" onClick={onResume}>
-              Reprendre
-              <CtaArrow />
-            </RebootButton>
-            <RebootButton size="lg" variant="outline" onClick={onRestart}>
-              <RotateCcw className="size-4" /> Recommencer
-            </RebootButton>
-          </div>
-        </div>
-      </main>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Per-question view                                                   */
-/* ------------------------------------------------------------------ */
-
-function QuestionView({
-  question,
-  answers,
-  value,
-  error,
-  debouncedError,
-  onSingle,
-  onMultiToggle,
-  onTextChange,
-  onCountry,
-  onContinue,
-}: {
-  question: Question;
-  answers: ProfileAnswers;
-  value: unknown;
-  error: string | null;
-  debouncedError?: string;
-  onSingle: (v: string) => void;
-  onMultiToggle: (v: string) => void;
-  onTextChange: (v: string) => void;
-  onCountry: (v: string) => void;
-  onContinue: () => void;
-}) {
-  const options = React.useMemo(
-    () =>
-      question.options ?? getQuestionOptions(question.id, answers),
-    [question, answers],
-  );
-
-  // Keyboard shortcuts: 1-9 select option N (single-choice only).
-  React.useEffect(() => {
-    if (question.type !== "single_choice" || options.length === 0) return;
-    function onKey(e: KeyboardEvent) {
-      // Ignore when focus is in an input/textarea/select.
-      const t = e.target as HTMLElement | null;
-      if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
-      const n = parseInt(e.key, 10);
-      if (!isNaN(n) && n >= 1 && n <= options.length) {
-        e.preventDefault();
-        onSingle(options[n - 1].value);
-      }
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [question.type, options, onSingle]);
-
-  return (
-    <div>
-      <h2 className="font-display font-bold text-xl sm:text-2xl tracking-tight text-foreground leading-snug">
-        {question.title}
-      </h2>
-      {question.description && (
-        <p className="mt-2 text-muted-foreground text-sm sm:text-base leading-relaxed">
-          {question.description}
-        </p>
-      )}
-
-      <div className="mt-6">
-        {question.type === "single_choice" && (
-          <div className="grid gap-2.5">
-            {options.map((o, i) => (
-              <OptionCard
-                key={o.value}
-                option={o}
-                selected={value === o.value}
-                onSelect={onSingle}
-                index={i}
-              />
-            ))}
-          </div>
-        )}
-
-        {question.type === "multi_choice" && (
-          <MultiChoiceView
-            options={options}
-            selected={(value as string[]) ?? []}
-            onToggle={onMultiToggle}
-            onContinue={onContinue}
-            required={question.required}
-          />
-        )}
-
-        {question.type === "text" && (
-          <TextView
-            value={(value as string) ?? ""}
-            placeholder={question.placeholder}
-            onChange={onTextChange}
-            onContinue={onContinue}
-            error={error}
-            maxLength={question.maxChars}
-            required={question.required}
-          />
-        )}
-
-        {question.type === "longtext" && (
-          <LongTextView
-            value={(value as string) ?? ""}
-            placeholder={question.placeholder}
-            onChange={onTextChange}
-            onContinue={onContinue}
-            error={error}
-            minChars={question.minChars}
-            maxChars={question.maxChars}
-            suggestions={
-              question.id === "threeMonthGoal"
-                ? THREE_MONTH_GOAL_SUGGESTIONS
-                : undefined
-            }
-          />
-        )}
-
-        {question.type === "email" && (
-          <TextView
-            value={(value as string) ?? ""}
-            placeholder={question.placeholder}
-            onChange={onTextChange}
-            onContinue={onContinue}
-            error={error}
-            type="email"
-            maxLength={question.maxChars}
-            required={question.required}
-          />
-        )}
-
-        {question.type === "country" && (
-          <div className="space-y-3">
-            <CountrySelect value={(value as string) ?? ""} onChange={onCountry} />
-            {error && <ErrorNote>{error}</ErrorNote>}
-            <RebootButton
-              size="lg"
-              className="group w-full"
-              onClick={onContinue}
-              disabled={!value}
-            >
-              Continuer
-              <CtaArrow />
-            </RebootButton>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function MultiChoiceView({
-  options,
-  selected,
-  onToggle,
-  onContinue,
-  required,
-}: {
-  options: { value: string; label: string; emoji?: string; description?: string }[];
-  selected: string[];
-  onToggle: (v: string) => void;
-  onContinue: () => void;
-  required: boolean;
-}) {
-  return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-        {options.map((o) => (
-          <OptionCard
-            key={o.value}
-            option={o}
-            selected={selected.includes(o.value)}
-            onToggle={onToggle}
-            variant="checkbox"
-          />
-        ))}
-      </div>
-      <div className="flex items-center justify-between gap-3 pt-1">
-        <span className="text-xs text-muted-foreground">
-          {selected.length > 0
-            ? `${selected.length} sélectionné${selected.length > 1 ? "s" : ""}`
-            : required
-              ? "Choisis au moins une option"
-              : "Facultatif — tu peux passer"}
-        </span>
-        <RebootButton
-          size="md"
-          className="group"
-          onClick={onContinue}
-          disabled={required && selected.length === 0}
-        >
-          {selected.length > 0 ? "Continuer" : required ? "Continuer" : "Passer"}
-          <CtaArrow />
-        </RebootButton>
-      </div>
-    </div>
-  );
-}
-
-function TextView({
-  value,
-  placeholder,
-  onChange,
-  onContinue,
-  error,
-  type = "text",
-  maxLength,
-  required,
-}: {
-  value: string;
-  placeholder?: string;
-  onChange: (v: string) => void;
-  onContinue: () => void;
-  error: string | null;
-  type?: "text" | "email";
-  maxLength?: number;
-  required?: boolean;
-}) {
-  const [blurred, setBlurred] = React.useState(false);
-  const showError = error || (blurred ? "" : "");
-  return (
-    <div className="space-y-3">
-      <input
-        type={type}
-        value={value}
-        autoFocus
-        placeholder={placeholder}
-        maxLength={maxLength}
-        onChange={(e) => onChange(e.target.value)}
-        onBlur={() => setBlurred(true)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            onContinue();
-          }
-        }}
-        className={cn(
-          "w-full h-14 rounded-md border bg-card px-4 text-base sm:text-lg text-foreground placeholder:text-muted-foreground transition-colors duration-180 focus-lime",
-          showError ? "border-destructive" : "border-border focus:border-lime",
-        )}
-      />
-      {showError && <ErrorNote>{showError}</ErrorNote>}
-      <div className="flex items-center justify-between gap-3">
-        {!required && <span className="text-xs text-muted-foreground">Facultatif</span>}
-        <RebootButton
-          size="lg"
-          className="group w-full"
-          onClick={onContinue}
-          disabled={required ? !value.trim() : false}
-        >
-          {value.trim() || required ? "Continuer" : "Passer"}
-          <CtaArrow />
-        </RebootButton>
-      </div>
-    </div>
-  );
-}
-
-function LongTextView({
-  value,
-  placeholder,
-  onChange,
-  onContinue,
-  error,
-  minChars,
-  maxChars,
-  suggestions,
-}: {
-  value: string;
-  placeholder?: string;
-  onChange: (v: string) => void;
-  onContinue: () => void;
-  error: string | null;
-  minChars?: number;
-  maxChars?: number;
-  suggestions?: string[];
-}) {
-  const len = value.trim().length;
-  const [blurred, setBlurred] = React.useState(false);
-  const showError = error || (blurred ? "" : "");
-  return (
-    <div className="space-y-3">
-      {suggestions && suggestions.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {suggestions.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => onChange(s)}
-              className="rounded-full border border-border/60 bg-secondary/50 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-lime/40 hover:text-foreground cursor-pointer"
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      )}
-      <textarea
-        value={value}
-        autoFocus
-        rows={3}
-        placeholder={placeholder}
-        maxLength={maxChars}
-        onChange={(e) => onChange(e.target.value)}
-        onBlur={() => setBlurred(true)}
-        className={cn(
-          "w-full rounded-md border bg-card px-4 py-3 text-base sm:text-lg text-foreground placeholder:text-muted-foreground transition-colors duration-180 focus-lime resize-none leading-relaxed",
-          showError ? "border-destructive" : "border-border focus:border-lime",
-        )}
-      />
-      <div className="flex items-center justify-between text-xs">
-        <span
-          className={cn(
-            "text-muted-foreground",
-            minChars && len > 0 && len < minChars && "text-destructive",
-          )}
-        >
-          {minChars && len < minChars
-            ? `Encore ${minChars - len} caractères`
-            : "Une phrase suffit."}
-        </span>
-        {maxChars && (
-          <span className="mono-label text-muted-foreground">
-            {len}/{maxChars}
-          </span>
-        )}
-      </div>
-      {showError && <ErrorNote>{showError}</ErrorNote>}
-      <RebootButton
-        size="lg"
-        className="group w-full"
-        onClick={onContinue}
-        disabled={!value.trim()}
-      >
-        Continuer
-        <CtaArrow />
-      </RebootButton>
-    </div>
-  );
-}
-
-function ErrorNote({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="text-sm text-destructive animate-hash-in" role="alert">
-      {children}
-    </p>
   );
 }

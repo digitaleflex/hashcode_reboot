@@ -247,7 +247,7 @@ Endpoint public, rate-limit 30/IP/10 min, cache `s-maxage=60`.
 
 ---
 
-## 2. Parcours de profilage (`profiling-flow.tsx`, 986 l.)
+## 2. Parcours de profilage (`profiling-flow.tsx` + `profiling/`, #26)
 
 ### 2.1 Enveloppe (`ProfilingShell`)
 
@@ -918,7 +918,9 @@ Défini mais **jamais appelé** : `community_cta_clicked`.
 - `docs/espace-membre.md` — fonctionnement complet de l'espace membre (état au
   2026-09-09).
 - `src/app/page.tsx` — machine à phases du parcours public.
-- `src/components/reboot/profiling-flow.tsx`, `welcome.tsx`, `profile-card.tsx`,
+- `src/components/reboot/profiling-flow.tsx` (orchestrateur) + `profiling/`
+  (storage, use-debounce, draft, shell, resume-prompt, question-view, views,
+  preview), `welcome.tsx`, `profile-card.tsx`,
   `option-card.tsx`, `country-select.tsx`, `landing.tsx` + `landing/` (data,
   scroll, account-link, site-header, hero, axes, pillars, audience,
   testimonial, coming, faq, faq-section, final-cta, social-proof,
