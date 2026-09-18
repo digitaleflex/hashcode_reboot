@@ -4,6 +4,8 @@ import { getSession } from "@/lib/account-auth";
 import { checkCSRF } from "@/lib/admin-auth";
 import { rateLimit, retryAfterHeader } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
+import { sendEmail } from "@/lib/mail";
+import { enrollmentEmail } from "@/lib/workshop-emails";
 
 export const runtime = "nodejs";
 
@@ -93,6 +95,32 @@ export async function POST(req: NextRequest, { params }: Params) {
       enrolledAt: true,
     },
   });
+
+  // Envoi email de confirmation (sauf si déjà inscrit)
+  if (!already) {
+    const workshopFull = await db.workshop.findUnique({
+      where: { id: workshop.id },
+      select: { title: true },
+    });
+    const member = await db.member.findUnique({
+      where: { id: session.member.id },
+      select: { email: true, firstName: true },
+    });
+
+    if (workshopFull && member?.email) {
+      const emailPayload = enrollmentEmail({
+        memberName: member.firstName || "Membre",
+        workshopTitle: workshopFull.title,
+        workshopUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://hashcode.reboot.com"}/dashboard/ateliers/${workshop.id}`,
+      });
+      await sendEmail({
+        to: member.email,
+        subject: emailPayload.subject,
+        html: emailPayload.html,
+        category: "transactional",
+      });
+    }
+  }
 
   return NextResponse.json({ ok: true, enrollment, already });
 }

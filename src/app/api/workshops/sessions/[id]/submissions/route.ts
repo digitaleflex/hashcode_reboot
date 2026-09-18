@@ -6,6 +6,8 @@ import { rateLimit, retryAfterHeader } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
 import { validateSubmission } from "@/lib/workshop-validation";
 import { getSessionAccess, type SessionAccessCode } from "@/lib/workshop-server";
+import { sendEmail } from "@/lib/mail";
+import { submissionEmail } from "@/lib/workshop-emails";
 
 export const runtime = "nodejs";
 
@@ -154,6 +156,44 @@ export async function POST(req: NextRequest, { params }: Params) {
       submittedAt: true,
     },
   });
+
+  // Envoi email de confirmation de soumission
+  const [deliverableFull, sessionFull, member] = await Promise.all([
+    db.workshopDeliverable.findUnique({
+      where: { id: deliverable.id },
+      select: { title: true },
+    }),
+    db.workshopSession.findUnique({
+      where: { id },
+      select: {
+        week: {
+          select: {
+            workshop: { select: { id: true, title: true } },
+          },
+        },
+      },
+    }),
+    db.member.findUnique({
+      where: { id: session.member.id },
+      select: { email: true, firstName: true },
+    }),
+  ]);
+
+  if (deliverableFull && sessionFull?.week?.workshop && member?.email) {
+    const workshop = sessionFull.week.workshop;
+    const emailPayload = submissionEmail({
+      memberName: member.firstName || "Membre",
+      workshopTitle: workshop.title,
+      deliverableTitle: deliverableFull.title,
+      submissionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://hashcode.reboot.com"}/dashboard/ateliers/${workshop.id}`,
+    });
+    await sendEmail({
+      to: member.email,
+      subject: emailPayload.subject,
+      html: emailPayload.html,
+      category: "transactional",
+    });
+  }
 
   return NextResponse.json({ ok: true, submission }, { status: 201 });
 }
