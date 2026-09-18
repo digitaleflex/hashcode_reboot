@@ -9,6 +9,13 @@ import {
   monoLabel,
 } from "@/lib/email-templates/shell";
 import { resolveActiveTemplate } from "@/lib/email-templates/active";
+import {
+  REFERENCE_LABEL,
+  formatClock,
+  formatEventMoment,
+  localTimeNote,
+  safeTimeZone,
+} from "@/lib/events-timezone";
 
 const RESEND_URL = "https://api.resend.com/emails";
 const BREVO_URL = "https://api.brevo.com/v3/smtp/email";
@@ -1299,6 +1306,7 @@ export async function sendEventNotificationEmail({
   firstName,
   event,
   rsvpUrl,
+  timeZone,
 }: {
   to: string;
   firstName: string;
@@ -1313,6 +1321,13 @@ export async function sendEventNotificationEmail({
     level: string | null;
   };
   rsvpUrl: string;
+  /**
+   * Zone IANA du destinataire (cf. `zoneForCountry`). Absente = fuseau de
+   * référence. Indispensable : sans elle, l'heure est rendue dans le fuseau
+   * du serveur (UTC sur Vercel), donc fausse pour la quasi-totalité des
+   * membres — c'est le bug que ce paramètre corrige.
+   */
+  timeZone?: string | null;
 }): Promise<SendEmailResult> {
   const name = firstName.trim() || "membre";
   const safeName = escapeHtml(name);
@@ -1321,21 +1336,20 @@ export async function sendEventNotificationEmail({
   const safeDomain = event.domain ? escapeHtml(event.domain) : "";
   const safeLevel = event.level ? escapeHtml(event.level) : "";
 
+  const zone = safeTimeZone(timeZone);
   const subject = "Nouvel événement HASHCODE REBOOT — " + safeTitle;
-  const startsStr = event.startsAt.toLocaleDateString("fr-FR", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+
+  // Rendu dans le fuseau du destinataire, au format exact de l'affichage web
+  // (« samedi 19 septembre à 20:00 ») : email et page ne peuvent plus se
+  // contredire.
+  const startsStr = formatEventMoment(event.startsAt, zone);
   const endsStr =
     event.endsAt && event.endsAt !== event.startsAt
-      ? event.endsAt.toLocaleDateString("fr-FR", {
-          hour: "2-digit",
-          minute: "2-digit",
-        })
+      ? formatClock(event.endsAt, zone)
       : null;
+  // Précision ajoutée seulement si le destinataire lit une heure différente.
+  const tzNote = localTimeNote(event.startsAt, zone);
+  const safeTzNote = tzNote ? escapeHtml(tzNote) : null;
 
   const text = [
     `Bonjour ${name},`,
@@ -1348,6 +1362,7 @@ export async function sendEventNotificationEmail({
     safeLevel && `Niveau : ${safeLevel}`,
     `Date : ${startsStr}`,
     endsStr && `Fin : ${endsStr}`,
+    tzNote && tzNote,
     event.location && `Lieu : ${event.location}`,
     event.description && `Description : ${event.description}`,
     "",
@@ -1371,6 +1386,7 @@ export async function sendEventNotificationEmail({
     safeLevel && `<div style="font-family:${MAIL_FONT};font-size:11px;font-weight:700;letter-spacing:1px;color:#94A3B8;margin:2px 0 0 0;">Niveau : ${safeLevel}</div>`,
     `<div style="font-family:${MAIL_FONT};font-size:11px;font-weight:700;letter-spacing:2px;color:#94A3B8;margin:4px 0 0 0;">Date : ${startsStr}</div>`,
     endsStr && `<div style="font-family:${MAIL_FONT};font-size:11px;font-weight:700;letter-spacing:2px;color:#94A3B8;margin:2px 0 0 0;">Fin : ${endsStr}</div>`,
+    safeTzNote && `<div style="font-family:${MAIL_FONT};font-size:11px;line-height:1.5;color:#64748B;margin:6px 0 0 0;">${safeTzNote}</div>`,
     event.location && `<div style="font-family:${MAIL_FONT};font-size:11px;font-weight:700;letter-spacing:2px;color:#94A3B8;margin:2px 0 0 0;">Lieu : ${event.location}</div>`,
     event.description && `<div style="font-family:${MAIL_FONT};font-size:11px;line-height:1.5;color:#F8FAFC;margin:4px 0 0 0;">${event.description}</div>`,
     `</td></tr>`,

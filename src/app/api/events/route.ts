@@ -5,6 +5,7 @@ import { requireAdminRole, checkCSRF, readAdminCookie, getAdminRoleFromToken } f
 import { sendEventNotificationEmail } from "@/lib/mail";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { validateEventCreate, notifyWhere } from "@/lib/events-validation";
+import { zoneForCountry } from "@/lib/events-timezone";
 import { audit } from "@/lib/admin-audit";
 import { blockIfTesting } from "@/lib/test-guard";
 import { bodyLimit } from "@/lib/body-limit";
@@ -221,7 +222,7 @@ export async function POST(req: NextRequest) {
     // de l'event quand renseignés (même filtre que notify-count).
     const members = await db.member.findMany({
       where: notifyWhere({ domain: v.domain, level: v.level }),
-      select: { email: true, firstName: true },
+      select: { email: true, firstName: true, country: true },
     });
 
     // Fire-and-forget: on n'attend pas chaque envoi.
@@ -249,6 +250,9 @@ export async function POST(req: NextRequest) {
               firstName: member.firstName,
               event: payload,
               rsvpUrl,
+              // Chaque destinataire reçoit l'heure dans son propre fuseau :
+              // sinon le serveur (UTC) annoncerait une heure fausse.
+              timeZone: zoneForCountry(member.country),
             }),
           ),
         );

@@ -5,6 +5,7 @@ import { requireAdminRole, checkCSRF, readAdminCookie, getAdminRoleFromToken } f
 import { sendEventNotificationEmail } from "@/lib/mail";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { validateEventPatch, notifyWhere } from "@/lib/events-validation";
+import { zoneForCountry } from "@/lib/events-timezone";
 import { audit } from "@/lib/admin-audit";
 import { blockIfTesting } from "@/lib/test-guard";
 
@@ -150,7 +151,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const rsvpUrl = `${siteUrl}/dashboard/agenda`;
     const members = await db.member.findMany({
       where: notifyWhere({ domain: event.domain, level: event.level }),
-      select: { email: true, firstName: true },
+      select: { email: true, firstName: true, country: true },
     });
     const notifyPromise = (async () => {
       const payload = {
@@ -172,6 +173,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
               firstName: member.firstName,
               event: payload,
               rsvpUrl,
+              // Heure rendue dans le fuseau du destinataire (cf. events-timezone).
+              timeZone: zoneForCountry(member.country),
             }),
           ),
         );
