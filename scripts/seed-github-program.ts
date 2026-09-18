@@ -20,10 +20,14 @@
  *   --force   : met à jour les séances existantes (titre, description, lieu,
  *               lien, horaires) au lieu de les laisser telles quelles.
  *
- * Décalage horaire : les créneaux sont saisis en heure de Paris. Le script
- * porte l'offset explicitement (+02:00, CEST) car tout le programme tombe
- * avant le changement d'heure du 25 octobre 2026 — une conversion UTC implicite
- * décalerait silencieusement les séances d'une heure.
+ * Fuseau de référence : UTC+1. La communauté est majoritairement béninoise
+ * (34/48 membres), avec une minorité en UTC+0 (Côte d'Ivoire, Burkina, Guinée).
+ * Aucun de ces fuseaux n'observe l'heure d'été : l'offset est donc constant
+ * sur tout le programme, sans piège de changement d'heure.
+ *
+ * L'offset est écrit en clair dans la chaîne de date : une conversion implicite
+ * (via la locale de la machine qui exécute le script) décalerait silencieusement
+ * les 12 séances. Un script doit produire le même instant partout.
  */
 
 import { PrismaClient } from "@prisma/client";
@@ -36,6 +40,13 @@ const MEET_URL =
   process.env.NEXT_PUBLIC_MEET_URL ?? "https://meet.google.com/pdr-qjei-zkk";
 const LOCATION = "Google Meet";
 const RECURRENCE = "weekly";
+
+/**
+ * Fuseau de référence du programme (UTC+1, sans heure d'été).
+ * `Africa/Porto-Novo` (Bénin) représente la majorité des membres ; utilisée
+ * uniquement pour l'affichage lisible de l'aperçu, jamais pour le calcul.
+ */
+const REFERENCE_TZ = "Africa/Porto-Novo";
 
 /** Prérequis identique pour toutes les séances. */
 const PREREQUISITE = "Prérequis : un ordinateur et une connexion internet.";
@@ -66,8 +77,12 @@ const SERIES = {
   mercredi: { id: "github-bases-mercredi", heure: "20:30:00", duree: 120 },
 } as const satisfies Record<string, Serie>;
 
-/** Offset de Paris pendant tout le programme (CEST, avant le 25/10/2026). */
-const OFFSET = "+02:00";
+/**
+ * Offset UTC+1, porté explicitement dans la chaîne de date.
+ * Constant : les fuseaux de la communauté (UTC+1 et UTC+0) n'ont pas d'heure
+ * d'été, contrairement à l'Europe.
+ */
+const OFFSET = "+01:00";
 
 const SEANCES: Seance[] = [
   {
@@ -219,13 +234,22 @@ function fin(s: Seance): Date {
   return new Date(debut(s).getTime() + SERIES[s.serie].duree * 60_000);
 }
 
-/** Rendu lisible en heure de Paris, pour l'aperçu du --dry-run. */
-function enHeureDeParis(d: Date): string {
+/** Rendu lisible dans le fuseau de référence, pour l'aperçu du --dry-run. */
+function enHeureDeReference(d: Date): string {
   return new Intl.DateTimeFormat("fr-FR", {
-    timeZone: "Europe/Paris",
+    timeZone: REFERENCE_TZ,
     weekday: "long",
     day: "2-digit",
     month: "long",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(d);
+}
+
+/** Heure seule (HH:MM) dans le fuseau de référence. */
+function heureDeReference(d: Date): string {
+  return new Intl.DateTimeFormat("fr-FR", {
+    timeZone: REFERENCE_TZ,
     hour: "2-digit",
     minute: "2-digit",
   }).format(d);
@@ -240,6 +264,7 @@ async function main() {
   console.info(
     `\nProgramme « Maîtrise GitHub — Bases » — ${SEANCES.length} séances` +
       `${DRY_RUN ? " (DRY RUN, aucune écriture)" : ""}\n` +
+      `Heures de référence : UTC+1 (${REFERENCE_TZ})\n` +
       `Salle : ${LOCATION} · ${MEET_URL}\n`,
   );
 
@@ -261,12 +286,15 @@ async function main() {
       maxAttendees: null,
     };
 
+    // Identité d'une séance : son titre (il porte le numéro) + sa série.
+    // Volontairement PAS startsAt : corriger un horaire ne doit pas créer un
+    // doublon, mais mettre à jour la séance existante (--force).
     const existing = await prisma.event.findFirst({
-      where: { title: data.title, startsAt: data.startsAt },
+      where: { title: data.title, recurrenceId: data.recurrenceId },
       select: { id: true },
     });
 
-    const creneau = `${enHeureDeParis(data.startsAt)} → ${enHeureDeParis(data.endsAt).slice(-5)}`;
+    const creneau = `${enHeureDeReference(data.startsAt)} → ${heureDeReference(data.endsAt)}`;
 
     if (!existing) {
       if (!DRY_RUN) await prisma.event.create({ data });
