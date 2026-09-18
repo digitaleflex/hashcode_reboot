@@ -30,6 +30,7 @@
 **PROBLÈME** : L'interface admin utilise des sections verticales (stats, membres, activité, exports) sans navigation par onglets ou liens de section. L'utilisateur doit scroller pour accéder à une section spécifique. Le menu latéral (AdminSidebar) est absent dans l'implémentation actuelle, ce qui rend la navigation entre sections moins intuitive.
 
 **IMPACT** :
+
 - Augmentation du temps de tâche pour accéder rapidement à une section spécifique
 - Moins de découverte visuelle des fonctionnalités disponibles
 - Navigation difficile sur les petits écrans sans scrollbar verticale
@@ -38,16 +39,19 @@
 **DONNÉE CONCERNÉE** : Toutes les sections (Stats, Membres, Activité, Exports)
 
 **SOLUTION** :
+
 - Implémenter un menu latéral fixe (AdminSidebar) avec liens cliquables vers les sections
 - Ajouter des boutons de navigation "Aller à" dans l'en-tête de chaque section
 - Ajouter une barre de navigation verticale à gauche avec icônes + labels (Statistiques, Membres, Activité, Export, Paramètres)
 
 **POURQUOI** :
+
 - Les interfaces d'administration modernes (Dashboard, AdminLTE, AdminJS) utilisent des menus latéraux pour la navigation
 - Les utilisateurs de bureaux sont habitués à ce pattern
 - Améliore la découverte des fonctionnalités et la navigation sans scroller
 
 **RISQUE** :
+
 - Risque modéré de confusion si la sidebar n'est pas clairement identifiée comme navigation
 - Si mal implémentée, peut prendre de la place sur petits écrans
 
