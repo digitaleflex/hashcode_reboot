@@ -52,7 +52,7 @@
 | `?resume=1` | phase `profiling` directe + `track profiling_resumed` | 3 |
 | — | landing + `track reboot_page_view` | 4 |
 
-### 1.2 Structure de la landing (`src/components/reboot/landing.tsx`, 972 l.)
+### 1.2 Structure de la landing (`src/components/reboot/landing/` + `landing.tsx`, #27)
 
 Conteneur `bg-background min-h-screen flex flex-col pb-[76px] sm:pb-0` (réserve la
 place du CTA mobile). Ordre exact de rendu :
@@ -198,7 +198,7 @@ et tous ».
 section `#rejoindre` hors viewport ; contenu « **2 min · Gratuit** » / « Ton
 challenge cette semaine » + bouton `Construire mon profil`.
 
-### 1.6 Compteur communauté (`LiveMemberCount`, `landing.tsx:905-926`)
+### 1.6 Compteur communauté (`LiveMemberCount`, `landing/social-proof.tsx`)
 
 `GET /api/community/count` (`cache:"no-store"`). Si `count > 0` → valeur en
 `font-display font-bold text-lime tabular-nums` + label **« Profils déjà créés »** ;
@@ -919,7 +919,10 @@ Défini mais **jamais appelé** : `community_cta_clicked`.
   2026-09-09).
 - `src/app/page.tsx` — machine à phases du parcours public.
 - `src/components/reboot/profiling-flow.tsx`, `welcome.tsx`, `profile-card.tsx`,
-  `option-card.tsx`, `country-select.tsx`, `landing.tsx`,
+  `option-card.tsx`, `country-select.tsx`, `landing.tsx` + `landing/` (data,
+  scroll, account-link, site-header, hero, axes, pillars, audience,
+  testimonial, coming, faq, faq-section, final-cta, social-proof,
+  site-footer, sticky-cta),
   `public-events.tsx`, `profile/PublicProfileCard.tsx`.
 - `src/lib/profiling/questions.ts`, `engine.ts`, `validate.ts`, `auto-controls.ts`,
   `types.ts`, `labels.ts`.
