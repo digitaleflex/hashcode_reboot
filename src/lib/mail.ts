@@ -44,6 +44,13 @@ export interface SendEmailInput {
     | "transactional"
     | "notification"
     | "code";
+
+  /**
+   * Forcer un provider spécifique (ex. Brevo pour les lots > 20). Si absent,
+   * le routage par catégorie s'applique. Un fallback automatique sur l'autre
+   * provider reste possible en cas de 429 (si BREVO_FALLBACK_ON_429=true).
+   */
+  forceProvider?: "resend" | "brevo";
 }
 
 export interface SendEmailResult {
@@ -216,8 +223,26 @@ export async function sendEmail({
   text,
   tags,
   category,
+  forceProvider,
 }: SendEmailInput): Promise<SendEmailResult> {
   const input = { to, subject, html, text, tags };
+
+  // ── Provider forcé (lots > 20 → Brevo) ────────────────────────────────
+  // Le routage par catégorie est court-circuité, mais le fallback 429 reste
+  // actif : si le provider forcé est en erreur, on tente l'autre.
+  if (forceProvider) {
+    const primary = forceProvider === "brevo" ? sendViaBrevo : sendViaResend;
+    const fallback = forceProvider === "brevo" ? sendViaResend : sendViaBrevo;
+    const result = await primary(input);
+    if (result.ok) return result;
+    if (process.env.BREVO_FALLBACK_ON_429 === "true") {
+      const fb = await fallback(input);
+      if (fb.ok) return fb;
+    }
+    return result;
+  }
+
+  // ── Routage par catégorie (par défaut) ─────────────────────────────────
 
   // Notification / code → toujours Resend en primary (traçabilité, délai)
   if (category === "notification" || category === "code") {
@@ -843,9 +868,7 @@ export async function sendStatusChangeEmail({
   }
 
   return sendEmail({ to, subject, html: emailShell(subject, inner), text, category: "notification" });
-}
-
-function approvedHtml(safeName: string, archetype: string | null | undefined) {
+}function approvedHtml(safeName: string, archetype: string | null | undefined) {
   const joinUrl = escapeHtml(getCommunityJoinUrlForEmail());
   const archLine = archetype
     ? `Profil confirmé : <strong style="color:#C5F441;">${escapeHtml(archetype)}</strong>.`
@@ -1314,6 +1337,7 @@ export async function sendEventNotificationEmail({
   event,
   rsvpUrl,
   timeZone,
+  forceProvider,
 }: {
   to: string;
   firstName: string;
@@ -1335,6 +1359,10 @@ export async function sendEventNotificationEmail({
    * membres — c'est le bug que ce paramètre corrige.
    */
   timeZone?: string | null;
+  /**
+   * Forcer un provider (ex. Brevo pour les lots > 20). Transmis à sendEmail.
+   */
+  forceProvider?: "resend" | "brevo";
 }): Promise<SendEmailResult> {
   const name = firstName.trim() || "membre";
   const safeName = escapeHtml(name);

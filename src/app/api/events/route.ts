@@ -257,14 +257,16 @@ export async function POST(req: NextRequest) {
         recipients: members,
         send: (member) =>
           sendEventNotificationEmail({
-            to: member.email,
-            firstName: member.firstName,
-            event: payload,
-            rsvpUrl,
-            // Chaque destinataire reçoit l'heure dans son propre fuseau :
-            // sinon le serveur (UTC) annoncerait une heure fausse.
-            timeZone: zoneForCountry(member.country),
-          }),
+              to: member.email,
+              firstName: member.firstName,
+              event: payload,
+              rsvpUrl,
+              // Chaque destinataire reçoit l'heure dans son propre fuseau :
+              // sinon le serveur (UTC) annoncerait une heure fausse.
+              timeZone: zoneForCountry(member.country),
+              // Lots > 20 → Brevo (quota 300/j vs 100/j Resend).
+              forceProvider: budgetPlan.provider,
+            }),
       });
 
       // Ne marquer comme notifié que si tout le lot est parti : sinon le champ

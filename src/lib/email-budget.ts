@@ -200,8 +200,17 @@ export async function getAllBudgets(now = new Date()): Promise<{
  * Provider principal d'une catégorie — réplique du routage de `sendEmail`
  * (src/lib/mail.ts). Le garde-fou doit viser le provider qui recevra
  * réellement l'envoi, sinon il protège le mauvais quota.
+ *
+ * **Règle projet** : les lots de plus de 20 destinataires passent toujours
+ * par Brevo (quota 300/jour vs 100/jour pour Resend), quelle que soit la
+ * catégorie. Resend est réservé aux envois ponctuels et transactionnels.
  */
-export function primaryProviderFor(category: EmailCategory): EmailProvider {
+export function providerForBatch(
+  category: EmailCategory,
+  requested: number,
+): EmailProvider {
+  const BREVO_THRESHOLD = 20;
+  if (requested > BREVO_THRESHOLD) return "brevo";
   if (category === "notification" || category === "code") return "resend";
   if (category === "marketing") return "brevo";
   return process.env.EMAIL_PROVIDER === "brevo" ? "brevo" : "resend";
@@ -219,7 +228,8 @@ export async function planBatch(input: {
   provider?: EmailProvider;
   now?: Date;
 }): Promise<BatchPlan> {
-  const provider = input.provider ?? primaryProviderFor(input.category);
+  const provider =
+    input.provider ?? providerForBatch(input.category, input.requested);
   const requested = Math.max(0, Math.floor(input.requested));
 
   let budget: EmailBudget;

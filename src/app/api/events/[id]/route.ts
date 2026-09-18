@@ -185,14 +185,16 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         category: "notification",
         recipients: members,
         send: (member) =>
-          sendEventNotificationEmail({
-            to: member.email,
-            firstName: member.firstName,
-            event: payload,
-            rsvpUrl,
-            // Heure rendue dans le fuseau du destinataire (cf. events-timezone).
-            timeZone: zoneForCountry(member.country),
-          }),
+            sendEventNotificationEmail({
+              to: member.email,
+              firstName: member.firstName,
+              event: payload,
+              rsvpUrl,
+              // Heure rendue dans le fuseau du destinataire (cf. events-timezone).
+              timeZone: zoneForCountry(member.country),
+              // Lots > 20 → Brevo (quota 300/j vs 100/j Resend).
+              forceProvider: budgetPlan.provider,
+            }),
       });
       // Ne marquer comme notifié que si tout le lot est parti.
       if (result.deferred === 0) {
