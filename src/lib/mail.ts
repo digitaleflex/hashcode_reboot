@@ -211,9 +211,9 @@ async function sendViaBrevo({
 /**
  * Envoi d'email avec routage provider par catégorie :
  * - category="marketing" → Brevo (primary) → Resend (fallback)
- * - category="notification" / "code" → Resend (primary) → Brevo (fallback si BREVO_FALLBACK_ON_429=true)
+ * - category="notification" / "code" → Resend (primary) ou Brevo si EMAIL_PROVIDER=brevo → fallback sur l'autre si BREVO_FALLBACK_ON_429=true
  * - category="transactional" / défaut → Resend (primary) → Brevo (fallback si BREVO_FALLBACK_ON_429=true)
- * - EMAIL_PROVIDER=brevo → Brevo prioritaire pour tout sauf "notification"/"code"
+ * - EMAIL_PROVIDER=brevo → Brevo prioritaire pour toutes les catégories (notification, code, transactional)
  * Ne lève jamais : toute erreur retourne { ok: false } silencieusement.
  */
 export async function sendEmail({
@@ -244,18 +244,23 @@ export async function sendEmail({
 
   // ── Routage par catégorie (par défaut) ─────────────────────────────────
 
-  // Notification / code → toujours Resend en primary (traçabilité, délai)
+  // Notification / code → Resend en primary, ou Brevo si EMAIL_PROVIDER=brevo
   if (category === "notification" || category === "code") {
-    const resendResult = await sendViaResend(input);
-    if (resendResult.ok) return resendResult;
+    const isBrevo = process.env.EMAIL_PROVIDER === "brevo";
+    const primary = isBrevo ? sendViaBrevo : sendViaResend;
+    const fallback = isBrevo ? sendViaResend : sendViaBrevo;
+    const primaryName = isBrevo ? "Brevo" : "Resend";
+    const fallbackName = isBrevo ? "Resend" : "Brevo";
+    const result = await primary(input);
+    if (result.ok) return result;
     if (process.env.BREVO_FALLBACK_ON_429 === "true") {
       if (process.env.NODE_ENV !== "production") {
-        console.info("[Email] Basculement Resend → Brevo (fallback) pour", to);
+        console.info(`[Email] Basculement ${primaryName} → ${fallbackName} (fallback) pour`, to);
       }
-      const brevoResult = await sendViaBrevo(input);
-      if (brevoResult.ok) return brevoResult;
+      const fb = await fallback(input);
+      if (fb.ok) return fb;
     }
-    return resendResult;
+    return result;
   }
 
   // Marketing → Brevo primary, Resend fallback

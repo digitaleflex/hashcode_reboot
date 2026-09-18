@@ -211,7 +211,9 @@ export function providerForBatch(
 ): EmailProvider {
   const BREVO_THRESHOLD = 20;
   if (requested > BREVO_THRESHOLD) return "brevo";
-  if (category === "notification" || category === "code") return "resend";
+  if (category === "notification" || category === "code") {
+    return process.env.EMAIL_PROVIDER === "brevo" ? "brevo" : "resend";
+  }
   if (category === "marketing") return "brevo";
   return process.env.EMAIL_PROVIDER === "brevo" ? "brevo" : "resend";
 }
