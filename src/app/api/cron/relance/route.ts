@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sendRelanceEmail } from "@/lib/mail";
 import { logMemberEmail, memberIdsWithEmailLog } from "@/lib/member-email-log";
+import { planBatch } from "@/lib/email-budget";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -76,8 +77,12 @@ export async function GET(req: NextRequest) {
     let errors = 0;
     const sentIds7: string[] = [];
 
-    for (let i = 0; i < targets7.length; i += 10) {
-      const chunk = targets7.slice(i, i + 10);
+    // Garde-fou : limiter les envois au budget restant.
+    const plan = await planBatch({ category: "marketing", requested: targets7.length });
+    const toSend7 = targets7.slice(0, plan.allowed);
+
+    for (let i = 0; i < toSend7.length; i += plan.batchSize || 10) {
+      const chunk = toSend7.slice(i, i + (plan.batchSize || 10));
       const results = await Promise.allSettled(
         chunk.map(async (draft) => {
           let firstName = draft.firstName ?? "";
@@ -97,6 +102,7 @@ export async function GET(req: NextRequest) {
             to: draft.email,
             firstName,
             lastQuestionId: draft.lastQuestionId ?? undefined,
+            forceProvider: plan.provider,
           });
           if (res.ok && member) {
             await logMemberEmail({

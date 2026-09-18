@@ -8,6 +8,7 @@ import { generateOtp, hashOtp } from "@/lib/account-otp";
 import { createPendingSession } from "@/lib/account-auth";
 import { sendDashboardInviteEmail } from "@/lib/mail";
 import { logMemberEmail } from "@/lib/member-email-log";
+import { planBatch } from "@/lib/email-budget";
 
 export const runtime = "nodejs";
 
@@ -95,6 +96,12 @@ export async function POST(req: NextRequest) {
     select: { id: true, email: true, firstName: true },
   });
 
+  // Garde-fou : vérifier le budget avant d'envoyer. Si le lot dépasse le quota,
+  // on envoie uniquement ce qui est autorisé, le reste est reporté (pas marqué).
+  const plan = await planBatch({ category: "marketing", requested: members.length });
+  const toSend = members.slice(0, plan.allowed);
+  const deferred = members.length - plan.allowed;
+
   const base =
     process.env.NEXT_PUBLIC_SITE_URL ||
     process.env.NEXT_PUBLIC_URL ||
@@ -103,7 +110,7 @@ export async function POST(req: NextRequest) {
   let sent = 0;
   const failed: string[] = [];
 
-  for (const member of members) {
+  for (const member of toSend) {
     try {
       // Invalider les sessions OTP en attente (anti double-code), comme /request-magic-link.
       await db.memberSession
@@ -128,6 +135,7 @@ export async function POST(req: NextRequest) {
         to: member.email,
         firstName: member.firstName || "toi",
         url,
+        forceProvider: plan.provider,
       });
       if (res.ok) {
         sent += 1;
@@ -165,6 +173,8 @@ export async function POST(req: NextRequest) {
     ok: true,
     sent,
     failed,
+    deferred,
+    budget: { provider: plan.provider, level: plan.level },
     total,
     remaining,
     nextOffset,

@@ -8,6 +8,7 @@ import { generateOtp, hashOtp } from "@/lib/account-otp";
 import { createPendingSession } from "@/lib/account-auth";
 import { sendRejoinEmail } from "@/lib/mail";
 import { logMemberEmail, memberIdsWithEmailLog } from "@/lib/member-email-log";
+import { planBatch } from "@/lib/email-budget";
 
 export const runtime = "nodejs";
 
@@ -400,7 +401,10 @@ export async function POST(req: NextRequest) {
       resendCandidates.map((m) => m.id),
       "invite",
     );
-    for (const member of resendCandidates) {
+    // Garde-fou : limiter les envois au budget restant.
+    const plan = await planBatch({ category: "marketing", requested: resendCandidates.length });
+    const toResend = resendCandidates.slice(0, plan.allowed);
+    for (const member of toResend) {
       if (resendLogged.has(member.id)) continue;
       try {
         await db.memberSession.updateMany({
@@ -421,6 +425,7 @@ export async function POST(req: NextRequest) {
           to: member.email,
           firstName: member.firstName || "toi",
           url,
+          forceProvider: plan.provider,
         });
         if (res.ok) {
           resent++;

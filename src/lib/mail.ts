@@ -631,12 +631,14 @@ export interface RelanceEmailInput {
   to: string;
   firstName: string;
   lastQuestionId?: string;
+  forceProvider?: "resend" | "brevo";
 }
 
 export async function sendRelanceEmail({
   to,
   firstName,
   lastQuestionId,
+  forceProvider,
 }: RelanceEmailInput): Promise<SendEmailResult> {
   const name = firstName.trim() || "toi";
   const safeName = escapeHtml(name);
@@ -689,6 +691,7 @@ export async function sendRelanceEmail({
     html: active?.html ?? html,
     text: active?.text ?? text,
     category: "marketing",
+    forceProvider,
   });
 }
 
@@ -922,6 +925,7 @@ export interface DashboardInviteEmailInput {
   firstName: string;
   /** Lien magique 1-clic vers /verify-otp (valide 72 h). */
   url: string;
+  forceProvider?: "resend" | "brevo";
 }
 
 /**
@@ -932,6 +936,7 @@ export async function sendDashboardInviteEmail({
   to,
   firstName,
   url,
+  forceProvider,
 }: DashboardInviteEmailInput): Promise<SendEmailResult> {
   const name = firstName.trim() || "toi";
   const safeName = escapeHtml(name);
@@ -993,6 +998,7 @@ export async function sendDashboardInviteEmail({
     html: active?.html ?? html,
     text: active?.text ?? text,
     category: "marketing",
+    forceProvider,
   });
 }
 
@@ -1002,6 +1008,7 @@ export interface RejoinEmailInput {
   to: string;
   firstName: string;
   url: string;
+  forceProvider?: "resend" | "brevo";
 }
 
 /**
@@ -1012,6 +1019,7 @@ export async function sendRejoinEmail({
   to,
   firstName,
   url,
+  forceProvider,
 }: RejoinEmailInput): Promise<SendEmailResult> {
   const name = firstName.trim() || "toi";
   const safeName = escapeHtml(name);
@@ -1071,6 +1079,7 @@ export async function sendRejoinEmail({
     html: active?.html ?? html,
     text: active?.text ?? text,
     category: "marketing",
+    forceProvider,
   });
 }
 
