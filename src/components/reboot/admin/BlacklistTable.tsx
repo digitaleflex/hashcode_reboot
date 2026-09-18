@@ -175,7 +175,7 @@ export function BlacklistTable() {
                         </code>
                         {entry.autoAdded && (
                           <span
-                            className="text-[10px] mono-label text-muted-foreground border border-border/40 px-1.5 py-0.5 rounded"
+                            className="mono-label text-muted-foreground border border-border/40 px-1.5 py-0.5 rounded"
                             title="Ajouté automatiquement (ex: soft-delete)"
                           >
                             AUTO

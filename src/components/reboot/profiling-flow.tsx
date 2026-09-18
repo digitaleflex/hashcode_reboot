@@ -565,9 +565,9 @@ function ProfilingShell({
           {/* Keyboard shortcut hint — only on single-choice questions */}
           {group && group !== "contact" && group !== "vision" && (
             <span className="text-xs text-muted-foreground mono-label flex items-center gap-1.5">
-              <kbd className="inline-flex items-center justify-center size-4 rounded-sm border border-border bg-card text-[9px] font-mono">1</kbd>
+              <kbd className="inline-flex items-center justify-center size-4 rounded-sm border border-border bg-card text-[11px] font-mono">1</kbd>
               <span>–</span>
-              <kbd className="inline-flex items-center justify-center size-4 rounded-sm border border-border bg-card text-[9px] font-mono">9</kbd>
+              <kbd className="inline-flex items-center justify-center size-4 rounded-sm border border-border bg-card text-[11px] font-mono">9</kbd>
               <span className="hidden sm:inline">pour choisir</span>
             </span>
           )}

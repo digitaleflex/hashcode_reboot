@@ -47,7 +47,7 @@ export function OptionCard({
       {typeof index === "number" && index < 9 && (
         <span
           className={cn(
-            "absolute top-2 right-2.5 size-5 rounded-sm flex items-center justify-center text-[10px] font-mono transition-opacity duration-180",
+            "absolute top-2 right-2.5 size-5 rounded-sm flex items-center justify-center text-[11px] font-mono transition-opacity duration-180",
             "border border-border/70 text-muted-foreground",
             "hidden sm:flex",
             selected && "border-lime/60 text-lime",

@@ -71,7 +71,7 @@ export function MobileBottomNav() {
               aria-current={active ? "page" : undefined}
             >
               <Icon className="size-5 shrink-0" aria-hidden />
-              <span className="text-[10px] leading-tight tracking-wide">
+              <span className="text-[11px] leading-tight">
                 {item.label}
               </span>
               {/* Active indicator */}

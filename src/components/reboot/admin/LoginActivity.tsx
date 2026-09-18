@@ -55,11 +55,11 @@ export function LoginActivity() {
         <div className="grid grid-cols-2 gap-2 mb-4">
           <div className="rounded-md border border-border/60 bg-card/60 p-3 text-center">
             <div className="text-xl font-bold tabular-nums text-foreground">{data.dau7Avg}</div>
-            <div className="text-[10px] text-muted-foreground uppercase tracking-wider">DAU moyen 7j</div>
+            <div className="mono-label text-muted-foreground">DAU moyen 7j</div>
           </div>
           <div className="rounded-md border border-border/60 bg-card/60 p-3 text-center">
             <div className="text-xl font-bold tabular-nums text-foreground">{data.distinct30}</div>
-            <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Actifs 30j</div>
+            <div className="mono-label text-muted-foreground">Actifs 30j</div>
           </div>
         </div>
         <div className="flex items-end gap-1 h-24">
@@ -79,7 +79,7 @@ export function LoginActivity() {
             </div>
           ))}
         </div>
-        <div className="mt-1 flex justify-between text-[10px] text-muted-foreground mono-label">
+        <div className="mt-1 flex justify-between mono-label text-muted-foreground">
           <span>{data.daily[0]?.date ?? ""}</span>
           <span>{data.daily[data.daily.length - 1]?.date ?? ""}</span>
         </div>

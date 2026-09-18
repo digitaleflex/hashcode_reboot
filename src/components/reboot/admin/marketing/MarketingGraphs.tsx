@@ -163,7 +163,7 @@ export function MarketingGraphs({
           <div key={k.label} className="rounded-md border border-border/60 bg-card/60 p-3 text-center">
             <div className="flex items-center justify-center text-muted-foreground">{k.icon}</div>
             <div className="mt-1 text-xl font-bold tabular-nums text-foreground">{k.value}</div>
-            <div className="text-[10px] text-muted-foreground uppercase tracking-wider">{k.label}</div>
+            <div className="mono-label text-muted-foreground">{k.label}</div>
           </div>
         ))}
       </div>
@@ -236,7 +236,7 @@ function FunnelStep({
       >
         {value}
       </div>
-      <div className="mt-0.5 text-[10px] text-muted-foreground uppercase tracking-wider">{label}</div>
+      <div className="mt-0.5 mono-label text-muted-foreground">{label}</div>
       {sub && <div className="mt-0.5 text-[11px] mono-label text-lime">{sub}</div>}
     </div>
   );

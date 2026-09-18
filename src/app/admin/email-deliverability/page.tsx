@@ -282,7 +282,7 @@ export default function EmailDeliverabilityPage() {
                     );
                   })}
                 </div>
-                <div className="flex justify-between text-[10px] text-muted-foreground mono-label">
+                <div className="flex justify-between mono-label text-muted-foreground">
                   <span>{chart.data[0]?.date ?? ""}</span>
                   <span>Dernier point : {chart.data[chart.data.length - 1]?.date ?? ""}</span>
                 </div>

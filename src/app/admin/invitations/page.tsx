@@ -126,7 +126,7 @@ function StatCard({
         )}
       </div>
       <span className="text-2xl font-bold tracking-tight">{value}</span>
-      <span className="mono-label text-[10px] text-muted-foreground uppercase tracking-wider">{label}</span>
+      <span className="mono-label text-muted-foreground">{label}</span>
     </button>
   );
 }
@@ -367,7 +367,7 @@ function StatusTabs({ active, onChange, stats }: { active: StatusFilter; onChang
           >
             <Icon className={cn("size-3.5", isActive ? cfg.color : "text-muted-foreground")} />
             <span>{cfg.label}</span>
-            <span className={cn("px-1.5 py-0.5 rounded-full text-[10px] font-mono", isActive ? "bg-lime text-black" : "bg-muted text-muted-foreground")}>
+            <span className={cn("px-1.5 py-0.5 rounded-full text-xs font-mono", isActive ? "bg-lime text-black" : "bg-muted text-muted-foreground")}>
               {count}
             </span>
           </button>
@@ -536,7 +536,7 @@ export default function AdminInvitationsPage() {
         className="flex items-center gap-1 hover:text-foreground transition-colors"
         title={`Trier par ${label}`}
       >
-        <span className="mono-label text-[10px] text-muted-foreground">{label}</span>
+        <span className="mono-label text-muted-foreground">{label}</span>
         {isActive && (
           <span className="text-lime">{sortConfig.direction === "asc" ? "▲" : "▼"}</span>
         )}
@@ -689,7 +689,7 @@ export default function AdminInvitationsPage() {
                   <SortIcon key="lastClickedAt" label="Dernier événement" />
                 </th>
                 <th className="px-4 py-3 w-28 text-right">
-                  <span className="mono-label text-[10px] text-muted-foreground">Actions</span>
+                  <span className="mono-label text-muted-foreground">Actions</span>
                 </th>
               </tr>
             </thead>

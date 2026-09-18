@@ -52,8 +52,9 @@ export function Logo({
   const hSize = size === "sm" ? 22 : size === "lg" ? 36 : 28;
   const wordSize =
     size === "sm" ? "text-base" : size === "lg" ? "text-2xl" : "text-xl";
-  const subSize =
-    size === "sm" ? "text-[9px]" : size === "lg" ? "text-xs" : "text-[10px]";
+  // Sous-wordmark : 11px (plancher de lisibilité) sauf en grand format.
+  // En admin le garde-fou force déjà 11px — le public est donc aligné dessus.
+  const subSize = size === "lg" ? "text-xs" : "text-[11px]";
 
   if (variant === "symbol") {
     return (
@@ -87,10 +88,9 @@ export function Logo({
           <span className="inline-flex items-center gap-2 mt-1">
             <span
               className={cn(
-                "font-display font-medium italic text-lime uppercase",
+                "wordmark-tracking font-display font-medium italic text-lime uppercase",
                 subSize,
               )}
-              style={{ letterSpacing: "0.42em" }}
             >
               REBOOT
             </span>

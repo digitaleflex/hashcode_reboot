@@ -405,7 +405,7 @@ function PendingBranch({
                   key={i}
                   className="flex items-center gap-2 text-sm text-muted-foreground"
                 >
-                  <span className="text-lime mono-label text-[10px]">→</span>
+                  <span className="text-lime mono-label">→</span>
                   {r}
                 </li>
               ))}

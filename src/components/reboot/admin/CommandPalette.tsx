@@ -180,7 +180,7 @@ export function CommandPalette({
             className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none"
             aria-label="Rechercher une commande"
           />
-          <kbd className="mono-label text-muted-foreground border border-border rounded-sm px-1.5 py-0.5 text-[10px] shrink-0">
+          <kbd className="mono-label text-muted-foreground border border-border rounded-sm px-1.5 py-0.5 shrink-0">
             Esc
           </kbd>
         </div>
@@ -227,7 +227,7 @@ export function CommandPalette({
                         <span className="truncate">{item.label}</span>
                         <span className="flex items-center gap-2 shrink-0">
                           {item.hint && (
-                            <span className="mono-label text-muted-foreground border border-border rounded-sm px-1.5 py-0.5 text-[10px]">
+                            <span className="mono-label text-muted-foreground border border-border rounded-sm px-1.5 py-0.5">
                               {item.hint}
                             </span>
                           )}

@@ -280,7 +280,7 @@ export function AdminEventList({ refreshSignal }: { refreshSignal: number }) {
                   <h3 className="text-sm font-medium truncate">{ev.title}</h3>
                   <span
                     className={cn(
-                      "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium mono-label",
+                      "inline-flex items-center rounded-full border px-2 py-0.5 mono-label",
                       STATUS_STYLES[ev.status] ?? STATUS_STYLES.scheduled,
                     )}
                   >

@@ -265,7 +265,7 @@ export function MemberTable({
           >
             {advancedOpen ? "− Moins de filtres" : "+ Filtres avancés"}
             {activeAdvancedCount > 0 && (
-              <span className="mono-label text-[10px] border border-lime/50 rounded-sm px-1">
+              <span className="mono-label border border-lime/50 rounded-sm px-1">
                 {activeAdvancedCount}
               </span>
             )}

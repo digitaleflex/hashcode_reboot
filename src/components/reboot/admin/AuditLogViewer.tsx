@@ -238,7 +238,7 @@ export function AuditLogViewer({
                         )
                       )}
                       {entry.member && (
-                        <span className="rounded border border-lime/30 bg-lime/5 px-1.5 py-0.5 text-[10px] text-lime mono-label">
+                        <span className="rounded border border-lime/30 bg-lime/5 px-1.5 py-0.5 text-lime mono-label">
                           {entry.member.profileStatus}
                         </span>
                       )}
