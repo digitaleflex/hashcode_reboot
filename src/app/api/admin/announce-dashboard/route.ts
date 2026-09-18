@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { isAdminAuthed } from "@/lib/admin-auth";
+import { requireAdminRole, checkCSRF } from "@/lib/admin-auth";
+import { blockIfTesting } from "@/lib/test-guard";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { generateOtp, hashOtp } from "@/lib/account-otp";
 import { createPendingSession } from "@/lib/account-auth";
@@ -39,10 +40,21 @@ const bodySchema = z.object({
  *   Rappeler avec offset=nextOffset jusqu'à done=true.
  */
 export async function POST(req: NextRequest) {
-  if (!isAdminAuthed(req)) {
+  const blocked = blockIfTesting();
+  if (blocked) return blocked;
+
+  // Envoi de masse : rôle `operator` exigé + CSRF (défense en profondeur
+  // avec SameSite=Lax, comme les 9 autres routes d'écriture admin).
+  if (!requireAdminRole(req, "operator")) {
     return NextResponse.json(
-      { error: "Non autorisé.", code: "UNAUTHORIZED" },
-      { status: 401 },
+      { error: "Accès refusé. Rôle operator requis.", code: "FORBIDDEN" },
+      { status: 403 },
+    );
+  }
+  if (!checkCSRF(req)) {
+    return NextResponse.json(
+      { error: "CSRF validation failed.", code: "CSRF_FAILED" },
+      { status: 403 },
     );
   }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdminRole, checkCSRF } from "@/lib/admin-auth";
+import { blockIfTesting } from "@/lib/test-guard";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { sendInvitationEmail, sendWelcomeEmail } from "@/lib/mail";
 
@@ -13,6 +14,9 @@ const testEmailSchema = z.object({
 
 /** POST /api/admin/test-email — envoi réel de test (admin-operator only). */
 export async function POST(req: NextRequest) {
+  const blocked = blockIfTesting();
+  if (blocked) return blocked;
+
   if (!requireAdminRole(req, "operator")) {
     return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
   }

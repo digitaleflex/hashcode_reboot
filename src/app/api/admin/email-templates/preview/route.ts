@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAdminRole } from "@/lib/admin-auth";
+import { requireAdminRole, checkCSRF } from "@/lib/admin-auth";
 import { bodyLimit } from "@/lib/body-limit";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import {
@@ -47,6 +47,10 @@ export async function POST(req: NextRequest) {
 
   if (!requireAdminRole(req, "viewer")) {
     return NextResponse.json({ error: "Non autorisé.", code: "UNAUTHORIZED" }, { status: 401 });
+  }
+  // Invariant uniforme : toute route POST admin vérifie le CSRF.
+  if (!checkCSRF(req)) {
+    return NextResponse.json({ error: "CSRF validation failed.", code: "CSRF_FAILED" }, { status: 403 });
   }
 
   let body: unknown;

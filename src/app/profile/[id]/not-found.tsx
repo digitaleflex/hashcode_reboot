@@ -1,6 +1,9 @@
 import Link from "next/link";
+import { getSession } from "@/lib/account-auth";
 
-export default function ProfileNotFound() {
+export default async function ProfileNotFound() {
+  const session = await getSession().catch(() => null);
+
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center">
       <header className="absolute top-0 left-0 right-0 border-b border-border/60 py-4">
@@ -8,6 +11,12 @@ export default function ProfileNotFound() {
           <span className="mono-label text-lime text-sm font-bold tracking-widest">
             HASHCODE REBOOT
           </span>
+          <a
+            href={session ? "/dashboard" : "/login"}
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {session ? "Mon espace" : "Se connecter"}
+          </a>
         </div>
       </header>
 

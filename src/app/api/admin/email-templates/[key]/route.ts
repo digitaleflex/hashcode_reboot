@@ -9,6 +9,7 @@ import {
 } from "@/lib/admin-auth";
 import { audit } from "@/lib/admin-audit";
 import { bodyLimit } from "@/lib/body-limit";
+import { blockIfTesting } from "@/lib/test-guard";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import {
   getTemplateDefinition,
@@ -110,6 +111,8 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ key: string }> },
 ) {
+  const blocked = blockIfTesting();
+  if (blocked) return blocked;
   const tooLarge = bodyLimit(req);
   if (tooLarge) return tooLarge;
 

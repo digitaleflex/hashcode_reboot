@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { isAdminAuthed } from "@/lib/admin-auth";
+import { requireAdminRole, checkCSRF } from "@/lib/admin-auth";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
 import { generateOtp, hashOtp } from "@/lib/account-otp";
@@ -135,10 +135,17 @@ export async function POST(req: NextRequest) {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
 
-  if (!isAdminAuthed(req)) {
+  // Import + envoi de masse : rôle `operator` exigé + CSRF.
+  if (!requireAdminRole(req, "operator")) {
     return NextResponse.json(
-      { error: "Non autorisé.", code: "UNAUTHORIZED" },
-      { status: 401 },
+      { error: "Accès refusé. Rôle operator requis.", code: "FORBIDDEN" },
+      { status: 403 },
+    );
+  }
+  if (!checkCSRF(req)) {
+    return NextResponse.json(
+      { error: "CSRF validation failed.", code: "CSRF_FAILED" },
+      { status: 403 },
     );
   }
 

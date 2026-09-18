@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requireAdminRole, checkCSRF, readAdminCookie, getAdminRoleFromToken } from "@/lib/admin-auth";
 import { audit } from "@/lib/admin-audit";
 import { bodyLimit } from "@/lib/body-limit";
+import { blockIfTesting } from "@/lib/test-guard";
 import {
   TEMPLATE_REGISTRY,
   CUSTOM_TEMPLATE_VARIABLES,
@@ -119,6 +120,8 @@ export async function GET(req: NextRequest) {
 
 /** POST /api/admin/email-templates — crée un template (brouillon marketing). */
 export async function POST(req: NextRequest) {
+  const blocked = blockIfTesting();
+  if (blocked) return blocked;
   const tooLarge = bodyLimit(req);
   if (tooLarge) return tooLarge;
   if (!requireAdminRole(req, "operator")) {
