@@ -74,6 +74,9 @@ model Member {
   adminNote String?
   deletedAt DateTime? // null = active, set = soft-deleted
 
+  // --- Mentorat (#61) ---
+  mentorContactedAt DateTime? // l'admin a contacté ce lead mentorat
+
   // --- Invitation tracking ---
   invitationStatus String    @default("NOT_INVITED") // NOT_INVITED | INVITED | ACCEPTED | REFUSED | BOUNCED | EXPIRED
   invitedAt        DateTime? // quand l'invitation a été envoyée
@@ -94,6 +97,10 @@ model Member {
   workshopSubmissions  WorkshopSubmission[]
   workshopQuizAttempts WorkshopQuizAttempt[]
   workshopEnrollments  WorkshopEnrollment[]
+
+  // Mentorat (#61)
+  mentorshipsAsMentor Mentorship[] @relation("Mentor")
+  mentorshipsAsMentee Mentorship[] @relation("Mentee")
 
   @@index([email])
   @@index([country])
@@ -331,7 +338,7 @@ model Event {
   // EVENT ≠ SESSION — la suppression de l'Event ne touche pas le contenu
   // (onDelete: SetNull côté WorkshopSession).
   workshopSessions WorkshopSession[]
-  reminderLogs EventReminderLog[]
+  reminderLogs     EventReminderLog[]
 
   @@index([startsAt])
   @@index([status])
@@ -363,16 +370,16 @@ model EventRsvp {
 /// Une seule ligne par (événement, offset) : l'idempotence est garantie par la
 /// contrainte unique. Les envois individuels sont tracés dans MemberEmailLog.
 model EventReminderLog {
-  id            String   @id @default(cuid())
-  createdAt     DateTime @default(now())
-  eventId       String
-  event         Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  id             String   @id @default(cuid())
+  createdAt      DateTime @default(now())
+  eventId        String
+  event          Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
   /// Décalage en minutes avant le début : 4320 = J-3, 1440 = J-1, 60 = H-1.
-  offsetMinutes Int
+  offsetMinutes  Int
   /// Nombre de membres ciblés par cet envoi.
   recipientCount Int      @default(0)
   /// Nombre d'envois réellement acceptés par le provider.
-  sentCount     Int      @default(0)
+  sentCount      Int      @default(0)
 
   @@unique([eventId, offsetMinutes])
   @@index([eventId])
@@ -475,11 +482,11 @@ model EmailTemplate {
 // ═══════════════════════════════════════════════════════════════════════════
 
 model Workshop {
-  id          String   @id @default(cuid())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  slug        String   @unique
+  slug        String  @unique
   title       String
   description String?
 
@@ -497,16 +504,16 @@ model Workshop {
 }
 
 model WorkshopWeek {
-  id         String   @id @default(cuid())
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   workshopId String
   number     Int // 1..N (ordre pédagogique)
   title      String
   objective  String?
 
-  workshop Workshop         @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+  workshop Workshop          @relation(fields: [workshopId], references: [id], onDelete: Cascade)
   sessions WorkshopSession[]
 
   @@unique([workshopId, number])
@@ -514,9 +521,9 @@ model WorkshopWeek {
 }
 
 model WorkshopSession {
-  id         String   @id @default(cuid())
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   weekId String
   number Int // 1..12 global (S01..S12) — ordre d'unlock
@@ -548,15 +555,15 @@ model WorkshopSession {
 }
 
 model WorkshopActivity {
-  id         String   @id @default(cuid())
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   sessionId String
   order     Int
 
   // kind : practice | resource (ressource externe référencée, pas recopiée)
-  kind        String @default("practice")
+  kind        String  @default("practice")
   title       String
   description String?
   url         String? // ressource externe / lien d'exercice
@@ -567,15 +574,15 @@ model WorkshopActivity {
 }
 
 model WorkshopDeliverable {
-  id          String   @id @default(cuid())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   sessionId String @unique // un livrable par séance
 
   // type : url | github_repo | pull_request | project | deployed_url |
   //        screenshot | text (union TS + validation URL http(s) côté serveur)
-  type        String @default("url")
+  type        String  @default("url")
   title       String
   description String?
   isRequired  Boolean @default(true)
@@ -585,16 +592,16 @@ model WorkshopDeliverable {
 }
 
 model WorkshopSubmission {
-  id          String    @id @default(cuid())
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   deliverableId String
   memberId      String
 
   // Append-only : chaque resoumission crée une NOUVELLE ligne (attempt n+1).
   // Historique complet conservé (protocole §15).
-  attempt Int @default(1)
+  attempt Int    @default(1)
   content String
 
   // status : PENDING | IN_REVIEW | APPROVED | REVISION | REJECTED
@@ -632,9 +639,9 @@ model WorkshopReview {
 }
 
 model WorkshopQuiz {
-  id          String   @id @default(cuid())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   sessionId String @unique // un quiz par séance
 
@@ -649,9 +656,9 @@ model WorkshopQuiz {
 }
 
 model WorkshopQuestion {
-  id         String   @id @default(cuid())
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   quizId String
   order  Int
@@ -673,9 +680,9 @@ model WorkshopQuestion {
 }
 
 model WorkshopQuizAttempt {
-  id          String   @id @default(cuid())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   quizId   String
   memberId String
@@ -686,16 +693,16 @@ model WorkshopQuizAttempt {
   submittedAt DateTime @default(now())
 
   quiz   WorkshopQuiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  member Member        @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  member Member       @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
   @@index([quizId, memberId])
   @@index([memberId])
 }
 
 model WorkshopEnrollment {
-  id         String   @id @default(cuid())
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   workshopId String
   memberId   String
@@ -709,4 +716,43 @@ model WorkshopEnrollment {
 
   @@unique([workshopId, memberId])
   @@index([memberId])
+}
+
+/// Mentorat — programme de mentorat (#61).
+/// Un Mentorship lie un mentor (membre) à un mentoré (membre).
+/// status : ACTIVE | PAUSED | ENDED.
+model Mentorship {
+  id        String    @id @default(cuid())
+  mentorId  String
+  menteeId  String
+  status    String    @default("ACTIVE")
+  frequency String    @default("monthly")
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+
+  mentor   Member              @relation("Mentor", fields: [mentorId], references: [id], onDelete: Cascade)
+  mentee   Member              @relation("Mentee", fields: [menteeId], references: [id], onDelete: Cascade)
+  sessions MentorshipSession[]
+
+  @@unique([mentorId, menteeId, status])
+  @@index([mentorId])
+  @@index([menteeId])
+  @@index([status])
+}
+
+/// Séances planifiées dans le cadre d'un Mentorship (#61).
+/// rating : 1-5, donné par le mentoré après la séance.
+model MentorshipSession {
+  id           String    @id @default(cuid())
+  mentorshipId String
+  scheduledAt  DateTime
+  completedAt  DateTime?
+  notes        String?
+  rating       Int?
+  createdAt    DateTime  @default(now())
+
+  mentorship Mentorship @relation(fields: [mentorshipId], references: [id], onDelete: Cascade)
+
+  @@index([mentorshipId])
+  @@index([scheduledAt])
 }
