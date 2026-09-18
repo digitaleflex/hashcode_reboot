@@ -8,6 +8,7 @@ import { ImportInvitePanel } from "@/app/admin/members/ImportInvitePanel";
 import { AnnouncePanel } from "@/components/reboot/admin/marketing/AnnouncePanel";
 import { RelancePanel } from "@/components/reboot/admin/marketing/RelancePanel";
 import { TestEmailPanel } from "@/components/reboot/admin/marketing/TestEmailPanel";
+import { CampaignLogPanel } from "@/components/reboot/admin/marketing/CampaignLogPanel";
 import {
   MarketingGraphs,
   type AudienceSplit,
@@ -21,6 +22,7 @@ import { Send, Megaphone, Upload, FlaskConical } from "lucide-react";
 const TABS = [
   { id: "overview", label: "Vue d'ensemble" },
   { id: "campagnes", label: "Campagnes" },
+  { id: "historique", label: "Historique" },
   { id: "import", label: "Import" },
   { id: "test", label: "Test" },
 ] as const;
@@ -212,6 +214,12 @@ export default function AdminMarketingPage() {
         <section aria-label="Campagnes" className="space-y-4">
           <AnnouncePanel onSessionExpired={handleSessionExpired} />
           <RelancePanel onSessionExpired={handleSessionExpired} />
+        </section>
+      )}
+
+      {tab === "historique" && (
+        <section aria-label="Historique des campagnes">
+          <CampaignLogPanel onSessionExpired={handleSessionExpired} />
         </section>
       )}
 
