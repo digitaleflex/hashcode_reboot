@@ -99,6 +99,20 @@ export async function GET(req: NextRequest) {
   ]);
   const maybeMap = new Map(maybeGroups.map((g) => [g.eventId, g._count]));
   const myMap = new Map(myRsvps.map((r) => [r.eventId, r.status]));
+
+  // Batché : relances auto par événement (J-3 / J-1 / H-1).
+  const reminderLogsAll = eventIds.length
+    ? await db.eventReminderLog.findMany({
+        where: { eventId: { in: eventIds } },
+        select: { eventId: true, offsetMinutes: true, createdAt: true, sentCount: true },
+      })
+    : [];
+  const reminderMap = new Map<string, typeof reminderLogsAll>();
+  for (const rl of reminderLogsAll) {
+    const arr = reminderMap.get(rl.eventId) ?? [];
+    arr.push(rl);
+    reminderMap.set(rl.eventId, arr);
+  }
   const enriched = events.map((event) => {
     const goingCount = event._count.rsvps;
     const maybeCount = maybeMap.get(event.id) ?? 0;
@@ -118,6 +132,11 @@ export async function GET(req: NextRequest) {
         recurrence: event.recurrence,
         maxAttendees: event.maxAttendees,
         notifiedAt: event.notifiedAt,
+        reminderLogs: (reminderMap.get(event.id) ?? []).map((rl) => ({
+          offsetMinutes: rl.offsetMinutes,
+          sentAt: rl.createdAt.toISOString(),
+          sentCount: rl.sentCount,
+        })),
         goingCount,
         maybeCount,
         myRsvp,

@@ -33,9 +33,16 @@ interface AdminEvent {
   recurrence: string | null;
   maxAttendees: number | null;
   notifiedAt: string | null;
+  reminderLogs: Array<{ offsetMinutes: number; sentAt: string; sentCount: number }>;
   goingCount: number;
   maybeCount: number;
 }
+
+const OFFSET_LABELS: Record<number, string> = {
+  4320: "J−3",
+  1440: "J−1",
+  60: "H−1",
+};
 
 const STATUS_STYLES: Record<string, string> = {
   scheduled: "bg-blue-500/15 text-blue-300 border-blue-500/30",
@@ -311,6 +318,20 @@ export function AdminEventList({ refreshSignal }: { refreshSignal: number }) {
                     </span>
                   )}
                 </div>
+                {/* Badges relances auto (J−3 / J−1 / H−1) */}
+                {ev.reminderLogs.length > 0 && (
+                  <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                    {ev.reminderLogs.map((rl) => (
+                      <span
+                        key={rl.offsetMinutes}
+                        className="inline-flex items-center gap-1 rounded-full border border-lime/30 bg-lime/[0.06] px-2 py-0.5 text-[10px] font-medium text-lime mono-label"
+                        title={`Envoyé le ${new Date(rl.sentAt).toLocaleString("fr-FR")} à ${rl.sentCount} membre(s)`}
+                      >
+                        ✓ {OFFSET_LABELS[rl.offsetMinutes] ?? `${rl.offsetMinutes}min`}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
