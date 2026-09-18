@@ -68,7 +68,11 @@ function categorizeEmail(subject: string): string {
   return "other";
 }
 
-async function trackEmailSent(to: string, subject: string): Promise<void> {
+async function trackEmailSent(
+  to: string,
+  subject: string,
+  provider: "resend" | "brevo",
+): Promise<void> {
   try {
     const member = await db.member.findUnique({
       where: { email: to },
@@ -80,6 +84,9 @@ async function trackEmailSent(to: string, subject: string): Promise<void> {
         memberId: member?.id ?? null,
         type: "email.sent",
         category: categorizeEmail(subject),
+        // Enregistré pour que le garde-fou de quota (email-budget) puisse
+        // compter les envois par provider en temps réel.
+        provider,
       },
     });
   } catch {
@@ -128,10 +135,10 @@ async function sendViaResend({
     try {
       const payload = (await res.json()) as { id?: unknown };
       const id = typeof payload.id === "string" ? payload.id : undefined;
-      trackEmailSent(to, subject).catch(() => {});
+      trackEmailSent(to, subject, "resend").catch(() => {});
       return id ? { ok: true, id, provider: "resend" } : { ok: true, provider: "resend" };
     } catch {
-      trackEmailSent(to, subject).catch(() => {});
+      trackEmailSent(to, subject, "resend").catch(() => {});
       return { ok: true, provider: "resend" };
     }
   } catch {
@@ -183,10 +190,10 @@ async function sendViaBrevo({
     try {
       const payload = (await res.json()) as { messageId?: unknown };
       const id = typeof payload.messageId === "string" ? payload.messageId : undefined;
-      trackEmailSent(to, subject).catch(() => {});
+      trackEmailSent(to, subject, "brevo").catch(() => {});
       return id ? { ok: true, id, provider: "brevo" } : { ok: true, provider: "brevo" };
     } catch {
-      trackEmailSent(to, subject).catch(() => {});
+      trackEmailSent(to, subject, "brevo").catch(() => {});
       return { ok: true, provider: "brevo" };
     }
   } catch {

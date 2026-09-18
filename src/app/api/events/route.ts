@@ -6,6 +6,8 @@ import { sendEventNotificationEmail } from "@/lib/mail";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { validateEventCreate, notifyWhere } from "@/lib/events-validation";
 import { zoneForCountry } from "@/lib/events-timezone";
+import { sendPacedBatch } from "@/lib/email-batch";
+import { planBatch } from "@/lib/email-budget";
 import { audit } from "@/lib/admin-audit";
 import { blockIfTesting } from "@/lib/test-guard";
 import { bodyLimit } from "@/lib/body-limit";
@@ -237,36 +239,48 @@ export async function POST(req: NextRequest) {
       domain: v.domain,
       level: v.level,
     };
+    // Pré-contrôle du budget AVANT de rendre la main : l'admin doit savoir
+    // immédiatement combien de membres seront servis, et combien sont reportés.
+    // Le lot réel recalcule son plan (mesure fraîche) — ceci n'est qu'un rapport.
+    const budgetPlan = await planBatch({
+      category: "notification",
+      requested: members.length,
+    });
+
     const notifyPromise = (async () => {
-      let sent = 0;
-      let failed = 0;
       const payload = notifyPayload;
-      for (let i = 0; i < members.length; i += 10) {
-        const chunk = members.slice(i, i + 10);
-        const results = await Promise.allSettled(
-          chunk.map((member) =>
-            sendEventNotificationEmail({
-              to: member.email,
-              firstName: member.firstName,
-              event: payload,
-              rsvpUrl,
-              // Chaque destinataire reçoit l'heure dans son propre fuseau :
-              // sinon le serveur (UTC) annoncerait une heure fausse.
-              timeZone: zoneForCountry(member.country),
-            }),
-          ),
-        );
-        for (const r of results) {
-          if (r.status === "fulfilled") sent++;
-          else failed++;
-        }
-      }
-      // Marquer l'événement comme notifié
-      await db.event.update({
-        where: { id: event.id },
-        data: { notifiedAt: new Date() },
+      // Lot à pacing adaptatif : la taille et la pause suivent le budget du
+      // provider (cf. src/lib/email-budget.ts). Les destinataires reportés
+      // faute de quota ne sont pas perdus — ils ne sont simplement pas marqués.
+      const result = await sendPacedBatch({
+        category: "notification",
+        recipients: members,
+        send: (member) =>
+          sendEventNotificationEmail({
+            to: member.email,
+            firstName: member.firstName,
+            event: payload,
+            rsvpUrl,
+            // Chaque destinataire reçoit l'heure dans son propre fuseau :
+            // sinon le serveur (UTC) annoncerait une heure fausse.
+            timeZone: zoneForCountry(member.country),
+          }),
       });
-      return { sent, failed, total: members.length };
+
+      // Ne marquer comme notifié que si tout le lot est parti : sinon le champ
+      // laisserait croire à une notification complète.
+      if (result.deferred === 0) {
+        await db.event.update({
+          where: { id: event.id },
+          data: { notifiedAt: new Date() },
+        });
+      }
+      return {
+        sent: result.sent,
+        failed: result.failed,
+        deferred: result.deferred,
+        total: members.length,
+      };
     })();
 
     // Ne pas bloquer la réponse — le client reçoit l'event immédiatement
@@ -283,7 +297,22 @@ export async function POST(req: NextRequest) {
       {
         ok: true,
         event,
-        notify: { status: "queued", recipientCount: members.length },
+        notify: {
+          status: "queued",
+          recipientCount: members.length,
+          budget: {
+            provider: budgetPlan.provider,
+            level: budgetPlan.level,
+            willSend: budgetPlan.allowed,
+            willDefer: budgetPlan.deferred,
+          },
+          warning:
+            budgetPlan.deferred > 0
+              ? `${budgetPlan.deferred} membre(s) reporté(s) : quota ` +
+                `${budgetPlan.provider} trop bas. Ils seront repris ` +
+                `automatiquement après 00:00 UTC.`
+              : null,
+        },
       },
       { status: 201 },
     );

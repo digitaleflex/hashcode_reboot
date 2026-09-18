@@ -174,11 +174,17 @@ model EmailEvent {
   clickUrl String?
   /// Raw webhook payload (for debugging)
   metadata String?
+  /// Provider ayant accepté l'envoi : resend | brevo (null = historique).
+  /// Permet de compter les envois réels par provider pour le garde-fou de
+  /// quota — EmailEvent est écrit à chaque envoi réussi, c'est le seul
+  /// registre temps réel dont dispose le code.
+  provider String?
 
   @@index([email])
   @@index([memberId])
   @@index([type])
   @@index([createdAt])
+  @@index([provider, createdAt])
 }
 
 /// Per-member batch email send log — anti-doublon pour les envois par lot.

@@ -6,6 +6,8 @@ import { sendEventNotificationEmail } from "@/lib/mail";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { validateEventPatch, notifyWhere } from "@/lib/events-validation";
 import { zoneForCountry } from "@/lib/events-timezone";
+import { sendPacedBatch } from "@/lib/email-batch";
+import { planBatch } from "@/lib/email-budget";
 import { audit } from "@/lib/admin-audit";
 import { blockIfTesting } from "@/lib/test-guard";
 
@@ -144,7 +146,16 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }
 
   // Re-notification optionnelle (même canal qu'à la création)
-  let notifyResult: { status: string; recipientCount: number } | null = null;
+  let notifyResult: {
+    status: string;
+    recipientCount: number;
+    budget: {
+      provider: string;
+      level: string;
+      willSend: number;
+      willDefer: number;
+    };
+  } | null = null;
   if (body.notify === true) {
     const siteUrl =
       process.env.NEXT_PUBLIC_SITE_URL || "https://joinhashcode.com";
@@ -152,6 +163,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const members = await db.member.findMany({
       where: notifyWhere({ domain: event.domain, level: event.level }),
       select: { email: true, firstName: true, country: true },
+    });
+    // Pré-contrôle du budget, rapporté à l'admin dans la réponse.
+    const budgetPlan = await planBatch({
+      category: "notification",
+      requested: members.length,
     });
     const notifyPromise = (async () => {
       const payload = {
@@ -164,25 +180,27 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         domain: event.domain,
         level: event.level,
       };
-      for (let i = 0; i < members.length; i += 10) {
-        const chunk = members.slice(i, i + 10);
-        await Promise.allSettled(
-          chunk.map((member) =>
-            sendEventNotificationEmail({
-              to: member.email,
-              firstName: member.firstName,
-              event: payload,
-              rsvpUrl,
-              // Heure rendue dans le fuseau du destinataire (cf. events-timezone).
-              timeZone: zoneForCountry(member.country),
-            }),
-          ),
-        );
-      }
-      await db.event.update({
-        where: { id: event.id },
-        data: { notifiedAt: new Date() },
+      // Lot à pacing adaptatif : taille et pause suivent le budget du provider.
+      const result = await sendPacedBatch({
+        category: "notification",
+        recipients: members,
+        send: (member) =>
+          sendEventNotificationEmail({
+            to: member.email,
+            firstName: member.firstName,
+            event: payload,
+            rsvpUrl,
+            // Heure rendue dans le fuseau du destinataire (cf. events-timezone).
+            timeZone: zoneForCountry(member.country),
+          }),
       });
+      // Ne marquer comme notifié que si tout le lot est parti.
+      if (result.deferred === 0) {
+        await db.event.update({
+          where: { id: event.id },
+          data: { notifiedAt: new Date() },
+        });
+      }
     })();
     notifyPromise.catch((err) => console.error("[events] Renotify error:", err));
     void audit(
@@ -192,7 +210,16 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       { title: event.title, recipients: members.length },
       { type: "admin", role: adminRole },
     );
-    notifyResult = { status: "queued", recipientCount: members.length };
+    notifyResult = {
+      status: "queued",
+      recipientCount: members.length,
+      budget: {
+        provider: budgetPlan.provider,
+        level: budgetPlan.level,
+        willSend: budgetPlan.allowed,
+        willDefer: budgetPlan.deferred,
+      },
+    };
   }
 
   return NextResponse.json({ ok: true, event, notify: notifyResult });
