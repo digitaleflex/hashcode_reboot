@@ -13,41 +13,41 @@ datasource db {
 }
 
 model Member {
-  id              String   @id @default(cuid())
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // --- Identité ---
-  firstName       String
-  lastName        String?
-  email           String   @unique
-  phone           String?
-  country         String
-  city            String?
-  gender          String? // Homme | Femme | Autre | Préfère ne pas répondre | null
+  firstName String
+  lastName  String?
+  email     String  @unique
+  phone     String?
+  country   String
+  city      String?
+  gender    String? // Homme | Femme | Autre | Préfère ne pas répondre | null
 
   // --- Profil ---
-  primaryDomain     String   // web | cybersecurity | ai
-  secondaryDomains  String   @default("[]") // JSON string[]
-  domainSpecialty   String   @default("[]") // JSON string[] (multi-select)
-  level             String   // beginner | practicing | autonomous | advanced
+  primaryDomain    String // web | cybersecurity | ai
+  secondaryDomains String @default("[]") // JSON string[]
+  domainSpecialty  String @default("[]") // JSON string[] (multi-select)
+  level            String // beginner | practicing | autonomous | advanced
 
   // --- Objectifs ---
-  goal            String   // project | employment | freelance | upskill | business | career | other
+  goal             String // project | employment | freelance | upskill | business | career | other
   goalProjectStage String? // conditional (if goal=project/entrepreneurship)
-  goalSituation    String?  // conditional (if goal=employment)
+  goalSituation    String? // conditional (if goal=employment)
 
   // --- Disponibilité ---
-  availability      String   // <2h | 2-5h | 5-10h | 10-15h | 15h+
+  availability      String // <2h | 2-5h | 5-10h | 10-15h | 15h+
   availabilityTimes String? // moments (light)
 
   // --- Apprentissage ---
-  learningStyle   String   // practice | path | group | mentor | project
+  learningStyle String // practice | path | group | mentor | project
 
   // --- Mentorat (conditionnel) ---
-  mentoringInterest     String? // no | maybe | yes
-  mentoringMaybeReason  String? // if maybe
-  mentoringTypes        String  @default("[]") // JSON string[] (if yes)
+  mentoringInterest    String? // no | maybe | yes
+  mentoringMaybeReason String? // if maybe
+  mentoringTypes       String  @default("[]") // JSON string[] (if yes)
   mentoringFrequency   String? // if yes
   mentoringDomain      String? // if yes
 
@@ -56,35 +56,39 @@ model Member {
   budgetRange       String? // <2500 | 2500-5000 | 5000-10000 | 10000-20000 | 20000-30000 | >30000 | unknown
 
   // --- Question ouverte ---
-  threeMonthGoal    String?
+  threeMonthGoal String?
 
   // --- Profil généré ---
-  profileArchetype  String? // CYBER BUILDER | WEB BUILDER | AI EXPLORER | ...
+  profileArchetype String? // CYBER BUILDER | WEB BUILDER | AI EXPLORER | ...
   tags             String  @default("[]") // JSON string[]
 
   // --- Acquisition ---
   source String? // utm_source/medium/campaign, e.g. "whatsapp/post?reboot" | "direct"
 
   // --- Statuts ---
-  profileStatus    String   @default("PENDING")  // PENDING | APPROVED | REJECTED | WAITLIST
-  communityStatus  String   @default("NOT_INVITED") // NOT_INVITED | INVITED | JOINED
-  accessLane       String   @default("immediate") // immediate | pending (result of auto-controls)
+  profileStatus   String @default("PENDING") // PENDING | APPROVED | REJECTED | WAITLIST
+  communityStatus String @default("NOT_INVITED") // NOT_INVITED | INVITED | JOINED
+  accessLane      String @default("immediate") // immediate | pending (result of auto-controls)
 
   // --- Admin ---
-  adminNote        String?
-  deletedAt        DateTime? // null = active, set = soft-deleted
+  adminNote String?
+  deletedAt DateTime? // null = active, set = soft-deleted
 
   // --- Invitation tracking ---
-  invitationStatus String   @default("NOT_INVITED") // NOT_INVITED | INVITED | ACCEPTED | REFUSED | BOUNCED | EXPIRED
+  invitationStatus String    @default("NOT_INVITED") // NOT_INVITED | INVITED | ACCEPTED | REFUSED | BOUNCED | EXPIRED
   invitedAt        DateTime? // quand l'invitation a été envoyée
   invitationClicks Int       @default(0) // nombre de clics sur le lien
   lastClickedAt    DateTime? // dernier clic
   refusedAt        DateTime? // quand le membre a refusé
-  refusedReason    String?   // raison du refus (optionnel)
+  refusedReason    String? // raison du refus (optionnel)
   bouncedAt        DateTime? // quand le email a bounce
   acceptedAt       DateTime? // quand l'invitation a été acceptée
   approvedAt       DateTime? // quand le profil a été validé
   joinedAt         DateTime? // quand le membre a rejoint la communauté
+
+  sessions  MemberSession[]
+  rsvps     EventRsvp[]
+  emailLogs MemberEmailLog[]
 
   @@index([email])
   @@index([country])
@@ -94,10 +98,6 @@ model Member {
   @@index([communityStatus])
   @@index([createdAt])
   @@index([deletedAt])
-
-  sessions MemberSession[]
-  rsvps    EventRsvp[]
-  emailLogs MemberEmailLog[]
 }
 
 // Clés admin persistées (rotation, expiration, invalidation)
@@ -108,7 +108,7 @@ model AdminKey {
   createdAt    DateTime  @default(now())
   expiresAt    DateTime? // null = jamais expiré
   revokedAt    DateTime? // null = pas révoqué
-  createdBy    String?   // qui a créé la clé (audit)
+  createdBy    String? // qui a créé la clé (audit)
 
   @@index([kid])
   @@index([revokedAt])
@@ -117,8 +117,8 @@ model AdminKey {
 
 /// Audit log for admin actions (write-only from API routes)
 model AuditLog {
-  id         String   @id @default(cuid())
-  createdAt  DateTime @default(now())
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
 
   /// Who performed the action ("admin:operator", "system", "ip:xxx")
   actor      String?
@@ -163,17 +163,17 @@ model EmailEvent {
   createdAt DateTime @default(now())
 
   /// Member email (matched from webhook payload)
-  email     String
+  email    String
   /// Optional member id (matched after lookup)
-  memberId  String?
+  memberId String?
   /// Event type: email.sent | email.opened | email.clicked
-  type      String
+  type     String
   /// Email subject or category (welcome, waitlist, engagement, relance)
-  category  String?
+  category String?
   /// Click URL (for email.clicked events)
-  clickUrl  String?
+  clickUrl String?
   /// Raw webhook payload (for debugging)
-  metadata  String?
+  metadata String?
 
   @@index([email])
   @@index([memberId])
@@ -192,11 +192,11 @@ model MemberEmailLog {
   member   Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
   /// Email du destinataire (redondance utile pour l'audit)
-  email String
+  email      String
   /// Nature de l'envoi : invite | relance | annonce | rejoin | engagement
-  kind  String
+  kind       String
   /// Provider utilisé : resend | brevo (si connu)
-  provider String?
+  provider   String?
   /// ID retourné par le provider (messageId)
   providerId String?
 
@@ -208,7 +208,7 @@ model MemberEmailLog {
 
 /// Partial profiling drafts saved on abandon — enables relance emails
 model ProfilingDraft {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   email          String    @unique
   firstName      String?
   answers        String // JSON of ProfileAnswers
@@ -231,8 +231,8 @@ model MemberSession {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
 
-  memberId  String
-  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  memberId String
+  member   Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
   /// Hashed OTP (bcrypt). null = OTP consumed (verified).
   otpHash   String?
@@ -245,7 +245,7 @@ model MemberSession {
   userAgent String?
 
   /// When the session was last refreshed (cookie sliding window).
-  lastSeenAt DateTime @default(now())
+  lastSeenAt DateTime  @default(now())
   /// When the session was invalidated (logout or hard-revoke).
   revokedAt  DateTime?
 
@@ -261,7 +261,7 @@ model MemberBlacklist {
   createdAt DateTime @default(now())
 
   /// Email blocked (lowercased, unique). No wildcards (e.g. *@gmail.com) — too dangerous.
-  email     String   @unique
+  email     String    @unique
   /// Reason: spammer | harassment | duplicate | abuser | admin | other
   reason    String
   /// Free-form note (max 500 chars).
@@ -270,7 +270,7 @@ model MemberBlacklist {
   expiresAt DateTime?
   /// Whether the member's soft-delete triggered this blacklist entry.
   /// (true = auto-added, false = manually added by an admin)
-  autoAdded Boolean  @default(false)
+  autoAdded Boolean   @default(false)
 
   @@index([email])
   @@index([expiresAt])
@@ -279,42 +279,42 @@ model MemberBlacklist {
 
 /// Agenda — événements HASHCODE (sessions, workshops, meetups).
 model Event {
-  id          String   @id @default(cuid())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   title       String
   description String?
 
   // Timing
-  startsAt    DateTime
-  endsAt      DateTime?
+  startsAt DateTime
+  endsAt   DateTime?
 
   // Location
-  location    String?  // "WhatsApp", "Discord", "Salle 1", etc.
-  url         String?  // Lien externe (Zoom, Google Meet, etc.)
+  location String? // "WhatsApp", "Discord", "Salle 1", etc.
+  url      String? // Lien externe (Zoom, Google Meet, etc.)
 
   // Type
-  type        String   @default("session") // session | workshop | meetup | webinar | other
+  type String @default("session") // session | workshop | meetup | webinar | other
 
   // Visibility (null = tous les membres)
-  domain      String?  // web | cybersecurity | ai
-  level       String?  // beginner | practicing | autonomous | advanced
+  domain String? // web | cybersecurity | ai
+  level  String? // beginner | practicing | autonomous | advanced
 
   // Status
-  status      String   @default("scheduled") // scheduled | live | completed | cancelled
+  status String @default("scheduled") // scheduled | live | completed | cancelled
 
   // Recurrence
-  recurrence  String?  // weekly | biweekly | monthly | null = one-shot
+  recurrence   String? // weekly | biweekly | monthly | null = one-shot
   recurrenceId String? // shared ID for grouped recurring events
 
   // Capacity
-  maxAttendees Int?    // null = unlimited
+  maxAttendees Int? // null = unlimited
 
   // Notifications
-  notifiedAt   DateTime? // when members were notified
+  notifiedAt DateTime? // when members were notified
 
-  rsvps       EventRsvp[]
+  rsvps EventRsvp[]
 
   @@index([startsAt])
   @@index([status])
@@ -327,14 +327,14 @@ model EventRsvp {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
 
-  eventId   String
-  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
-  memberId  String
-  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  memberId String
+  member   Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
-  status    String   @default("going") // going | maybe | cancelled
-  note      String?
+  status String  @default("going") // going | maybe | cancelled
+  note   String?
 
   @@unique([eventId, memberId])
   @@index([eventId])
@@ -344,31 +344,31 @@ model EventRsvp {
 
 /// Email deliverability metrics aggregated daily per provider (Brevo, Resend)
 model EmailProviderMetric {
-  id            String   @id @default(cuid())
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   /// Provider: "brevo" | "resend"
-  provider      String
+  provider String
   /// Date bucket (UTC midnight)
-  date          DateTime @db.Date
+  date     DateTime @db.Date
 
   // Volume
-  sent          Int      @default(0)
-  delivered     Int      @default(0)
-  bounced       Int      @default(0)
-  complained    Int      @default(0)
-  unsubscribed  Int      @default(0)
+  sent         Int @default(0)
+  delivered    Int @default(0)
+  bounced      Int @default(0)
+  complained   Int @default(0)
+  unsubscribed Int @default(0)
 
   // Engagement
-  opened        Int      @default(0)
-  clicked       Int      @default(0)
-  uniqueOpened  Int      @default(0)
-  uniqueClicked Int      @default(0)
+  opened        Int @default(0)
+  clicked       Int @default(0)
+  uniqueOpened  Int @default(0)
+  uniqueClicked Int @default(0)
 
   // Bounce details
-  hardBounce    Int      @default(0)
-  softBounce    Int      @default(0)
+  hardBounce Int @default(0)
+  softBounce Int @default(0)
 
   // Computed rates (stored for performance)
   deliveryRate  Float?
@@ -380,4 +380,45 @@ model EmailProviderMetric {
   @@unique([provider, date])
   @@index([provider, createdAt])
   @@index([date])
+}
+
+/// Templates d'email pilotables depuis l'admin (Phase 1 : catégorie marketing).
+///
+/// Tant que `isActive` vaut false, l'envoi réel utilise le HTML par défaut de
+/// src/lib/mail.ts : activer un template est un geste explicite, testable et
+/// réversible (rollback = décocher).
+///
+/// `bodyHtml` porte le fragment de corps (équivalent exact du `inner` de
+/// src/lib/mail.ts, mis dans emailShell au rendu) : l'aperçu admin est donc
+/// byte-identique à l'email réellement envoyé.
+///
+/// Les catégories `notification` et `code` sont verrouillées en édition : elles
+/// transportent des liens et des secrets d'authentification (magic link, OTP).
+model EmailTemplate {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Clé stable et unique (ex: "welcome"), référencée par le code.
+  key      String @unique
+  /// Libellé affiché dans l'admin.
+  name     String
+  /// marketing | notification | code.
+  category String
+
+  subject   String
+  /// Texte d'aperçu (preheader), invisible dans le corps.
+  preheader String
+  /// Fragment HTML du corps (lignes <tr>), inséré dans emailShell().
+  bodyHtml  String
+
+  /// false = le code garde son HTML par défaut (déploiement sans risque).
+  isActive Boolean @default(false)
+
+  version   Int     @default(1)
+  /// Dernier admin ayant modifié le template.
+  updatedBy String?
+
+  @@index([category])
+  @@index([isActive])
 }

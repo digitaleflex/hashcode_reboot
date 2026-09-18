@@ -21,6 +21,7 @@
     "test:integration": "node --test tests/integration.test.cjs",
     "test:all": "node --test tests/unit.test.cjs tests/magic-link.test.cjs tests/event-validation.test.cjs tests/profiling.test.cjs tests/integration.test.cjs",
     "collect:metrics": "tsx scripts/collect-email-metrics.ts",
+    "seed:email-templates": "node --env-file=.env --import tsx scripts/seed-email-templates.ts",
     "typecheck": "tsc --noEmit",
     "validate": "npm run typecheck && npm run lint && npm run knip && npm run test:unit"
   },

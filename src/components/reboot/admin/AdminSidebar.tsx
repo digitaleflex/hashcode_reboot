@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { LayoutDashboard, Users, Activity, FileJson, Settings, Shield, ShieldBan, Calendar, Mail, Megaphone, ChevronLeft, ChevronRight, Command } from "lucide-react";
+import { LayoutDashboard, Users, Activity, FileJson, Settings, Shield, ShieldBan, Calendar, Mail, Megaphone, ChevronLeft, ChevronRight, Command, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 
@@ -14,6 +14,7 @@ const ITEMS = [
   { path: "/admin/marketing", id: "section-marketing", label: "Marketing", icon: Megaphone },
   { path: "/admin/email-deliverability", id: "section-email-deliverability", label: "Suivi délivrabilité", icon: Mail },
   { path: "/admin/events", id: "section-events", label: "Événements", icon: Calendar },
+  { path: "/admin/email-templates", id: "section-email-templates", label: "Templates email", icon: FileText },
   { path: "/admin/activity", id: "section-activity", label: "Activité", icon: Activity },
   { path: "/admin/exports", id: "section-exports", label: "Exports", icon: FileJson },
   { path: "/admin/blacklist", id: "section-blacklist", label: "Blacklist", icon: ShieldBan },
@@ -202,7 +203,7 @@ export function AdminSidebar({ activeSection, onNavigate, onOpenPalette }: Admin
               <span className="text-sm font-medium truncate flex-1">Commandes</span>
             )}
             {!collapsed && (
-              <kbd className="mono-label text-muted-foreground border border-border rounded-sm px-1.5 py-0.5 text-[10px]">
+              <kbd className="mono-label text-muted-foreground border border-border rounded-sm px-1.5 py-0.5">
                 Ctrl K
               </kbd>
             )}
@@ -248,7 +249,7 @@ export function AdminSidebar({ activeSection, onNavigate, onOpenPalette }: Admin
           >
             <Command className="size-4 shrink-0 text-muted-foreground group-hover:text-foreground" aria-hidden />
             <span className="text-sm font-medium truncate flex-1">Commandes</span>
-            <kbd className="mono-label text-muted-foreground border border-border rounded-sm px-1.5 py-0.5 text-[10px]">
+            <kbd className="mono-label text-muted-foreground border border-border rounded-sm px-1.5 py-0.5">
               Ctrl K
             </kbd>
           </button>
