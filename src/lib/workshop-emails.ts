@@ -8,8 +8,14 @@
  * - quiz : résultat d'un quiz
  *
  * Chaque template est une fonction pure qui retourne un objet EmailPayload.
- * L'envoi réel est délégué à `sendEmail` depuis mail.ts.
+ * L'envoi réel est délégué à `sendEmail` depuis mail.ts, en fire-and-forget
+ * (les routes ne doivent jamais attendre le SMTP avant de répondre).
+ *
+ * Sécurité : toutes les données interpolées sont échappées via `escapeHtml`
+ * (noms, titres, feedback, URLs) — même règle que src/lib/mail.ts (fix F2).
  */
+
+import { escapeHtml } from "@/lib/email-templates/shell";
 
 export interface WorkshopEmailPayload {
   to: string;
@@ -54,15 +60,18 @@ export interface QuizEmailData {
  * Template : Inscription à un atelier
  */
 export function enrollmentEmail(data: EnrollmentEmailData): WorkshopEmailPayload {
+  const safeName = escapeHtml(data.memberName);
+  const safeTitle = escapeHtml(data.workshopTitle);
+  const safeUrl = escapeHtml(data.workshopUrl);
   return {
     to: "",
-    subject: `Vous êtes inscrit à "${data.workshopTitle}" 🎉`,
+    subject: `Vous êtes inscrit à "${safeTitle}" 🎉`,
     html: `
       <h1>Bienvenue dans l'atelier !</h1>
-      <p>Bonjour ${data.memberName},</p>
-      <p>Vous êtes maintenant inscrit à l'atelier <strong>${data.workshopTitle}</strong>.</p>
+      <p>Bonjour ${safeName},</p>
+      <p>Vous êtes maintenant inscrit à l'atelier <strong>${safeTitle}</strong>.</p>
       <p>Commencez dès maintenant :</p>
-      <a href="${data.workshopUrl}" style="display:inline-block;padding:12px 24px;background:#0070f3;color:#fff;text-decoration:none;border-radius:6px;">Accéder à l'atelier</a>
+      <a href="${safeUrl}" style="display:inline-block;padding:12px 24px;background:#0070f3;color:#fff;text-decoration:none;border-radius:6px;">Accéder à l'atelier</a>
       <p style="margin-top:24px;color:#666;font-size:12px;">Cet email a été envoyé automatiquement.</p>
     `,
     category: "transactional",
@@ -73,15 +82,19 @@ export function enrollmentEmail(data: EnrollmentEmailData): WorkshopEmailPayload
  * Template : Soumission d'un livrable
  */
 export function submissionEmail(data: SubmissionEmailData): WorkshopEmailPayload {
+  const safeName = escapeHtml(data.memberName);
+  const safeWorkshop = escapeHtml(data.workshopTitle);
+  const safeDeliverable = escapeHtml(data.deliverableTitle);
+  const safeUrl = escapeHtml(data.submissionUrl);
   return {
     to: "",
-    subject: `Livrable soumis : "${data.deliverableTitle}"`,
+    subject: `Livrable soumis : "${safeDeliverable}"`,
     html: `
       <h1>Livrable soumis</h1>
-      <p>Bonjour ${data.memberName},</p>
-      <p>Vous avez soumis le livrable <strong>${data.deliverableTitle}</strong> pour l'atelier <strong>${data.workshopTitle}</strong>.</p>
+      <p>Bonjour ${safeName},</p>
+      <p>Vous avez soumis le livrable <strong>${safeDeliverable}</strong> pour l'atelier <strong>${safeWorkshop}</strong>.</p>
       <p>Vous recevrez un email dès que la review sera terminée.</p>
-      <a href="${data.submissionUrl}" style="display:inline-block;padding:12px 24px;background:#0070f3;color:#fff;text-decoration:none;border-radius:6px;">Voir la soumission</a>
+      <a href="${safeUrl}" style="display:inline-block;padding:12px 24px;background:#0070f3;color:#fff;text-decoration:none;border-radius:6px;">Voir la soumission</a>
       <p style="margin-top:24px;color:#666;font-size:12px;">Cet email a été envoyé automatiquement.</p>
     `,
     category: "transactional",
@@ -99,15 +112,20 @@ export function reviewEmail(data: ReviewEmailData): WorkshopEmailPayload {
         ? "🔄 Révision demandée"
         : "❌ Rejeté";
 
+  const safeName = escapeHtml(data.memberName);
+  const safeWorkshop = escapeHtml(data.workshopTitle);
+  const safeDeliverable = escapeHtml(data.deliverableTitle);
+  const safeFeedback = data.feedback ? escapeHtml(data.feedback) : "";
+  const safeUrl = escapeHtml(data.submissionUrl);
   return {
     to: "",
-    subject: `Review : ${decisionLabel} — "${data.deliverableTitle}"`,
+    subject: `Review : ${decisionLabel} — "${safeDeliverable}"`,
     html: `
       <h1>${decisionLabel}</h1>
-      <p>Bonjour ${data.memberName},</p>
-      <p>Votre livrable <strong>${data.deliverableTitle}</strong> pour l'atelier <strong>${data.workshopTitle}</strong> a été évalué.</p>
-      ${data.feedback ? `<p><strong>Feedback :</strong> ${data.feedback}</p>` : ""}
-      <a href="${data.submissionUrl}" style="display:inline-block;padding:12px 24px;background:#0070f3;color:#fff;text-decoration:none;border-radius:6px;">Voir la soumission</a>
+      <p>Bonjour ${safeName},</p>
+      <p>Votre livrable <strong>${safeDeliverable}</strong> pour l'atelier <strong>${safeWorkshop}</strong> a été évalué.</p>
+      ${safeFeedback ? `<p><strong>Feedback :</strong> ${safeFeedback}</p>` : ""}
+      <a href="${safeUrl}" style="display:inline-block;padding:12px 24px;background:#0070f3;color:#fff;text-decoration:none;border-radius:6px;">Voir la soumission</a>
       <p style="margin-top:24px;color:#666;font-size:12px;">Cet email a été envoyé automatiquement.</p>
     `,
     category: "transactional",
@@ -120,13 +138,16 @@ export function reviewEmail(data: ReviewEmailData): WorkshopEmailPayload {
 export function quizEmail(data: QuizEmailData): WorkshopEmailPayload {
   const status = data.passed ? "✅ Réussi" : "❌ Échoué";
 
+  const safeName = escapeHtml(data.memberName);
+  const safeWorkshop = escapeHtml(data.workshopTitle);
+  const safeQuiz = escapeHtml(data.quizTitle);
   return {
     to: "",
-    subject: `Quiz : ${status} — "${data.quizTitle}"`,
+    subject: `Quiz : ${status} — "${safeQuiz}"`,
     html: `
       <h1>${status}</h1>
-      <p>Bonjour ${data.memberName},</p>
-      <p>Vous avez obtenu <strong>${data.score}/${data.total}</strong> au quiz <strong>${data.quizTitle}</strong> de l'atelier <strong>${data.workshopTitle}</strong>.</p>
+      <p>Bonjour ${safeName},</p>
+      <p>Vous avez obtenu <strong>${data.score}/${data.total}</strong> au quiz <strong>${safeQuiz}</strong> de l'atelier <strong>${safeWorkshop}</strong>.</p>
       ${data.passed ? "<p>Félicitations ! Vous pouvez passer à la séance suivante.</p>" : "<p>Vous pouvez retenter le quiz.</p>"}
       <p style="margin-top:24px;color:#666;font-size:12px;">Cet email a été envoyé automatiquement.</p>
     `,

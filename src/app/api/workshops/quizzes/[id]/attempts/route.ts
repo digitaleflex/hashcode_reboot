@@ -193,12 +193,13 @@ export async function POST(req: NextRequest, { params }: Params) {
       attemptNumber,
     });
 
-    await sendEmail({
+    // Fire-and-forget : la réponse ne doit pas attendre le SMTP.
+    void sendEmail({
       to: member.email,
       subject: emailPayload.subject,
       html: emailPayload.html,
       category: "transactional",
-    });
+    }).catch(() => {});
   }
 
   return NextResponse.json(

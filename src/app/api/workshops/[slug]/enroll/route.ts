@@ -113,12 +113,13 @@ export async function POST(req: NextRequest, { params }: Params) {
         workshopTitle: workshopFull.title,
         workshopUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://hashcode.reboot.com"}/dashboard/ateliers/${workshop.id}`,
       });
-      await sendEmail({
+      // Fire-and-forget : la réponse ne doit pas attendre le SMTP.
+      void sendEmail({
         to: member.email,
         subject: emailPayload.subject,
         html: emailPayload.html,
         category: "transactional",
-      });
+      }).catch(() => {});
     }
   }
 

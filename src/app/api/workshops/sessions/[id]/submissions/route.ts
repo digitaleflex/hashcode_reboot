@@ -187,12 +187,13 @@ export async function POST(req: NextRequest, { params }: Params) {
       deliverableTitle: deliverableFull.title,
       submissionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://hashcode.reboot.com"}/dashboard/ateliers/${workshop.id}`,
     });
-    await sendEmail({
+    // Fire-and-forget : la réponse 201 ne doit pas attendre le SMTP.
+    void sendEmail({
       to: member.email,
       subject: emailPayload.subject,
       html: emailPayload.html,
       category: "transactional",
-    });
+    }).catch(() => {});
   }
 
   return NextResponse.json({ ok: true, submission }, { status: 201 });
