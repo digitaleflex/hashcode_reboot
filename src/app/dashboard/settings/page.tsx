@@ -5,6 +5,7 @@ import { buildAccountData } from "@/lib/account-data";
 import { MonoLabel } from "@/components/reboot/shared";
 import { ContactForm } from "@/app/account/_components/ContactForm";
 import { LogoutButton } from "@/app/account/logout-button";
+import { DataSection } from "./_components/DataSection";
 
 export const dynamic = "force-dynamic";
 
@@ -73,10 +74,12 @@ export default async function DashboardSettingsPage() {
           </div>
         </dl>
         <p className="mt-3 text-xs text-muted-foreground">
-          Pour changer ton email ou supprimer ton compte, contacte-nous via
-          WhatsApp.
+          Pour changer ton email, contacte-nous via WhatsApp. La suppression
+          de ton compte se fait ci-dessous, dans « Mes données ».
         </p>
       </section>
+
+      <DataSection />
 
       <section className="rounded-lg border border-border/60 bg-card/40 p-5 sm:p-6 flex items-center justify-between gap-4">
         <div>

@@ -688,7 +688,15 @@ Boutons : **« Rejoindre WhatsApp »** (uniquement si approuvé) →
   ta connexion. »**
 
 **Compte** (lecture seule) : Email · Pays · Membre depuis + note « Pour changer
-ton email ou supprimer ton compte, contacte-nous via WhatsApp. »
+ton email, contacte-nous via WhatsApp. La suppression de ton compte se fait
+ci-dessous, dans “Mes données”. »
+
+**Mes données** (RGPD #64, `DataSection`) : **« Exporter mes données »**
+(`GET /api/account/export` → téléchargement `hashcode-mes-donnees.json` :
+profil, RSVP, ateliers, emails, brouillon, sessions, analytics plafonnés à
+500) ; **« Supprimer mon compte »** (zone danger : clic → saisie du mot exact
+`SUPPRIMER` → `DELETE /api/account` → soft-delete + blacklist anti-relance +
+révocation toutes sessions + retour `/`).
 
 **Session** : **« Déconnecte cet appareil. »** + `LogoutButton` **« Se
 déconnecter »**.
