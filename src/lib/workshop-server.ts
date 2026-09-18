@@ -235,3 +235,66 @@ export async function loadWorkshopForMember(
     summary,
   };
 }
+
+// ── Accès à une séance (détail, soumission, tentative) ──────────────────────
+
+export type SessionAccessCode =
+  | "NOT_FOUND"
+  | "NOT_ENROLLED"
+  | "SESSION_LOCKED";
+
+export type SessionAccess =
+  | { ok: true; workshopId: string; state: SessionState }
+  | { ok: false; code: "NOT_FOUND" | "NOT_ENROLLED" | "SESSION_LOCKED" };
+
+/**
+ * Contrôles d'accès à une séance (protocole §21) :
+ *   auth (route) → séance existe & atelier publié → enrollment actif →
+ *   séance débloquée. La chaîne de déblocage est RECALCULÉE ici côté
+ * serveur — jamais un état fourni par le client.
+ *
+ * Un atelier draft/archived est masqué (NOT_FOUND) pour un membre, comme
+ * un atelier inexistant — pas de fuite d'existence.
+ */
+export async function getSessionAccess(
+  memberId: string,
+  sessionId: string,
+): Promise<SessionAccess> {
+  const ws = await db.workshopSession.findUnique({
+    where: { id: sessionId },
+    select: {
+      week: {
+        select: {
+          workshopId: true,
+          workshop: { select: { status: true } },
+        },
+      },
+    },
+  });
+  if (!ws) return { ok: false, code: "NOT_FOUND" };
+  if (ws.week.workshop.status !== "published") {
+    return { ok: false, code: "NOT_FOUND" };
+  }
+
+  const enrollment = await db.workshopEnrollment.findUnique({
+    where: {
+      workshopId_memberId: { workshopId: ws.week.workshopId, memberId },
+    },
+    select: { status: true },
+  });
+  if (!enrollment || enrollment.status !== "active") {
+    return { ok: false, code: "NOT_ENROLLED" };
+  }
+
+  // État recalculé sur TOUTE la chaîne (déblocage séquentiel).
+  const view = await loadWorkshopForMember(memberId, ws.week.workshopId);
+  const sessionView = view?.weeks
+    .flatMap((w) => w.sessions)
+    .find((s) => s.id === sessionId);
+  if (!view || !sessionView) return { ok: false, code: "NOT_FOUND" };
+  if (sessionView.state === "LOCKED") {
+    return { ok: false, code: "SESSION_LOCKED" };
+  }
+
+  return { ok: true, workshopId: ws.week.workshopId, state: sessionView.state };
+}

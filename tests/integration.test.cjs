@@ -455,6 +455,28 @@ describe("workshops — auth (read-only, aucune écriture sans session)", () => 
     assert.equal(res.status, 401);
     assert.equal(res.json.code, "UNAUTHENTICATED");
   });
+
+  test("GET /api/workshops/sessions/[id] → 401 sans cookie", async () => {
+    const res = await httpRequest("GET", "/api/workshops/sessions/whatever-id");
+    assert.equal(res.status, 401);
+    assert.equal(res.json.code, "UNAUTHENTICATED");
+  });
+
+  test("POST /api/workshops/sessions/[id]/submissions → 401 sans cookie", async () => {
+    const res = await httpRequest("POST", "/api/workshops/sessions/whatever-id/submissions", {
+      body: { content: "x" },
+    });
+    assert.equal(res.status, 401);
+    assert.equal(res.json.code, "UNAUTHENTICATED");
+  });
+
+  test("POST /api/workshops/quizzes/[id]/attempts → 401 sans cookie", async () => {
+    const res = await httpRequest("POST", "/api/workshops/quizzes/whatever-id/attempts", {
+      body: { answers: [0] },
+    });
+    assert.equal(res.status, 401);
+    assert.equal(res.json.code, "UNAUTHENTICATED");
+  });
 });
 
 // NOTE: POST /api/workshops/[slug]/enroll avec session intentionally omitted —
