@@ -2,12 +2,38 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
+import { bodyLimit } from "@/lib/body-limit";
 
 export const runtime = "nodejs";
 
+/** Borne réaliste : un brouillon de profiling tient en quelques Ko. */
+const MAX_DRAFT_JSON_BYTES = 32 * 1024;
+const MAX_DRAFT_KEYS = 60;
+
+const draftAnswerValue = z.union([
+  z.string().max(1000),
+  z.array(z.string().max(200)).max(20),
+  z.number(),
+  z.boolean(),
+  z.null(),
+]);
+
 const draftSchema = z.object({
   email: z.string().email().max(200),
-  answers: z.unknown(),
+  // F1 : answers était z.unknown() sans borne — n'importe quel JSON
+  // arbitraire pouvait être stocké en base via cette route publique.
+  // Le brouillon réel ne contient que des chaînes / tableaux de chaînes
+  // (questions texte, email, pays, choix uniques/multiples).
+  answers: z
+    .record(z.string().max(80), draftAnswerValue)
+    .refine(
+      (o) => Object.keys(o).length <= MAX_DRAFT_KEYS,
+      "Trop de réponses.",
+    )
+    .refine(
+      (o) => JSON.stringify(o).length <= MAX_DRAFT_JSON_BYTES,
+      "Brouillon trop volumineux.",
+    ),
   lastQuestionId: z.string().max(80).optional(),
 });
 
@@ -27,6 +53,8 @@ export async function POST(req: NextRequest) {
       { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
     );
   }
+  const tooLarge = bodyLimit(req);
+  if (tooLarge) return tooLarge;
 
   let body: unknown;
   try {
