@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { MobileBottomNav } from "@/components/reboot/mobile-bottom-nav";
 
 const SECTION_MAP: Record<string, string> = {
+  "/admin/dashboard": "section-stats",
   "/admin/stats": "section-stats",
   "/admin/members": "section-members",
   "/admin/invitations": "section-invitations",
@@ -32,7 +33,7 @@ const SECTION_MAP: Record<string, string> = {
 };
 
 const routeMap: Record<string, string> = {
-  "section-stats": "/admin/stats",
+  "section-stats": "/admin/dashboard",
   "section-members": "/admin/members",
   "section-invitations": "/admin/invitations",
   "section-marketing": "/admin/marketing",

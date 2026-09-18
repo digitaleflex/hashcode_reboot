@@ -8,7 +8,7 @@ import { usePathname } from "next/navigation";
 const SIDEBAR_KEY = "hashcode-admin-sidebar";
 
 const ITEMS = [
-  { path: "/admin/stats", id: "section-stats", label: "Vue d'ensemble", icon: LayoutDashboard },
+  { path: "/admin/dashboard", id: "section-stats", label: "Vue d'ensemble", icon: LayoutDashboard },
   { path: "/admin/members", id: "section-members", label: "Membres", icon: Users },
   { path: "/admin/ateliers", id: "section-ateliers", label: "Ateliers", icon: BookOpen },
   { path: "/admin/mentoring", id: "section-mentoring", label: "Mentorat", icon: GraduationCap },
