@@ -341,9 +341,10 @@ export function ProfilingFlow({
               onClick={() => {
                 setPhase("questions");
                 setDirection(1);
-                // Email already captured — next is phone (first contact question).
-                const phoneIdx = visible.findIndex((q) => q.id === "phone");
-                if (phoneIdx >= 0) setStep(phoneIdx);
+                // La partie Contact (WhatsApp) a été retirée de l'inscription :
+                // on défile au-delà de la dernière question, ce qui déclenche
+                // l'envoi du profil via l'effet d'auto-finalisation.
+                setStep(visible.length);
               }}
             >
               Finaliser mon profil
@@ -359,7 +360,7 @@ export function ProfilingFlow({
             </RebootButton>
           </div>
           <p className="mt-6 max-w-md mx-auto text-center text-xs text-muted-foreground">
-            Plus que ton WhatsApp pour recevoir ton invitation. 15 secondes.
+            Tu pourras compléter ton numéro WhatsApp plus tard, depuis ton espace membre.
           </p>
         </div>
       </ProfilingShell>
@@ -396,7 +397,7 @@ export function ProfilingFlow({
     <ProfilingShell
       progress={progress}
       onBack={goBack}
-      stepLabel={current.group === "contact" ? "WhatsApp (presque fini)" : "Ton profil HASHCODE"}
+      stepLabel="Ton profil HASHCODE"
       microcopy={current.microcopy}
       group={current.group}
       showCompletionIndicator
@@ -475,7 +476,6 @@ function ProfilingShell({
     { key: "rythme", label: "Rythme" },
     { key: "mentorat", label: "Mentorat" },
     { key: "vision", label: "Vision" },
-    { key: "contact", label: "Contact" },
   ];
   const activeIdx = group ? MILESTONES.findIndex((m) => m.key === group) : -1;
 
@@ -563,7 +563,7 @@ function ProfilingShell({
             Tes réponses servent à mieux comprendre ton profil.
           </p>
           {/* Keyboard shortcut hint — only on single-choice questions */}
-          {group && group !== "contact" && group !== "vision" && (
+          {group && group !== "vision" && (
             <span className="text-xs text-muted-foreground mono-label flex items-center gap-1.5">
               <kbd className="inline-flex items-center justify-center size-4 rounded-sm border border-border bg-card text-[11px] font-mono">1</kbd>
               <span>–</span>

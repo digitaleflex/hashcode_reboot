@@ -108,7 +108,7 @@ export interface Question {
   /** Optional microcopy shown when this question becomes active. */
   microcopy?: string;
   /** Group label for the step indicator. */
-  group: "profil" | "objectifs" | "rythme" | "mentorat" | "contact" | "vision";
+  group: "profil" | "objectifs" | "rythme" | "mentorat" | "vision";
 }
 
 /** Result of the automatic controls (the strategic branching). */

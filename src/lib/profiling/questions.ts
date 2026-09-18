@@ -377,20 +377,6 @@ export const QUESTIONS: Question[] = [
     minChars: 4,
     maxChars: 280,
   },
-  // --- Contact (phone only — nom/ville/genre se complètent après,
-  // dans le dashboard. Moins de friction = plus de complétion.) ---
-  {
-    id: "phone",
-    type: "text",
-    title: "Ton numéro WhatsApp ?",
-    description:
-      "Facultatif — pour qu'on t'ajoute directement au groupe. Sinon, tu recevras le lien par email.",
-    placeholder: "+229 ...",
-    required: false,
-    mapsTo: "phone",
-    group: "contact",
-    microcopy: "Tu peux passer.",
-  },
 ];
 
 /** Suggestions 1-clic pour l'objectif à 3 mois (réduit la page blanche). */
