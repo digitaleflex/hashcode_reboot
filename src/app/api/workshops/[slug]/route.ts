@@ -91,9 +91,10 @@ export async function GET(req: NextRequest, { params }: Params) {
     title: week.title,
     objective: week.objective,
     sessions: week.sessions.map((s): Record<string, unknown> => {
-      // Séance verrouillée : squelette minimal, aucun contenu.
+      // Séance verrouillée : squelette minimal, aucun contenu —
+      // sauf availableAt (la date de disponibilité n'est pas un contenu).
       if (s.state === "LOCKED") {
-        return { id: s.id, number: s.number, title: s.title, state: s.state };
+        return { id: s.id, number: s.number, title: s.title, state: s.state, availableAt: s.availableAt };
       }
       return {
         ...s,

@@ -5,8 +5,8 @@
  * Run:  node --test tests/workshop-progression.test.cjs
  *
  * Mirrors (re-implemented pure logic — .cjs can't import TS):
- *  - computeSessionState / applyUnlockChain / summarizeWorkshop /
- *    pickLatestSubmission / deriveQuizState
+ *  - computeSessionState / applyUnlockChain / applyDateGate /
+ *    summarizeWorkshop / pickLatestSubmission / deriveQuizState
  *    from src/lib/workshop-progression.ts
  * If the sources change, update the mirrors below accordingly.
  *
@@ -70,6 +70,16 @@ function applyUnlockChain(states) {
     out.push(previousCompleted ? states[i] : "LOCKED");
   }
   return out;
+}
+
+function applyDateGate(states, availableAt, now = new Date()) {
+  const nowMs = now.getTime();
+  return states.map((state, i) => {
+    if (state === "LOCKED") return state;
+    const at = availableAt[i] ?? null;
+    if (at !== null && at.getTime() > nowMs) return "LOCKED";
+    return state;
+  });
 }
 
 function summarizeWorkshop(states) {
@@ -276,6 +286,50 @@ describe("applyUnlockChain", () => {
     // pas complétée : le verrou serveur prime.
     const out = applyUnlockChain(["SUBMITTED", "SUBMITTED"]);
     assert.deepEqual(out, ["SUBMITTED", "LOCKED"]);
+  });
+});
+
+describe("applyDateGate (gate calendaire anti-livrables-en-avance)", () => {
+  const NOW = new Date("2026-09-18T12:00:00.000Z");
+  const PAST = new Date("2026-09-10T20:00:00.000Z");
+  const FUTURE = new Date("2026-09-25T20:00:00.000Z");
+
+  test("date future → LOCKED même si la chaîne l'avait débloquée", () => {
+    const out = applyDateGate(["NOT_STARTED", "NOT_STARTED"], [null, FUTURE], NOW);
+    assert.deepEqual(out, ["NOT_STARTED", "LOCKED"]);
+  });
+
+  test("date passée ou absente → état conservé", () => {
+    const out = applyDateGate(
+      ["COMPLETED", "NOT_STARTED", "IN_PROGRESS"],
+      [PAST, null, PAST],
+      NOW,
+    );
+    assert.deepEqual(out, ["COMPLETED", "NOT_STARTED", "IN_PROGRESS"]);
+  });
+
+  test("déjà LOCKED par la chaîne → reste LOCKED (pas de réouverture)", () => {
+    const out = applyDateGate(["LOCKED", "LOCKED"], [null, null], NOW);
+    assert.deepEqual(out, ["LOCKED", "LOCKED"]);
+  });
+
+  test("précision minute : 20h00 reste verrouillée à 19h59, ouverte à 20h00", () => {
+    const at = new Date("2026-09-18T20:00:00.000Z");
+    assert.deepEqual(
+      applyDateGate(["NOT_STARTED"], [at], new Date("2026-09-18T19:59:00.000Z")),
+      ["LOCKED"],
+    );
+    assert.deepEqual(
+      applyDateGate(["NOT_STARTED"], [at], new Date("2026-09-18T20:00:00.000Z")),
+      ["NOT_STARTED"],
+    );
+  });
+
+  test("combiné chaîne + date : S02 complétée mais S03 future → S03 LOCKED", () => {
+    const chained = applyUnlockChain(["COMPLETED", "NOT_STARTED", "NOT_STARTED"]);
+    assert.deepEqual(chained, ["COMPLETED", "NOT_STARTED", "LOCKED"]);
+    const gated = applyDateGate(chained, [null, null, FUTURE], NOW);
+    assert.deepEqual(gated, ["COMPLETED", "NOT_STARTED", "LOCKED"]);
   });
 });
 

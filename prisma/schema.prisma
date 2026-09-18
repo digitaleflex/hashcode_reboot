@@ -543,6 +543,12 @@ model WorkshopSession {
   // sans toucher au contenu pédagogique.
   eventId String?
 
+  // Déblocage calendaire : la séance reste LOCKED tant que cette date n'est
+  // pas atteinte, même si la chaîne séquentielle l'aurait débloquée (#bug
+  // livrables en avance). null = pas de gate date (repli : startsAt de
+  // l'Event lié, sinon déblocage séquentiel seul).
+  scheduledAt DateTime?
+
   week        WorkshopWeek         @relation(fields: [weekId], references: [id], onDelete: Cascade)
   event       Event?               @relation(fields: [eventId], references: [id], onDelete: SetNull)
   activities  WorkshopActivity[]

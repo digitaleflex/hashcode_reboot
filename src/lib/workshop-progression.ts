@@ -113,6 +113,32 @@ export function applyUnlockChain(states: SessionState[]): SessionState[] {
   return out;
 }
 
+/**
+ * Gate calendaire : une séance dont la date de disponibilité est FUTURE
+ * reste LOCKED, même si la chaîne séquentielle l'aurait débloquée.
+ * S'applique APRÈS applyUnlockChain — les deux verrous se cumulent :
+ * une séance est accessible ssi (chaîne OK) ET (date atteinte ou absente).
+ *
+ * - availableAt[i] = date à partir de laquelle la séance i est accessible
+ *   (scheduledAt, sinon startsAt de l'Event lié, sinon null = pas de gate).
+ * - now injectable pour les tests (défaut : maintenant).
+ * - Comparaison en millisecondes : une séance programmée aujourd'hui à
+ *   20h00 reste verrouillée à 19h59.
+ */
+export function applyDateGate(
+  states: SessionState[],
+  availableAt: (Date | null)[],
+  now: Date = new Date(),
+): SessionState[] {
+  const nowMs = now.getTime();
+  return states.map((state, i) => {
+    if (state === "LOCKED") return state;
+    const at = availableAt[i] ?? null;
+    if (at !== null && at.getTime() > nowMs) return "LOCKED";
+    return state;
+  });
+}
+
 export interface WorkshopSummary {
   total: number;
   completed: number;

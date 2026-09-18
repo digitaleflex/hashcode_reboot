@@ -13,6 +13,7 @@
 
 import { db } from "@/lib/db";
 import {
+  applyDateGate,
   applyUnlockChain,
   computeSessionState,
   deriveQuizState,
@@ -33,6 +34,9 @@ export interface SessionStateView {
   deliverableRequired: boolean;
   quizRequired: boolean;
   eventId: string | null;
+  /** ISO de la date à partir de laquelle la séance est accessible (gate
+   *  calendaire) : scheduledAt, sinon startsAt de l'Event lié, sinon null. */
+  availableAt: string | null;
 }
 
 export interface WeekStateView {
@@ -99,6 +103,8 @@ export async function loadWorkshopForMember(
               deliverableRequired: true,
               quizRequired: true,
               eventId: true,
+              scheduledAt: true,
+              event: { select: { startsAt: true } },
               deliverable: { select: { id: true } },
               quiz: { select: { id: true } },
             },
@@ -192,7 +198,10 @@ export async function loadWorkshopForMember(
         : "NOT_STARTED",
     });
   });
-  const states = applyUnlockChain(rawStates);
+  const states = applyDateGate(
+    applyUnlockChain(rawStates),
+    sessions.map((s) => s.scheduledAt ?? s.event?.startsAt ?? null),
+  );
   const summary = summarizeWorkshop(states);
 
   // Ré-injecte les états dans la structure par semaines.
@@ -213,6 +222,7 @@ export async function loadWorkshopForMember(
       deliverableRequired: s.deliverableRequired,
       quizRequired: s.quizRequired,
       eventId: s.eventId,
+      availableAt: (s.scheduledAt ?? s.event?.startsAt ?? null)?.toISOString() ?? null,
     })),
   }));
 

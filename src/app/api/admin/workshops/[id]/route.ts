@@ -86,6 +86,7 @@ export async function GET(
               deliverableRequired: true,
               quizRequired: true,
               eventId: true,
+              scheduledAt: true,
               createdAt: true,
               updatedAt: true,
               activities: {

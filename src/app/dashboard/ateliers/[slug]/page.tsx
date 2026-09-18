@@ -19,9 +19,10 @@ import { SessionStateBadge } from "../_components/SessionStateBadge";
  * séances, états & locks dérivés serveur, prochain créneau des séances
  * débloquées. Client Component : consomme GET /api/workshops/[slug].
  *
- * Les séances verrouillées n'affichent QUE leur titre + un cadenas —
- * l'API ne renvoie d'ailleurs AUCUN contenu pour elles (elle omet
- * objective/hasDeliverable/event), donc le rendu ne peut pas fuiter.
+ * Les séances verrouillées n'affichent QUE leur titre + un cadenas (+ la date
+ * de disponibilité si le gate calendaire s'applique) — l'API ne renvoie
+ * d'ailleurs AUCUN contenu pour elles (elle omet objective/hasDeliverable/event),
+ * donc le rendu ne peut pas fuiter.
  */
 
 type SessionState =
@@ -55,6 +56,8 @@ interface SessionListItem {
   quizRequired?: boolean;
   eventId?: string | null;
   event?: WorkshopEvent | null;
+  /** Date ISO à partir de laquelle la séance se débloque (gate calendaire). */
+  availableAt?: string | null;
 }
 
 interface Week {
@@ -325,6 +328,12 @@ export default function AtelierDetailPage() {
                               {s.title}
                             </span>
                             <SessionStateBadge state={s.state} />
+                            {s.state === "LOCKED" && s.availableAt && (
+                              <span className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-secondary/40 px-2 py-0.5 text-[11px] text-muted-foreground">
+                                <CalendarDays className="size-3" />
+                                Disponible le {formatEventDate(s.availableAt)}
+                              </span>
+                            )}
                           </div>
 
                           {s.objective && (
