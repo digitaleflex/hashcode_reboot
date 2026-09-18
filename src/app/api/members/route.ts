@@ -12,6 +12,10 @@ import { isAdminAuthed } from "@/lib/admin-auth";
 import { isEmailBlacklisted } from "@/lib/blacklist";
 import { blockIfTesting } from "@/lib/test-guard";
 import { bodyLimit } from "@/lib/body-limit";
+import {
+  issuePhoneFillTicket,
+  phoneFillSetCookie,
+} from "@/lib/phone-fill-ticket";
 
 export const runtime = "nodejs";
 
@@ -212,7 +216,7 @@ export async function POST(req: NextRequest) {
     }
   })();
 
-  return NextResponse.json(
+  const res = NextResponse.json(
     {
       ok: true,
       duplicate: false,
@@ -225,6 +229,15 @@ export async function POST(req: NextRequest) {
     },
     { status: 201 },
   );
+
+  // Ticket de remplissage WhatsApp (S3) : prouve que ce navigateur vient de
+  // créer ce membre — autorise POST /api/account/phone sans session.
+  // Création fraîche uniquement, jamais sur doublon.
+  const fillTicket = issuePhoneFillTicket(created.id);
+  if (fillTicket) {
+    res.headers.append("Set-Cookie", phoneFillSetCookie(fillTicket));
+  }
+  return res;
 }
 
 /** GET /api/members — admin list with filters (admin-only).

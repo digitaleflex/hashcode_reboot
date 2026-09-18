@@ -356,8 +356,10 @@ function ImmediateBranch({
           )}
           {/* Capture WhatsApp post-conversion : l'utilisateur vient de recevoir
               de la valeur (profil validé) — c'est ici que le numéro se donne
-              le mieux. Remplissage unique côté API (pas d'écrasement). */}
-          {!answers.phone?.trim() && (
+              le mieux. Remplissage unique côté API (pas d'écrasement).
+              Doublon : pas de ticket de remplissage (réservé aux créations
+              fraîches) → le numéro s'ajoute après connexion, dans Paramètres. */}
+          {!result.duplicate && !answers.phone?.trim() && (
             <WhatsAppCapture memberId={result.memberId} />
           )}
         </div>

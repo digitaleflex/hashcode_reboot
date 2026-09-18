@@ -34,9 +34,13 @@ export async function GET(req: NextRequest) {
   const status = url.searchParams.get("status");
   const limit = Math.min(Number(url.searchParams.get("limit") || "20"), 50);
   const memberIdParam = url.searchParams.get("memberId");
-  // memberId=me → membre connecté (utilisé par /dashboard/agenda et AgendaCard)
+  // memberId=me → membre connecté (utilisé par /dashboard/agenda et AgendaCard).
+  // Anti-IDOR (F3) : un memberId arbitraire n'est honoré que pour les admins ;
+  // les membres voient toujours leurs propres RSVP.
   const memberId =
-    memberIdParam === "me" ? (session?.member.id ?? null) : memberIdParam;
+    isAdmin && memberIdParam && memberIdParam !== "me"
+      ? memberIdParam
+      : (session?.member.id ?? null);
 
   // Filtres
   const where: Record<string, unknown> = {};
