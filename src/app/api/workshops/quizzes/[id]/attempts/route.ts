@@ -7,6 +7,8 @@ import { blockIfTesting } from "@/lib/test-guard";
 import { parseAnswers } from "@/lib/workshop-validation";
 import { canAttempt, scoreAttempt } from "@/lib/workshop-quiz";
 import { getSessionAccess, type SessionAccessCode } from "@/lib/workshop-server";
+import { sendEmail } from "@/lib/mail";
+import { quizEmail } from "@/lib/workshop-emails";
 
 export const runtime = "nodejs";
 
@@ -153,6 +155,51 @@ export async function POST(req: NextRequest, { params }: Params) {
     },
     select: { id: true, score: true, passed: true, submittedAt: true },
   });
+
+  // Envoi email de résultat de quiz
+  const [quizFull, member] = await Promise.all([
+    db.workshopQuiz.findUnique({
+      where: { id: quiz.id },
+      select: {
+        title: true,
+        session: {
+          select: {
+            week: {
+              select: {
+                workshop: { select: { id: true, title: true } },
+              },
+            },
+          },
+        },
+      },
+    }),
+    db.member.findUnique({
+      where: { id: session.member.id },
+      select: { email: true, firstName: true },
+    }),
+  ]);
+
+  if (quizFull?.session?.week?.workshop && member?.email) {
+    const workshop = quizFull.session.week.workshop;
+    const attemptNumber = attemptsCount + 1;
+
+    const emailPayload = quizEmail({
+      memberName: member.firstName || "Membre",
+      workshopTitle: workshop.title,
+      quizTitle: quizFull.title || "Quiz",
+      score: score.score,
+      total: score.total,
+      passed: score.passed,
+      attemptNumber,
+    });
+
+    await sendEmail({
+      to: member.email,
+      subject: emailPayload.subject,
+      html: emailPayload.html,
+      category: "transactional",
+    });
+  }
 
   return NextResponse.json(
     {

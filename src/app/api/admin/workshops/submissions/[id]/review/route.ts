@@ -5,6 +5,8 @@ import { requireAdminRole, checkCSRF, getAdminIdentity } from "@/lib/admin-auth"
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { audit } from "@/lib/admin-audit";
 import { REVIEW_DECISIONS } from "@/lib/workshop-validation";
+import { sendEmail } from "@/lib/mail";
+import { reviewEmail } from "@/lib/workshop-emails";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -124,6 +126,50 @@ export async function POST(
     decision,
     reviewer,
   });
+
+  // Envoi email de notification au membre
+  const submissionFull = await db.workshopSubmission.findUnique({
+    where: { id },
+    select: {
+      member: { select: { email: true, firstName: true } },
+      deliverable: {
+        select: {
+          title: true,
+          session: {
+            select: {
+              week: {
+                select: {
+                  workshop: { select: { id: true, title: true } },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (submissionFull?.member?.email && submissionFull.deliverable?.session?.week?.workshop) {
+    const member = submissionFull.member;
+    const deliverable = submissionFull.deliverable;
+    const workshop = deliverable.session.week.workshop;
+
+    const emailPayload = reviewEmail({
+      memberName: member.firstName || "Membre",
+      workshopTitle: workshop.title,
+      deliverableTitle: deliverable.title,
+      decision,
+      feedback,
+      submissionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://hashcode.reboot.com"}/dashboard/ateliers/${workshop.id}`,
+    });
+
+    await sendEmail({
+      to: member.email,
+      subject: emailPayload.subject,
+      html: emailPayload.html,
+      category: "transactional",
+    });
+  }
 
   return NextResponse.json({ ok: true, review, submission });
 }
