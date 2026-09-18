@@ -5,10 +5,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Mail, Loader2 } from "lucide-react";
 import { Logo, HashSymbol } from "@/components/brand/logo";
 import { RebootButton, MonoLabel } from "@/components/reboot/shared";
+import { useMemberSession } from "@/lib/use-member-session";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  // Un membre déjà connecté ne doit pas retomber sur un formulaire de connexion.
+  const session = useMemberSession();
   // Anti open-redirect (défense en profondeur, le sink /verify-otp filtre aussi).
   const rawNext = searchParams.get("next") || "/dashboard";
   const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/dashboard";
@@ -51,6 +54,24 @@ function LoginForm() {
     } finally {
       setLoading(false);
     }
+  }
+
+  // Déjà connecté : on propose l'espace membre au lieu du formulaire.
+  if (session.status === "authenticated") {
+    return (
+      <div className="w-full max-w-md text-center">
+        <HashSymbol className="mx-auto text-lime" size={36} />
+        <h1 className="mt-4 text-2xl sm:text-3xl font-display font-bold tracking-tight">
+          Tu es déjà connecté{session.firstName ? `, ${session.firstName}` : ""}.
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Ton espace membre est déjà ouvert sur cet appareil.
+        </p>
+        <RebootButton size="lg" className="mt-6 w-full" onClick={() => router.replace(next)}>
+          Aller à mon espace
+        </RebootButton>
+      </div>
+    );
   }
 
   return (

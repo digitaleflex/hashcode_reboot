@@ -21,6 +21,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Logo, HashSymbol } from "@/components/brand/logo";
+import { useMemberSession } from "@/lib/use-member-session";
 import {
   RebootButton,
   CtaArrow,
@@ -169,12 +170,26 @@ export function Landing({
   onJoin: () => void;
   onOpenPrivacy?: () => void;
 }) {
+  // Un membre connecté ne doit pas voir « Se connecter » en quittant son espace.
+  const session = useMemberSession();
+  const isAuthed = session.status === "authenticated";
+
   function scrollToId(id: string) {
     const el = document.getElementById(id);
     if (!el) return;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     el.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
   }
+
+  /** Entrée d'espace : « Mon espace » si connecté, sinon « Se connecter ». */
+  const accountLink = (
+    <a
+      href={isAuthed ? "/dashboard" : "/login"}
+      className="min-h-[44px] inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors focus-lime"
+    >
+      {isAuthed ? (session.firstName ? `Mon espace · ${session.firstName}` : "Mon espace") : "Se connecter"}
+    </a>
+  );
 
   return (
     <div className="bg-background min-h-screen flex flex-col pb-[76px] sm:pb-0">
@@ -207,12 +222,7 @@ export function Landing({
             <span className="text-[13px] text-muted-foreground" aria-hidden>
               Reboot · Édition 2026
             </span>
-            <a
-              href="/login"
-              className="min-h-[44px] inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors focus-lime"
-            >
-              Se connecter
-            </a>
+            {accountLink}
             <RebootButton size="md" onClick={onJoin} className="group">
               Construire mon profil
               <CtaArrow />
@@ -225,6 +235,7 @@ export function Landing({
             >
               Événements
             </a>
+            {accountLink}
             <RebootButton size="md" onClick={onJoin} className="group">
               Construire mon profil
               <CtaArrow />
@@ -237,6 +248,7 @@ export function Landing({
             >
               Événements
             </a>
+            {accountLink}
             <RebootButton
               size="md"
               variant="outline"
