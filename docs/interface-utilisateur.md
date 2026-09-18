@@ -693,6 +693,33 @@ ton email ou supprimer ton compte, contacte-nous via WhatsApp. »
 **Session** : **« Déconnecte cet appareil. »** + `LogoutButton` **« Se
 déconnecter »**.
 
+### 7.7 `/dashboard/ateliers` — ateliers (membre)
+
+- **Liste** (`ateliers/page.tsx`) : cartes par atelier (titre, badges
+  domaine/niveau, barre de progression `transition-[width]`, états
+  inscrit/non-inscrit) ; CTA **« Découvrir » / « Continuer »**
+  (`aria-label="Continuer vers l'atelier …"`, `focus-visible:ring-lime`) ;
+  états chargement (`Loader2 motion-reduce:animate-none`), erreur et vide
+  **« Aucun atelier disponible pour le moment. »**.
+- **Détail** (`ateliers/[slug]/page.tsx`) : header (titre, badges, progression
+  globale), **« S'inscrire »** (`EnrollButton`, `aria-label="S'inscrire à
+  l'atelier"`, `Inscription…` pendant l'envoi) puis liste des séances par
+  semaine (`SessionStateBadge` : verrouillée/débloquée/terminée), liens
+  séance avec `aria-label="Accéder à la séance …"`.
+- **Séance** (`ateliers/[slug]/sessions/[sessionId]/page.tsx`,
+  `SessionDetailView`) : activités dans l'ordre, livrable + soumission
+  (textarea + envoi, feedback affiché après review), **quiz interactif**
+  (questions sans réponses exposées — ADR-004 —, score + passé/échoué après
+  soumission, nouvelle tentative si échoué).
+- **Progression verrouillée** : séance N inaccessible tant que N−1 non
+  terminée (ADR-002, `getSessionAccess` côté serveur) ; inscription,
+  soumission, review et tentative de quiz déclenchent chacun un **email
+  transactionnel** (`src/lib/workshop-emails.ts`, fire-and-forget).
+- **Admin** (`/admin/ateliers` : liste + détail `[id]` + `submissions`) :
+  création/édition d'ateliers, revue des soumissions (**Approuvé / Révision /
+  Rejeté** + feedback → email au membre), stats. Entrée **Ateliers**
+  (`BookOpen`) dans `AdminSidebar` et la bottom nav admin.
+
 ---
 
 ## 8. Chrome de navigation (espace membre)
@@ -705,9 +732,10 @@ déconnecter »**.
   | # | Label | href | Icône |
   |---|---|---|---|
   | 1 | **Vue d'ensemble** | `/dashboard` | `LayoutDashboard` |
-  | 2 | **Agenda** | `/dashboard/agenda` | `Calendar` |
-  | 3 | **Mon profil** | `/dashboard/profile` | `User` |
-  | 4 | **Paramètres** | `/dashboard/settings` | `Settings` |
+  | 2 | **Ateliers** | `/dashboard/ateliers` | `BookOpen` |
+  | 3 | **Agenda** | `/dashboard/agenda` | `Calendar` |
+  | 4 | **Mon profil** | `/dashboard/profile` | `User` |
+  | 5 | **Paramètres** | `/dashboard/settings` | `Settings` |
 
   Bas de bloc : **WhatsApp** (lien externe tracké, `MessageCircle`) et
   **Déconnexion** (`LogOut`). Lien actif : `bg-lime/10 text-lime font-medium`.
@@ -718,7 +746,7 @@ déconnecter »**.
 - **FAB hamburger** : rond lime 48 px en bas à gauche (`fixed bottom-5 left-5
   z-50`, `hover:scale-105 active:scale-95`), `aria-label="Ouvrir le menu"`.
 - **Bottom nav mobile** (`md:hidden`, `paddingBottom: env(safe-area-inset-bottom)`,
-  `aria-label="Navigation principale"`) : **Accueil · Agenda · Profil ·
+  `aria-label="Navigation principale"`) : **Accueil · Ateliers · Agenda · Profil ·
   Paramètres**, barre lime en haut de l'onglet actif, `aria-current="page"`,
   cibles 44 px (ce sont des `<a href>`, donc rechargement complet).
 - `LogoutButton` : `POST /api/auth/logout` (idempotent) puis `/login` +
@@ -896,3 +924,8 @@ Défini mais **jamais appelé** : `community_cta_clicked`.
 - `src/lib/profiling/questions.ts`, `engine.ts`, `validate.ts`, `auto-controls.ts`,
   `types.ts`, `labels.ts`.
 - `src/app/dashboard/**`, `src/app/account/**`, `src/middleware.ts`.
+- Ateliers : `src/app/dashboard/ateliers/**` (liste, détail, séance,
+  `_components/EnrollButton.tsx`, `SessionDetailView.tsx`,
+  `SessionStateBadge.tsx`), `src/app/admin/ateliers/**`,
+  `src/lib/workshop-*.ts`, `docs/ateliers/ARCHITECTURE.md`,
+  `docs/ateliers/AUDIT-UX.md`, `docs/adr/ADR-001` à `ADR-004`.
