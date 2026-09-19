@@ -185,7 +185,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       memberName: member.firstName || "Membre",
       workshopTitle: workshop.title,
       deliverableTitle: deliverableFull.title,
-      submissionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://hashcode.reboot.com"}/dashboard/ateliers/${workshop.id}`,
+        submissionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://reboot.joinhashcode.com"}/dashboard/ateliers/${workshop.id}`,
     });
     // Fire-and-forget : la réponse 201 ne doit pas attendre le SMTP.
     void sendEmail({

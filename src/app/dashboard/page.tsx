@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { GraduationCap, ArrowRight } from "lucide-react";
 import { db } from "@/lib/db";
 import { buildAccountData } from "@/lib/account-data";
 import { WelcomeCard } from "./_components/WelcomeCard";
@@ -65,6 +66,28 @@ export default async function DashboardPage() {
       />
 
       <AgendaCard />
+
+      {/* Mentorship preview — links to dedicated mentoring page */}
+      <Link
+        href="/dashboard/mentoring"
+        className="block rounded-xl border border-border/60 bg-card/40 p-6 space-y-4 hover:border-lime/40 transition-colors group"
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-lime/10 group-hover:bg-lime/20 transition-colors">
+            <GraduationCap className="size-5 text-lime" />
+          </div>
+          <div>
+            <h3 className="font-display font-semibold text-lg">Votre mentorat</h3>
+            <p className="text-sm text-muted-foreground">
+              Suivi personnalisé et séances — bientôt disponible
+            </p>
+          </div>
+          <ArrowRight className="size-4 text-muted-foreground ml-auto group-hover:text-lime transition-colors" />
+        </div>
+        <div className="text-sm text-muted-foreground">
+          Votre mentor vous attend — en cours de préparation…
+        </div>
+      </Link>
 
       {/* Membre depuis */}
       <p className="text-center text-xs text-muted-foreground pt-4">
