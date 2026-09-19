@@ -111,7 +111,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       const emailPayload = enrollmentEmail({
         memberName: member.firstName || "Membre",
         workshopTitle: workshopFull.title,
-        workshopUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://hashcode.reboot.com"}/dashboard/ateliers/${workshop.id}`,
+        workshopUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://reboot.joinhashcode.com"}/dashboard/ateliers/${workshop.id}`,
       });
       // Fire-and-forget : la réponse ne doit pas attendre le SMTP.
       void sendEmail({
