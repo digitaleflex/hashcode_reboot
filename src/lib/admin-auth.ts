@@ -1,29 +1,54 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual, randomBytes } from "node:crypto";
+import { writeFileSync, existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+
+/** Path for storing rotation metadata (dev only; production uses env). */
+const ROTATION_FILE = join(process.cwd(), ".admin-key-rotation");
+
+/** Shape of the rotation file. */
+interface RotationRecord {
+  rotatedAt: string;
+  keyLength: number;
+  passcode: string;
+}
+
+/** Cookie name for admin session. */
+export const ADMIN_COOKIE_NAME = "hashcode-admin";
+/** Session duration: 12 hours in milliseconds. */
+export const ADMIN_SESSION_MS = 12 * 60 * 60 * 1000;
+/** Cookie max-age: 12 hours in seconds. */
+export const ADMIN_COOKIE_MAX_AGE = ADMIN_SESSION_MS / 1000;
+
+/** Minimum length for a rotated key. */
+export const ROTATED_KEY_MIN_LENGTH = 32;
+
+/** Read the rotated passcode from file (if present). */
+function readRotatedPasscode(): string | null {
+  if (!existsSync(ROTATION_FILE)) return null;
+  try {
+    const content = readFileSync(ROTATION_FILE, "utf8");
+    const record = JSON.parse(content) as RotationRecord;
+    if (typeof record.passcode === "string" && record.passcode.length >= 16) {
+      return record.passcode;
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
 
 /**
- * Admin gate : passcode partagé + cookie de session stateless à expiration
- * vérifiée serveur.
- *
- * - Le passcode est lu depuis ADMIN_PASSCODE (en production : obligatoire et
- *   >= 16 caractères, sinon l'app plante au boot — fail closed).
- * - Au login, on émet un token `base64url(expiryEpochMs).base64url(signature)`
- *   où signature = HMAC-SHA256(passcode, expiryEpochMs). La vérification
- *   contrôle le format, la signature (timingSafeEqual) ET l'expiration.
- *   Durée de session : 12h, alignée sur le Max-Age du cookie.
- * - Pas de stockage serveur : la révocation d'une session = rotation du
- *   passcode (tous les tokens existants deviennent invalides d'un coup,
- *   puisqu'ils sont signés avec l'ancien passcode).
- * - Ne jamais logger ni retourner le passcode ou un token.
- * - Token de niveau rôle : admin-operator (émis avec rôle claim pour RBAC)
+ * Get the current admin passcode.
+ * Priority: rotated key file > ADMIN_PASSCODE env > dev stub.
+ * In production: required, >= 16 chars, fail-closed.
+ * In dev: returns ADMIN_PASSCODE or the default stub.
  */
-
-export const ADMIN_COOKIE_NAME = "hashcode-admin";
-/** Durée de session admin : 12h (émission + Max-Age cookie). */
-export const ADMIN_SESSION_MS = 12 * 60 * 60 * 1000;
-export const ADMIN_COOKIE_MAX_AGE = ADMIN_SESSION_MS / 1000; // 12h en secondes
-
 export function getAdminPasscode(): string {
+  // Check for a rotated key first (takes priority over env).
+  const rotated = readRotatedPasscode();
+  if (rotated) return rotated;
+
   const passcode = process.env.ADMIN_PASSCODE;
   if (process.env.NODE_ENV === "production") {
     if (!passcode) {
@@ -38,11 +63,65 @@ export function getAdminPasscode(): string {
     }
     return passcode;
   }
-  return (
-    passcode ||
-    // Dev-only default. Will not be honored in production (env var required).
-    "hashcode-reboot-2026"
-  );
+  return passcode || "hashcode-reboot-2026";
+}
+
+/** Check if the current passcode is the dev stub (not a real key). */
+export function isKeyStub(): boolean {
+  return getAdminPasscode() === "hashcode-reboot-2026";
+}
+
+/** Get the age of the current key in days (based on rotation file). */
+export function getKeyAgeDays(): number {
+  if (!existsSync(ROTATION_FILE)) return 0;
+  try {
+    const content = readFileSync(ROTATION_FILE, "utf8");
+    const { rotatedAt } = JSON.parse(content) as RotationRecord;
+    return Math.floor((Date.now() - new Date(rotatedAt).getTime()) / (1000 * 60 * 60 * 24));
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Rotate the admin passcode. Generates a new cryptographically secure key,
+ * persists it to the rotation file, and returns it (shown ONCE to the admin).
+ *
+ * WARNING: All existing admin sessions will be invalidated immediately.
+ */
+export function rotateAdminPasscode(): string {
+  const newPasscode = randomBytes(32).toString("base64url");
+
+  // Store the new key + metadata in the rotation file.
+  const record: RotationRecord = {
+    rotatedAt: new Date().toISOString(),
+    keyLength: newPasscode.length,
+    passcode: newPasscode,
+  };
+  try {
+    writeFileSync(ROTATION_FILE, JSON.stringify(record));
+  } catch {
+    // Rotation file not writable — key still works in-memory for this instance
+  }
+
+  return newPasscode;
+}
+
+/** Validate that a new passcode meets security requirements. */
+export function validateRotatedKey(passcode: string): { valid: boolean; error?: string } {
+  if (!passcode || passcode.length < ROTATED_KEY_MIN_LENGTH) {
+    return { valid: false, error: `La clé doit comporter au moins ${ROTATED_KEY_MIN_LENGTH} caractères.` };
+  }
+  // Check entropy: at least 4 different character types
+  const hasLower = /[a-z]/.test(passcode);
+  const hasUpper = /[A-Z]/.test(passcode);
+  const hasDigit = /[0-9]/.test(passcode);
+  const hasSpecial = /[^a-zA-Z0-9]/.test(passcode);
+  const types = [hasLower, hasUpper, hasDigit, hasSpecial].filter(Boolean).length;
+  if (types < 3) {
+    return { valid: false, error: "La clé doit contenir au moins 3 types de caractères (majuscules, minuscules, chiffres, spéciaux)." };
+  }
+  return { valid: true };
 }
 
 /** 

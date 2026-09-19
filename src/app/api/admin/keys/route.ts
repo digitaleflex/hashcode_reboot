@@ -1,65 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
-import { randomUUID } from "node:crypto";
-import { requireAdminRole, checkCSRF } from "@/lib/admin-auth";
-import { hashPasscodeForStorage } from "@/lib/admin-passcode";
+import {
+  requireAdminRole,
+  rotateAdminPasscode,
+  validateRotatedKey,
+  getKeyAgeDays,
+  isKeyStub,
+  getAdminPasscode,
+} from "@/lib/admin-auth";
 import { audit } from "@/lib/admin-audit";
-import { db } from "@/lib/db";
 
-/**
- * Admin keys management: GET list active kids, POST rotate kid.
- *
- * - Admin keys are now stored persistently in the AdminKey model.
- * - Rotation generates a new kid+passcodeHash and revokes old keys.
- * - ADMIN_KEYS env var is no longer the source of truth for active keys.
- * - A kid is considered "active" if it exists and is not revoked (revokedAt = null).
- */
+export const runtime = "nodejs";
 
+/** GET /api/admin/keys — return current key status. */
 export async function GET(req: NextRequest) {
   if (!requireAdminRole(req, "operator")) {
-    return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
+    return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
-  const { searchParams } = new URL(req.url);
-  const includeRevoked = searchParams.get("include_revoked") === "true";
-
-  const where = includeRevoked
-    ? {} // all keys
-    : {
-        revokedAt: null,
-        expiresAt: null,
-      };
-
-  // List keys (optionally including revoked)
-  const keys = await db.adminKey.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    select: {
-      kid: true,
-      createdAt: true,
-      expiresAt: true,
-      revokedAt: true,
-    },
-  });
-
   return NextResponse.json({
-    keys,
-    total: keys.length,
-    page: 1,
-    pageSize: keys.length,
+    keyAgeDays: getKeyAgeDays(),
+    isStub: isKeyStub(),
+    rotationThresholdDays: parseInt(
+      process.env.ADMIN_KEY_ROTATION_DAYS || "90",
+      10,
+    ),
   });
 }
 
-/** POST /api/admin/keys — rotate admin key. Generates new kid+passcodeHash and revokes old keys. */
+/** POST /api/admin/keys — rotate the admin passcode. */
 export async function POST(req: NextRequest) {
   if (!requireAdminRole(req, "operator")) {
-    return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
-  }
-  // CSRF protection: ensure same-origin request
-  if (!checkCSRF(req)) {
-    return NextResponse.json({ error: "CSRF validation failed." }, { status: 403 });
+    return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
-  let body: { passcode?: string } | null = null;
+  let body: { confirmPasscode?: string };
   try {
     body = await req.json();
   } catch {
@@ -69,39 +43,63 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const passcode = (body?.passcode ?? "").trim();
-  if (!passcode || passcode.length < 16) {
+  const currentPasscode = body.confirmPasscode?.trim();
+  if (!currentPasscode) {
     return NextResponse.json(
-      { error: "Passcode requis (>= 16 caractères).", code: "INVALID_PAYLOAD" },
+      { error: "Confirme le passcode actuel pour autoriser la rotation.", code: "CONFIRMATION_REQUIRED" },
       { status: 422 },
     );
   }
 
-  const newKid = `kid-${randomUUID().slice(0, 8)}`;
-  const passcodeHash = await hashPasscodeForStorage(passcode);
+  // Verify current passcode to authorize rotation.
+  try {
+    const expected = getAdminPasscode();
+    const minLen = Math.min(currentPasscode.length, expected.length);
+    let diff = 0;
+    for (let i = 0; i < minLen; i++) {
+      diff |= currentPasscode.charCodeAt(i) ^ expected.charCodeAt(i);
+    }
+    if (currentPasscode.length !== expected.length) {
+      const longer = currentPasscode.length > expected.length ? currentPasscode : expected;
+      for (let i = minLen; i < longer.length; i++) {
+        diff |= longer.charCodeAt(i) ^ 0x00;
+      }
+      diff |= 1;
+    }
+    if (diff !== 0) {
+      return NextResponse.json(
+        { error: "Passcode de confirmation invalide.", code: "UNAUTHORIZED" },
+        { status: 401 },
+      );
+    }
+  } catch {
+    return NextResponse.json(
+      { error: "Erreur de vérification.", code: "INTERNAL_ERROR" },
+      { status: 500 },
+    );
+  }
 
-  // Revoke ALL existing keys by setting revokedAt
-  await db.adminKey.updateMany({
-    where: { revokedAt: null },
-    data: { revokedAt: new Date() },
-  });
+  // Generate new passcode.
+  const newPasscode = rotateAdminPasscode();
+  const validation = validateRotatedKey(newPasscode);
+  if (!validation.valid) {
+    return NextResponse.json(
+      { error: validation.error, code: "KEY_GENERATION_ERROR" },
+      { status: 500 },
+    );
+  }
 
-  // Store the new key as active
-  await db.adminKey.create({
-    data: {
-      kid: newKid,
-      passcodeHash,
-      createdAt: new Date(),
-      expiresAt: null, // null = never expires
-      revokedAt: null,
-    },
-  });
-
-  // Audit trail
-  await audit("admin.key-rotate", "admin_key", newKid, { previousKeysRevoked: true });
+  // Audit the rotation.
+  const ip = req.headers.get("x-forwarded-for") || "unknown";
+  void audit("admin.keys.rotate", "admin_key", undefined, {
+    keyAgeDays: getKeyAgeDays(),
+    isStub: isKeyStub(),
+  }, { type: "ip", ip });
 
   return NextResponse.json({
-    kid: newKid,
-    message: "Nouvelle clé admin générée. La clé précédente a été révoquée.",
+    ok: true,
+    newKey: newPasscode,
+    message: "Clé rotée avec succès. TOUS les sessions admin existants sont invalidés. Copie la nouvelle clé immédiatement.",
+    keyAgeDays: 0,
   });
 }

@@ -5,19 +5,35 @@ import { audit } from "@/lib/admin-audit";
 
 export const runtime = "nodejs";
 
+/** Verify a Cloudflare Turnstile token. Returns true if valid. */
+async function verifyTurnstileToken(token: string | undefined): Promise<boolean> {
+  if (!token) return true; // No captcha required if not triggered
+  const secret = process.env.TURNSTILE_SECRET_KEY;
+  if (!secret) return true; // Fallback: no validation if no secret configured
+
+  try {
+    const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ secret, response: token }),
+    });
+    const data = await res.json();
+    return data.success === true;
+  } catch {
+    return false;
+  }
+}
+
 function auditLogin(ip: string, ref: "success" | "failure") {
-  // AuditLog (traçabilité admin), pas AnalyticsEvent (funnel produit).
   void audit("admin.login", "admin_key", undefined, { result: ref }, { type: "ip", ip });
 }
 
-/** POST /api/admin/login — verify passcode, issue admin cookie. */
+/** POST /api/admin/login — verify passcode + Turnstile, issue admin cookie. */
 export async function POST(req: NextRequest) {
-  // CSRF protection: ensure same-origin request (defense in depth alongside SameSite=Lax)
   if (!checkCSRF(req)) {
     return NextResponse.json({ error: "CSRF validation failed." }, { status: 403 });
   }
-  // Read body once.
-  let body: { passcode?: string };
+  let body: { passcode?: string; captchaToken?: string };
   try {
     body = await req.json();
   } catch {
@@ -27,9 +43,8 @@ export async function POST(req: NextRequest) {
     );
   }
   const passcode = (body.passcode ?? "").trim();
+  const captchaToken = body.captchaToken;
 
-  // Anti-brute-force : 10 tentatives par IP toutes les 10 secondes.
-  // Key = `${ip}` for login (passcode not yet known at rate-limit stage).
   const ip = rateKey(req);
   const rl = await rateLimit(`admin-login:${ip}`, RATE_LIMITS.login);
   if (!rl.ok) {
@@ -48,32 +63,37 @@ export async function POST(req: NextRequest) {
     );
   }
   try {
-    // Constant-time comparison: single pass handling both length mismatch and XOR
     const expected = getAdminPasscode();
     const minLen = Math.min(passcode.length, expected.length);
     let diff = 0;
-
-    // XOR up to the common length
     for (let i = 0; i < minLen; i++) {
       diff |= passcode.charCodeAt(i) ^ expected.charCodeAt(i);
     }
-
-    // Penalize length mismatch: XOR extra chars from the longer side,
-    // ensuring execution time is proportional to max(lenA, lenB)
     if (passcode.length !== expected.length) {
       const longer = passcode.length > expected.length ? passcode : expected;
       for (let i = minLen; i < longer.length; i++) {
         diff |= longer.charCodeAt(i) ^ 0x00;
       }
-      diff |= 1; // Ensure diff is non-zero
+      diff |= 1;
     }
-
     if (diff !== 0) {
       auditLogin(ip, "failure");
       return NextResponse.json(
         { error: "Passcode invalide.", code: "UNAUTHORIZED" },
         { status: 401 },
       );
+    }
+
+    // Turnstile validation (only if captcha was required by client).
+    if (captchaToken) {
+      const captchaValid = await verifyTurnstileToken(captchaToken);
+      if (!captchaValid) {
+        auditLogin(ip, "failure");
+        return NextResponse.json(
+          { error: "Captcha invalide. Réessaie.", code: "CAPTCHA_INVALID" },
+          { status: 401 },
+        );
+      }
     }
 
     const token = issueAdminToken("operator", ip);

@@ -25,10 +25,12 @@ export function AdminLogin({
   const [cooldownSec, setCooldownSec] = React.useState(0);
   const [failedAttempts, setFailedAttempts] = React.useState(0);
   const [captchaRequired, setCaptchaRequired] = React.useState(false);
-  const [captchaValue, setCaptchaValue] = React.useState("");
+  const [captchaToken, setCaptchaToken] = React.useState<string | null>(null);
+  const [turnstileLoaded, setTurnstileLoaded] = React.useState(false);
+  const [turnstileError, setTurnstileError] = React.useState(false);
 
   const errorRef = React.useRef<HTMLDivElement>(null);
-  const captchaRef = React.useRef<HTMLInputElement>(null);
+  const turnstileContainerRef = React.useRef<HTMLDivElement>(null);
 
   // Cooldown 429 : décompte avec cleanup.
   const [cooldownTotal, setCooldownTotal] = React.useState(0);
@@ -50,11 +52,6 @@ export function AdminLogin({
     if (error) errorRef.current?.focus();
   }, [error]);
 
-  // Donne le focus au champ captcha quand il apparaît.
-  React.useEffect(() => {
-    if (captchaRequired) captchaRef.current?.focus();
-  }, [captchaRequired]);
-
   // Échap quitte vers le site (parcours clavier complet).
   React.useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -64,10 +61,78 @@ export function AdminLogin({
     return () => window.removeEventListener("keydown", onKey);
   }, [onExit]);
 
+  // Fonction pour rendre le widget Turnstile.
+  function renderTurnstileWidget() {
+    const container = turnstileContainerRef.current;
+    if (!container || !(window as any).turnstile) return;
+
+    try {
+      ;(window as any).turnstile.ready(() => {
+        const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
+        if (!siteKey) {
+          setTurnstileError(true);
+          return;
+        }
+        ;(window as any).turnstile.render(container, {
+          sitekey: siteKey,
+          callback: (token: string) => {
+            setCaptchaToken(token);
+            setTurnstileError(false);
+          },
+          "error-callback": () => {
+            setCaptchaToken(null);
+            setTurnstileError(true);
+          },
+        });
+      });
+    } catch {
+      setTurnstileError(true);
+    }
+  }
+
+  // Charger le script Turnstile et rendre le widget.
+  React.useEffect(() => {
+    if (!captchaRequired || turnstileLoaded) return;
+
+    if ((window as any).turnstile) {
+      renderTurnstileWidget();
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+    script.async = true;
+    script.onload = () => {
+      setTurnstileLoaded(true);
+      renderTurnstileWidget();
+    };
+    script.onerror = () => {
+      setTurnstileError(true);
+    };
+    document.head.appendChild(script);
+
+    return () => {
+      document.head.removeChild(script);
+    };
+  }, [captchaRequired, turnstileLoaded]);
+
+  // Nettoyer le widget Turnstile au démontage.
+  React.useEffect(() => {
+    return () => {
+      if ((window as any).turnstile && turnstileContainerRef.current) {
+        try {
+          ;(window as any).turnstile.remove(turnstileContainerRef.current);
+        } catch {
+          /* ignore */
+        }
+      }
+    };
+  }, []);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (cooldownSec > 0) return;
-    if (captchaRequired && !captchaValue.trim()) {
+    if (captchaRequired && !captchaToken) {
       setError("Saisis le code de vérification demandé ci-dessous.");
       return;
     }
@@ -78,7 +143,7 @@ export function AdminLogin({
       const res = await fetch("/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ passcode: passcode.trim(), captcha: captchaValue.trim() || undefined }),
+        body: JSON.stringify({ passcode: passcode.trim(), captchaToken: captchaToken || undefined }),
       });
       let data: { ok?: boolean; error?: string; code?: string } | null = null;
       try {
@@ -120,7 +185,7 @@ export function AdminLogin({
       // Success resets failed attempts.
       setFailedAttempts(0);
       setCaptchaRequired(false);
-      setCaptchaValue("");
+      setCaptchaToken(null);
       try {
         window.localStorage.setItem("hashcode-admin-session-start", String(Date.now()));
       } catch {
@@ -205,35 +270,23 @@ export function AdminLogin({
 
             {captchaRequired && (
               <div>
-                <label
-                  htmlFor="admin-captcha"
-                  className="mb-1.5 block text-sm font-medium text-foreground"
-                >
-                  Code de vérification
+                <label className="mb-1.5 block text-sm font-medium text-foreground">
+                  Vérification humaine
                   <span aria-hidden="true"> *</span>
                 </label>
-                <div className="relative">
-                  <input
-                    ref={captchaRef}
-                    id="admin-captcha"
-                    type="text"
-                    autoComplete="off"
-                    spellCheck={false}
-                    inputMode="text"
-                    required
-                    aria-required="true"
-                    value={captchaValue}
-                    onChange={(e) => setCaptchaValue(e.target.value)}
-                    placeholder="Ex. : code reçu de ton responsable"
-                    aria-describedby="captcha-help"
-                    aria-invalid={error ? true : undefined}
-                    className="w-full h-12 rounded-md border border-amber-500/50 bg-card px-4 pr-10 text-base text-foreground placeholder:text-muted-foreground transition-colors focus-lime focus:border-amber-400"
-                  />
-                  <AlertTriangle className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-amber-400 pointer-events-none" aria-hidden />
-                </div>
+                <div ref={turnstileContainerRef} className="turnstile-container" />
+                {turnstileError && !captchaToken && (
+                  <p className="mt-1.5 text-xs leading-relaxed text-amber-400">
+                    Le captcha n'a pas pu se charger. Rafraîchis la page ou demande un code à ton responsable.
+                  </p>
+                )}
+                {captchaToken && (
+                  <p className="mt-1.5 text-xs leading-relaxed text-lime">
+                    ✅ Vérification humaine validée.
+                  </p>
+                )}
                 <p id="captcha-help" className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-                  Après 3 passcodes invalides, ce code est exigé en plus du
-                  passcode. Demande-le à ton responsable, puis saisis-le ici.
+                  Après 3 passcodes invalides, cette vérification est exigée en plus du passcode.
                 </p>
               </div>
             )}
@@ -290,7 +343,7 @@ export function AdminLogin({
               size="lg"
               type="submit"
               className="group w-full"
-              disabled={submitting || !passcode.trim() || cooldownSec > 0 || (captchaRequired && !captchaValue.trim())}
+              disabled={submitting || !passcode.trim() || cooldownSec > 0 || (captchaRequired && !captchaToken)}
             >
               {cooldownSec > 0
                 ? `Patiente ${cooldownSec}s…`

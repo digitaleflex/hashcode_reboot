@@ -30,6 +30,7 @@ const SECTION_MAP: Record<string, string> = {
   "/admin/exports": "section-exports",
   "/admin/audit-log": "section-audit-log",
   "/admin/settings": "section-settings",
+  "/admin/keys": "section-keys",
 };
 
 const routeMap: Record<string, string> = {
@@ -43,6 +44,7 @@ const routeMap: Record<string, string> = {
   "section-exports": "/admin/exports",
   "section-audit-log": "/admin/audit-log",
   "section-settings": "/admin/settings",
+  "section-keys": "/admin/keys",
 };
 
 export default function AdminLayout({
