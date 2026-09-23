@@ -5,7 +5,7 @@ export function AdminStatsSkeleton() {
     <div role="status" aria-label="Chargement des statistiques" className="space-y-6">
       <div>
         <Skeleton className="h-4 w-28" />
-        <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-px bg-border/60 border border-border/60 rounded-md overflow-hidden">
+        <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-px bg-border/60 border border-border/60 rounded-md overflow-hidden">
           {Array.from({ length: 7 }).map((_, i) => (
             <div key={i} className="bg-card p-4 sm:p-5 space-y-2">
               <Skeleton className="h-4 w-16" />

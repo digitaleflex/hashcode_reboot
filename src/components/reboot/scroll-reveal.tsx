@@ -49,7 +49,7 @@ export function ScrollReveal({
     <div
       ref={ref}
       className={cn(
-        "transition-all duration-500 ease-out motion-reduce:transition-none motion-reduce:transform-none",
+        "transition-opacity duration-500 ease-out motion-reduce:transition-none motion-reduce:transform-none",
         inView
           ? "opacity-100 translate-y-0 motion-reduce:opacity-100"
           : "opacity-0 translate-y-4 motion-reduce:opacity-100 motion-reduce:translate-y-0",

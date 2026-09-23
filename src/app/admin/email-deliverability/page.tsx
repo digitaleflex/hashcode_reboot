@@ -118,7 +118,7 @@ function RateBar({ value, label }: { value: number; label: string }) {
       </div>
       <div className="h-1.5 rounded-sm bg-muted overflow-hidden">
         <div
-          className={cn("h-full rounded-sm transition-all duration-500", good ? "bg-lime" : warn ? "bg-amber-500" : "bg-red-500")}
+          className={cn("h-full rounded-sm transition-colors duration-500", good ? "bg-lime" : warn ? "bg-amber-500" : "bg-red-500")}
           style={{ width: `${width}%` }}
         />
       </div>
@@ -328,7 +328,7 @@ export default function EmailDeliverabilityPage() {
                     <span className="text-xs text-muted-foreground">{provider.daysWithData} jours de données</span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 mb-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
                     <div>
                       <div className="text-xs text-muted-foreground">Livraison</div>
                       <div className="font-bold text-foreground">{formatPercent(provider.rates.deliveryRate)}</div>

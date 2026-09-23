@@ -150,7 +150,7 @@ const load = React.useCallback(async (showMore: boolean, signal?: AbortSignal) =
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Filtrer par email, prénom, session, type…"
-          className="w-full rounded-md border border-border/60 bg-background pl-9 pr-3 py-2 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-lime/50"
+          className="w-full rounded-md border border-border/60 bg-background pl-9 pr-3 py-2 text-sm placeholder:text-muted-foreground/60 focus-visible:outline-none focus:border-lime/50"
         />
       </div>
 

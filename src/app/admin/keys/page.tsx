@@ -191,7 +191,7 @@ export function AdminKeysPage() {
             <p className="text-xs text-muted-foreground mb-1">
               Copie immédiatement cette clé. Elle ne sera plus affichée.
             </p>
-            <div className="flex gap-2">
+            <div className="flex gap-2 min-w-0">
               <code className="flex-1 break-all rounded-md bg-background px-3 py-2 text-sm font-mono text-foreground border border-border/60">
                 {newKey}
               </code>
@@ -223,3 +223,5 @@ export function AdminKeysPage() {
     </div>
   );
 }
+
+export default AdminKeysPage;

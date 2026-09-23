@@ -59,7 +59,7 @@ function NavLink({
       onClick={onClick}
       title={collapsed ? item.label : undefined}
       className={cn(
-        "w-full flex items-center gap-3 rounded-md text-sm transition-all duration-150 cursor-pointer group relative",
+        "w-full flex items-center gap-3 rounded-md text-sm transition-colors duration-150 cursor-pointer group relative",
         collapsed ? "justify-center px-0 py-2.5 mx-auto w-10" : "px-3 py-2.5",
         active
           ? "bg-lime/10 text-lime font-medium"
@@ -249,8 +249,8 @@ export function DashboardSidebar({ firstName }: DashboardSidebarProps) {
       <aside
         className={cn(
           "hidden md:flex flex-col border-r border-border/60 bg-card/40 min-h-0",
-          "transition-all duration-200 ease-in-out shrink-0",
-          collapsed ? "w-[60px]" : "w-56",
+          "transition-[width] duration-200 ease-in-out shrink-0",
+          collapsed ? "w-14" : "w-56",
         )}
       >
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
@@ -263,7 +263,7 @@ export function DashboardSidebar({ firstName }: DashboardSidebarProps) {
             onClick={() => setCollapsed((c) => !c)}
             title={collapsed ? "Déplier la sidebar" : "Replier la sidebar"}
             className={cn(
-              "w-full flex items-center gap-3 rounded-md text-sm transition-all cursor-pointer",
+              "w-full flex items-center gap-3 rounded-md text-sm transition-colors cursor-pointer",
               collapsed ? "justify-center px-0 py-2" : "px-3 py-2",
               "text-muted-foreground hover:text-foreground hover:bg-secondary",
             )}

@@ -16,7 +16,7 @@ export function DashboardSkeleton() {
       {/* Stat cards (7 cols) */}
       <div>
         <Skeleton className="h-4 w-40 mb-3" />
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-px bg-border/60 border border-border/60 rounded-md overflow-hidden">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-px bg-border/60 border border-border/60 rounded-md overflow-hidden">
           {Array.from({ length: 7 }).map((_, i) => (
             <div key={i} className="bg-card p-4 sm:p-5 space-y-2">
               <Skeleton className="h-4 w-16" />

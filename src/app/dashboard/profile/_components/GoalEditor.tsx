@@ -80,7 +80,7 @@ export function GoalEditor({ initialGoal }: { initialGoal: string | null }) {
           rows={3}
           disabled={loading}
           placeholder="Ex. Décrocher mon premier stage."
-          className="w-full rounded-md border border-border bg-card px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-lime focus:border-lime transition-colors disabled:opacity-50 resize-y"
+          className="w-full rounded-md border border-border bg-card px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:border-lime transition-colors disabled:opacity-50 resize-y"
         />
         <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
           <span>4 caractères minimum, 280 maximum.</span>

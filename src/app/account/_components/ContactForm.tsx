@@ -118,7 +118,7 @@ export function ContactForm({ member }: { member: AccountMember }) {
             maxLength={60}
             disabled={loading}
             placeholder="Ex. Dossou"
-            className="w-full rounded-md border border-border bg-card px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-lime focus:border-lime transition-colors disabled:opacity-50"
+            className="w-full rounded-md border border-border bg-card px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:border-lime transition-colors disabled:opacity-50"
           />
         </div>
       </div>
@@ -136,7 +136,7 @@ export function ContactForm({ member }: { member: AccountMember }) {
           maxLength={40}
           disabled={loading}
           placeholder="+229 ..."
-          className="w-full rounded-md border border-border bg-card px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-lime focus:border-lime transition-colors disabled:opacity-50"
+          className="w-full rounded-md border border-border bg-card px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:border-lime transition-colors disabled:opacity-50"
         />
         <p className="mt-1 text-xs text-muted-foreground">
           Format international (+229...). On utilise ce numéro pour t&apos;inviter au
@@ -156,7 +156,7 @@ export function ContactForm({ member }: { member: AccountMember }) {
           maxLength={80}
           disabled={loading}
           placeholder="Ex. Cotonou"
-          className="w-full rounded-md border border-border bg-card px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-lime focus:border-lime transition-colors disabled:opacity-50"
+          className="w-full rounded-md border border-border bg-card px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:border-lime transition-colors disabled:opacity-50"
         />
       </div>
 
@@ -169,7 +169,7 @@ export function ContactForm({ member }: { member: AccountMember }) {
           value={gender}
           onChange={(e) => setGender(e.target.value)}
           disabled={loading}
-          className="w-full rounded-md border border-border bg-card px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-lime focus:border-lime transition-colors disabled:opacity-50"
+          className="w-full rounded-md border border-border bg-card px-3 py-2.5 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:border-lime transition-colors disabled:opacity-50"
         >
           <option value="">Ne pas préciser</option>
           <option value="male">Homme</option>
@@ -190,7 +190,7 @@ export function ContactForm({ member }: { member: AccountMember }) {
           rows={3}
           disabled={loading}
           placeholder="Ex. Avoir décroché mon premier poste de dev web."
-          className="w-full rounded-md border border-border bg-card px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-lime focus:border-lime transition-colors disabled:opacity-50 resize-y"
+          className="w-full rounded-md border border-border bg-card px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:border-lime transition-colors disabled:opacity-50 resize-y"
         />
         <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
           <span>4 caractères minimum. C&apos;est ce qui t&apos;aide à la validation.</span>

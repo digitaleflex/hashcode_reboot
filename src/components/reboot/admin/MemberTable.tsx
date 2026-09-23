@@ -443,7 +443,7 @@ export function MemberTable({
             )}
           </div>
         )}
-        <div className="rounded-md border border-border/60 overflow-hidden overflow-x-auto bg-card/30">
+        <div className="rounded-md border border-border/60 overflow-x-auto bg-card/30">
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent border-border/60 bg-secondary/30">

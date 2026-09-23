@@ -146,7 +146,7 @@ export function ImportInvitePanel({ onSessionExpired }: { onSessionExpired: () =
             value={csvText}
             onChange={(e) => setCsvText(e.target.value)}
             placeholder={`email,Prénom,Téléphone,Pays,Niveau\njean@example.com,Jean,+22505010203,Côte d'Ivoire,Intermédiaire\nfatou@example.com,Fatou,+22399887766,Mali,Débutant`}
-            className="w-full h-40 rounded-md border border-border bg-background px-3 py-2 text-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-lime resize-y"
+            className="w-full h-40 rounded-md border border-border bg-background px-3 py-2 text-sm font-mono text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lime resize-y"
           />
 
           <div className="flex gap-2">

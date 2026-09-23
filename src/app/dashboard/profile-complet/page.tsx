@@ -273,7 +273,7 @@ export default function ProfileCompletPage() {
 }
 
 const inputCls =
-  "mt-1.5 w-full rounded-md border border-border bg-card px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-lime focus:border-lime transition-colors";
+  "mt-1.5 w-full rounded-md border border-border bg-card px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:border-lime transition-colors";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

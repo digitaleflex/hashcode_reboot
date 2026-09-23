@@ -104,7 +104,7 @@ export function BlacklistTable() {
               setSearch(e.target.value);
               setPage(1);
             }}
-            className="w-full pl-10 pr-3 py-2 rounded-md border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-lime focus:border-lime"
+            className="w-full pl-10 pr-3 py-2 rounded-md border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:border-lime"
           />
         </div>
         <select
@@ -113,7 +113,7 @@ export function BlacklistTable() {
             setReasonFilter(e.target.value);
             setPage(1);
           }}
-          className="px-3 py-2 rounded-md border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-lime focus:border-lime"
+          className="px-3 py-2 rounded-md border border-border bg-card text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:border-lime"
         >
           <option value="">Toutes les raisons</option>
           {REASONS.map((r) => (
@@ -352,7 +352,7 @@ function AddToBlacklistDialog({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-[100vw] md:max-w-md rounded-lg border border-border bg-card p-5 sm:p-6 space-y-4"
+        className="w-full max-w-full md:max-w-md rounded-lg border border-border bg-card p-5 sm:p-6 space-y-4"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
@@ -383,7 +383,7 @@ function AddToBlacklistDialog({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="spam@exemple.com"
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-lime focus:border-lime"
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:border-lime"
             />
           </div>
           <div>
@@ -393,7 +393,7 @@ function AddToBlacklistDialog({
             <select
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-lime focus:border-lime"
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:border-lime"
             >
               {REASONS.map((r) => (
                 <option key={r.value} value={r.value}>
@@ -410,7 +410,7 @@ function AddToBlacklistDialog({
               type="date"
               value={expiresAt}
               onChange={(e) => setExpiresAt(e.target.value)}
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-lime focus:border-lime"
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:border-lime"
             />
             <p className="mt-1 text-[11px] text-muted-foreground">
               Laisser vide pour un blocage permanent.
@@ -426,7 +426,7 @@ function AddToBlacklistDialog({
               maxLength={500}
               rows={2}
               placeholder="Contexte : a déjà créé 3 comptes…"
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-lime focus:border-lime resize-y"
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:border-lime resize-y"
             />
           </div>
           {error && (
@@ -493,7 +493,7 @@ function RemoveConfirmDialog({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-[100vw] sm:max-w-sm rounded-lg border border-border bg-card p-5 space-y-3"
+        className="w-full max-w-full sm:max-w-sm rounded-lg border border-border bg-card p-5 space-y-3"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start gap-3">

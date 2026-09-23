@@ -155,7 +155,7 @@ function PillarsCarousel() {
               <span
                 aria-hidden
                 className={cn(
-                  "h-1.5 rounded-full transition-all",
+                  "h-1.5 rounded-full transition-opacity",
                   i === index ? "w-6 bg-lime" : "w-1.5 bg-border hover:bg-muted-foreground",
                 )}
               />

@@ -218,7 +218,7 @@ function VerifyOtpForm() {
                 onKeyDown={(e) => handleKeyDown(i, e)}
                 disabled={loading}
                 aria-label={`Chiffre ${i + 1}`}
-                className="h-14 w-12 sm:w-14 text-center text-xl font-mono font-bold rounded-md border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-lime focus:border-lime transition-colors disabled:opacity-50"
+                className="h-14 w-12 sm:w-14 text-center text-xl font-mono font-bold rounded-md border border-border bg-card text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:border-lime transition-colors disabled:opacity-50"
               />
             ))}
           </div>

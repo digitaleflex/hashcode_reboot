@@ -272,7 +272,7 @@ function AudienceBanner({ audience }: { audience: Audience }) {
 
   return (
     <section className="rounded-md border border-border bg-card p-4">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:gap-8">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:gap-8 min-w-0">
         <div className="min-w-0">
           <MonoLabel>Annonce espace membre</MonoLabel>
           <p className="mt-1 text-sm text-foreground">
@@ -281,7 +281,7 @@ function AudienceBanner({ audience }: { audience: Audience }) {
           </p>
         </div>
 
-        <div className="min-w-[160px] flex-1">
+        <div className="min-w-[100px] sm:min-w-[160px] flex-1">
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
             <div className="h-full rounded-full bg-lime" style={{ width: `${pct}%` }} />
           </div>
@@ -656,7 +656,7 @@ export function CampaignLogPanel({ onSessionExpired }: { onSessionExpired: () =>
           </ul>
 
           {/* Desktop : tableau */}
-          <div className="hidden overflow-hidden rounded-md border border-border bg-card md:block">
+          <div className="hidden rounded-md border border-border bg-card md:block">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -699,10 +699,10 @@ export function CampaignLogPanel({ onSessionExpired }: { onSessionExpired: () =>
                             {initials(row)}
                           </span>
                           <span className="flex min-w-0 flex-col">
-                            <span className="max-w-[200px] truncate text-sm font-medium text-foreground">
+                            <span className="max-w-[200px] sm:max-w-[240px] truncate text-sm font-medium text-foreground">
                               {row.firstName || "—"}
                             </span>
-                            <span className="max-w-[240px] truncate text-xs text-muted-foreground">
+                            <span className="max-w-[240px] sm:max-w-[280px] truncate text-xs text-muted-foreground">
                               {row.email}
                             </span>
                           </span>

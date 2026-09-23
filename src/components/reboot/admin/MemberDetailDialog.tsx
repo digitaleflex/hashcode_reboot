@@ -218,7 +218,7 @@ export function MemberDetailDialog({
 
   return (
     <Dialog open={!!id} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="bg-card border-border max-w-[100vw] max-h-[90vh] rounded-none md:rounded-lg overflow-y-auto scroll-slim">
+      <DialogContent className="bg-card border-border max-w-full max-h-[90vh] rounded-none md:rounded-lg overflow-y-auto scroll-slim">
         <DialogHeader>
           <DialogTitle className="font-display tracking-tight">
             {memberName ? `Membre — ${memberName}` : "Détail du membre"}

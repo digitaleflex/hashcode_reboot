@@ -173,7 +173,7 @@ export function AuditLogViewer({
           <p className="text-sm text-muted-foreground">Chargement…</p>
         </div>
       ) : (
-        <div className="rounded-md border border-border/60 bg-card/40 divide-y divide-border/40 max-h-[600px] overflow-y-auto overflow-x-auto scroll-slim">
+        <div className="rounded-md border border-border/60 bg-card/40 divide-y divide-border/40 max-h-[600px] overflow-y-auto scroll-slim">
           {filtered.length === 0 && (
             <div className="p-5 text-center">
               <p className="text-sm text-foreground font-medium">

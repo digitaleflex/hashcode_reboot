@@ -65,7 +65,7 @@ export function CookieConsent() {
           </div>
           <button
             onClick={() => choose("declined")}
-            className="shrink-0 min-h-[44px] min-w-[44px] -m-2 p-2 flex items-start justify-center text-muted-foreground hover:text-foreground transition-colors focus-lime rounded-md"
+            className="shrink-0 min-h-[44px] min-w-[44px] m-2 p-2 flex items-start justify-center text-muted-foreground hover:text-foreground transition-colors focus-lime rounded-md"
             aria-label="Fermer et refuser"
           >
             <X className="size-4 mt-2" />

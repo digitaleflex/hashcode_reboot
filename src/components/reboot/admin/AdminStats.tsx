@@ -153,7 +153,7 @@ export function AdminStats({
     return (
       <section>
         <MonoLabel className="text-muted-foreground">Comparaison N/N-1</MonoLabel>
-        <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-px bg-border/60 border border-border/60 rounded-md overflow-hidden">
+        <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-px bg-border/60 border border-border/60 rounded-md overflow-hidden">
           {/* Current period card */}
           <div className="col-span-1 sm:col-span-2 bg-card p-4 sm:p-5 rounded-md border border-border">
             <MonoLabel className="text-sm text-muted-foreground">Current</MonoLabel>
@@ -305,7 +305,7 @@ export function AdminStats({
             </button>
           )}
         </div>
-        <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-px bg-border/60 border border-border/60 rounded-md overflow-hidden">
+        <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-px bg-border/60 border border-border/60 rounded-md overflow-hidden">
           <StatCard
             icon={<Users className="size-4" aria-hidden />}
             label="Total base"
@@ -464,7 +464,7 @@ export function AdminStats({
                   </span>
                   <div className="flex-1 h-1.5 rounded-full bg-secondary overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-lime/70 transition-all duration-300 group-hover:bg-lime"
+                      className="h-full rounded-full bg-lime/70 transition-colors duration-300 group-hover:bg-lime"
                       style={{
                         width: `${(a.count / Math.max(1, Math.max(...(stats?.byArchetype ?? []).map((x) => x.count)))) * 100}%`,
                       }}
@@ -797,7 +797,7 @@ function Breakdown({
               </span>
               <div className="flex-1 h-1.5 rounded-full bg-secondary overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-lime/70 transition-all duration-300 group-hover:bg-lime"
+                  className="h-full rounded-full bg-lime/70 transition-colors duration-300 group-hover:bg-lime"
                   style={{ width: `${(count / max) * 100}%` }}
                 />
               </div>

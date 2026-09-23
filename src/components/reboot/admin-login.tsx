@@ -325,7 +325,7 @@ export function AdminLogin({
                   aria-valuetext={`${cooldownSec} secondes restantes`}
                 >
                   <div
-                    className="h-full bg-amber-400 transition-all duration-1000"
+                    className="h-full bg-amber-400 transition-opacity duration-1000"
                     style={{ width: `${cooldownPct}%` }}
                     aria-hidden
                   />

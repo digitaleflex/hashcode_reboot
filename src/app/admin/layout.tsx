@@ -162,7 +162,7 @@ export default function AdminLayout({
           onNavigate={onNavigate}
           onOpenPalette={openPalette}
         />
-        <main className="flex-1 min-w-0 overflow-auto bg-muted/10 pb-20 md:pb-0">
+        <main className="flex-1 min-w-0 overflow-y-auto bg-muted/10 pb-20 md:pb-0">
           <div className="mx-auto max-w-7xl w-full px-5 sm:px-8 py-8">
             {children}
           </div>

@@ -111,7 +111,7 @@ function StatCard({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex flex-col items-center gap-1.5 p-4 rounded-xl border transition-all text-center min-w-[90px] relative overflow-hidden",
+        "flex flex-col items-center gap-1.5 p-4 rounded-xl border transition-colors text-center min-w-0 relative overflow-hidden",
         active
           ? "border-lime/40 bg-lime/5 shadow-[0_0_0_1px_rgba(197,244,65,0.3)]"
           : "border-border/40 bg-card hover:bg-lime/5 hover:border-lime/20",
@@ -358,7 +358,7 @@ function StatusTabs({ active, onChange, stats }: { active: StatusFilter; onChang
             type="button"
             onClick={() => onChange(status)}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all",
+              "flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
               isActive
                 ? "bg-white text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground hover:bg-white/50",
@@ -571,7 +571,7 @@ export default function AdminInvitationsPage() {
 
       {/* Stats Overview */}
       {stats && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           <StatCard
             label="Total"
             value={stats.total}
@@ -651,7 +651,7 @@ export default function AdminInvitationsPage() {
           placeholder="Rechercher par nom, email, téléphone..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-9 pr-10 py-2.5 bg-card border border-border/60 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-lime/40 placeholder:text-muted-foreground"
+          className="w-full pl-9 pr-10 py-2.5 bg-card border border-border/60 rounded-lg text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime/40 placeholder:text-muted-foreground"
         />
         {search && (
           <button

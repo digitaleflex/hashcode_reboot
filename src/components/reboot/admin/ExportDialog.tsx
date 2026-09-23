@@ -81,7 +81,7 @@ export function ExportDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-card border-border/60 max-w-[100vw] md:max-w-lg">
+      <DialogContent className="bg-card border-border/60 max-w-full md:max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-foreground">Exporter les données</DialogTitle>
           <DialogDescription className="text-muted-foreground">

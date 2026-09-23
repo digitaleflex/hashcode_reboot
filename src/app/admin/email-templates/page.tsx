@@ -580,8 +580,8 @@ export default function EmailTemplatesPage() {
                   srcDoc={preview?.html ?? ""}
                   sandbox=""
                   className={cn(
-                    "h-[560px] rounded border border-border bg-white transition-all",
-                    viewport === "desktop" ? "w-full" : "w-[380px] max-w-full",
+                    "h-[560px] rounded border border-border bg-white transition-opacity",
+                    viewport === "desktop" ? "w-full" : "w-full max-w-[380px]",
                   )}
                 />
               </div>
@@ -704,7 +704,7 @@ export default function EmailTemplatesPage() {
         </form>
       )}
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
         <StatTile label="Templates" value={counts.total} icon={Mail} active={categoryFilter === ""} onClick={() => setCategoryFilter("")} />
         <StatTile label="Marketing" value={counts.marketing} icon={Megaphone} active={categoryFilter === "marketing"} onClick={() => setCategoryFilter("marketing")} />
         <StatTile label="Actifs" value={counts.active} icon={Power} active={onlyActive} onClick={() => setOnlyActive((v) => !v)} />
@@ -788,7 +788,7 @@ export default function EmailTemplatesPage() {
                   </div>
                   <CategoryBadge category={t.category} />
                 </div>
-                <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-border pt-3">
+                <dl className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 border-t border-border pt-3">
                   <div>
                     <dt className="text-xs text-muted-foreground">État</dt>
                     <dd className="text-xs">
