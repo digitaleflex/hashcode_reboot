@@ -11,7 +11,7 @@ import {
 } from "./shared";
 import { ProfileCard } from "./profile-card";
 import type { GeneratedProfile, ProfileAnswers } from "@/lib/profiling/types";
-import { DEFAULT_WHATSAPP_URL, REASON_LABELS } from "@/lib/profiling/auto-controls";
+import { REASON_LABELS } from "@/lib/profiling/auto-controls";
 import { countryName, countryFlag } from "@/lib/profiling/countries";
 import { track } from "@/lib/analytics";
 import { Check, Clock, Loader2, Mail, MessageCircle, Share2, ShieldCheck } from "lucide-react";
@@ -29,10 +29,18 @@ export interface WelcomeResult {
 
 /**
  * Client-side WhatsApp URL: only `NEXT_PUBLIC_*` vars are inlined in the
- * browser bundle, with fallback on the current invite link when unset.
+ * browser bundle. Throws if not configured — no silent fallback.
  */
-const WHATSAPP_URL =
-  process.env.NEXT_PUBLIC_WHATSAPP_URL ?? DEFAULT_WHATSAPP_URL;
+const WHATSAPP_URL = (() => {
+  const url = process.env.NEXT_PUBLIC_WHATSAPP_URL;
+  if (!url || url.trim() === "") {
+    throw new Error(
+      "[WhatsApp] NEXT_PUBLIC_WHATSAPP_URL manquant ou vide. " +
+        "Ajoutez-la dans Vercel → Settings → Environment Variables, puis redéployez.",
+    );
+  }
+  return url;
+})();
 
 export function Welcome({
   answers,
@@ -277,7 +285,7 @@ function WhatsAppCapture({ memberId }: { memberId: string }) {
           maxLength={40}
           placeholder="+229 ..."
           aria-label="Numéro WhatsApp"
-          className="flex-1 min-w-0 rounded-md border border-border/60 bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-lime/50 focus:ring-1 focus:ring-lime/30"
+          className="flex-1 min-w-0 rounded-md border border-border/60 bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus:border-lime/50 focus:ring-1 focus:ring-lime/30"
         />
         <button
           type="submit"

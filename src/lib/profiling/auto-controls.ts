@@ -94,17 +94,20 @@ export const REASON_LABELS: Record<string, string> = {
   "high-value-mentoring-lead": "Demande d'accompagnement prioritaire",
 };
 
-/** Fallback WhatsApp community URL (used when no env var is set). */
-export const DEFAULT_WHATSAPP_URL =
-  "https://chat.whatsapp.com/JwJGgoQpS46I9r81QPrCs4";
-
 /**
- * Canonical WhatsApp URL. Server-side: `WHATSAPP_URL` takes precedence, then
- * the public var (useful for preview/local), then the fallback above.
- * This module is also imported by a client component, where only
- * `NEXT_PUBLIC_*` vars are inlined — hence the dual lookup.
+ * Canonical WhatsApp URL (server-side).
+ * Requires WHATSAPP_URL or NEXT_PUBLIC_WHATSAPP_URL to be set.
+ * Throws at module load if missing — fail fast instead of silent fallback.
  */
-export const WHATSAPP_URL =
-  process.env.WHATSAPP_URL ??
-  process.env.NEXT_PUBLIC_WHATSAPP_URL ??
-  DEFAULT_WHATSAPP_URL;
+function getRequiredServerWhatsAppUrl(): string {
+  const url = process.env.WHATSAPP_URL ?? process.env.NEXT_PUBLIC_WHATSAPP_URL;
+  if (!url || url.trim() === "") {
+    throw new Error(
+      "[WhatsApp] Variable d'environnement manquante: définissez WHATSAPP_URL (server) ou NEXT_PUBLIC_WHATSAPP_URL (public). " +
+        "Aucun fallback hardcodé — configuration requise.",
+    );
+  }
+  return url;
+}
+
+export const WHATSAPP_URL = getRequiredServerWhatsAppUrl();
