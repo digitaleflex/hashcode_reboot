@@ -13,6 +13,9 @@ import {
   RefreshCw,
   X,
   Save,
+  LockOpen,
+  Lock,
+  GraduationCap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fetchJson } from "@/components/reboot/admin/lib/fetchJson";
@@ -36,6 +39,17 @@ interface AdminEvent {
   reminderLogs: Array<{ offsetMinutes: number; sentAt: string; sentCount: number }>;
   goingCount: number;
   maybeCount: number;
+  /** Séances d'atelier reliées à cet événement (admin uniquement). */
+  linkedSessions: Array<{
+    id: string;
+    number: number;
+    title: string;
+    scheduledAt: string | null;
+    unlockOverride: boolean;
+    workshopId: string;
+    workshopTitle: string;
+    workshopSlug: string;
+  }>;
 }
 
 const OFFSET_LABELS: Record<number, string> = {
@@ -109,6 +123,7 @@ export function AdminEventList({ refreshSignal }: { refreshSignal: number }) {
     maxAttendees: "",
   });
   const [saving, setSaving] = React.useState(false);
+  const [unlockId, setUnlockId] = React.useState<string | null>(null);
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -241,6 +256,40 @@ export function AdminEventList({ refreshSignal }: { refreshSignal: number }) {
     }
   }
 
+  /** Déverrouille / reverrouille une séance liée (override admin). */
+  async function handleUnlock(sessionId: string, unlock: boolean, title: string) {
+    if (
+      unlock &&
+      !window.confirm(
+        `Déverrouiller "${title}" pour tous les membres, même si les séances précédentes ne sont pas complétées ?`,
+      )
+    ) {
+      return;
+    }
+    setUnlockId(sessionId);
+    try {
+      const { res, error } = await fetchJson(
+        `/api/admin/workshops/sessions/${sessionId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ unlockOverride: unlock }),
+        },
+      );
+      if (!res.ok) {
+        toast({ title: "Erreur", description: error ?? "Échec", variant: "destructive" });
+        return;
+      }
+      toast({
+        title: unlock ? "Séance déverrouillée" : "Séance reverrouillée",
+        description: title,
+      });
+      await load();
+    } finally {
+      setUnlockId(null);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -332,6 +381,67 @@ export function AdminEventList({ refreshSignal }: { refreshSignal: number }) {
                     ))}
                   </div>
                 )}
+
+                {/* Séances d'atelier reliées : pilotage du verrou pédagogique */}
+                {ev.linkedSessions.length > 0 && (
+                  <div className="mt-2 rounded-md border border-border/60 bg-background/40 p-2.5 space-y-1.5">
+                    <p className="inline-flex items-center gap-1.5 text-[10px] mono-label text-muted-foreground uppercase">
+                      <GraduationCap className="size-3" />
+                      Séances liées
+                    </p>
+                    {ev.linkedSessions.map((s) => {
+                      const unlocking = unlockId === s.id;
+                      return (
+                        <div
+                          key={s.id}
+                          className="flex flex-wrap items-center gap-2"
+                        >
+                          <span className="mono-label text-[10px] text-muted-foreground">
+                            S{String(s.number).padStart(2, "0")}
+                          </span>
+                          <span className="text-xs truncate max-w-[14rem]">{s.title}</span>
+                          <span className="text-[10px] text-muted-foreground/60 truncate max-w-[12rem]">
+                            {s.workshopTitle}
+                          </span>
+                          {s.unlockOverride ? (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-lime/30 bg-lime/10 px-1.5 py-0.5 text-[10px] mono-label text-lime">
+                              <LockOpen className="size-2.5" />
+                              Déverrouillée
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-border/60 px-1.5 py-0.5 text-[10px] mono-label text-muted-foreground">
+                              <Lock className="size-2.5" />
+                              Verrouillée
+                            </span>
+                          )}
+                          <div className="flex-1" />
+                          <button
+                            type="button"
+                            disabled={unlocking !== null}
+                            onClick={() =>
+                              void handleUnlock(s.id, !s.unlockOverride, s.title)
+                            }
+                            className={cn(
+                              "inline-flex min-h-[36px] items-center gap-1 rounded-md border px-2 py-1 text-[11px] transition-colors cursor-pointer disabled:opacity-50",
+                              s.unlockOverride
+                                ? "border-border/60 text-muted-foreground hover:border-lime/40 hover:text-foreground"
+                                : "border-lime/40 bg-lime/10 text-lime hover:bg-lime/20",
+                            )}
+                          >
+                            {unlocking ? (
+                              <Loader2 className="size-3 animate-spin" />
+                            ) : s.unlockOverride ? (
+                              <Lock className="size-3" />
+                            ) : (
+                              <LockOpen className="size-3" />
+                            )}
+                            {s.unlockOverride ? "Reverrouiller" : "Déverrouiller"}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -390,7 +500,7 @@ export function AdminEventList({ refreshSignal }: { refreshSignal: number }) {
           onClick={() => setEditing(null)}
         >
           <div
-            className="w-full max-w-[100vw] md:max-w-lg rounded-lg border border-border/60 bg-card p-5 space-y-4 max-h-[90vh] overflow-auto"
+            className="w-full max-w-full md:max-w-lg rounded-lg border border-border/60 bg-card p-5 space-y-4 max-h-[90vh] overflow-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
@@ -413,14 +523,14 @@ export function AdminEventList({ refreshSignal }: { refreshSignal: number }) {
                 required
                 minLength={3}
                 placeholder="Titre"
-                className="w-full rounded-md border border-border/60 bg-background px-3 py-2 text-sm focus:outline-none focus:border-lime/50"
+                className="w-full rounded-md border border-border/60 bg-background px-3 py-2 text-sm focus-visible:outline-none focus:border-lime/50"
               />
               <textarea
                 value={editForm.description}
                 onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
                 rows={2}
                 placeholder="Description"
-                className="w-full rounded-md border border-border/60 bg-background px-3 py-2 text-sm focus:outline-none focus:border-lime/50 resize-y"
+                className="w-full rounded-md border border-border/60 bg-background px-3 py-2 text-sm focus-visible:outline-none focus:border-lime/50 resize-y"
               />
               <div className="grid grid-cols-2 gap-3">
                 <input

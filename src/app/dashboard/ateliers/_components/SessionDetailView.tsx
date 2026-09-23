@@ -513,7 +513,7 @@ function SubmissionSection({
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 placeholder="https://…"
-                className="w-full rounded-md border border-border/60 bg-background px-4 py-2.5 text-sm focus:outline-none focus:border-lime/50 focus:ring-1 focus:ring-lime/30"
+                className="w-full rounded-md border border-border/60 bg-background px-4 py-2.5 text-sm focus-visible:outline-none focus:border-lime/50 focus:ring-1 focus:ring-lime/30"
               />
             ) : (
               <textarea
@@ -521,7 +521,7 @@ function SubmissionSection({
                 onChange={(e) => setContent(e.target.value)}
                 rows={4}
                 placeholder="Ton livrable…"
-                className="w-full rounded-md border border-border/60 bg-background px-4 py-2.5 text-sm focus:outline-none focus:border-lime/50 focus:ring-1 focus:ring-lime/30 resize-y"
+                className="w-full rounded-md border border-border/60 bg-background px-4 py-2.5 text-sm focus-visible:outline-none focus:border-lime/50 focus:ring-1 focus:ring-lime/30 resize-y"
               />
             )}
             {error && <p className="text-xs text-red-400">{error}</p>}

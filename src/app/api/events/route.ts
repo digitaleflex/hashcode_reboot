@@ -105,6 +105,34 @@ export async function GET(req: NextRequest) {
   const myMap = new Map(myRsvps.map((r) => [r.eventId, r.status]));
 
   // Batché : relances auto par événement (J-3 / J-1 / H-1).
+  // + séances d'atelier liées (admin : pilotage du verrou pédagogique).
+  const linkedSessions = isAdmin && eventIds.length
+    ? await db.workshopSession.findMany({
+        where: { eventId: { in: eventIds } },
+        orderBy: { number: "asc" },
+        select: {
+          id: true,
+          number: true,
+          title: true,
+          eventId: true,
+          scheduledAt: true,
+          unlockOverride: true,
+          week: {
+            select: {
+              workshop: { select: { id: true, title: true, slug: true } },
+            },
+          },
+        },
+      })
+    : [];
+  const sessionsByEvent = new Map<string, typeof linkedSessions>();
+  for (const s of linkedSessions) {
+    if (!s.eventId) continue;
+    const arr = sessionsByEvent.get(s.eventId) ?? [];
+    arr.push(s);
+    sessionsByEvent.set(s.eventId, arr);
+  }
+
   const reminderLogsAll = eventIds.length
     ? await db.eventReminderLog.findMany({
         where: { eventId: { in: eventIds } },
@@ -144,6 +172,19 @@ export async function GET(req: NextRequest) {
         goingCount,
         maybeCount,
         myRsvp,
+        // Admin uniquement : séances d'atelier reliées à cet événement.
+        linkedSessions: isAdmin
+          ? (sessionsByEvent.get(event.id) ?? []).map((s) => ({
+              id: s.id,
+              number: s.number,
+              title: s.title,
+              scheduledAt: s.scheduledAt?.toISOString() ?? null,
+              unlockOverride: s.unlockOverride,
+              workshopId: s.week.workshop.id,
+              workshopTitle: s.week.workshop.title,
+              workshopSlug: s.week.workshop.slug,
+            }))
+          : [],
       };
     });
 

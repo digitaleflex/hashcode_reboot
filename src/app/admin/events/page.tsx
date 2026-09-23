@@ -233,7 +233,7 @@ export default function AdminEventsPage() {
             required
             minLength={3}
             maxLength={200}
-            className="w-full rounded-md border border-border/60 bg-background px-4 py-2.5 text-sm focus:outline-none focus:border-lime/50 focus:ring-1 focus:ring-lime/30 transition-colors"
+            className="w-full rounded-md border border-border/60 bg-background px-4 py-2.5 text-sm focus-visible:outline-none focus:border-lime/50 focus:ring-1 focus:ring-lime/30 transition-colors"
           />
         </div>
 
@@ -248,7 +248,7 @@ export default function AdminEventsPage() {
             placeholder="Détails de l&apos;événement..."
             rows={3}
             maxLength={2000}
-            className="w-full rounded-md border border-border/60 bg-background px-4 py-2.5 text-sm focus:outline-none focus:border-lime/50 focus:ring-1 focus:ring-lime/30 transition-colors resize-y"
+            className="w-full rounded-md border border-border/60 bg-background px-4 py-2.5 text-sm focus-visible:outline-none focus:border-lime/50 focus:ring-1 focus:ring-lime/30 transition-colors resize-y"
           />
         </div>
 
@@ -263,7 +263,7 @@ export default function AdminEventsPage() {
               value={form.startsAt}
               onChange={(e) => update("startsAt", e.target.value)}
               required
-              className="w-full rounded-md border border-border/60 bg-background px-4 py-2.5 text-sm focus:outline-none focus:border-lime/50 focus:ring-1 focus:ring-lime/30 transition-colors"
+              className="w-full rounded-md border border-border/60 bg-background px-4 py-2.5 text-sm focus-visible:outline-none focus:border-lime/50 focus:ring-1 focus:ring-lime/30 transition-colors"
             />
           </div>
           <div className="space-y-2">
@@ -274,7 +274,7 @@ export default function AdminEventsPage() {
               type="datetime-local"
               value={form.endsAt}
               onChange={(e) => update("endsAt", e.target.value)}
-              className="w-full rounded-md border border-border/60 bg-background px-4 py-2.5 text-sm focus:outline-none focus:border-lime/50 focus:ring-1 focus:ring-lime/30 transition-colors"
+              className="w-full rounded-md border border-border/60 bg-background px-4 py-2.5 text-sm focus-visible:outline-none focus:border-lime/50 focus:ring-1 focus:ring-lime/30 transition-colors"
             />
           </div>
         </div>
@@ -288,7 +288,7 @@ export default function AdminEventsPage() {
             <select
               value={form.type}
               onChange={(e) => update("type", e.target.value)}
-              className="w-full rounded-md border border-border/60 bg-background px-4 py-2.5 text-sm focus:outline-none focus:border-lime/50 focus:ring-1 focus:ring-lime/30 transition-colors"
+              className="w-full rounded-md border border-border/60 bg-background px-4 py-2.5 text-sm focus-visible:outline-none focus:border-lime/50 focus:ring-1 focus:ring-lime/30 transition-colors"
             >
               {TYPE_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -304,7 +304,7 @@ export default function AdminEventsPage() {
             <select
               value={form.domain}
               onChange={(e) => update("domain", e.target.value)}
-              className="w-full rounded-md border border-border/60 bg-background px-4 py-2.5 text-sm focus:outline-none focus:border-lime/50 focus:ring-1 focus:ring-lime/30 transition-colors"
+              className="w-full rounded-md border border-border/60 bg-background px-4 py-2.5 text-sm focus-visible:outline-none focus:border-lime/50 focus:ring-1 focus:ring-lime/30 transition-colors"
             >
               <option value="">Tous</option>
               {DOMAIN_OPTIONS.map((opt) => (
@@ -321,7 +321,7 @@ export default function AdminEventsPage() {
             <select
               value={form.level}
               onChange={(e) => update("level", e.target.value)}
-              className="w-full rounded-md border border-border/60 bg-background px-4 py-2.5 text-sm focus:outline-none focus:border-lime/50 focus:ring-1 focus:ring-lime/30 transition-colors"
+              className="w-full rounded-md border border-border/60 bg-background px-4 py-2.5 text-sm focus-visible:outline-none focus:border-lime/50 focus:ring-1 focus:ring-lime/30 transition-colors"
             >
               <option value="">Tous</option>
               {LEVEL_OPTIONS.map((opt) => (
@@ -344,7 +344,7 @@ export default function AdminEventsPage() {
               value={form.location}
               onChange={(e) => update("location", e.target.value)}
               placeholder="ex: WhatsApp, Salle 1, Zoom"
-              className="w-full rounded-md border border-border/60 bg-background px-4 py-2.5 text-sm focus:outline-none focus:border-lime/50 focus:ring-1 focus:ring-lime/30 transition-colors"
+              className="w-full rounded-md border border-border/60 bg-background px-4 py-2.5 text-sm focus-visible:outline-none focus:border-lime/50 focus:ring-1 focus:ring-lime/30 transition-colors"
             />
           </div>
           <div className="space-y-2">
@@ -356,7 +356,7 @@ export default function AdminEventsPage() {
               value={form.url}
               onChange={(e) => update("url", e.target.value)}
               placeholder="https://..."
-              className="w-full rounded-md border border-border/60 bg-background px-4 py-2.5 text-sm focus:outline-none focus:border-lime/50 focus:ring-1 focus:ring-lime/30 transition-colors"
+              className="w-full rounded-md border border-border/60 bg-background px-4 py-2.5 text-sm focus-visible:outline-none focus:border-lime/50 focus:ring-1 focus:ring-lime/30 transition-colors"
             />
           </div>
           <div className="space-y-2">
@@ -370,7 +370,7 @@ export default function AdminEventsPage() {
               value={form.maxAttendees}
               onChange={(e) => update("maxAttendees", e.target.value)}
               placeholder="Illimité"
-              className="w-full rounded-md border border-border/60 bg-background px-4 py-2.5 text-sm focus:outline-none focus:border-lime/50 focus:ring-1 focus:ring-lime/30 transition-colors"
+              className="w-full rounded-md border border-border/60 bg-background px-4 py-2.5 text-sm focus-visible:outline-none focus:border-lime/50 focus:ring-1 focus:ring-lime/30 transition-colors"
             />
           </div>
         </div>
@@ -384,7 +384,7 @@ export default function AdminEventsPage() {
             <select
               value={form.recurrence}
               onChange={(e) => update("recurrence", e.target.value)}
-              className="w-full rounded-md border border-border/60 bg-background px-4 py-2.5 text-sm focus:outline-none focus:border-lime/50 focus:ring-1 focus:ring-lime/30 transition-colors"
+              className="w-full rounded-md border border-border/60 bg-background px-4 py-2.5 text-sm focus-visible:outline-none focus:border-lime/50 focus:ring-1 focus:ring-lime/30 transition-colors"
             >
               {RECURRENCE_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>

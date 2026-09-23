@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   Loader2,
@@ -17,9 +17,13 @@ import {
   ExternalLink,
   CheckCircle2,
   ClipboardCheck,
+  LockOpen,
+  Lock,
+  RotateCcw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fetchJson, withRetryAfter } from "@/components/reboot/admin/lib/fetchJson";
+import { useToast } from "@/hooks/use-toast";
 import {
   Tabs,
   TabsContent,
@@ -95,6 +99,8 @@ interface SessionRow {
   deliverableRequired: boolean;
   quizRequired: boolean;
   eventId: string | null;
+  scheduledAt: string | null;
+  unlockOverride: boolean;
   createdAt: string;
   updatedAt: string;
   activities: ActivityRow[];
@@ -224,7 +230,8 @@ function formatDate(iso: string): string {
   });
 }
 
-function formatDateTime(iso: string): string {
+function formatDateTime(iso: string | null): string | null {
+  if (!iso) return null;
   return new Date(iso).toLocaleString("fr-FR", {
     day: "2-digit",
     month: "short",
@@ -336,6 +343,7 @@ export default function AdminAtelierDetailPage() {
   });
 
   const workshop = query.data?.workshop;
+  const queryClient = useQueryClient();
 
   // Livrable → séance : la route détail ne renvoie que deliverableId sur les
   // soumissions, on résout l'ascendance depuis la structure de l'atelier.
@@ -496,7 +504,15 @@ export default function AdminAtelierDetailPage() {
                 ) : (
                   <div className="space-y-3">
                     {week.sessions.map((session) => (
-                      <SessionCard key={session.id} session={session} />
+                      <SessionCard
+                        key={session.id}
+                        session={session}
+                        onChanged={() =>
+                          queryClient.invalidateQueries({
+                            queryKey: ["admin", "workshops", "detail", id],
+                          })
+                        }
+                      />
                     ))}
                   </div>
                 )}
@@ -726,7 +742,174 @@ export default function AdminAtelierDetailPage() {
   );
 }
 
-function SessionCard({ session }: { session: SessionRow }) {
+/**
+ * Pilotage du verrou d'une séance : déverrouillage manuel (override admin)
+ * et édition de la date de déblocage calendaire. L'override prime sur la
+ * chaîne séquentielle ET le gate de date ; la date seule ne prime pas sur
+ * la chaîne. Reverrouiller = remettre unlockOverride à false.
+ */
+function SessionUnlockControls({
+  session,
+  onChanged,
+}: {
+  session: SessionRow;
+  onChanged: () => void;
+}) {
+  const { toast } = useToast();
+  const [busy, setBusy] = React.useState(false);
+  const [editDate, setEditDate] = React.useState(false);
+  const [dateValue, setDateValue] = React.useState(() => toLocalInput(session.scheduledAt));
+
+  async function patch(body: Record<string, unknown>, okMsg: string) {
+    setBusy(true);
+    try {
+      const { res, error } = await fetchJson(
+        `/api/admin/workshops/sessions/${session.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        },
+      );
+      if (!res.ok) {
+        toast({ title: "Erreur", description: error ?? "Échec", variant: "destructive" });
+        return;
+      }
+      toast({ title: okMsg });
+      onChanged();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="rounded-md border border-border/60 bg-background/40 p-3 space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <Lock className="size-3.5 text-muted-foreground" />
+        <span className="mono-label text-muted-foreground uppercase">Déblocage</span>
+        {session.unlockOverride && (
+          <span className="inline-flex items-center gap-1 rounded-full border border-lime/30 bg-lime/10 px-2 py-0.5 text-[10px] mono-label text-lime">
+            <LockOpen className="size-3" />
+            Ouverte pour tous
+          </span>
+        )}
+        {session.scheduledAt && (
+          <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] mono-label text-muted-foreground">
+            Disponible le {formatDateTime(session.scheduledAt)}
+          </span>
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {session.unlockOverride ? (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void patch({ unlockOverride: false }, "Séance reverrouillée.")}
+            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-md border border-border/60 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-lime/40 hover:text-foreground cursor-pointer disabled:opacity-50"
+          >
+            <RotateCcw className="size-3.5" />
+            Reverrouiller (retirer l&apos;override)
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              if (
+                window.confirm(
+                  `Déverrouiller "${session.title}" pour tous les membres, même si les séances précédentes ne sont pas complétées ?`,
+                )
+              ) {
+                void patch({ unlockOverride: true }, "Séance déverrouillée pour tous les membres.");
+              }
+            }}
+            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-md border border-lime/40 bg-lime/10 px-2.5 py-1.5 text-xs text-lime transition-colors hover:bg-lime/20 cursor-pointer disabled:opacity-50"
+          >
+            <LockOpen className="size-3.5" />
+            Déverrouiller pour tous
+          </button>
+        )}
+
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => {
+            setEditDate((v) => !v);
+            setDateValue(toLocalInput(session.scheduledAt));
+          }}
+          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-md border border-border/60 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-lime/40 hover:text-foreground cursor-pointer disabled:opacity-50"
+        >
+          <CalendarDays className="size-3.5" />
+          {session.scheduledAt ? "Modifier la date" : "Définir une date"}
+        </button>
+      </div>
+
+      {editDate && (
+        <div className="flex flex-wrap items-end gap-2 pt-1">
+          <div className="space-y-1">
+            <label className="mono-label text-muted-foreground uppercase text-[10px]">
+              Disponible à partir du
+            </label>
+            <input
+              type="datetime-local"
+              value={dateValue}
+              onChange={(e) => setDateValue(e.target.value)}
+              className="rounded-md border border-border/60 bg-background px-3 py-2 text-sm"
+            />
+          </div>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              const iso = dateValue ? new Date(dateValue).toISOString() : null;
+              if (dateValue && isNaN(new Date(dateValue).getTime())) {
+                toast({ title: "Erreur", description: "Date invalide.", variant: "destructive" });
+                return;
+              }
+              void patch(
+                { scheduledAt: iso },
+                iso ? "Date de déblocage mise à jour." : "Date de déblocage supprimée.",
+              );
+              setEditDate(false);
+            }}
+            className="inline-flex items-center rounded-md bg-lime px-3 py-2 text-xs font-medium text-background hover:bg-lime/90 cursor-pointer disabled:opacity-50"
+          >
+            Enregistrer
+          </button>
+          {session.scheduledAt && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                void patch({ scheduledAt: null }, "Date de déblocage supprimée.");
+                setEditDate(false);
+              }}
+              className="rounded-md border border-border/60 px-3 py-2 text-xs text-muted-foreground hover:text-foreground cursor-pointer disabled:opacity-50"
+            >
+              Supprimer la date
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function toLocalInput(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function SessionCard({
+  session,
+  onChanged,
+}: {
+  session: SessionRow;
+  onChanged: () => void;
+}) {
   const skills = parseStringArray(session.skills);
   return (
     <div className="rounded-lg border border-border/60 bg-card/40 p-4 space-y-3">
@@ -735,6 +918,12 @@ function SessionCard({ session }: { session: SessionRow }) {
           S{String(session.number).padStart(2, "0")}
         </span>
         <h3 className="font-display font-bold text-sm">{session.title}</h3>
+        {session.unlockOverride && (
+          <span className="inline-flex items-center gap-1 rounded-full border border-lime/30 bg-lime/10 px-2 py-0.5 text-[10px] mono-label text-lime">
+            <LockOpen className="size-3" />
+            Déverrouillée
+          </span>
+        )}
         {session.deliverableRequired && (
           <span className="rounded-full border border-border/60 px-2 py-0.5 text-[11px] mono-label text-muted-foreground">
             Livrable requis
@@ -811,6 +1000,9 @@ function SessionCard({ session }: { session: SessionRow }) {
           </ul>
         </div>
       )}
+
+      {/* Pilotage du verrou (override admin + date de déblocage) */}
+      <SessionUnlockControls session={session} onChanged={onChanged} />
 
       {session.deliverable && (
         <div className="rounded-md border border-border/60 bg-background/40 p-3">

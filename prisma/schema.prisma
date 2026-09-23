@@ -549,6 +549,14 @@ model WorkshopSession {
   // l'Event lié, sinon déblocage séquentiel seul).
   scheduledAt DateTime?
 
+  // Déblocage administrateur : true = la séance est OUVERTE pour tous les
+  // membres, même si la chaîne séquentielle (séance précédente non
+  // complétée) ou la date calendaire l'aurait gardée LOCKED. null/false =
+  // verrou normal. C'est un override pédagogique assumé par l'admin : il
+  // PRIME sur les deux verrous, mais ne change jamais l'état pédagogique
+  // calculé (NOT_STARTED, SUBMITTED, …) d'une séance déjà accessible.
+  unlockOverride Boolean @default(false)
+
   week        WorkshopWeek         @relation(fields: [weekId], references: [id], onDelete: Cascade)
   event       Event?               @relation(fields: [eventId], references: [id], onDelete: SetNull)
   activities  WorkshopActivity[]

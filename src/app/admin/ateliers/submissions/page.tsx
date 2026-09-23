@@ -550,7 +550,7 @@ function ReviewPanel({
           rows={4}
           maxLength={2000}
           placeholder="Explique la décision au membre (points forts, corrections attendues…)"
-          className="w-full resize-y rounded-md border border-border/60 bg-background px-4 py-2.5 text-sm transition-colors focus:border-lime/50 focus:outline-none focus:ring-1 focus:ring-lime/30"
+          className="w-full resize-y rounded-md border border-border/60 bg-background px-4 py-2.5 text-sm transition-colors focus:border-lime/50 focus-visible:outline-none focus:ring-1 focus:ring-lime/30"
         />
         <p className="text-right text-[11px] text-muted-foreground">
           {feedback.trim().length}/2000
