@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
 
   // Envoi de masse : rôle `operator` exigé + CSRF (défense en profondeur
   // avec SameSite=Lax, comme les 9 autres routes d'écriture admin).
-  if (!requireAdminRole(req, "operator")) {
+  if (!(await requireAdminRole(req, "operator"))) {
     return NextResponse.json(
       { error: "Accès refusé. Rôle operator requis.", code: "FORBIDDEN" },
       { status: 403 },

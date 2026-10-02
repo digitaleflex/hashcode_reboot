@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminCookieHeader, issueAdminToken, getAdminPasscode, checkCSRF } from "@/lib/admin-auth";
+import { checkCSRF } from "@/lib/admin-auth";
 import { rateLimit, rateKey, RATE_LIMITS, retryAfterHeader } from "@/lib/rate-limit";
 import { audit } from "@/lib/admin-audit";
+import { auth } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -28,12 +29,12 @@ function auditLogin(ip: string, ref: "success" | "failure") {
   void audit("admin.login", "admin_key", undefined, { result: ref }, { type: "ip", ip });
 }
 
-/** POST /api/admin/login — verify passcode + Turnstile, issue admin cookie. */
+/** POST /api/admin/login — sign in with Better Auth email/password (+ Turnstile). */
 export async function POST(req: NextRequest) {
   if (!checkCSRF(req)) {
     return NextResponse.json({ error: "CSRF validation failed." }, { status: 403 });
   }
-  let body: { passcode?: string; captchaToken?: string };
+  let body: { email?: string; password?: string; captchaToken?: string };
   try {
     body = await req.json();
   } catch {
@@ -42,7 +43,8 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
-  const passcode = (body.passcode ?? "").trim();
+  const email = (body.email ?? "").trim().toLowerCase();
+  const password = body.password ?? "";
   const captchaToken = body.captchaToken;
 
   const ip = rateKey(req);
@@ -56,34 +58,13 @@ export async function POST(req: NextRequest) {
       },
     );
   }
-  if (!passcode) {
+  if (!email || !password) {
     return NextResponse.json(
-      { error: "Passcode requis.", code: "INVALID_PAYLOAD" },
+      { error: "Email et mot de passe requis.", code: "INVALID_PAYLOAD" },
       { status: 422 },
     );
   }
   try {
-    const expected = getAdminPasscode();
-    const minLen = Math.min(passcode.length, expected.length);
-    let diff = 0;
-    for (let i = 0; i < minLen; i++) {
-      diff |= passcode.charCodeAt(i) ^ expected.charCodeAt(i);
-    }
-    if (passcode.length !== expected.length) {
-      const longer = passcode.length > expected.length ? passcode : expected;
-      for (let i = minLen; i < longer.length; i++) {
-        diff |= longer.charCodeAt(i) ^ 0x00;
-      }
-      diff |= 1;
-    }
-    if (diff !== 0) {
-      auditLogin(ip, "failure");
-      return NextResponse.json(
-        { error: "Passcode invalide.", code: "UNAUTHORIZED" },
-        { status: 401 },
-      );
-    }
-
     // Turnstile validation (only if captcha was required by client).
     if (captchaToken) {
       const captchaValid = await verifyTurnstileToken(captchaToken);
@@ -96,11 +77,42 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const token = issueAdminToken("operator", ip);
+    // Delegate the credential check + session cookie issuance to Better Auth.
+    const authRes = await auth.handler(
+      new Request("https://localhost/api/auth/sign-in/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      }),
+    );
+
+    if (!authRes.ok) {
+      auditLogin(ip, "failure");
+      return NextResponse.json(
+        { error: "Email ou mot de passe invalide.", code: "UNAUTHORIZED" },
+        { status: 401 },
+      );
+    }
+
+    // Ensure the signed-in user is actually an admin (env allow-list).
+    const adminEmails = (process.env.ADMIN_EMAILS || process.env.ADMIN_OPERATORS || "")
+      .split(",")
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+    const isAdmin = adminEmails.length === 0 || adminEmails.includes(email);
+    if (!isAdmin) {
+      auditLogin(ip, "failure");
+      return NextResponse.json(
+        { error: "Compte non autorisé pour l'espace admin.", code: "FORBIDDEN" },
+        { status: 403 },
+      );
+    }
+
     auditLogin(ip, "success");
+    const setCookie = authRes.headers.get("set-cookie") ?? "";
     return NextResponse.json(
       { ok: true },
-      { headers: { "Set-Cookie": adminCookieHeader(token) } },
+      { headers: { "Set-Cookie": setCookie } },
     );
   } catch {
     return NextResponse.json(

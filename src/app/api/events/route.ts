@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/account-auth";
-import { requireAdminRole, checkCSRF, readAdminCookie, getAdminRoleFromToken } from "@/lib/admin-auth";
+import { requireAdminRole, checkCSRF, getAdminRole } from "@/lib/admin-auth";
 import { sendEventNotificationEmail } from "@/lib/mail";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { validateEventCreate, notifyWhere, parseNotify } from "@/lib/events-validation";
@@ -20,7 +20,7 @@ export const runtime = "nodejs";
  */
 export async function GET(req: NextRequest) {
   const session = await getSession(req);
-  const isAdmin = requireAdminRole(req, "viewer");
+  const isAdmin = await requireAdminRole(req, "viewer");
   if (!session && !isAdmin) {
     return NextResponse.json(
       { error: "Non authentifié.", code: "UNAUTHENTICATED" },
@@ -216,7 +216,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Admin RBAC: operator uniquement
-  if (!requireAdminRole(req, "operator")) {
+  if (!(await requireAdminRole(req, "operator"))) {
     return NextResponse.json(
       { error: "Accès refusé. Rôle operator requis.", code: "FORBIDDEN" },
       { status: 403 },
@@ -285,7 +285,7 @@ export async function POST(req: NextRequest) {
     "event",
     event.id,
     { title: event.title },
-    { type: "admin", role: getAdminRoleFromToken(readAdminCookie(req)) ?? "operator" },
+    { type: "admin", role: (await getAdminRole(req)) ?? "operator" },
   );
 
   // Notification email en masse (fire-and-forget)
@@ -365,7 +365,7 @@ export async function POST(req: NextRequest) {
       "event",
       event.id,
       { title: event.title, recipients: members.length },
-      { type: "admin", role: getAdminRoleFromToken(readAdminCookie(req)) ?? "operator" },
+      { type: "admin", role: (await getAdminRole(req)) ?? "operator" },
     );
 
     return NextResponse.json(

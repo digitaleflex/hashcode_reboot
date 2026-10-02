@@ -4,8 +4,7 @@ import { db } from "@/lib/db";
 import {
   requireAdminRole,
   checkCSRF,
-  readAdminCookie,
-  getAdminRoleFromToken,
+  getAdminRole,
 } from "@/lib/admin-auth";
 import { audit } from "@/lib/admin-audit";
 import { bodyLimit } from "@/lib/body-limit";
@@ -50,7 +49,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ key: string }> },
 ) {
-  if (!requireAdminRole(req, "viewer")) {
+  if (!(await requireAdminRole(req, "viewer"))) {
     return NextResponse.json({ error: "Non autorisé.", code: "UNAUTHORIZED" }, { status: 401 });
   }
 
@@ -127,7 +126,7 @@ export async function PATCH(
     );
   }
 
-  if (!requireAdminRole(req, "operator")) {
+  if (!(await requireAdminRole(req, "operator"))) {
     return NextResponse.json(
       { error: "Accès refusé. Rôle operator requis.", code: "FORBIDDEN" },
       { status: 403 },
@@ -203,7 +202,7 @@ export async function PATCH(
       ...next,
       ...(patch.isActive !== undefined ? { isActive: patch.isActive } : {}),
       ...(contentChanged ? { version: { increment: 1 } } : {}),
-      updatedBy: getAdminRoleFromToken(readAdminCookie(req)) ?? null,
+      updatedBy: (await getAdminRole(req)) ?? null,
     },
     select: { key: true, isActive: true, version: true, updatedAt: true },
   });
@@ -220,7 +219,7 @@ export async function PATCH(
       isActive: updated.isActive,
       fields: Object.keys(patch),
     },
-    { type: "admin", role: getAdminRoleFromToken(readAdminCookie(req)) ?? "operator" },
+    { type: "admin", role: (await getAdminRole(req)) ?? "operator" },
   );
 
   return NextResponse.json({

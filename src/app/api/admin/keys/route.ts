@@ -13,7 +13,7 @@ export const runtime = "nodejs";
 
 /** GET /api/admin/keys — return current key status. */
 export async function GET(req: NextRequest) {
-  if (!requireAdminRole(req, "operator")) {
+  if (!(await requireAdminRole(req, "operator"))) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
 
 /** POST /api/admin/keys — rotate the admin passcode. */
 export async function POST(req: NextRequest) {
-  if (!requireAdminRole(req, "operator")) {
+  if (!(await requireAdminRole(req, "operator"))) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 

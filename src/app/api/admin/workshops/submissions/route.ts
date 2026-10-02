@@ -25,7 +25,7 @@ const DEFAULT_QUEUE_STATUSES = ["PENDING", "IN_REVIEW"];
  * Sans `status`, la file se limite à PENDING + IN_REVIEW.
  */
 export async function GET(req: NextRequest) {
-  if (!requireAdminRole(req, "operator")) {
+  if (!(await requireAdminRole(req, "operator"))) {
     return NextResponse.json(
       { error: "Accès refusé.", code: "FORBIDDEN" },
       { status: 403 },

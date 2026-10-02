@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { isAdminAuthed } from "@/lib/admin-auth";
 
 export async function GET(request: NextRequest) {
-  if (!isAdminAuthed(request)) {
+  if (!(await isAdminAuthed(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

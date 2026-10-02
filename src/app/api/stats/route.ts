@@ -156,7 +156,7 @@ function computeChange(current: StatsAggregate, previous: StatsAggregate) {
 
 /** GET /api/stats — dashboard aggregates (admin-only). */
 export async function GET(req: NextRequest) {
-  if (!isAdminAuthed(req)) {
+  if (!(await isAdminAuthed(req))) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 

@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
   if (blocked) return blocked;
 
   // Import + envoi de masse : rôle `operator` exigé + CSRF.
-  if (!requireAdminRole(req, "operator")) {
+  if (!(await requireAdminRole(req, "operator"))) {
     return NextResponse.json(
       { error: "Accès refusé. Rôle operator requis.", code: "FORBIDDEN" },
       { status: 403 },

@@ -3,8 +3,7 @@ import { db } from "@/lib/db";
 import {
   requireAdminRole,
   checkCSRF,
-  readAdminCookie,
-  getAdminRoleFromToken,
+  getAdminRole,
 } from "@/lib/admin-auth";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { audit } from "@/lib/admin-audit";
@@ -67,7 +66,7 @@ function parseBody(body: Record<string, unknown>): {
  * non pertinent côté admin) et les champs de déblocage.
  */
 export async function GET(req: NextRequest, { params }: Params) {
-  if (!requireAdminRole(req, "viewer")) {
+  if (!(await requireAdminRole(req, "viewer"))) {
     return NextResponse.json(
       { error: "Accès refusé.", code: "FORBIDDEN" },
       { status: 403 },
@@ -130,7 +129,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
 
-  if (!requireAdminRole(req, "operator")) {
+  if (!(await requireAdminRole(req, "operator"))) {
     return NextResponse.json(
       { error: "Accès refusé. Rôle operator requis.", code: "FORBIDDEN" },
       { status: 403 },
@@ -203,7 +202,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     },
   });
 
-  const adminRole = getAdminRoleFromToken(readAdminCookie(req)) ?? "operator";
+  const adminRole = (await getAdminRole(req)) ?? "operator";
   void audit(
     "workshop-session.unlock",
     "workshop_session",

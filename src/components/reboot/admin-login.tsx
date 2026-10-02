@@ -17,7 +17,8 @@ export function AdminLogin({
   onAuthed: () => void;
   onExit: () => void;
 }) {
-  const [passcode, setPasscode] = React.useState("");
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
@@ -143,7 +144,7 @@ export function AdminLogin({
       const res = await fetch("/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ passcode: passcode.trim(), captchaToken: captchaToken || undefined }),
+        body: JSON.stringify({ email: email.trim(), password, captchaToken: captchaToken || undefined }),
       });
       let data: { ok?: boolean; error?: string; code?: string } | null = null;
       try {
@@ -222,7 +223,7 @@ export function AdminLogin({
               Accès admin
             </h1>
             <p className="mt-1.5 text-sm text-muted-foreground">
-              Espace réservé. Entre ton passcode HASHCODE.
+              Espace réservé. Email + mot de passe de ton compte admin.
             </p>
           </div>
 
@@ -233,23 +234,42 @@ export function AdminLogin({
           >
             <div>
               <label
-                htmlFor="admin-passcode"
+                htmlFor="admin-email"
                 className="mb-1.5 block text-sm font-medium text-foreground"
               >
-                Passcode admin
+                Email admin
+              </label>
+              <input
+                id="admin-email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="toi@hashcode.org"
+                className="w-full h-12 rounded-md border bg-card px-4 text-base text-foreground placeholder:text-muted-foreground transition-colors focus-lime border-border focus:border-lime"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="admin-password"
+                className="mb-1.5 block text-sm font-medium text-foreground"
+              >
+                Mot de passe admin
               </label>
               <div className="relative">
                 <input
-                  id="admin-passcode"
+                  id="admin-password"
                   type={showPasscode ? "text" : "password"}
                   autoFocus
                   autoComplete="current-password"
                   spellCheck={false}
                   enterKeyHint="go"
                   required
-                  value={passcode}
-                  onChange={(e) => setPasscode(e.target.value)}
-                  placeholder="Ton passcode"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Ton mot de passe"
                   aria-describedby={describedBy || undefined}
                   aria-invalid={error ? true : undefined}
                   className="w-full h-12 rounded-md border bg-card px-4 pr-24 text-base text-foreground placeholder:text-muted-foreground transition-colors focus-lime border-border focus:border-lime"
@@ -258,10 +278,10 @@ export function AdminLogin({
                   type="button"
                   onClick={() => setShowPasscode((s) => !s)}
                   aria-pressed={showPasscode}
-                  aria-controls="admin-passcode"
+                  aria-controls="admin-password"
                   className="absolute right-2 top-1/2 -translate-y-1/2 min-h-[44px] px-2 text-xs text-muted-foreground hover:text-lime transition-colors focus-lime mono-label rounded-sm"
-                  aria-label={showPasscode ? "Masquer le passcode" : "Afficher le passcode"}
-                  title={showPasscode ? "Masquer le passcode" : "Afficher le passcode"}
+                  aria-label={showPasscode ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                  title={showPasscode ? "Masquer le mot de passe" : "Afficher le mot de passe"}
                 >
                   {showPasscode ? "MASQUER" : "AFFICHER"}
                 </button>
@@ -343,7 +363,7 @@ export function AdminLogin({
               size="lg"
               type="submit"
               className="group w-full"
-              disabled={submitting || !passcode.trim() || cooldownSec > 0 || (captchaRequired && !captchaToken)}
+              disabled={submitting || !email.trim() || !password || cooldownSec > 0 || (captchaRequired && !captchaToken)}
             >
               {cooldownSec > 0
                 ? `Patiente ${cooldownSec}s…`

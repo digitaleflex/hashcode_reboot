@@ -34,7 +34,7 @@ export interface EmailOpsAlert {
  * dépasser un quota.
  */
 export async function GET(req: NextRequest) {
-  if (!isAdminAuthed(req)) {
+  if (!(await isAdminAuthed(req))) {
     return NextResponse.json(
       { error: "Non autorisé.", code: "UNAUTHORIZED" },
       { status: 401 },

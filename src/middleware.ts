@@ -54,12 +54,18 @@ export function middleware(req: NextRequest) {
 
   // /account & /dashboard : redirige vers /login si pas de cookie Better Auth.
   // Le préfixe de locale est conservé (/en/dashboard → /en/login?next=…).
-  if (unprefixed.startsWith("/account") || unprefixed.startsWith("/dashboard")) {
+  if (unprefixed.startsWith("/account") || unprefixed.startsWith("/dashboard") || unprefixed.startsWith("/admin")) {
     const hasCookie = req.cookies.get(BETTER_AUTH_SESSION_COOKIE);
     if (!hasCookie) {
       const url = req.nextUrl.clone();
-      url.pathname = `${localePrefix}/login`;
-      url.searchParams.set("next", pathname);
+      if (unprefixed.startsWith("/admin")) {
+        url.pathname = `${localePrefix}/`;
+        url.search = "?admin=1";
+        url.searchParams.set("next", pathname);
+      } else {
+        url.pathname = `${localePrefix}/login`;
+        url.searchParams.set("next", pathname);
+      }
       return NextResponse.redirect(url);
     }
   }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { isAdminAuthed, readAdminCookie, getAdminRoleFromToken } from "@/lib/admin-auth";
+import { isAdminAuthed, getAdminRole } from "@/lib/admin-auth";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { audit } from "@/lib/admin-audit";
 
@@ -16,7 +16,7 @@ const MAX_EXPORT = 2000;
  * integrations or re-importing into another system.
  */
 export async function GET(req: NextRequest) {
-  if (!isAdminAuthed(req)) {
+  if (!(await isAdminAuthed(req))) {
     return NextResponse.json(
       { error: "Non autorisé.", code: "UNAUTHORIZED" },
       { status: 401 },
@@ -106,7 +106,7 @@ export async function GET(req: NextRequest) {
       { format: "json", exported: clean.length, total },
       {
         type: "admin",
-        role: getAdminRoleFromToken(readAdminCookie(req)) ?? "operator",
+        role: (await getAdminRole(req)) ?? "operator",
       },
     );
 

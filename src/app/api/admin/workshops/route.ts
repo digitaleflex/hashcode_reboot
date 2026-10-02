@@ -24,7 +24,7 @@ const AWAITING_REVIEW = new Set(["PENDING", "IN_REVIEW"]);
  * Tri : createdAt desc (les plus récents d'abord).
  */
 export async function GET(req: NextRequest) {
-  if (!requireAdminRole(req, "operator")) {
+  if (!(await requireAdminRole(req, "operator"))) {
     return NextResponse.json(
       { error: "Accès refusé.", code: "FORBIDDEN" },
       { status: 403 },

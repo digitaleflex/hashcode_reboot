@@ -255,7 +255,7 @@ export async function POST(req: NextRequest) {
  *   (createdAt/firstName/primaryDomain|domain/level/profileStatus|status),
  *   défaut createdAt desc. Réponse {members, total, page, pageSize}. */
 export async function GET(req: NextRequest) {
-  if (!isAdminAuthed(req)) {
+  if (!(await isAdminAuthed(req))) {
     const t = await getTranslations("profiling");
     return NextResponse.json(
       { error: t("api.unauthorized"), code: "UNAUTHORIZED" },

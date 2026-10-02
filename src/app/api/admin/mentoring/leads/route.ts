@@ -19,7 +19,7 @@ export const HIGH_BUDGET_TIERS = ["20000-30000", ">30000"];
  * AUTH : admin operator (403 sinon).
  */
 export async function GET(req: NextRequest) {
-  if (!requireAdminRole(req, "operator")) {
+  if (!(await requireAdminRole(req, "operator"))) {
     return NextResponse.json(
       { error: "Accès refusé.", code: "FORBIDDEN" },
       { status: 403 },

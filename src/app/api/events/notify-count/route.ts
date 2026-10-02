@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 /** GET /api/events/notify-count?domain=&level= — combien de membres
  *  recevraient la notification (même filtre que l'envoi réel). */
 export async function GET(req: NextRequest) {
-  if (!isAdminAuthed(req)) {
+  if (!(await isAdminAuthed(req))) {
     return NextResponse.json(
       { error: "Non autorisé.", code: "UNAUTHORIZED" },
       { status: 401 },

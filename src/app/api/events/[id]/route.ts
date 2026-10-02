@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/account-auth";
-import { requireAdminRole, checkCSRF, readAdminCookie, getAdminRoleFromToken } from "@/lib/admin-auth";
+import { requireAdminRole, checkCSRF, getAdminRole } from "@/lib/admin-auth";
 import { sendEventNotificationEmail } from "@/lib/mail";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { validateEventPatch, notifyWhere, parseNotify } from "@/lib/events-validation";
@@ -22,7 +22,7 @@ type Params = { params: Promise<{ id: string }> };
  */
 export async function GET(req: NextRequest, { params }: Params) {
   const session = await getSession(req);
-  const isAdmin = requireAdminRole(req, "viewer");
+  const isAdmin = await requireAdminRole(req, "viewer");
   if (!session && !isAdmin) {
     return NextResponse.json(
       { error: "Non authentifié.", code: "UNAUTHENTICATED" },
@@ -84,7 +84,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     );
   }
 
-  if (!requireAdminRole(req, "operator")) {
+  if (!(await requireAdminRole(req, "operator"))) {
     return NextResponse.json(
       { error: "Accès refusé. Rôle operator requis.", code: "FORBIDDEN" },
       { status: 403 },
@@ -148,7 +148,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const event = Object.keys(data).length
     ? await db.event.update({ where: { id }, data })
     : existing;
-  const adminRole = getAdminRoleFromToken(readAdminCookie(req)) ?? "operator";
+  const adminRole = (await getAdminRole(req)) ?? "operator";
   if (Object.keys(data).length) {
     void audit("event.update", "event", id, { fields: Object.keys(data) }, { type: "admin", role: adminRole });
   }
@@ -242,7 +242,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 export async function DELETE(req: NextRequest, { params }: Params) {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
-  if (!requireAdminRole(req, "operator")) {
+  if (!(await requireAdminRole(req, "operator"))) {
     return NextResponse.json(
       { error: "Accès refusé. Rôle operator requis.", code: "FORBIDDEN" },
       { status: 403 },
@@ -273,7 +273,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     "event",
     existing.id,
     { title: existing.title },
-    { type: "admin", role: getAdminRoleFromToken(readAdminCookie(req)) ?? "operator" },
+    { type: "admin", role: (await getAdminRole(req)) ?? "operator" },
   );
   return NextResponse.json({ ok: true, deleted: existing });
 }

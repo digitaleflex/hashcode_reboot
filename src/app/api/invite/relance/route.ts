@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
 
-  if (!isAdminAuthed(req)) {
+  if (!(await isAdminAuthed(req))) {
     return NextResponse.json(
       { error: "Non autorisé.", code: "UNAUTHORIZED" },
       { status: 401 },

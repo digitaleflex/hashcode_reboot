@@ -37,7 +37,7 @@ function zeroed(keys: readonly string[]): Record<string, number> {
  * / nombre de membres ayant effectivement soumis (pas les inscrits).
  */
 export async function GET(req: NextRequest) {
-  if (!requireAdminRole(req, "operator")) {
+  if (!(await requireAdminRole(req, "operator"))) {
     return NextResponse.json(
       { error: "Accès refusé.", code: "FORBIDDEN" },
       { status: 403 },
