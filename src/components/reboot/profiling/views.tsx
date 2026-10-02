@@ -4,12 +4,14 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import { RebootButton, CtaArrow } from "../shared";
 import { OptionCard } from "../option-card";
+import { useTranslations } from "next-intl";
 
 export type ChoiceOption = {
   value: string;
   label: string;
   emoji?: string;
   description?: string;
+  hint?: string;
 };
 
 export function MultiChoiceView({
@@ -25,6 +27,7 @@ export function MultiChoiceView({
   onContinue: () => void;
   required: boolean;
 }) {
+  const t = useTranslations("profiling");
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -41,10 +44,10 @@ export function MultiChoiceView({
       <div className="flex items-center justify-between gap-3 pt-1">
         <span className="text-xs text-muted-foreground">
           {selected.length > 0
-            ? `${selected.length} sélectionné${selected.length > 1 ? "s" : ""}`
+            ? t("multiChoice.selectedCount", { selectedCount: selected.length })
             : required
-              ? "Choisis au moins une option"
-              : "Facultatif — tu peux passer"}
+            ? t("multiChoice.requiredHint")
+            : t("multiChoice.optionalHint")}
         </span>
         <RebootButton
           size="md"
@@ -52,7 +55,7 @@ export function MultiChoiceView({
           onClick={onContinue}
           disabled={required && selected.length === 0}
         >
-          {selected.length > 0 ? "Continuer" : required ? "Continuer" : "Passer"}
+          {selected.length > 0 || required ? t("multiChoice.continue") : t("multiChoice.skip")}
           <CtaArrow />
         </RebootButton>
       </div>
@@ -69,6 +72,9 @@ export function TextView({
   type = "text",
   maxLength,
   required,
+  autocomplete = type === "email" ? "email" : "off",
+  spellCheck = false,
+  inputMode = type === "email" ? "email" : "text",
 }: {
   value: string;
   placeholder?: string;
@@ -78,7 +84,11 @@ export function TextView({
   type?: "text" | "email";
   maxLength?: number;
   required?: boolean;
+  autocomplete?: string;
+  spellCheck?: boolean;
+  inputMode?: string;
 }) {
+  const t = useTranslations("profiling");
   const [blurred, setBlurred] = React.useState(false);
   const showError = error || (blurred ? "" : "");
   return (
@@ -97,6 +107,9 @@ export function TextView({
             onContinue();
           }
         }}
+        autoComplete={autocomplete}
+        spellCheck={spellCheck}
+        inputMode={inputMode as "text" | "email" | "numeric" | "tel" | "url" | "search" | "decimal" | "none"}
         className={cn(
           "w-full h-14 rounded-md border bg-card px-4 text-base sm:text-lg text-foreground placeholder:text-muted-foreground transition-colors duration-180 focus-lime",
           showError ? "border-destructive" : "border-border focus:border-lime",
@@ -104,14 +117,14 @@ export function TextView({
       />
       {showError && <ErrorNote>{showError}</ErrorNote>}
       <div className="flex items-center justify-between gap-3">
-        {!required && <span className="text-xs text-muted-foreground">Facultatif</span>}
+        {!required && <span className="text-xs text-muted-foreground">{t("textView.optional")}</span>}
         <RebootButton
           size="lg"
           className="group w-full"
           onClick={onContinue}
           disabled={required ? !value.trim() : false}
         >
-          {value.trim() || required ? "Continuer" : "Passer"}
+          {value.trim() || required ? t("textView.continue") : t("textView.skip")}
           <CtaArrow />
         </RebootButton>
       </div>
@@ -138,6 +151,7 @@ export function LongTextView({
   maxChars?: number;
   suggestions?: string[];
 }) {
+  const t = useTranslations("profiling");
   const len = value.trim().length;
   const [blurred, setBlurred] = React.useState(false);
   const showError = error || (blurred ? "" : "");
@@ -178,12 +192,12 @@ export function LongTextView({
           )}
         >
           {minChars && len < minChars
-            ? `Encore ${minChars - len} caractères`
-            : "Une phrase suffit."}
+            ? t("longTextView.hintRemaining", { remaining: minChars - len })
+            : t("longTextView.hintDefault")}
         </span>
         {maxChars && (
           <span className="mono-label text-muted-foreground">
-            {len}/{maxChars}
+            {t("longTextView.counter", { len, maxChars })}
           </span>
         )}
       </div>
@@ -194,7 +208,7 @@ export function LongTextView({
         onClick={onContinue}
         disabled={!value.trim()}
       >
-        Continuer
+        {t("longTextView.continue")}
         <CtaArrow />
       </RebootButton>
     </div>

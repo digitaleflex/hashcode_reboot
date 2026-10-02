@@ -20,7 +20,7 @@ const bulkSchema = z.object({
 export async function POST(req: NextRequest) {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
-  if (!requireAdminRole(req, "operator")) {
+  if (!(await requireAdminRole(req, "operator"))) {
     return NextResponse.json(
       { error: "Opérateur requis.", code: "FORBIDDEN" },
       { status: 403 },

@@ -157,7 +157,7 @@ export function CommandPalette({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogOverlay />
       <DialogContent
-        className="bg-card border-border/60 max-w-[100vw] md:max-w-lg p-0 overflow-hidden animate-hash-in"
+        className="bg-card border-border/60 max-w-full md:max-w-lg p-0 overflow-hidden animate-hash-in"
         showCloseButton={false}
       >
         <DialogTitle className="sr-only">Palette de commandes</DialogTitle>

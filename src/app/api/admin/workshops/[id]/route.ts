@@ -35,7 +35,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  if (!requireAdminRole(req, "operator")) {
+  if (!(await requireAdminRole(req, "operator"))) {
     return NextResponse.json(
       { error: "Accès refusé.", code: "FORBIDDEN" },
       { status: 403 },

@@ -86,25 +86,45 @@ export function runAutoControls(a: ProfileAnswers): AutoControlsResult {
   };
 }
 
-/** Human-readable reason labels (used by the pending screen). */
-export const REASON_LABELS: Record<string, string> = {
+/** Translation function type for reason labels. */
+export type ReasonLabelTFunction = (key: string) => string;
+
+/** Default (French) reason labels — used when no t function provided. */
+const defaultReasonLabels: Record<string, string> = {
   "missing-core": "Informations essentielles à confirmer",
   "disposable-email": "Adresse email à vérifier",
   "low-signal-goal": "Objectif à préciser ensemble",
   "high-value-mentoring-lead": "Demande d'accompagnement prioritaire",
 };
 
-/** Fallback WhatsApp community URL (used when no env var is set). */
-export const DEFAULT_WHATSAPP_URL =
-  "https://chat.whatsapp.com/JwJGgoQpS46I9r81QPrCs4";
+/** Get translated reason labels. */
+export function getReasonLabels(t?: ReasonLabelTFunction): Record<string, string> {
+  if (!t) return defaultReasonLabels;
+  return {
+    "missing-core": t("autoControls.missingCore"),
+    "disposable-email": t("autoControls.disposableEmail"),
+    "low-signal-goal": t("autoControls.lowSignalGoal"),
+    "high-value-mentoring-lead": t("autoControls.highValueMentoringLead"),
+  };
+}
+
+/** Default export for backwards compatibility. */
+export const REASON_LABELS = getReasonLabels();
 
 /**
- * Canonical WhatsApp URL. Server-side: `WHATSAPP_URL` takes precedence, then
- * the public var (useful for preview/local), then the fallback above.
- * This module is also imported by a client component, where only
- * `NEXT_PUBLIC_*` vars are inlined — hence the dual lookup.
+ * Canonical WhatsApp URL (server-side).
+ * Requires WHATSAPP_URL or NEXT_PUBLIC_WHATSAPP_URL to be set.
+ * Throws at module load if missing — fail fast instead of silent fallback.
  */
-export const WHATSAPP_URL =
-  process.env.WHATSAPP_URL ??
-  process.env.NEXT_PUBLIC_WHATSAPP_URL ??
-  DEFAULT_WHATSAPP_URL;
+function getRequiredServerWhatsAppUrl(): string {
+  const url = process.env.WHATSAPP_URL ?? process.env.NEXT_PUBLIC_WHATSAPP_URL;
+  if (!url || url.trim() === "") {
+    throw new Error(
+      "[WhatsApp] Variable d'environnement manquante: définissez WHATSAPP_URL (server) ou NEXT_PUBLIC_WHATSAPP_URL (public). " +
+        "Aucun fallback hardcodé — configuration requise.",
+    );
+  }
+  return url;
+}
+
+export const WHATSAPP_URL = getRequiredServerWhatsAppUrl();

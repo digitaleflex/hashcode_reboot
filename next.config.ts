@@ -1,5 +1,9 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs/config";
+import createNextIntlPlugin from "next-intl/plugin";
+
+// T08 — next-intl : charge les messages via src/i18n/request.ts.
+const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 /**
  * Security headers applied to all responses.
@@ -81,7 +85,8 @@ const nextConfig: NextConfig = {
 };
 
 // Wrap with Sentry config for source map upload and tunnel route
-export default withSentryConfig(nextConfig, {
+// (next-intl en premier : il fournit les messages à tous les layouts/pages).
+export default withSentryConfig(withNextIntl(nextConfig), {
   // Org and project slugs (from Sentry URL: https://sentry.io/organizations/<org>/projects/<project>/)
   org: "o4512056004968448",
   project: "4512056014274640",

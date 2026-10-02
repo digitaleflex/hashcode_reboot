@@ -12,7 +12,7 @@ import type {
   AccountMember,
   AccountProfile,
   AccountStatus,
-} from "@/app/account/_components/types";
+} from "@/app/[locale]/account/_components/types";
 
 interface MemberRow {
   id: string;

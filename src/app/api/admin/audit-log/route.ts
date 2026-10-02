@@ -14,7 +14,7 @@ export const runtime = "nodejs";
  * Requires operator role.
  */
 export async function GET(req: NextRequest) {
-  if (!requireAdminRole(req, "operator")) {
+  if (!(await requireAdminRole(req, "operator"))) {
     return NextResponse.json(
       { error: "Accès refusé.", code: "FORBIDDEN" },
       { status: 403 },

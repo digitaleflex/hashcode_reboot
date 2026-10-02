@@ -23,7 +23,7 @@ const contactedSchema = z.object({ memberId: z.string().min(1) });
 export async function POST(req: NextRequest) {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
-  if (!requireAdminRole(req, "operator")) {
+  if (!(await requireAdminRole(req, "operator"))) {
     return NextResponse.json(
       { error: "Accès refusé.", code: "FORBIDDEN" },
       { status: 403 },

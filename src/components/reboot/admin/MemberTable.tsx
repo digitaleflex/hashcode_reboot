@@ -20,7 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { countryFlag, countryName } from "@/lib/profiling/countries";
 import { DOMAIN_LABEL, LEVEL_LABEL, GOAL_LABEL, BUDGET_LABEL } from "@/lib/profiling/labels";
-import { StickyNote, UserX } from "lucide-react";
+import { StickyNote, UserX, MapPin, Target, BookOpen, Wallet, Tag as TagIcon } from "lucide-react";
 import type {
   MemberRow,
   SortDir,
@@ -68,6 +68,114 @@ export function MemberTableSkeleton({ rows = 6 }: { rows?: number }) {
       ))}
       <span className="sr-only">Chargement des membres…</span>
     </div>
+  );
+}
+
+/* ──────────────────────────────────────────────
+ *  MemberCard — Vue mobile (carte complète)
+ * ────────────────────────────────────────────── */
+function MemberCard({
+  m,
+  selected,
+  onToggleSelect,
+  onSelectMember,
+}: {
+  m: MemberRow;
+  selected: boolean;
+  onToggleSelect: (id: string) => void;
+  onSelectMember: (id: string) => void;
+}) {
+  const statusMap: Record<string, { label: string; className: string }> = {
+    APPROVED: { label: "Validé", className: "border-lime/50 text-lime bg-lime/5" },
+    PENDING: { label: "En attente", className: "border-amber-500/50 text-amber-300 bg-amber-500/5" },
+    WAITLIST: { label: "Waitlist", className: "border-border text-muted-foreground" },
+    REJECTED: { label: "Rejeté", className: "border-destructive/50 text-destructive bg-destructive/5" },
+  };
+  const status = statusMap[m.profileStatus] ?? { label: m.profileStatus, className: "border-border text-muted-foreground" };
+  const invStatus = m.invitationStatus && m.invitationStatus !== "NOT_INVITED"
+    ? INVITATION_LABEL[m.invitationStatus] ?? { label: m.invitationStatus, className: "border-border text-muted-foreground" }
+    : null;
+
+  return (
+    <article
+      className={cn(
+        "rounded-lg border border-border/60 bg-card/40 p-4 space-y-3",
+        "hover:border-lime/40 hover:bg-elevated/50 transition-colors",
+        selected && "border-lime/40 bg-lime/[0.03] ring-1 ring-lime/20"
+      )}
+      onClick={() => onSelectMember(m.id)}
+    >
+      {/* Header: checkbox + name + status */}
+      <div className="flex items-start gap-3">
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={(e) => { e.stopPropagation(); onToggleSelect(m.id); }}
+          onClick={(e) => e.stopPropagation()}
+          className="size-3.5 accent-lime cursor-pointer mt-0.5 shrink-0"
+          aria-label={`Sélectionner ${m.firstName}`}
+        />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <span className="font-medium text-foreground truncate">
+              {m.firstName} {m.lastName ?? ""}
+            </span>
+            {m.adminNote && (
+              <span className="shrink-0 inline-flex items-center justify-center size-4 rounded-sm border border-amber-500/50 bg-amber-500/10 text-amber-300" title="Note interne" aria-label="Note interne">
+                <StickyNote className="size-2.5" />
+              </span>
+            )}
+          </div>
+          <div className="text-xs text-muted-foreground font-mono truncate">{m.email}</div>
+        </div>
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          <span className={cn("inline-flex items-center rounded-sm border px-2 py-0.5 text-xs mono-label", status.className)}>
+            {status.label}
+          </span>
+          {invStatus && (
+            <span className={cn("inline-flex items-center rounded-sm border px-2 py-0.5 text-xs mono-label", invStatus.className)}>
+              {invStatus.label}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Meta grid: 2 columns on mobile */}
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+        <div className="flex items-center gap-2">
+          <MapPin className="size-3.5 text-muted-foreground shrink-0" aria-hidden />
+          <span className="truncate">{m.country ? `${countryFlag(m.country)} ${countryName(m.country)}` : "—"}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Target className="size-3.5 text-muted-foreground shrink-0" aria-hidden />
+          <span className="truncate">{DOMAIN_LABEL[m.primaryDomain] ?? m.primaryDomain}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <BookOpen className="size-3.5 text-muted-foreground shrink-0" aria-hidden />
+          <span className="truncate">{LEVEL_LABEL[m.level] ?? m.level}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <TagIcon className="size-3.5 text-muted-foreground shrink-0" aria-hidden />
+          <span className="truncate">{m.goal.trim() ? (GOAL_LABEL[m.goal] ?? m.goal) : "—"}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Wallet className="size-3.5 text-muted-foreground shrink-0" aria-hidden />
+          <span className="truncate">{m.mentoringInterest === "yes" ? "Oui" : m.mentoringInterest === "maybe" ? "Peut-être" : m.mentoringInterest === "no" ? "Non" : "—"}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <TagIcon className="size-3.5 text-muted-foreground shrink-0" aria-hidden />
+          <span className="truncate">{m.budgetRange ? BUDGET_LABEL[m.budgetRange] ?? m.budgetRange : "—"}</span>
+        </div>
+        <div className="flex items-center gap-2 col-span-2">
+          <Tag active={m.accessLane === "immediate"} className="gap-1">
+            {m.accessLane === "immediate" ? "Immédiat" : "En traitement"}
+          </Tag>
+          <span className="mono-label text-muted-foreground tabular-nums admin-num ml-auto">
+            {new Date(m.createdAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })}
+          </span>
+        </div>
+      </div>
+    </article>
   );
 }
 
@@ -443,8 +551,37 @@ export function MemberTable({
             )}
           </div>
         )}
-        <div className="rounded-md border border-border/60 overflow-hidden overflow-x-auto bg-card/30">
-          <Table>
+        {/* Mobile: Card grid — shows ALL fields including Objectif, Mentorat, Budget */}
+        <div className="md:hidden space-y-3">
+          {loading && displayed.length === 0 && (
+            <div aria-hidden className="space-y-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="admin-skeleton admin-skeleton-row" />
+              ))}
+              <span className="sr-only">Chargement des membres…</span>
+            </div>
+          )}
+          {displayed.length === 0 && !loading && (
+            <div className="rounded-lg border border-border/60 bg-card/40 p-8 text-center">
+              <UserX className="mx-auto mb-3 size-10 text-muted-foreground/30" />
+              <p className="text-sm text-muted-foreground">Aucun membre pour ces filtres.</p>
+            </div>
+          )}
+          {displayed.map((m) => (
+            <MemberCard
+              key={m.id}
+              m={m}
+              selected={selectedIds.has(m.id)}
+              onToggleSelect={onToggleSelect}
+              onSelectMember={onSelectMember}
+            />
+          ))}
+        </div>
+
+        {/* Desktop: Table — columns progressively revealed */}
+        <div className="hidden md:block">
+          <div className="rounded-md border border-border/60 overflow-x-auto bg-card/30 scroll-slim">
+            <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent border-border/60 bg-secondary/30">
                 <TableHead className="w-8">
@@ -691,6 +828,7 @@ export function MemberTable({
               ))}
             </TableBody>
           </Table>
+          </div>
         </div>
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-muted-foreground">

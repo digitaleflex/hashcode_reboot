@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!requireAdminRole(req, "viewer")) {
+  if (!(await requireAdminRole(req, "viewer"))) {
     return NextResponse.json({ error: "Non autorisé.", code: "UNAUTHORIZED" }, { status: 401 });
   }
   // Invariant uniforme : toute route POST admin vérifie le CSRF.

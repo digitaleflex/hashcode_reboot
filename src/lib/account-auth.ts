@@ -18,6 +18,7 @@
 import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
+import { auth } from "@/lib/auth";
 
 export const SESSION_COOKIE_NAME = "hashcode_session";
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 jours
@@ -122,38 +123,43 @@ export async function createPendingSession(args: {
  * Met à jour lastSeenAt (sliding window) si la session est valide.
  */
 export async function getSession(req?: NextRequest) {
-  const cookieStore = await cookies();
-  const cookieValue =
-    req?.cookies.get(SESSION_COOKIE_NAME)?.value ??
-    cookieStore.get(SESSION_COOKIE_NAME)?.value;
-  if (!cookieValue) return null;
-
-  const session = await db.memberSession.findUnique({
-    where: { id: cookieValue },
-    include: { member: true },
-  });
-  if (!session) return null;
-  if (session.revokedAt) return null;
-  if (session.expiresAt < new Date()) return null;
-  if (session.otpHash !== null) return null; // pas encore vérifiée
-  if (session.member.deletedAt) return null;
-
-  // Sliding window : refresh expiresAt + lastSeenAt, seulement si > 1h
-  // (évite 1 write DB par requête). Fire-and-forget : ne bloque pas la réponse.
-  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-  if (session.lastSeenAt < oneHourAgo) {
-    const newExpires = new Date(Date.now() + SESSION_TTL_MS);
-    void db.memberSession
-      .update({
-        where: { id: session.id },
-        data: { lastSeenAt: new Date(), expiresAt: newExpires },
-      })
-      .catch(() => {
-        /* best-effort : le refresh ne casse jamais la session */
-      });
+  // Member authentication now uses Better Auth (session cookie
+  // `better-auth.session_token`). Keep the legacy return shape so all
+  // existing server routes / pages continue to work: they only rely on
+  // `session.member`, `session.memberId`, `session.id`, `lastSeenAt`...
+  let headersObj: Record<string, string> = {};
+  if (req) {
+    headersObj = Object.fromEntries(req.headers.entries());
+  } else {
+    try {
+      const { headers } = await import("next/headers");
+      headersObj = Object.fromEntries((await headers()).entries());
+    } catch {
+      return null;
+    }
   }
 
-  return session;
+  const authSession = await auth.api
+    .getSession({ headers: headersObj as any })
+    .catch(() => null);
+  const email = authSession?.user?.email;
+  if (!email) return null;
+
+  const member = await db.member.findUnique({ where: { email } }).catch(() => null);
+  if (!member || member.deletedAt) return null;
+
+  return {
+    id: authSession?.session?.id ?? member.id,
+    memberId: member.id,
+    member,
+    createdAt: member.createdAt,
+    lastSeenAt: new Date(),
+    expiresAt: authSession?.session?.expiresAt ?? new Date(Date.now() + SESSION_TTL_MS),
+    revokedAt: null as Date | null,
+    otpHash: null as string | null,
+    ip: authSession?.session?.ipAddress ?? null,
+    userAgent: authSession?.session?.userAgent ?? null,
+  };
 }
 
 /** Révoque une session (logout). */

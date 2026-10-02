@@ -13,6 +13,7 @@ import { FaqSection } from "./landing/faq-section";
 import { FinalCta } from "./landing/final-cta";
 import { SiteFooter } from "./landing/site-footer";
 import { StickyMobileCta } from "./landing/sticky-cta";
+import { useTranslations } from "next-intl";
 
 export function Landing({
   onJoin,
@@ -21,8 +22,9 @@ export function Landing({
   onJoin: () => void;
   onOpenPrivacy?: () => void;
 }) {
+  const t = useTranslations("landing.why");
   return (
-    <div className="bg-background min-h-screen flex flex-col pb-[76px] sm:pb-0">
+    <div className="bg-background min-h-screen flex flex-col">
       {/* Nav */}
       <SiteHeader onJoin={onJoin} />
 
@@ -35,9 +37,9 @@ export function Landing({
       <section className="mx-auto max-w-6xl w-full px-5 sm:px-8 py-12 sm:py-24 cv-auto">
         <ScrollReveal>
           <SectionHeader
-            index="01 · Pourquoi on revient"
-            title="HASHCODE évolue."
-            intro="Le contenu seul ne suffit plus. On veut un environnement où les membres peuvent apprendre, pratiquer, construire, collaborer et progresser — pour de vrai."
+            index={t("index")}
+            title={t("title")}
+            intro={t("intro")}
           />
         </ScrollReveal>
       </section>
@@ -77,7 +79,7 @@ export function Landing({
       {/* Final CTA */}
       <FinalCta onJoin={onJoin} />
 
-       {/* Sticky footer */}
+      {/* Sticky footer */}
       <SiteFooter onJoin={onJoin} onOpenPrivacy={onOpenPrivacy} />
       <StickyMobileCta onJoin={onJoin} />
     </div>

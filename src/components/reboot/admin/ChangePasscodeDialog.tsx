@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/dialog";
 import { RebootButton } from "../shared";
 import { KeyRound, Check, AlertCircle } from "lucide-react";
-import { fetchJson } from "./lib/fetchJson";
 
 export function ChangePasscodeDialog({
   onSessionExpired,
@@ -20,6 +19,7 @@ export function ChangePasscodeDialog({
   onChanged: () => void;
 }) {
   const [open, setOpen] = React.useState(false);
+  const [current, setCurrent] = React.useState("");
   const [passcode, setPasscode] = React.useState("");
   const [confirm, setConfirm] = React.useState("");
   const [status, setStatus] = React.useState<"idle" | "submitting" | "success" | "error">("idle");
@@ -32,25 +32,26 @@ export function ChangePasscodeDialog({
       setErrorMsg("Les deux saisies ne correspondent pas.");
       return;
     }
-    if (passcode.length < 16) {
+    if (passcode.length < 8) {
       setStatus("error");
-      setErrorMsg("Le passcode doit faire au moins 16 caractères.");
+      setErrorMsg("Le mot de passe doit faire au moins 8 caractères.");
       return;
     }
     setStatus("submitting");
     setErrorMsg(null);
     try {
-      const { res, data, error, code } = await fetchJson("/api/admin/keys", {
+      const res = await fetch("/api/auth/change-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ passcode }),
+        body: JSON.stringify({ currentPassword: current, newPassword: passcode, revokeOtherSessions: false }),
       });
-      if (res.status === 401 || code === "UNAUTHORIZED") {
+      if (res.status === 401) {
         onSessionExpired();
         return;
       }
       if (!res.ok) {
-        throw new Error(error ?? "Échec de la rotation.");
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error ?? "Échec du changement.");
       }
       setStatus("success");
       setTimeout(() => {
@@ -84,36 +85,50 @@ export function ChangePasscodeDialog({
        <button
          type="button"
          onClick={() => setOpen(true)}
-         title="Changer le passcode admin"
+         title="Changer le mot de passe admin"
          className="inline-flex items-center justify-center gap-2 rounded-md border border-border hover:border-lime/60 hover:text-lime transition-colors duration-180 min-h-[44px] cursor-pointer text-sm px-4 bg-transparent text-foreground border border-border"
        >
          <KeyRound className="size-4" />
-         <span className="hidden sm:inline">Passcode</span>
+         <span className="hidden sm:inline">Mot de passe</span>
        </button>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Changer le passcode admin</DialogTitle>
+          <DialogTitle>Changer le mot de passe admin</DialogTitle>
           <DialogDescription>
-            Un nouveau passcode sera généré. Les anciennes clés seront
-            révoquées instantanément. Toutes les sessions existantes
-            deviennent invalides.
+            Définis un nouveau mot de passe pour ton compte admin Better Auth.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
+            <label htmlFor="current-password" className="mb-1.5 block text-sm font-medium text-foreground">
+              Mot de passe actuel
+            </label>
+            <input
+              id="current-password"
+              type="password"
+              required
+              autoComplete="current-password"
+              value={current}
+              onChange={(e) => setCurrent(e.target.value)}
+              disabled={status === "submitting" || status === "success"}
+              className="w-full h-11 rounded-md border bg-card px-4 text-base text-foreground placeholder:text-muted-foreground transition-colors focus-lime border-border focus:border-lime disabled:opacity-50"
+            />
+          </div>
+
+          <div>
             <label htmlFor="new-passcode" className="mb-1.5 block text-sm font-medium text-foreground">
-              Nouveau passcode
+              Nouveau mot de passe
             </label>
             <input
               id="new-passcode"
               type="password"
               required
-              minLength={16}
+              minLength={8}
               autoComplete="new-password"
               value={passcode}
               onChange={(e) => setPasscode(e.target.value)}
-              placeholder="16 caractères minimum"
+              placeholder="8 caractères minimum"
               disabled={status === "submitting" || status === "success"}
               className="w-full h-11 rounded-md border bg-card px-4 text-base text-foreground placeholder:text-muted-foreground transition-colors focus-lime border-border focus:border-lime disabled:opacity-50"
             />
@@ -121,17 +136,17 @@ export function ChangePasscodeDialog({
 
           <div>
             <label htmlFor="confirm-passcode" className="mb-1.5 block text-sm font-medium text-foreground">
-              Confirmer le passcode
+              Confirmer le mot de passe
             </label>
             <input
               id="confirm-passcode"
               type="password"
               required
-              minLength={16}
+              minLength={8}
               autoComplete="new-password"
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
-              placeholder="Ressaisis le passcode"
+              placeholder="Ressaisis le mot de passe"
               disabled={status === "submitting" || status === "success"}
               className="w-full h-11 rounded-md border bg-card px-4 text-base text-foreground placeholder:text-muted-foreground transition-colors focus-lime border-border focus:border-lime disabled:opacity-50"
             />
@@ -147,7 +162,7 @@ export function ChangePasscodeDialog({
           {status === "success" && (
             <div className="rounded-md border border-lime/40 bg-lime/5 px-3 py-2.5 text-sm text-foreground flex items-center gap-2" role="status">
               <Check className="size-4 text-lime shrink-0" />
-              <span>Nouveau passcode enregistré. Redirection…</span>
+              <span>Nouveau mot de passe enregistré. Redirection…</span>
             </div>
           )}
 
@@ -169,10 +184,11 @@ export function ChangePasscodeDialog({
                 status === "success" ||
                 !passcode.trim() ||
                 !confirm.trim() ||
-                passcode.length < 16
+                !current.trim() ||
+                passcode.length < 8
               }
             >
-              {status === "submitting" ? "Génération…" : "Changer le passcode"}
+              {status === "submitting" ? "Enregistrement…" : "Changer le mot de passe"}
             </RebootButton>
           </div>
         </form>

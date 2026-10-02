@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
  * AUTH : admin operator (403 sinon).
  */
 export async function GET(req: NextRequest) {
-  if (!requireAdminRole(req, "operator")) {
+  if (!(await requireAdminRole(req, "operator"))) {
     return NextResponse.json(
       { error: "Accès refusé.", code: "FORBIDDEN" },
       { status: 403 },

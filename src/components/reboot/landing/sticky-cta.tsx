@@ -3,12 +3,14 @@
 import * as React from "react";
 import { RebootButton, CtaArrow } from "../shared";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 
 /* ------------------------------------------------------------------ */
 /* Sticky mobile CTA — visible après le hero, thumb-zone friendly      */
 /* ------------------------------------------------------------------ */
 
 export function StickyMobileCta({ onJoin }: { onJoin: () => void }) {
+  const t = useTranslations("landing.stickyCta");
   const [visible, setVisible] = React.useState(false);
 
   React.useEffect(() => {
@@ -38,11 +40,11 @@ export function StickyMobileCta({ onJoin }: { onJoin: () => void }) {
     >
       <div className="px-4 py-3 flex items-center gap-3">
         <p className="flex-1 min-w-0 text-sm text-foreground leading-snug">
-          <span className="block font-display font-semibold">2 min · Gratuit</span>
-          <span className="block text-xs text-muted-foreground">Ton challenge cette semaine</span>
+          <span className="block font-display font-semibold">{t("title")}</span>
+          <span className="block text-xs text-muted-foreground">{t("subtitle")}</span>
         </p>
         <RebootButton size="md" onClick={onJoin} className="group shrink-0">
-          Construire mon profil
+          {t("cta")}
           <CtaArrow />
         </RebootButton>
       </div>

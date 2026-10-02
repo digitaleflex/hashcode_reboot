@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { getSession } from "@/lib/account-auth";
 import { db } from "@/lib/db";
-import { profileSchema, answersToCreatePayload } from "@/lib/profiling/validate";
+import { createProfileSchema, answersToCreatePayload } from "@/lib/profiling/validate";
 import { runAutoControls } from "@/lib/profiling/auto-controls";
 import { generateProfile } from "@/lib/profiling/engine";
 import { audit } from "@/lib/admin-audit";
 import { blockIfTesting } from "@/lib/test-guard";
 import { bodyLimit } from "@/lib/body-limit";
+import { getTranslations } from "next-intl/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,16 +34,18 @@ export async function POST(req: NextRequest) {
     windowMs: 10 * 60 * 1000,
   });
   if (!rl.ok) {
+    const t = await getTranslations("profiling");
     return NextResponse.json(
-      { error: "Trop de tentatives. Réessaie dans quelques minutes.", code: "RATE_LIMITED" },
+      { error: t("api.rateLimited"), code: "RATE_LIMITED" },
       { status: 429, headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) } },
     );
   }
 
   const session = await getSession(req);
   if (!session) {
+    const t = await getTranslations("profiling");
     return NextResponse.json(
-      { error: "Non authentifié.", code: "UNAUTHENTICATED" },
+      { error: t("api.unauthenticated"), code: "UNAUTHENTICATED" },
       { status: 401 },
     );
   }
@@ -52,14 +55,16 @@ export async function POST(req: NextRequest) {
     select: { id: true, email: true, profileStatus: true, deletedAt: true },
   });
   if (!member || member.deletedAt) {
+    const t = await getTranslations("profiling");
     return NextResponse.json(
-      { error: "Membre introuvable.", code: "NOT_FOUND" },
+      { error: t("api.memberNotFound"), code: "NOT_FOUND" },
       { status: 404 },
     );
   }
   if (member.profileStatus !== "PENDING") {
+    const t = await getTranslations("profiling");
     return NextResponse.json(
-      { error: "Ton profil est déjà finalisé.", code: "ALREADY_COMPLETED" },
+      { error: t("api.alreadyCompleted"), code: "ALREADY_COMPLETED" },
       { status: 409 },
     );
   }
@@ -68,11 +73,16 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
+    const t = await getTranslations("profiling");
     return NextResponse.json(
-      { error: "Corps de requête invalide.", code: "INVALID_JSON" },
+      { error: t("api.invalidJson"), code: "INVALID_JSON" },
       { status: 400 },
     );
   }
+
+  // Get translations for validation
+  const t = await getTranslations("profiling");
+  const profileSchema = createProfileSchema(t);
 
   // L'email identifie le compte : on force celui du membre connecté.
   const parsed = profileSchema.safeParse({
@@ -83,7 +93,7 @@ export async function POST(req: NextRequest) {
     const firstIssue = parsed.error.issues[0];
     return NextResponse.json(
       {
-        error: firstIssue?.message ?? "Données invalides.",
+        error: firstIssue?.message ?? t("api.invalidPayload"),
         code: "INVALID_PAYLOAD",
         field: firstIssue?.path[0],
       },

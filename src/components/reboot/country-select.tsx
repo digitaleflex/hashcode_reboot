@@ -5,6 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { COUNTRIES, countryFlag, countryName } from "@/lib/profiling/countries";
 import { ChevronDown, Search } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 export function CountrySelect({
   value,
@@ -13,6 +14,7 @@ export function CountrySelect({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const t = useTranslations("profiling");
   const [open, setOpen] = React.useState(false);
   const [q, setQ] = React.useState("");
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -41,6 +43,7 @@ export function CountrySelect({
             "w-full h-12 rounded-md border bg-card px-4 flex items-center justify-between gap-3 transition-colors duration-180 focus-lime",
             value ? "border-lime" : "border-border hover:border-lime/50",
           )}
+          aria-label={t("countrySelect.selectCountry")}
         >
           <span className="flex items-center gap-2.5">
             {value ? (
@@ -52,7 +55,7 @@ export function CountrySelect({
               </>
             ) : (
               <span className="text-muted-foreground">
-                Sélectionne ton pays
+                {t("countrySelect.selectCountry")}
               </span>
             )}
           </span>
@@ -73,14 +76,16 @@ export function CountrySelect({
             ref={inputRef}
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Rechercher un pays…"
+            placeholder={t("countrySelect.searchPlaceholder")}
+            autoComplete="country"
+            spellCheck={false}
             className="flex-1 h-11 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
           />
         </div>
         <div className="max-h-64 overflow-y-auto scroll-slim py-1">
           {filtered.length === 0 && (
             <p className="px-3 py-4 text-sm text-muted-foreground text-center">
-              Aucun pays trouvé.
+              {t("countrySelect.noResults")}
             </p>
           )}
           {filtered.map((c) => (

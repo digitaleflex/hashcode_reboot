@@ -10,7 +10,7 @@ const CATEGORIES = ["welcome", "waitlist", "engagement", "relance", "other"] as 
 
 /** GET /api/email-stats — email engagement per category + relance funnel (admin-only). */
 export async function GET(req: NextRequest) {
-  if (!isAdminAuthed(req)) {
+  if (!(await isAdminAuthed(req))) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 

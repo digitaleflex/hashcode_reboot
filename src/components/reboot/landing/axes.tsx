@@ -2,22 +2,26 @@
 
 import { RebootButton, CtaArrow, MonoLabel, SectionHeader } from "../shared";
 import { AXES, DOMAIN_ICONS } from "./data";
+import { useTranslations } from "next-intl";
 
 export function Axes({ onJoin }: { onJoin: () => void }) {
+  const t = useTranslations("landing.axes");
+  const axesItems = t.raw("items") as Array<{ id: string; title: string; desc: string }>;
   return (
     <section
       id="axes"
       className="mx-auto max-w-6xl w-full px-5 sm:px-8 py-16 sm:py-24 scroll-mt-20 cv-auto"
     >
       <SectionHeader
-        index="02 · Les trois axes"
-        title="Trois terrains. Une communauté."
-        intro="Choisis ton terrain. Tu pourras en croiser d'autres plus tard."
+        index={t("index")}
+        title={t("title")}
+        intro={t("intro")}
         className="mb-10"
       />
       <div className="grid gap-px bg-border/60 border border-border/60 rounded-md overflow-hidden">
-        {AXES.map((a) => {
-          const Icon = DOMAIN_ICONS[a.icon];
+        {axesItems.map((a) => {
+          const axisData = AXES.find((ax) => ax.id === a.id);
+          const Icon = axisData ? DOMAIN_ICONS[axisData.icon] : null;
           return (
             <div
               key={a.id}
@@ -41,7 +45,7 @@ export function Axes({ onJoin }: { onJoin: () => void }) {
                 onClick={onJoin}
                 className="col-span-2 sm:col-span-1 w-full sm:w-auto justify-self-stretch sm:justify-self-end"
               >
-                Construire mon profil
+                {t("cta")}
                 <CtaArrow className="size-3.5" />
               </RebootButton>
             </div>
@@ -51,7 +55,7 @@ export function Axes({ onJoin }: { onJoin: () => void }) {
       {/* Rappel mobile après les axes */}
       <div className="mt-6 sm:hidden">
         <RebootButton size="lg" onClick={onJoin} className="group w-full">
-          Rejoindre la communauté
+          {t("mobileCta")}
           <CtaArrow />
         </RebootButton>
       </div>

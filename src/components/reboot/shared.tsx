@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { ArrowRight } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 /* ============================================================
    HASHCODE REBOOT — shared brand primitives
@@ -37,7 +38,7 @@ export function RebootButton({
     primary:
       "bg-lime text-black hover:bg-lime/90 font-medium border border-transparent",
     ghost:
-      "bg-transparent text-foreground hover:bg-secondary border border-transparent",
+      "bg-transparent text-foreground hover:bg-secondary hover:text-foreground border border-transparent",
     outline:
       "bg-transparent text-foreground border border-border hover:border-lime/60 hover:text-lime",
   };
@@ -198,6 +199,7 @@ export function RebootTitle({
 }: {
   className?: string;
 }) {
+  const t = useTranslations("landing.hero");
   return (
     <h1
       className={cn(
@@ -209,13 +211,13 @@ export function RebootTitle({
         className="block animate-hash-in"
         style={{ animationDelay: "0ms", animationFillMode: "both" }}
       >
-        HASHCODE
+        {t("brandTitle1")}
       </span>
       <span
         className="block text-lime text-glow-lime mt-1 animate-hash-in"
         style={{ animationDelay: "120ms", animationFillMode: "both" }}
       >
-        REBOOT
+        {t("brandTitle2")}
       </span>
     </h1>
   );

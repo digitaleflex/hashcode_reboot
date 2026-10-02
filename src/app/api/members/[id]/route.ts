@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { isAdminAuthed, requireAdminRole, readAdminCookie, getAdminRoleFromToken } from "@/lib/admin-auth";
+import { isAdminAuthed, requireAdminRole, getAdminRole } from "@/lib/admin-auth";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { audit } from "@/lib/admin-audit";
 import { sendStatusChangeEmail, type StatusChangeType } from "@/lib/mail";
@@ -27,7 +27,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  if (!isAdminAuthed(req)) {
+  if (!(await isAdminAuthed(req))) {
     return NextResponse.json(
       { error: "Non autorisé.", code: "UNAUTHORIZED" },
       { status: 401 },
@@ -73,7 +73,7 @@ export async function PATCH(
 ) {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
-  if (!requireAdminRole(req, "operator")) {
+  if (!(await requireAdminRole(req, "operator"))) {
     return NextResponse.json(
       { error: "Opérateur requis.", code: "FORBIDDEN" },
       { status: 403 },
@@ -202,7 +202,7 @@ export async function PATCH(
       /* ignore */
     }
     if (statusTransition) {
-      const role = getAdminRoleFromToken(readAdminCookie(req)) ?? "operator";
+      const role = (await getAdminRole(req)) ?? "operator";
       void audit(
         "member.status-change",
         "member",
@@ -236,7 +236,7 @@ export async function DELETE(
 ) {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
-  if (!requireAdminRole(req, "operator")) {
+  if (!(await requireAdminRole(req, "operator"))) {
     return NextResponse.json(
       { error: "Opérateur requis.", code: "FORBIDDEN" },
       { status: 403 },

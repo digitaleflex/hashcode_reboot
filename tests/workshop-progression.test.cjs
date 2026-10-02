@@ -72,6 +72,12 @@ function applyUnlockChain(states) {
   return out;
 }
 
+function applyUnlockOverride(states, overrides) {
+  return states.map((state, i) =>
+    overrides[i] && state === "LOCKED" ? "NOT_STARTED" : state,
+  );
+}
+
 function applyDateGate(states, availableAt, now = new Date()) {
   const nowMs = now.getTime();
   return states.map((state, i) => {
@@ -286,6 +292,46 @@ describe("applyUnlockChain", () => {
     // pas complétée : le verrou serveur prime.
     const out = applyUnlockChain(["SUBMITTED", "SUBMITTED"]);
     assert.deepEqual(out, ["SUBMITTED", "LOCKED"]);
+  });
+});
+
+describe("applyUnlockOverride (déblocage admin)", () => {
+  test("override true → LOCKED devient NOT_STARTED (jamais COMPLETED)", () => {
+    const out = applyUnlockOverride(["LOCKED", "NOT_STARTED"], [true, true]);
+    assert.deepEqual(out, ["NOT_STARTED", "NOT_STARTED"]);
+  });
+
+  test("override false/null → état inchangé", () => {
+    const out = applyUnlockOverride(["LOCKED", "NOT_STARTED"], [false, false]);
+    assert.deepEqual(out, ["LOCKED", "NOT_STARTED"]);
+  });
+
+  test("l'override n'écrase jamais un état pédagogique calculé", () => {
+    const out = applyUnlockOverride(
+      ["COMPLETED", "SUBMITTED", "IN_PROGRESS"],
+      [true, true, true],
+    );
+    assert.deepEqual(out, ["COMPLETED", "SUBMITTED", "IN_PROGRESS"]);
+  });
+
+  test("combiné chaîne + override : S02 ouverte même sans S01 complétée", () => {
+    const chained = applyUnlockChain(["NOT_STARTED", "NOT_STARTED"]);
+    assert.deepEqual(chained, ["NOT_STARTED", "LOCKED"]);
+    const out = applyUnlockOverride(chained, [false, true]);
+    assert.deepEqual(out, ["NOT_STARTED", "NOT_STARTED"]);
+  });
+
+  test("override prime aussi sur le gate calendaire", () => {
+    // Ordre serveur (workshop-server.ts) : chaîne → date → override.
+    const chained = applyUnlockChain(["NOT_STARTED"]);
+    const dateGated = applyDateGate(
+      chained,
+      [new Date("2026-09-25T20:00:00.000Z")],
+      new Date("2026-09-18T12:00:00.000Z"),
+    );
+    assert.deepEqual(dateGated, ["LOCKED"]);
+    const out = applyUnlockOverride(dateGated, [true]);
+    assert.deepEqual(out, ["NOT_STARTED"]);
   });
 });
 

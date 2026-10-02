@@ -15,6 +15,7 @@ import { db } from "@/lib/db";
 import {
   applyDateGate,
   applyUnlockChain,
+  applyUnlockOverride,
   computeSessionState,
   deriveQuizState,
   pickLatestSubmission,
@@ -34,6 +35,8 @@ export interface SessionStateView {
   deliverableRequired: boolean;
   quizRequired: boolean;
   eventId: string | null;
+  /** Déblocage manuel admin : ouvre la séance même verrouillée. */
+  unlockOverride: boolean;
   /** ISO de la date à partir de laquelle la séance est accessible (gate
    *  calendaire) : scheduledAt, sinon startsAt de l'Event lié, sinon null. */
   availableAt: string | null;
@@ -104,6 +107,7 @@ export async function loadWorkshopForMember(
               quizRequired: true,
               eventId: true,
               scheduledAt: true,
+              unlockOverride: true,
               event: { select: { startsAt: true } },
               deliverable: { select: { id: true } },
               quiz: { select: { id: true } },
@@ -198,9 +202,17 @@ export async function loadWorkshopForMember(
         : "NOT_STARTED",
     });
   });
-  const states = applyDateGate(
-    applyUnlockChain(rawStates),
-    sessions.map((s) => s.scheduledAt ?? s.event?.startsAt ?? null),
+  // Ordre des gates : chaîne séquentielle → date → override admin (prime
+  // sur TOUT, y compris le gate calendaire — sinon le déverrouillage forcé
+  // serait annulé par la date). Une séance ouverte par l'admin est
+  // NOT_STARTED, jamais COMPLETED : computeSessionState en repli donne
+  // l'état pédagogique réel.
+  const states = applyUnlockOverride(
+    applyDateGate(
+      applyUnlockChain(rawStates),
+      sessions.map((s) => s.scheduledAt ?? s.event?.startsAt ?? null),
+    ),
+    sessions.map((s) => s.unlockOverride),
   );
   const summary = summarizeWorkshop(states);
 
@@ -222,6 +234,7 @@ export async function loadWorkshopForMember(
       deliverableRequired: s.deliverableRequired,
       quizRequired: s.quizRequired,
       eventId: s.eventId,
+      unlockOverride: s.unlockOverride,
       availableAt: (s.scheduledAt ?? s.event?.startsAt ?? null)?.toISOString() ?? null,
     })),
   }));

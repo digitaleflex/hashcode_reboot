@@ -114,6 +114,23 @@ export function applyUnlockChain(states: SessionState[]): SessionState[] {
 }
 
 /**
+ * Override administrateur : lève le verrou d'une séance ouverte manuellement
+ * par l'admin (WorkshopSession.unlockOverride). L'override PRIME sur les
+ * deux verrous (chaîne + date) mais ne transforme jamais LOCKED en état
+ * pédagogique : une séance ouverte par l'admin sans données de progression
+ * est NOT_STARTED, pas COMPLETED — le client membre applique donc
+ * computeSessionState en repli.
+ */
+export function applyUnlockOverride(
+  states: SessionState[],
+  overrides: boolean[],
+): SessionState[] {
+  return states.map((state, i) =>
+    overrides[i] && state === "LOCKED" ? "NOT_STARTED" : state,
+  );
+}
+
+/**
  * Gate calendaire : une séance dont la date de disponibilité est FUTURE
  * reste LOCKED, même si la chaîne séquentielle l'aurait débloquée.
  * S'applique APRÈS applyUnlockChain — les deux verrous se cumulent :

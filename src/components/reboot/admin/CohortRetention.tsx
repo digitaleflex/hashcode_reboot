@@ -103,7 +103,7 @@ export function CohortRetention() {
           % retenus (approuvé/non-rejeté) à S1 · S2 · S4 · S8
         </span>
       </div>
-      <div className="rounded-md border border-border/60 bg-card/40 overflow-x-auto">
+      <div className="rounded-md border border-border/60 bg-card/40 overflow-x-auto scroll-slim">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs text-muted-foreground mono-label border-b border-border/40">

@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import type { GeneratedProfile } from "@/lib/profiling/types";
 import { HashSymbol } from "@/components/brand/logo";
 import { MonoLabel, Tag } from "./shared";
+import { useTranslations } from "next-intl";
 
 /**
  * The HASHCODE profile card — the "reward" for completing the flow.
@@ -21,13 +22,14 @@ export function ProfileCard({
   firstName?: string;
   variant?: "default" | "compact";
 }) {
+  const t = useTranslations("profiling");
   const rows: { label: string; value: string }[] = [
-    { label: "Domaine", value: profile.domainLabel },
-    { label: "Niveau", value: profile.levelLabel },
-    { label: "Objectif", value: profile.goalLabel },
-    { label: "Rythme", value: profile.availabilityLabel },
-    { label: "Style", value: profile.styleLabel },
-    { label: "Mentorat", value: profile.mentoringLabel },
+    { label: t("profileCard.domain"), value: profile.domainLabel },
+    { label: t("profileCard.level"), value: profile.levelLabel },
+    { label: t("profileCard.goal"), value: profile.goalLabel },
+    { label: t("profileCard.availability"), value: profile.availabilityLabel },
+    { label: t("profileCard.style"), value: profile.styleLabel },
+    { label: t("profileCard.mentoring"), value: profile.mentoringLabel },
   ];
 
   return (
@@ -59,7 +61,7 @@ export function ProfileCard({
               <HashSymbol size={28} />
             </span>
             <MonoLabel className="text-muted-foreground">
-              {firstName ? `Profil · ${firstName}` : "Profil HASHCODE"}
+              {firstName ? t("profileCard.profileWithName", { firstName }) : t("profileCard.profileHashcode")}
             </MonoLabel>
           </div>
           {/* Archetype badge ribbon — premium stamp */}
@@ -92,7 +94,7 @@ export function ProfileCard({
         {goal && (
           <div className="mt-5 pt-5 border-t border-border/70">
             <MonoLabel className="text-muted-foreground">
-              Objectif à 3 mois
+              {t("profileCard.threeMonthGoal")}
             </MonoLabel>
             <p className="mt-1 text-foreground italic font-display text-base leading-snug">
               « {goal} »
@@ -102,8 +104,8 @@ export function ProfileCard({
 
         {profile.tags.length > 0 && (
           <div className="mt-5 flex flex-wrap gap-1.5">
-            {profile.tags.slice(0, 8).map((t) => (
-              <Tag key={t}>{t}</Tag>
+            {profile.tags.slice(0, 8).map((tag) => (
+              <Tag key={tag}>{tag}</Tag>
             ))}
           </div>
         )}

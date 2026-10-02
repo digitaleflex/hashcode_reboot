@@ -4,6 +4,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
 import type { QuestionOption } from "@/lib/profiling/types";
+import { useTranslations } from "next-intl";
 
 type Variant = "radio" | "checkbox";
 
@@ -24,6 +25,7 @@ export function OptionCard({
   index?: number;
   variant?: Variant;
 }) {
+  const t = useTranslations("profiling");
   const isCheckbox = variant === "checkbox";
   const handleClick = isCheckbox && onToggle
     ? () => onToggle(option.value)
@@ -34,6 +36,7 @@ export function OptionCard({
       type="button"
       onClick={handleClick}
       aria-pressed={selected}
+      aria-label={selected ? t("optionCard.selected", { label: option.label }) : option.label}
       className={cn(
         "group relative w-full text-left rounded-md border bg-card transition-colors duration-180 focus-lime",
         "hover:border-lime/60 hover:bg-elevated/50",

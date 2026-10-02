@@ -36,7 +36,7 @@ const querySchema = z.object({
  * restent à informer pour l'annonce, combien sont blacklistés / en bounce.
  */
 export async function GET(req: NextRequest) {
-  if (!isAdminAuthed(req)) {
+  if (!(await isAdminAuthed(req))) {
     return NextResponse.json(
       { error: "Non autorisé.", code: "UNAUTHORIZED" },
       { status: 401 },

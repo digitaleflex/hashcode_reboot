@@ -11,7 +11,7 @@ export const runtime = "nodejs";
  * so the admin can see a chronological feed with user detail per row.
  */
 export async function GET(req: NextRequest) {
-  if (!requireAdminRole(req, "operator")) {
+  if (!(await requireAdminRole(req, "operator"))) {
     return NextResponse.json(
       { error: "Accès refusé.", code: "FORBIDDEN" },
       { status: 403 },

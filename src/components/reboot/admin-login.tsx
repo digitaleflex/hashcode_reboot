@@ -17,7 +17,8 @@ export function AdminLogin({
   onAuthed: () => void;
   onExit: () => void;
 }) {
-  const [passcode, setPasscode] = React.useState("");
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
@@ -25,10 +26,12 @@ export function AdminLogin({
   const [cooldownSec, setCooldownSec] = React.useState(0);
   const [failedAttempts, setFailedAttempts] = React.useState(0);
   const [captchaRequired, setCaptchaRequired] = React.useState(false);
-  const [captchaValue, setCaptchaValue] = React.useState("");
+  const [captchaToken, setCaptchaToken] = React.useState<string | null>(null);
+  const [turnstileLoaded, setTurnstileLoaded] = React.useState(false);
+  const [turnstileError, setTurnstileError] = React.useState(false);
 
   const errorRef = React.useRef<HTMLDivElement>(null);
-  const captchaRef = React.useRef<HTMLInputElement>(null);
+  const turnstileContainerRef = React.useRef<HTMLDivElement>(null);
 
   // Cooldown 429 : décompte avec cleanup.
   const [cooldownTotal, setCooldownTotal] = React.useState(0);
@@ -50,11 +53,6 @@ export function AdminLogin({
     if (error) errorRef.current?.focus();
   }, [error]);
 
-  // Donne le focus au champ captcha quand il apparaît.
-  React.useEffect(() => {
-    if (captchaRequired) captchaRef.current?.focus();
-  }, [captchaRequired]);
-
   // Échap quitte vers le site (parcours clavier complet).
   React.useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -64,10 +62,78 @@ export function AdminLogin({
     return () => window.removeEventListener("keydown", onKey);
   }, [onExit]);
 
+  // Fonction pour rendre le widget Turnstile.
+  function renderTurnstileWidget() {
+    const container = turnstileContainerRef.current;
+    if (!container || !(window as any).turnstile) return;
+
+    try {
+      ;(window as any).turnstile.ready(() => {
+        const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
+        if (!siteKey) {
+          setTurnstileError(true);
+          return;
+        }
+        ;(window as any).turnstile.render(container, {
+          sitekey: siteKey,
+          callback: (token: string) => {
+            setCaptchaToken(token);
+            setTurnstileError(false);
+          },
+          "error-callback": () => {
+            setCaptchaToken(null);
+            setTurnstileError(true);
+          },
+        });
+      });
+    } catch {
+      setTurnstileError(true);
+    }
+  }
+
+  // Charger le script Turnstile et rendre le widget.
+  React.useEffect(() => {
+    if (!captchaRequired || turnstileLoaded) return;
+
+    if ((window as any).turnstile) {
+      renderTurnstileWidget();
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+    script.async = true;
+    script.onload = () => {
+      setTurnstileLoaded(true);
+      renderTurnstileWidget();
+    };
+    script.onerror = () => {
+      setTurnstileError(true);
+    };
+    document.head.appendChild(script);
+
+    return () => {
+      document.head.removeChild(script);
+    };
+  }, [captchaRequired, turnstileLoaded]);
+
+  // Nettoyer le widget Turnstile au démontage.
+  React.useEffect(() => {
+    return () => {
+      if ((window as any).turnstile && turnstileContainerRef.current) {
+        try {
+          ;(window as any).turnstile.remove(turnstileContainerRef.current);
+        } catch {
+          /* ignore */
+        }
+      }
+    };
+  }, []);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (cooldownSec > 0) return;
-    if (captchaRequired && !captchaValue.trim()) {
+    if (captchaRequired && !captchaToken) {
       setError("Saisis le code de vérification demandé ci-dessous.");
       return;
     }
@@ -78,7 +144,7 @@ export function AdminLogin({
       const res = await fetch("/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ passcode: passcode.trim(), captcha: captchaValue.trim() || undefined }),
+        body: JSON.stringify({ email: email.trim(), password, captchaToken: captchaToken || undefined }),
       });
       let data: { ok?: boolean; error?: string; code?: string } | null = null;
       try {
@@ -120,7 +186,7 @@ export function AdminLogin({
       // Success resets failed attempts.
       setFailedAttempts(0);
       setCaptchaRequired(false);
-      setCaptchaValue("");
+      setCaptchaToken(null);
       try {
         window.localStorage.setItem("hashcode-admin-session-start", String(Date.now()));
       } catch {
@@ -157,7 +223,7 @@ export function AdminLogin({
               Accès admin
             </h1>
             <p className="mt-1.5 text-sm text-muted-foreground">
-              Espace réservé. Entre ton passcode HASHCODE.
+              Espace réservé. Email + mot de passe de ton compte admin.
             </p>
           </div>
 
@@ -168,23 +234,42 @@ export function AdminLogin({
           >
             <div>
               <label
-                htmlFor="admin-passcode"
+                htmlFor="admin-email"
                 className="mb-1.5 block text-sm font-medium text-foreground"
               >
-                Passcode admin
+                Email admin
+              </label>
+              <input
+                id="admin-email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="toi@hashcode.org"
+                className="w-full h-12 rounded-md border bg-card px-4 text-base text-foreground placeholder:text-muted-foreground transition-colors focus-lime border-border focus:border-lime"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="admin-password"
+                className="mb-1.5 block text-sm font-medium text-foreground"
+              >
+                Mot de passe admin
               </label>
               <div className="relative">
                 <input
-                  id="admin-passcode"
+                  id="admin-password"
                   type={showPasscode ? "text" : "password"}
                   autoFocus
                   autoComplete="current-password"
                   spellCheck={false}
                   enterKeyHint="go"
                   required
-                  value={passcode}
-                  onChange={(e) => setPasscode(e.target.value)}
-                  placeholder="Ton passcode"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Ton mot de passe"
                   aria-describedby={describedBy || undefined}
                   aria-invalid={error ? true : undefined}
                   className="w-full h-12 rounded-md border bg-card px-4 pr-24 text-base text-foreground placeholder:text-muted-foreground transition-colors focus-lime border-border focus:border-lime"
@@ -193,10 +278,10 @@ export function AdminLogin({
                   type="button"
                   onClick={() => setShowPasscode((s) => !s)}
                   aria-pressed={showPasscode}
-                  aria-controls="admin-passcode"
+                  aria-controls="admin-password"
                   className="absolute right-2 top-1/2 -translate-y-1/2 min-h-[44px] px-2 text-xs text-muted-foreground hover:text-lime transition-colors focus-lime mono-label rounded-sm"
-                  aria-label={showPasscode ? "Masquer le passcode" : "Afficher le passcode"}
-                  title={showPasscode ? "Masquer le passcode" : "Afficher le passcode"}
+                  aria-label={showPasscode ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                  title={showPasscode ? "Masquer le mot de passe" : "Afficher le mot de passe"}
                 >
                   {showPasscode ? "MASQUER" : "AFFICHER"}
                 </button>
@@ -205,35 +290,23 @@ export function AdminLogin({
 
             {captchaRequired && (
               <div>
-                <label
-                  htmlFor="admin-captcha"
-                  className="mb-1.5 block text-sm font-medium text-foreground"
-                >
-                  Code de vérification
+                <label className="mb-1.5 block text-sm font-medium text-foreground">
+                  Vérification humaine
                   <span aria-hidden="true"> *</span>
                 </label>
-                <div className="relative">
-                  <input
-                    ref={captchaRef}
-                    id="admin-captcha"
-                    type="text"
-                    autoComplete="off"
-                    spellCheck={false}
-                    inputMode="text"
-                    required
-                    aria-required="true"
-                    value={captchaValue}
-                    onChange={(e) => setCaptchaValue(e.target.value)}
-                    placeholder="Ex. : code reçu de ton responsable"
-                    aria-describedby="captcha-help"
-                    aria-invalid={error ? true : undefined}
-                    className="w-full h-12 rounded-md border border-amber-500/50 bg-card px-4 pr-10 text-base text-foreground placeholder:text-muted-foreground transition-colors focus-lime focus:border-amber-400"
-                  />
-                  <AlertTriangle className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-amber-400 pointer-events-none" aria-hidden />
-                </div>
+                <div ref={turnstileContainerRef} className="turnstile-container" />
+                {turnstileError && !captchaToken && (
+                  <p className="mt-1.5 text-xs leading-relaxed text-amber-400">
+                    Le captcha n'a pas pu se charger. Rafraîchis la page ou demande un code à ton responsable.
+                  </p>
+                )}
+                {captchaToken && (
+                  <p className="mt-1.5 text-xs leading-relaxed text-lime">
+                    ✅ Vérification humaine validée.
+                  </p>
+                )}
                 <p id="captcha-help" className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-                  Après 3 passcodes invalides, ce code est exigé en plus du
-                  passcode. Demande-le à ton responsable, puis saisis-le ici.
+                  Après 3 passcodes invalides, cette vérification est exigée en plus du passcode.
                 </p>
               </div>
             )}
@@ -272,7 +345,7 @@ export function AdminLogin({
                   aria-valuetext={`${cooldownSec} secondes restantes`}
                 >
                   <div
-                    className="h-full bg-amber-400 transition-all duration-1000"
+                    className="h-full bg-amber-400 transition-opacity duration-1000"
                     style={{ width: `${cooldownPct}%` }}
                     aria-hidden
                   />
@@ -290,7 +363,7 @@ export function AdminLogin({
               size="lg"
               type="submit"
               className="group w-full"
-              disabled={submitting || !passcode.trim() || cooldownSec > 0 || (captchaRequired && !captchaValue.trim())}
+              disabled={submitting || !email.trim() || !password || cooldownSec > 0 || (captchaRequired && !captchaToken)}
             >
               {cooldownSec > 0
                 ? `Patiente ${cooldownSec}s…`

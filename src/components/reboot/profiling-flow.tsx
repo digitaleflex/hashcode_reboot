@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import {
   getVisibleQuestions,
   getProgress,
@@ -20,6 +21,7 @@ import {
   getEncryptedItem,
   removeEncryptedItem,
 } from "@/lib/storage-crypto";
+import { useTranslations } from "next-intl";
 
 export function ProfilingFlow({
   onComplete,
@@ -28,6 +30,7 @@ export function ProfilingFlow({
   onComplete: (answers: ProfileAnswers) => void;
   onBack: () => void;
 }) {
+  const t = useTranslations("profiling");
   const [answers, setAnswers] = React.useState<ProfileAnswers>(initialAnswers);
   const [answeredIds, setAnsweredIds] = React.useState<string[]>([]);
   const [step, setStep] = React.useState(0); // index into visible list
@@ -41,6 +44,7 @@ export function ProfilingFlow({
   // Vérification email : lien magique 1-clic envoyé à la fin (POST /api/members).
   // L'email est collecté en Q2 sans bloquer — plus d'interruption OTP.
   const lastQuestionRef = React.useRef<string | null>(null);
+  const reducedMotion = useReducedMotion();
 
   // --- Hydrate from localStorage on mount (resume support) ---
   React.useEffect(() => {
@@ -74,16 +78,16 @@ export function ProfilingFlow({
     if (!hydrated || answeredIds.length === 0) return;
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
-      e.returnValue = "Tu es sûr de vouloir quitter ?";
+      e.returnValue = t("flow.confirmLeave");
       if (lastQuestionRef.current) {
         track({ type: "profiling_abandoned", ref: lastQuestionRef.current });
         saveDraftBeacon(answers, lastQuestionRef.current);
       }
-      return "Tes réponses sont sauvegardées, tu peux reprendre plus tard.";
+      return t("flow.beforeUnloadMessage");
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
-  }, [hydrated, answeredIds.length, answers, lastQuestionRef]);
+  }, [hydrated, answeredIds.length, answers, lastQuestionRef, t]);
 
   // Track drop-off on visibility change (tab switch / mobile background)
   React.useEffect(() => {
@@ -278,19 +282,21 @@ export function ProfilingFlow({
     <ProfilingShell
       progress={progress}
       onBack={goBack}
-      stepLabel="Ton profil HASHCODE"
+      stepLabel={t("flow.stepLabel")}
       microcopy={current.microcopy}
       group={current.group}
       showCompletionIndicator
+      currentStep={step}
+      totalSteps={visible.length}
     >
       <AnimatePresence mode="wait" custom={direction}>
         <motion.div
           key={current.id}
           custom={direction}
-          initial={{ opacity: 0, x: direction * 16 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: direction * -16 }}
-          transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+          initial={reducedMotion ? { opacity: 1, x: 0 } : { opacity: 0, x: direction * 16 }}
+          animate={reducedMotion ? { opacity: 1, x: 0 } : { opacity: 1, x: 0 }}
+          exit={reducedMotion ? { opacity: 0, x: 0 } : { opacity: 0, x: direction * -16 }}
+          transition={reducedMotion ? { duration: 0 } : { duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
         >
           <QuestionView
             question={current}
@@ -312,7 +318,7 @@ export function ProfilingFlow({
             onCountry={(v) => setAnswer(current, v)}
             onContinue={() => {
               const v = answers[current.mapsTo];
-              const err = validateAnswer(current, v);
+              const err = validateAnswer(current, v, t);
               if (err) {
                 setLocalError(err);
                 return;

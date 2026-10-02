@@ -4,6 +4,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import { HashSymbol } from "@/components/brand/logo";
 import { MonoLabel } from "../shared";
+import { useTranslations } from "next-intl";
 
 export interface PublicProfile {
   id: string;
@@ -19,27 +20,13 @@ export interface PublicProfile {
   accessLane: string;
 }
 
-const DOMAIN_LABELS: Record<string, string> = {
-  web: "Web Development",
-  cybersecurity: "Cybersecurity",
-  ai: "Applied AI",
-};
-
-const LEVEL_LABELS: Record<string, string> = {
-  beginner: "Débutant",
-  practicing: "Pratique",
-  autonomous: "Autonome",
-  advanced: "Avancé",
-};
-
-const AVAILABILITY_LABELS: Record<string, string> = {
-  fulltime: "Temps plein",
-  parttime: "Temps partiel",
-  weekends: "Weekends",
-  evenings: "Soirs",
-};
-
 export function PublicProfileCard({ profile }: { profile: PublicProfile }) {
+  const t = useTranslations("profile");
+
+  const domainLabels = t.raw("domainLabels") as Record<string, string>;
+  const levelLabels = t.raw("levelLabels") as Record<string, string>;
+  const availabilityLabels = t.raw("availabilityLabels") as Record<string, string>;
+
   return (
     <div className="rounded-lg border border-border bg-card overflow-hidden">
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-lime/70 to-transparent" />
@@ -51,7 +38,7 @@ export function PublicProfileCard({ profile }: { profile: PublicProfile }) {
               <HashSymbol size={32} />
             </span>
             <div>
-              <MonoLabel className="text-muted-foreground">Profil public</MonoLabel>
+              <MonoLabel className="text-muted-foreground">{t("card.publicProfileLabel")}</MonoLabel>
               <h1 className="text-2xl sm:text-3xl font-display font-bold italic text-foreground mt-1">
                 {profile.firstName}
               </h1>
@@ -76,39 +63,39 @@ export function PublicProfileCard({ profile }: { profile: PublicProfile }) {
 
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div className="p-3 rounded-md bg-muted/30">
-            <p className="text-xs text-muted-foreground mb-1">Domaine</p>
+            <p className="text-xs text-muted-foreground mb-1">{t("card.domainLabel")}</p>
             <p className="font-medium text-sm">
-              {DOMAIN_LABELS[profile.domain] ?? profile.domain}
+              {domainLabels[profile.domain] ?? profile.domain}
             </p>
           </div>
           <div className="p-3 rounded-md bg-muted/30">
-            <p className="text-xs text-muted-foreground mb-1">Niveau</p>
+            <p className="text-xs text-muted-foreground mb-1">{t("card.levelLabel")}</p>
             <p className="font-medium text-sm">
-              {LEVEL_LABELS[profile.level] ?? profile.level}
+              {levelLabels[profile.level] ?? profile.level}
             </p>
           </div>
           <div className="p-3 rounded-md bg-muted/30">
-            <p className="text-xs text-muted-foreground mb-1">Disponibilité</p>
+            <p className="text-xs text-muted-foreground mb-1">{t("card.availabilityLabel")}</p>
             <p className="font-medium text-sm">
-              {AVAILABILITY_LABELS[profile.availability] ?? profile.availability}
+              {availabilityLabels[profile.availability] ?? profile.availability}
             </p>
           </div>
           <div className="p-3 rounded-md bg-muted/30">
-            <p className="text-xs text-muted-foreground mb-1">Objectif</p>
+            <p className="text-xs text-muted-foreground mb-1">{t("card.goalLabel")}</p>
             <p className="font-medium text-sm">{profile.goal}</p>
           </div>
         </div>
 
         {profile.mentoring && (
           <div className="mb-6 p-4 rounded-md bg-lime/5 border border-lime/20">
-            <p className="text-xs text-lime mb-1 font-medium mono-label">Ouvert au mentorat</p>
+            <p className="text-xs text-lime mb-1 font-medium mono-label">{t("card.mentoringLabel")}</p>
             <p className="text-sm text-foreground">{profile.mentoring}</p>
           </div>
         )}
 
         {profile.threeMonthGoal && (
           <div className="mb-6">
-            <p className="text-xs text-muted-foreground mb-2">Objectif 3 mois</p>
+            <p className="text-xs text-muted-foreground mb-2">{t("card.threeMonthGoalLabel")}</p>
             <p className="text-sm text-foreground">{profile.threeMonthGoal}</p>
           </div>
         )}
@@ -132,7 +119,7 @@ export function PublicProfileCard({ profile }: { profile: PublicProfile }) {
           href="/"
           className="inline-flex items-center gap-2 text-sm text-lime hover:underline"
         >
-          ← Rejoins le réseau HASHCODE
+          {t("card.joinNetwork")}
         </a>
       </div>
     </div>

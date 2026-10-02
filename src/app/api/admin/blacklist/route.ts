@@ -21,7 +21,7 @@ export const runtime = "nodejs";
  * Crée ou met à jour l'entrée.
  */
 export async function GET(req: NextRequest) {
-  if (!requireAdminRole(req, "operator")) {
+  if (!(await requireAdminRole(req, "operator"))) {
     return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
   }
   const { searchParams } = new URL(req.url);
@@ -51,7 +51,7 @@ const addSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  if (!requireAdminRole(req, "operator")) {
+  if (!(await requireAdminRole(req, "operator"))) {
     return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
   }
   if (!checkCSRF(req)) {

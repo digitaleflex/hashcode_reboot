@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { MonoLabel, SectionHeader } from "../shared";
 import { cn } from "@/lib/utils";
 import { PILLARS } from "./data";
+import { useTranslations } from "next-intl";
 
 /* ------------------------------------------------------------------ */
 /* Pillars — carrousel mobile uniquement (desktop = grille)            */
@@ -12,9 +13,11 @@ import { PILLARS } from "./data";
 /* ------------------------------------------------------------------ */
 
 function PillarsCarousel() {
+  const t = useTranslations("landing.pillars");
+  const pillarsItems = t.raw("items") as Array<{ k: string; t: string; d: string }>;
   const trackRef = React.useRef<HTMLDivElement>(null);
   const [index, setIndex] = React.useState(0);
-  const total = PILLARS.length;
+  const total = pillarsItems.length;
 
   const prefersReduced = React.useCallback(() => {
     if (typeof window === "undefined") return true;
@@ -85,23 +88,23 @@ function PillarsCarousel() {
       className="sm:hidden"
       role="region"
       aria-roledescription="carrousel"
-      aria-label="Ce qui change : quatre verbes, une direction"
+      aria-label={t("carouselAria")}
     >
       <div
         ref={trackRef}
         tabIndex={0}
         role="group"
-        aria-label="Faites défiler horizontalement pour voir les quatre verbes. Flèches gauche et droite disponibles."
+        aria-label={t("trackAria")}
         onScroll={updateFromScroll}
         onKeyDown={onTrackKeyDown}
         className="carousel-track no-scrollbar focus-lime -mx-5 flex gap-3 overflow-x-auto px-5 pb-2 pt-1 rounded-md"
       >
-        {PILLARS.map((p, i) => (
+        {pillarsItems.map((p, i) => (
           <article
             key={p.k}
             role="group"
             aria-roledescription="diapositive"
-            aria-label={`${i + 1} sur ${total} : ${p.t}`}
+            aria-label={t("slideAria", { i: i + 1, total, pt: p.t })}
             aria-current={i === index}
             className="w-[85%] shrink-0 snap-start rounded-md border border-border/60 bg-card p-6 flex flex-col gap-2"
           >
@@ -121,7 +124,7 @@ function PillarsCarousel() {
             type="button"
             onClick={() => goTo(index - 1)}
             disabled={index === 0}
-            aria-label="Voir le verbe précédent"
+            aria-label={t("prevAria")}
             className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md border border-border bg-card text-foreground transition-colors hover:border-lime/60 hover:text-lime focus-lime disabled:opacity-40 disabled:pointer-events-none"
           >
             <ChevronLeft className="size-5" />
@@ -130,7 +133,7 @@ function PillarsCarousel() {
             type="button"
             onClick={() => goTo(index + 1)}
             disabled={index === total - 1}
-            aria-label="Voir le verbe suivant"
+            aria-label={t("nextAria")}
             className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md border border-border bg-card text-foreground transition-colors hover:border-lime/60 hover:text-lime focus-lime disabled:opacity-40 disabled:pointer-events-none"
           >
             <ChevronRight className="size-5" />
@@ -141,21 +144,21 @@ function PillarsCarousel() {
           {index + 1} / {total}
         </p>
 
-        <div className="flex items-center" role="tablist" aria-label="Choisir un verbe">
-          {PILLARS.map((p, i) => (
+        <div className="flex items-center" role="tablist" aria-label={t("dotsAria")}>
+          {pillarsItems.map((p, i) => (
             <button
               key={p.k}
               type="button"
               role="tab"
               aria-selected={i === index}
-              aria-label={`Aller au verbe ${i + 1} : ${p.t}`}
+              aria-label={t("dotAria", { i: i + 1, pt: p.t })}
               onClick={() => goTo(i)}
               className="inline-flex min-h-[44px] min-w-[36px] items-center justify-center px-2 focus-lime rounded-md"
             >
               <span
                 aria-hidden
                 className={cn(
-                  "h-1.5 rounded-full transition-all",
+                  "h-1.5 rounded-full transition-opacity",
                   i === index ? "w-6 bg-lime" : "w-1.5 bg-border hover:bg-muted-foreground",
                 )}
               />
@@ -179,17 +182,19 @@ function PillarsCarousel() {
 }
 
 export function Pillars() {
+  const t = useTranslations("landing.pillars");
+  const pillarsItems = t.raw("items") as Array<{ k: string; t: string; d: string }>;
   return (
     <section className="mx-auto max-w-6xl w-full px-5 sm:px-8 py-16 sm:py-24 cv-auto">
       <SectionHeader
-        index="03 · Ce qui change vraiment"
-        title="Quatre verbes. Une direction."
-        intro="On passe de la consommation à la construction."
+        index={t("index")}
+        title={t("title")}
+        intro={t("intro")}
         className="mb-8 sm:mb-10"
       />
       {/* Desktop : grille 2→4 col existante, inchangée */}
       <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 border border-border/60 rounded-md overflow-hidden divide-x divide-border/60">
-        {PILLARS.map((p) => (
+        {pillarsItems.map((p) => (
           <div
             key={p.k}
             className="bg-card p-6 sm:p-7 flex flex-col gap-2 [&:nth-child(-n+2)]:border-b sm:[&:nth-child(2)]:border-b-0"

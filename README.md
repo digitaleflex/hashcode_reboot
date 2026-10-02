@@ -36,8 +36,8 @@ Noms lus par le code, dans l'ordre d'importance :
 | `POSTGRES_PRISMA_URL` | Connexion poolée (runtime, fournie par l'intégration Vercel-Neon) |
 | `POSTGRES_URL_NON_POOLING` | Connexion directe (migrations CLI) |
 | `ADMIN_PASSCODE` | Passcode admin. **Requis en production** (l'app refuse de démarrer sans) |
-| `NEXT_PUBLIC_WHATSAPP_URL` | Lien côté client (fallback : valeur en dur) |
-| `WHATSAPP_URL` | Idem, côté serveur (prioritaire sur la précédente) |
+| `NEXT_PUBLIC_WHATSAPP_URL` | Lien communauté WhatsApp côté client (requis, aucune valeur en dur) |
+| `WHATSAPP_URL` | Idem, côté serveur (prioritaire sur la précédente, aucune valeur en dur) |
 | `RESEND_API_KEY` / `EMAIL_FROM` | Envoi + vérification Resend |
 | `BREVO_FALLBACK_ON_429` | `=1` pour activer le fallback Brevo quand Resend retourne 429 |
 | `SENTRY_DSN` | DSN Sentry côté serveur (optionnel, monitoring erreurs) |

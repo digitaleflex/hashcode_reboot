@@ -47,7 +47,7 @@ function RateBar({ value, label }: { value: number; label: string }) {
       <div className="h-1.5 rounded-sm bg-muted overflow-hidden">
         <div
           className={cn(
-            "h-full rounded-sm transition-all duration-500",
+            "h-full rounded-sm transition-colors duration-500",
             good ? "bg-lime" : warn ? "bg-amber-500" : "bg-red-500",
           )}
           style={{ width: `${width}%` }}

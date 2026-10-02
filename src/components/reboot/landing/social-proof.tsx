@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useTranslations } from "next-intl";
 
 /* ------------------------------------------------------------------ */
 /* Social proof stat — footer stats bar                                */
@@ -21,6 +22,7 @@ export function SocialProofStat({ value, label }: { value: string; label: string
 
 /** Live member count — fetches the public count from /api/community/count. */
 export function LiveMemberCount() {
+  const t = useTranslations("landing.footer.liveCount");
   const [count, setCount] = React.useState<number | null>(null);
   React.useEffect(() => {
     fetch("/api/community/count", { cache: "no-store" })
@@ -33,22 +35,24 @@ export function LiveMemberCount() {
   return (
     <div className="flex flex-col items-center gap-1">
       <span className="font-display font-bold text-2xl sm:text-3xl text-lime tabular-nums">
-        {count !== null ? `${count}` : "1ère"}
+        {count !== null ? `${count}` : t("valueEmpty")}
       </span>
       <span className="soft-note text-center">
-        {count !== null ? "Profils déjà créés" : "Cohorte en cours"}
+        {count !== null ? t("labelWithCount") : t("labelEmpty")}
       </span>
     </div>
   );
 }
 
 export function SocialProofBar() {
+  const t = useTranslations("landing.footer");
+  const socialProof = t.raw("socialProof") as Array<{ value: string; label: string }>;
   return (
     <div className="border-b border-border/60 bg-card/30">
       <div className="mx-auto max-w-6xl px-5 sm:px-8 py-6 grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-        <SocialProofStat value="2026" label="Première cohorte ouverte" />
-        <SocialProofStat value="3" label="Axes : web, cyber, IA" />
-        <SocialProofStat value="~2 min" label="Profil par clic, sans friction" />
+        {socialProof.map((stat, i) => (
+          <SocialProofStat key={i} value={stat.value} label={stat.label} />
+        ))}
         <LiveMemberCount />
       </div>
     </div>

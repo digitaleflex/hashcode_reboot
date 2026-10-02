@@ -3,8 +3,10 @@
 import { Check } from "lucide-react";
 import { HashSymbol } from "@/components/brand/logo";
 import { RebootButton, CtaArrow } from "../shared";
+import { useTranslations } from "next-intl";
 
 export function FinalCta({ onJoin }: { onJoin: () => void }) {
+  const t = useTranslations("landing.finalCta");
   return (
     <section id="rejoindre" className="relative overflow-hidden bg-vignette bg-noise scroll-mt-20">
       <div className="absolute inset-0 bg-grid opacity-60" aria-hidden />
@@ -18,20 +20,20 @@ export function FinalCta({ onJoin }: { onJoin: () => void }) {
           <HashSymbol className="relative text-lime" size={48} />
         </div>
         <h2 className="mt-6 font-display font-bold text-3xl sm:text-4xl tracking-tight text-foreground text-balance">
-          Prêt à rejoindre la communauté ?
+          {t("title")}
         </h2>
         <p className="mt-4 max-w-xl mx-auto text-muted-foreground text-base sm:text-lg">
-          Crée ton profil en 2 min et reçois ton accès WhatsApp.
+          {t("description")}
         </p>
         <div className="mt-8 flex justify-center">
           <RebootButton size="lg" onClick={onJoin} className="group w-full sm:w-auto">
-            Construire mon profil
+            {t("cta")}
             <CtaArrow />
           </RebootButton>
         </div>
         <p className="mt-6 flex items-center justify-center gap-2 text-sm text-foreground">
           <Check className="size-4 text-lime shrink-0" strokeWidth={2.5} />
-          Gratuit · Environ 2 minutes · Zéro spam
+          {t("reassurance")}
         </p>
       </div>
     </section>

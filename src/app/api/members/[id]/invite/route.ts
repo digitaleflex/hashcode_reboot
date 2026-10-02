@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireAdminRole, readAdminCookie, getAdminRoleFromToken } from "@/lib/admin-auth";
+import { requireAdminRole, getAdminRole } from "@/lib/admin-auth";
 import { audit } from "@/lib/admin-audit";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
@@ -20,7 +20,7 @@ export async function POST(
 ) {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
-  if (!requireAdminRole(req, "operator")) {
+  if (!(await requireAdminRole(req, "operator"))) {
     return NextResponse.json(
       { error: "Opérateur requis.", code: "FORBIDDEN" },
       { status: 403 },
@@ -67,7 +67,7 @@ export async function POST(
     "member",
     id,
     { email: member.email },
-    { type: "admin", role: getAdminRoleFromToken(readAdminCookie(req)) ?? "operator" },
+    { type: "admin", role: (await getAdminRole(req)) ?? "operator" },
   );
 
   try {

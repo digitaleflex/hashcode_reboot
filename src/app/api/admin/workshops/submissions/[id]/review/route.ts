@@ -37,7 +37,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  if (!requireAdminRole(req, "operator")) {
+  if (!(await requireAdminRole(req, "operator"))) {
     return NextResponse.json(
       { error: "Accès refusé.", code: "FORBIDDEN" },
       { status: 403 },
@@ -50,7 +50,7 @@ export async function POST(
     );
   }
 
-  const reviewer = getAdminIdentity(req);
+  const reviewer = await getAdminIdentity(req);
   const rl = await rateLimit(`admin-workshop-review:${reviewer}:${rateKey(req)}`, {
     capacity: 30,
     windowMs: 60_000,

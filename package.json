@@ -1,6 +1,6 @@
 {
   "name": "nextjs_tailwind_shadcn_ts",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
@@ -23,6 +23,7 @@
     "collect:metrics": "tsx scripts/collect-email-metrics.ts",
     "seed:email-templates": "node --env-file=.env --import tsx scripts/seed-email-templates.ts",
     "seed:github-program": "node --env-file=.env --import tsx scripts/seed-github-program.ts",
+    "seed:workshops": "node --env-file=.env --import tsx scripts/seed-workshops.ts",
     "typecheck": "tsc --noEmit",
     "validate": "npm run typecheck && npm run lint && npm run test:unit",
     "test:e2e": "playwright test",
@@ -73,6 +74,7 @@
     "@upstash/redis": "^1.38.4",
     "@vercel/speed-insights": "^2.0.0",
     "bcryptjs": "^2.4.3",
+    "better-auth": "^1.7.6",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",

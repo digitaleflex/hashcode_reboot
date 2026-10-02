@@ -1,16 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminCookieHeader, checkCSRF } from "@/lib/admin-auth";
+import { checkCSRF } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
+import { auth } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
-/** POST /api/admin/logout — clear admin cookie. */
+/** POST /api/admin/logout — sign out via Better Auth. */
 export async function POST(req: NextRequest) {
   // CSRF protection: ensure same-origin request (defense in depth alongside SameSite=Lax)
   if (!checkCSRF(req)) {
     return NextResponse.json({ error: "CSRF validation failed." }, { status: 403 });
   }
-  // Audit isolé : ne casse jamais le logout si l'audit échoue.
+  try {
+    await auth.api.signOut({ headers: Object.fromEntries(req.headers.entries()) as any });
+  } catch {
+    /* best-effort */
+  }
   try {
     await db.analyticsEvent.create({
       data: { type: "community_cta_clicked", ref: "admin-logout" },
@@ -18,8 +23,5 @@ export async function POST(req: NextRequest) {
   } catch {
     /* ignore */
   }
-  return NextResponse.json(
-    { ok: true },
-    { headers: { "Set-Cookie": adminCookieHeader(null) } },
-  );
+  return NextResponse.json({ ok: true });
 }

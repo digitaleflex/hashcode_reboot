@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireAdminRole, checkCSRF, readAdminCookie, getAdminRoleFromToken } from "@/lib/admin-auth";
+import { requireAdminRole, checkCSRF, getAdminRole } from "@/lib/admin-auth";
 import { audit } from "@/lib/admin-audit";
 import { bodyLimit } from "@/lib/body-limit";
 import { blockIfTesting } from "@/lib/test-guard";
@@ -45,7 +45,7 @@ const createSchema = z.object({
  * les templates créés depuis l'admin (absents du registre).
  */
 export async function GET(req: NextRequest) {
-  if (!requireAdminRole(req, "viewer")) {
+  if (!(await requireAdminRole(req, "viewer"))) {
     return NextResponse.json({ error: "Non autorisé.", code: "UNAUTHORIZED" }, { status: 401 });
   }
 
@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
   if (blocked) return blocked;
   const tooLarge = bodyLimit(req);
   if (tooLarge) return tooLarge;
-  if (!requireAdminRole(req, "operator")) {
+  if (!(await requireAdminRole(req, "operator"))) {
     return NextResponse.json({ error: "Accès refusé. Rôle operator requis.", code: "FORBIDDEN" }, { status: 403 });
   }
   if (!checkCSRF(req)) {
@@ -184,7 +184,7 @@ export async function POST(req: NextRequest) {
       preheader: d.preheader,
       bodyHtml,
       isActive: false,
-      updatedBy: getAdminRoleFromToken(readAdminCookie(req)) ?? null,
+      updatedBy: (await getAdminRole(req)) ?? null,
     },
     select: { key: true, name: true, category: true },
   });
@@ -194,7 +194,7 @@ export async function POST(req: NextRequest) {
     "email_template",
     created.key,
     { name: created.name, warnings: probe.warnings.length },
-    { type: "admin", role: getAdminRoleFromToken(readAdminCookie(req)) ?? "operator" },
+    { type: "admin", role: (await getAdminRole(req)) ?? "operator" },
   );
 
   return NextResponse.json({ ok: true, template: created, warnings: probe.warnings }, { status: 201 });

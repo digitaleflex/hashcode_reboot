@@ -224,7 +224,7 @@ function computeChange(current: FunnelData, previous: FunnelData) {
 
 /** GET /api/analytics — funnel summary (admin-only). */
 export async function GET(req: NextRequest) {
-  if (!isAdminAuthed(req)) {
+  if (!(await isAdminAuthed(req))) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 

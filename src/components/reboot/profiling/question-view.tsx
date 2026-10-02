@@ -10,6 +10,7 @@ import { RebootButton, CtaArrow } from "../shared";
 import { OptionCard } from "../option-card";
 import { CountrySelect } from "../country-select";
 import { MultiChoiceView, TextView, LongTextView, ErrorNote } from "./views";
+import { useTranslations } from "next-intl";
 
 /* ------------------------------------------------------------------ */
 /* Per-question view                                                   */
@@ -38,6 +39,7 @@ export function QuestionView({
   onCountry: (v: string) => void;
   onContinue: () => void;
 }) {
+  const t = useTranslations("profiling");
   void debouncedError;
   const options = React.useMemo(
     () =>
@@ -50,8 +52,8 @@ export function QuestionView({
     if (question.type !== "single_choice" || options.length === 0) return;
     function onKey(e: KeyboardEvent) {
       // Ignore when focus is in an input/textarea/select.
-      const t = e.target as HTMLElement | null;
-      if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+      const target = e.target as HTMLElement | null;
+      if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
       const n = parseInt(e.key, 10);
       if (!isNaN(n) && n >= 1 && n <= options.length) {
         e.preventDefault();
@@ -150,7 +152,7 @@ export function QuestionView({
               onClick={onContinue}
               disabled={!value}
             >
-              Continuer
+              {t("questionView.continue")}
               <CtaArrow />
             </RebootButton>
           </div>
