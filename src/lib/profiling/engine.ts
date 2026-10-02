@@ -68,53 +68,105 @@ export function isProfilingComplete(
   return visible.every((q) => !q.required || answeredIds.has(q.id));
 }
 
+/** Translation function type for validation messages. */
+export type ValidationTFunction = (key: string, vars?: Record<string, string | number>) => string;
+
+/** Default (French) validation messages — used when no t function provided. */
+const defaultValidationMessages = {
+  chooseOption: "Choisis une option.",
+  invalidOption: "Option invalide.",
+  invalidSelection: "Sélection invalide.",
+  fieldRequired: "Ce champ est requis.",
+  minChars: (minChars: number) => `Minimum ${minChars} caractères.`,
+  maxChars: (maxChars: number) => `Maximum ${maxChars} caractères.`,
+  writeSentence: "Écris au moins une phrase.",
+  beMorePrecise: (minChars: number) => `Sois un peu plus précis (min. ${minChars} caractères).`,
+  tooLong: (maxChars: number) => `Trop long (max. ${maxChars} caractères).`,
+  emailRequired: "Ton adresse email est requise.",
+  emailInvalid: "Format d'email invalide.",
+  chooseCountry: "Choisis ton pays.",
+};
+
 /** Validate an answer for a given question. Returns error message or null. */
 export function validateAnswer(
   question: Question,
   raw: unknown,
+  t?: ValidationTFunction,
 ): string | null {
+  const makeMsg = t
+    ? {
+        chooseOption: () => t("validation.chooseOption"),
+        invalidOption: () => t("validation.invalidOption"),
+        invalidSelection: () => t("validation.invalidSelection"),
+        fieldRequired: () => t("validation.fieldRequired"),
+        minChars: (n: number) => t("validation.minChars", { minChars: n }),
+        maxChars: (n: number) => t("validation.maxChars", { maxChars: n }),
+        writeSentence: () => t("validation.writeSentence"),
+        beMorePrecise: (n: number) => t("validation.beMorePrecise", { minChars: n }),
+        tooLong: (n: number) => t("validation.tooLong", { maxChars: n }),
+        emailRequired: () => t("validation.emailRequired"),
+        emailInvalid: () => t("validation.emailInvalid"),
+        chooseCountry: () => t("validation.chooseCountry"),
+      }
+    : {
+        chooseOption: () => defaultValidationMessages.chooseOption,
+        invalidOption: () => defaultValidationMessages.invalidOption,
+        invalidSelection: () => defaultValidationMessages.invalidSelection,
+        fieldRequired: () => defaultValidationMessages.fieldRequired,
+        minChars: (n: number) => defaultValidationMessages.minChars(n),
+        maxChars: (n: number) => defaultValidationMessages.maxChars(n),
+        writeSentence: () => defaultValidationMessages.writeSentence,
+        beMorePrecise: (n: number) => defaultValidationMessages.beMorePrecise(n),
+        tooLong: (n: number) => defaultValidationMessages.tooLong(n),
+        emailRequired: () => defaultValidationMessages.emailRequired,
+        emailInvalid: () => defaultValidationMessages.emailInvalid,
+        chooseCountry: () => defaultValidationMessages.chooseCountry,
+      };
+
+  const msg = makeMsg;
+
   if (!question.required && (raw === undefined || raw === "" || raw === null)) {
     return null;
   }
   switch (question.type) {
     case "single_choice": {
-      if (!raw || typeof raw !== "string") return "Choisis une option.";
+      if (!raw || typeof raw !== "string") return msg.chooseOption();
       const options = getOptionsFor(question);
       if (options.length && !options.some((o) => o.value === raw))
-        return "Option invalide.";
+        return msg.invalidOption();
       return null;
     }
     case "multi_choice": {
-      if (!Array.isArray(raw)) return "Sélection invalide.";
+      if (!Array.isArray(raw)) return msg.invalidSelection();
       return null;
     }
     case "text": {
       const v = typeof raw === "string" ? raw.trim() : "";
-      if (question.required && !v) return "Ce champ est requis.";
+      if (question.required && !v) return msg.fieldRequired();
       if (question.minChars && v.length < question.minChars)
-        return `Minimum ${question.minChars} caractères.`;
+        return msg.minChars(question.minChars);
       if (question.maxChars && v.length > question.maxChars)
-        return `Maximum ${question.maxChars} caractères.`;
+        return msg.maxChars(question.maxChars);
       return null;
     }
     case "longtext": {
       const v = typeof raw === "string" ? raw.trim() : "";
-      if (question.required && !v) return "Écris au moins une phrase.";
+      if (question.required && !v) return msg.writeSentence();
       if (question.minChars && v.length < question.minChars)
-        return `Sois un peu plus précis (min. ${question.minChars} caractères).`;
+        return msg.beMorePrecise(question.minChars);
       if (question.maxChars && v.length > question.maxChars)
-        return `Trop long (max. ${question.maxChars} caractères).`;
+        return msg.tooLong(question.maxChars);
       return null;
     }
     case "email": {
       const v = typeof raw === "string" ? raw.trim() : "";
-      if (!v) return "Ton adresse email est requise.";
-      if (!EMAIL_RE.test(v)) return "Format d'email invalide.";
+      if (!v) return msg.emailRequired();
+      if (!EMAIL_RE.test(v)) return msg.emailInvalid();
       return null;
     }
     case "country": {
       const v = typeof raw === "string" ? raw.trim() : "";
-      if (!v) return "Choisis ton pays.";
+      if (!v) return msg.chooseCountry();
       return null;
     }
   }

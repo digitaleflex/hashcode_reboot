@@ -4,17 +4,18 @@ import * as React from "react";
 import { ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MonoLabel } from "../shared";
+import { useTranslations } from "next-intl";
 
 /* ------------------------------------------------------------------ */
 /* Shell: nav + progress + back                                        */
 /* ------------------------------------------------------------------ */
 
-const MILESTONES: { key: string; label: string }[] = [
-  { key: "profil", label: "Profil" },
-  { key: "objectifs", label: "Objectif" },
-  { key: "rythme", label: "Rythme" },
-  { key: "mentorat", label: "Mentorat" },
-  { key: "vision", label: "Vision" },
+const MILESTONE_KEYS: { key: string; labelKey: string }[] = [
+  { key: "profil", labelKey: "shell.milestones.profil" },
+  { key: "objectifs", labelKey: "shell.milestones.objectifs" },
+  { key: "rythme", labelKey: "shell.milestones.rythme" },
+  { key: "mentorat", labelKey: "shell.milestones.mentorat" },
+  { key: "vision", labelKey: "shell.milestones.vision" },
 ];
 
 export function ProfilingShell({
@@ -25,6 +26,8 @@ export function ProfilingShell({
   microcopy,
   group,
   showCompletionIndicator,
+  currentStep,
+  totalSteps,
 }: {
   children: React.ReactNode;
   progress: number;
@@ -33,8 +36,11 @@ export function ProfilingShell({
   microcopy?: string;
   group?: string;
   showCompletionIndicator?: boolean;
+  currentStep?: number;
+  totalSteps?: number;
 }) {
-  const activeIdx = group ? MILESTONES.findIndex((m) => m.key === group) : -1;
+  const t = useTranslations("profiling");
+  const activeIdx = group ? MILESTONE_KEYS.findIndex((m) => m.key === group) : -1;
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -43,18 +49,37 @@ export function ProfilingShell({
           <button
             onClick={onBack}
             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors focus-lime"
+            aria-label={t("shell.back")}
           >
             <ArrowLeft className="size-4" />
-            <span className="hidden sm:inline">Retour</span>
+            <span className="hidden sm:inline">{t("shell.back")}</span>
           </button>
           <MonoLabel>{stepLabel}</MonoLabel>
-          <span className="text-xs text-muted-foreground mono-label tabular-nums flex items-center gap-2">
-            <span>~{Math.max(1, Math.round((1 - progress) * 120))} min restantes</span>
-            <span className="text-border">·</span>
-            <span>{Math.round(progress * 100)}%</span>
-          </span>
+          <div className="flex items-center gap-2">
+            {currentStep !== undefined && totalSteps !== undefined && (
+              <span
+                className="text-xs text-muted-foreground mono-label tabular-nums"
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                {t("shell.stepCounter", { currentStep: currentStep + 1, totalSteps })}
+              </span>
+            )}
+            <span className="text-xs text-muted-foreground mono-label tabular-nums flex items-center gap-2" aria-live="polite" aria-atomic="true">
+              <span>{t("shell.timeRemaining", { minutes: Math.max(1, Math.round((1 - progress) * 120)) })}</span>
+              <span className="text-border">·</span>
+              <span>{t("shell.percent", { percent: Math.round(progress * 100) })}</span>
+            </span>
+          </div>
         </div>
-        <div className="h-0.5 bg-border">
+        <div
+          className="h-0.5 bg-border"
+          role="progressbar"
+          aria-valuenow={Math.round(progress * 100)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={t("shell.progressAriaLabel")}
+        >
           <div
             className="h-full bg-lime transition-[width] duration-320 ease-out"
             style={{ width: `${Math.max(2, progress * 100)}%` }}
@@ -68,7 +93,7 @@ export function ProfilingShell({
         {/* Milestone group indicator — subtle stage tracker */}
         {activeIdx >= 0 && (
           <div className="mx-auto max-w-2xl px-5 sm:px-8 py-2 flex items-center gap-1.5 overflow-x-auto scroll-slim">
-            {MILESTONES.map((m, i) => {
+            {MILESTONE_KEYS.map((m, i) => {
               const done = i < activeIdx;
               const active = i === activeIdx;
               const isCurrentGroup = group === m.key;
@@ -80,15 +105,15 @@ export function ProfilingShell({
                       active
                         ? "text-lime"
                         : done
-                          ? "text-muted-foreground"
-                          : isCurrentGroup
-                          ? "text-lime/80"
-                          : "text-border",
+                        ? "text-muted-foreground"
+                        : isCurrentGroup
+                        ? "text-lime/80"
+                        : "text-border",
                     )}
                   >
-                    {m.label}
+                    {t(m.labelKey)}
                   </span>
-                  {i < MILESTONES.length - 1 && (
+                  {i < MILESTONE_KEYS.length - 1 && (
                     <span
                       className={cn(
                         "h-px w-3 shrink-0 transition-colors",
@@ -117,7 +142,7 @@ export function ProfilingShell({
       <footer className="border-t border-border/60">
         <div className="mx-auto max-w-2xl px-5 sm:px-8 py-3 flex items-center justify-between gap-4">
           <p className="text-xs text-muted-foreground hidden sm:block">
-            Tes réponses servent à mieux comprendre ton profil.
+            {t("shell.footer.description")}
           </p>
           {/* Keyboard shortcut hint — only on single-choice questions */}
           {group && group !== "vision" && (
@@ -125,7 +150,7 @@ export function ProfilingShell({
               <kbd className="inline-flex items-center justify-center size-4 rounded-sm border border-border bg-card text-[11px] font-mono">1</kbd>
               <span>–</span>
               <kbd className="inline-flex items-center justify-center size-4 rounded-sm border border-border bg-card text-[11px] font-mono">9</kbd>
-              <span className="hidden sm:inline">pour choisir</span>
+              <span className="hidden sm:inline">{t("shell.footer.keyboardHint")}</span>
             </span>
           )}
         </div>

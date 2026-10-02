@@ -13,7 +13,7 @@ export function MemberTableSkeleton() {
 
       {/* Table */}
       <div className="rounded-md border border-border/60 bg-card/30 overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto scroll-slim">
           <table className="w-full min-w-[720px] text-sm" aria-hidden="true">
             <thead>
               <tr className="border-b border-border/60 bg-secondary/30">

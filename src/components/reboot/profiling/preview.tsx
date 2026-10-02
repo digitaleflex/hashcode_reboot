@@ -7,6 +7,7 @@ import { HashSymbol } from "@/components/brand/logo";
 import { RebootButton, CtaArrow } from "../shared";
 import { ProfileCard } from "../profile-card";
 import { ProfilingShell } from "./shell";
+import { useTranslations } from "next-intl";
 
 /* --- Profile preview interlude (after threeMonthGoal, before contact) --- */
 
@@ -19,12 +20,13 @@ export function ProfilePreview({
   onFinalize: () => void;
   onEdit: () => void;
 }) {
+  const t = useTranslations("profiling");
   const gen = generateProfile(answers);
   return (
     <ProfilingShell
       progress={0.98}
       onBack={onEdit}
-      stepLabel="Ton profil HASHCODE est prêt"
+      stepLabel={t("preview.title")}
       group="vision"
       showCompletionIndicator
     >
@@ -32,10 +34,10 @@ export function ProfilePreview({
         <div className="max-w-xl mx-auto text-center">
           <HashSymbol className="mx-auto text-lime" size={40} />
           <h2 className="mt-5 font-display font-bold text-2xl sm:text-3xl tracking-tight">
-            Ton profil HASHCODE est prêt.
+            {t("preview.title")}
           </h2>
           <p className="mt-2 text-muted-foreground">
-            {gen.archetype} — {gen.domainLabel}. Voici la première orientation qu&apos;on tire de tes réponses.
+            {t("preview.body", { archetype: gen.archetype, domainLabel: gen.domainLabel })}
           </p>
         </div>
         <div className="mt-8 max-w-md mx-auto">
@@ -47,7 +49,7 @@ export function ProfilePreview({
             className="group w-full"
             onClick={onFinalize}
           >
-            Finaliser mon profil
+            {t("preview.finalize")}
             <CtaArrow />
           </RebootButton>
           <RebootButton
@@ -56,11 +58,11 @@ export function ProfilePreview({
             onClick={onEdit}
             className="w-full sm:w-auto whitespace-nowrap"
           >
-            <ArrowLeft className="size-4 shrink-0" /> Modifier mes réponses
+            <ArrowLeft className="size-4 shrink-0" /> {t("preview.edit")}
           </RebootButton>
         </div>
         <p className="mt-6 max-w-md mx-auto text-center text-xs text-muted-foreground">
-          Tu pourras compléter ton numéro WhatsApp plus tard, depuis ton espace membre.
+          {t("preview.whatsappNote")}
         </p>
       </div>
     </ProfilingShell>
@@ -70,11 +72,12 @@ export function ProfilePreview({
 /* --- Finalizing transition (replaces the old black-screen `return null`) --- */
 
 export function FinalizingState({ onBack }: { onBack: () => void }) {
+  const t = useTranslations("profiling");
   return (
     <ProfilingShell
       progress={1}
       onBack={onBack}
-      stepLabel="Finalisation…"
+      stepLabel={t("finalizing.title")}
       showCompletionIndicator
     >
       <div className="text-center animate-hash-in">
@@ -83,10 +86,10 @@ export function FinalizingState({ onBack }: { onBack: () => void }) {
           <span className="absolute inset-0 animate-hash-sweep rounded-sm overflow-hidden" />
         </div>
         <h2 className="mt-5 font-display font-bold text-lg text-foreground">
-          On finalise ton profil…
+          {t("finalizing.body")}
         </h2>
         <p className="mt-1.5 text-sm text-muted-foreground">
-          Une seconde.
+          {t("finalizing.subtitle")}
         </p>
       </div>
     </ProfilingShell>

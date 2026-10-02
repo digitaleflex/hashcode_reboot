@@ -657,7 +657,7 @@ export function CampaignLogPanel({ onSessionExpired }: { onSessionExpired: () =>
 
           {/* Desktop : tableau */}
           <div className="hidden rounded-md border border-border bg-card md:block">
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto scroll-slim">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border">

@@ -148,7 +148,7 @@ export function BlacklistTable() {
           Aucun email blacklisté pour le moment.
         </div>
       ) : (
-        <div className="rounded-md border border-border/60 overflow-x-auto">
+        <div className="rounded-md border border-border/60 overflow-x-auto scroll-slim">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs text-muted-foreground mono-label border-b border-border/40 bg-card/40">

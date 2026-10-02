@@ -18,13 +18,22 @@ export default defineConfig({
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
+        launchOptions: {
+          args: ['--js-flags=--max-old-space-size=4096', '--disable-dev-shm-usage'],
+        },
       },
     },
   ],
-  webServer: {
-    command: process.env.CI ? 'npm run start' : 'npm run dev',
-    url: 'http://localhost:3000',
-    reuseExistingServer: !process.env.CI,
-    timeout: 60000,
+  // Don't start a web server - assume one is already running on localhost:3000
+  // webServer: {
+  //   command: process.env.CI ? 'npm run start' : 'npm run dev',
+  //   url: 'http://localhost:3000',
+  //   reuseExistingServer: true, // Always reuse existing server to avoid memory issues
+  //   timeout: 120000,
+  // },
+  // Increase timeout for tests
+  timeout: 60000,
+  expect: {
+    timeout: 10000,
   },
 });

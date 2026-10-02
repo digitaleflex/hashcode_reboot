@@ -86,13 +86,30 @@ export function runAutoControls(a: ProfileAnswers): AutoControlsResult {
   };
 }
 
-/** Human-readable reason labels (used by the pending screen). */
-export const REASON_LABELS: Record<string, string> = {
+/** Translation function type for reason labels. */
+export type ReasonLabelTFunction = (key: string) => string;
+
+/** Default (French) reason labels — used when no t function provided. */
+const defaultReasonLabels: Record<string, string> = {
   "missing-core": "Informations essentielles à confirmer",
   "disposable-email": "Adresse email à vérifier",
   "low-signal-goal": "Objectif à préciser ensemble",
   "high-value-mentoring-lead": "Demande d'accompagnement prioritaire",
 };
+
+/** Get translated reason labels. */
+export function getReasonLabels(t?: ReasonLabelTFunction): Record<string, string> {
+  if (!t) return defaultReasonLabels;
+  return {
+    "missing-core": t("autoControls.missingCore"),
+    "disposable-email": t("autoControls.disposableEmail"),
+    "low-signal-goal": t("autoControls.lowSignalGoal"),
+    "high-value-mentoring-lead": t("autoControls.highValueMentoringLead"),
+  };
+}
+
+/** Default export for backwards compatibility. */
+export const REASON_LABELS = getReasonLabels();
 
 /**
  * Canonical WhatsApp URL (server-side).

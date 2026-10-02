@@ -77,6 +77,9 @@ model Member {
   // --- Mentorat (#61) ---
   mentorContactedAt DateTime? // l'admin a contacté ce lead mentorat
 
+  // --- Better Auth link (via email lookup, no FK constraint) ---
+  userEmail String?
+
   // --- Invitation tracking ---
   invitationStatus String    @default("NOT_INVITED") // NOT_INVITED | INVITED | ACCEPTED | REFUSED | BOUNCED | EXPIRED
   invitedAt        DateTime? // quand l'invitation a été envoyée
@@ -110,6 +113,87 @@ model Member {
   @@index([communityStatus])
   @@index([createdAt])
   @@index([deletedAt])
+}
+
+/// Better Auth tables for authentication
+/// These are managed by Better Auth and the Prisma adapter
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Link to our Member profile (via email lookup, no FK constraint)
+  memberEmail   String?   @unique
+
+  sessions      Session[]
+  accounts      Account[]
+  verifications Verification[]
+
+  @@index([email])
+  @@index([memberEmail])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  expiresAt    DateTime
+  token        String   @unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  ipAddress    String?
+  userAgent    String?
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  accountId         String
+  providerId        String
+  userId            String
+  accessToken       String?
+  refreshToken      String?
+  idToken           String?
+  accessTokenExpiresAt DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope             String?
+  password          String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User?    @relation(fields: [userId], references: [id])
+  userId     String?
+
+  @@index([identifier])
+  @@index([expiresAt])
+}
+
+model RateLimit {
+  id         String   @id @default(cuid())
+  key        String   @unique
+  count      Int
+  lastRequest BigInt
+  createdAt  DateTime @default(now())
+
+  @@index([key])
 }
 
 // Clés admin persistées (rotation, expiration, invalidation)

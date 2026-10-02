@@ -11,11 +11,12 @@ import {
 } from "./shared";
 import { ProfileCard } from "./profile-card";
 import type { GeneratedProfile, ProfileAnswers } from "@/lib/profiling/types";
-import { REASON_LABELS } from "@/lib/profiling/auto-controls";
+import { getReasonLabels } from "@/lib/profiling/auto-controls";
 import { countryName, countryFlag } from "@/lib/profiling/countries";
 import { track } from "@/lib/analytics";
 import { Check, Clock, Loader2, Mail, MessageCircle, Share2, ShieldCheck } from "lucide-react";
 import { EmailVerificationNudge } from "./email-verify-card";
+import { useTranslations } from "next-intl";
 
 export interface WelcomeResult {
   memberId: string;
@@ -53,6 +54,7 @@ export function Welcome({
   onReset: () => void;
   onOpenPrivacy?: () => void;
 }) {
+  const t = useTranslations("profiling");
   const isImmediate = result.accessLane === "immediate";
   const isDuplicate = !!result.duplicate;
   const [shareState, setShareState] = React.useState<"idle" | "copied">(
@@ -71,8 +73,8 @@ export function Welcome({
     try {
       if (navigator.share) {
         await navigator.share({
-          title: "Mon profil HASHCODE",
-          text: `Je viens de rejoindre le Reboot HASHCODE comme ${result.profile.archetype}.`,
+          title: t("welcome.shareTitle", { archetype: result.profile.archetype }),
+          text: t("welcome.shareText", { archetype: result.profile.archetype }),
           url: shareUrl,
         });
       } else {
@@ -91,7 +93,7 @@ export function Welcome({
         <div className="mx-auto max-w-3xl px-5 sm:px-8 h-14 flex items-center justify-between">
           <Logo variant="compact" size="sm" />
           <MonoLabel className="text-muted-foreground">
-            {isDuplicate ? "Profil existant" : "Profil enregistré"}
+            {isDuplicate ? t("welcome.existingProfile") : t("welcome.profileSaved")}
           </MonoLabel>
         </div>
       </header>
@@ -106,10 +108,10 @@ export function Welcome({
               </span>
               <div>
                 <p className="text-sm text-foreground font-medium">
-                  Tu as déjà commencé ton profil HASHCODE.
+                  {t("welcome.alreadyStarted")}
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  On a retrouvé ton profil. Voici où en est ton accès.
+                  {t("welcome.profileFound")}
                 </p>
               </div>
             </div>
@@ -119,21 +121,21 @@ export function Welcome({
           <div className="animate-hash-in">
             <HashSymbol className="text-lime" size={44} />
             <h1 className="mt-5 font-display font-extrabold italic tracking-tight text-3xl sm:text-4xl text-foreground leading-[0.95]">
-              Bienvenue dans le Reboot.
+              {t("welcome.rebootWelcome")}
             </h1>
             <p className="mt-3 text-muted-foreground text-base sm:text-lg leading-relaxed">
               {isImmediate
-                ? "Ton profil est enregistré. La nouvelle expérience HASHCODE se construit maintenant."
-                : "Ton profil est enregistré. On te recontacte très vite pour ton invitation personnelle."}
+                ? t("welcome.immediateHero")
+                : t("welcome.pendingHero")}
             </p>
           </div>
 
           {/* Branching result card */}
           <div className="mt-7">
             {isImmediate ? (
-              <ImmediateBranch answers={answers} result={result} />
+              <ImmediateBranch answers={answers} result={result} t={t} />
             ) : (
-              <PendingBranch answers={answers} result={result} />
+              <PendingBranch answers={answers} result={result} t={t} />
             )}
           </div>
 
@@ -145,7 +147,7 @@ export function Welcome({
           {/* Profile card */}
           <div className="mt-8">
             <MonoLabel className="text-muted-foreground mb-3 block">
-              Ton profil
+              {t("welcome.yourProfile")}
             </MonoLabel>
             <ProfileCard
               profile={result.profile}
@@ -167,12 +169,12 @@ export function Welcome({
                   onClick={handleWhatsAppClick}
                 >
                   <MessageCircle className="size-4" />
-                  Rejoindre la communauté officielle
+                  {t("welcome.joinCommunity")}
                 </span>
               </ExternalCta>
             )}
             <RebootButton size="lg" variant="outline" onClick={onReset} className="w-full sm:w-auto sm:mx-auto">
-              Retourner à HASHCODE
+              {t("welcome.backToHashcode")}
             </RebootButton>
           </div>
 
@@ -188,7 +190,7 @@ export function Welcome({
               )}
             >
               <Share2 className="size-3.5" />
-              {shareState === "copied" ? "Lien copié ✓" : "Partager mon profil"}
+              {shareState === "copied" ? t("welcome.linkCopied") : t("welcome.shareProfile")}
             </button>
             {onOpenPrivacy && (
               <button
@@ -196,7 +198,7 @@ export function Welcome({
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-card text-xs text-muted-foreground hover:text-lime hover:border-lime/50 transition-colors focus-lime"
               >
                 <ShieldCheck className="size-3.5" />
-                Confidentialité
+                {t("welcome.privacy")}
               </button>
             )}
           </div>
@@ -214,7 +216,7 @@ export function Welcome({
       <footer className="mt-auto border-t border-border/60">
         <div className="mx-auto max-w-3xl px-5 sm:px-8 py-4">
           <p className="text-center text-xs text-muted-foreground">
-            HASHCODE · REBOOT — Une nouvelle génération de la communauté commence.
+            {t("welcome.footer")}
           </p>
         </div>
       </footer>
@@ -227,6 +229,7 @@ export function Welcome({
 /* ------------------------------------------------------------------ */
 
 function WhatsAppCapture({ memberId }: { memberId: string }) {
+  const t = useTranslations("profiling");
   const [phone, setPhone] = React.useState("");
   const [state, setState] = React.useState<"idle" | "saving" | "saved">("idle");
   const [error, setError] = React.useState<string | null>(null);
@@ -244,13 +247,13 @@ function WhatsAppCapture({ memberId }: { memberId: string }) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data.error ?? "Erreur. Réessaie.");
+        setError(data.error ?? t("welcome.errorGeneric"));
         setState("idle");
         return;
       }
       setState("saved");
     } catch {
-      setError("Erreur réseau. Vérifie ta connexion.");
+      setError(t("welcome.errorNetwork"));
       setState("idle");
     }
   }
@@ -259,7 +262,7 @@ function WhatsAppCapture({ memberId }: { memberId: string }) {
     return (
       <div className="mt-4 flex items-center gap-2 rounded-md border border-lime/40 bg-lime/5 px-3.5 py-3 text-sm text-foreground">
         <Check className="size-4 text-lime shrink-0" />
-        C&apos;est noté ! On t&apos;ajoute directement au groupe WhatsApp.
+        {t("welcome.addedToWhatsApp")}
       </div>
     );
   }
@@ -270,10 +273,10 @@ function WhatsAppCapture({ memberId }: { memberId: string }) {
       className="mt-4 rounded-md border border-border/60 bg-black/20 p-3.5"
     >
       <p className="text-sm text-foreground font-medium">
-        On t&apos;ajoute directement au groupe ?
+        {t("welcome.addToWhatsApp")}
       </p>
       <p className="mt-0.5 text-xs text-muted-foreground">
-        Laisse ton WhatsApp — sinon, utilise le lien d&apos;invitation reçu par email.
+        {t("welcome.addToWhatsAppHint")}
       </p>
       <div className="mt-2.5 flex gap-2">
         <input
@@ -283,8 +286,8 @@ function WhatsAppCapture({ memberId }: { memberId: string }) {
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           maxLength={40}
-          placeholder="+229 ..."
-          aria-label="Numéro WhatsApp"
+          placeholder="+229 …"
+          aria-label={t("welcome.whatsappNumber")}
           className="flex-1 min-w-0 rounded-md border border-border/60 bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus:border-lime/50 focus:ring-1 focus:ring-lime/30"
         />
         <button
@@ -297,7 +300,7 @@ function WhatsAppCapture({ memberId }: { memberId: string }) {
           ) : (
             <MessageCircle className="size-4" />
           )}
-          Ajouter
+          {t("welcome.add")}
         </button>
       </div>
       {error && <p className="mt-1.5 text-xs text-red-400">{error}</p>}
@@ -312,9 +315,11 @@ function WhatsAppCapture({ memberId }: { memberId: string }) {
 function ImmediateBranch({
   answers,
   result,
+  t,
 }: {
   answers: ProfileAnswers;
   result: WelcomeResult;
+  t: ReturnType<typeof useTranslations>;
 }) {
   return (
     <div className="relative rounded-lg border border-lime/40 bg-lime/[0.04] p-5 sm:p-6 overflow-hidden lift-on-hover">
@@ -330,36 +335,34 @@ function ImmediateBranch({
           <Check className="size-5" strokeWidth={3} />
         </span>
         <div className="flex-1">
-          <MonoLabel className="text-lime">Accès immédiat</MonoLabel>
+          <MonoLabel className="text-lime">{t("welcome.immediateAccess")}</MonoLabel>
           <h2 className="mt-1 font-display font-bold text-lg text-foreground leading-snug">
-            Tu peux rejoindre la communauté officielle maintenant.
+            {t("welcome.joinNow")}
           </h2>
           <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">
-            Ton profil est compatible avec HASHCODE. On t&apos;ouvre l&apos;accès
-            tout de suite — pas d&apos;attente, pas de friction.
+            {t("welcome.immediateDescription")}
           </p>
           <div className="mt-4 grid grid-cols-2 gap-3">
             <MiniStat
               icon={<Check className="size-3.5" />}
-              label="Profil validé"
-              value="APPROVED"
+              label={t("welcome.profileValidated")}
+              value={t("welcome.approved")}
               tone="lime"
             />
             <MiniStat
               icon={<MessageCircle className="size-3.5" />}
-              label="Invitation"
-              value="Envoyée"
+              label={t("welcome.invitation")}
+              value={t("welcome.sent")}
               tone="lime"
             />
           </div>
           <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
             <Clock className="size-3" />
-            <span className="mono-label">Maintenant · {new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span>
+            <span className="mono-label">{t("welcome.now", { time: new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) })}</span>
           </div>
           {answers.country && (
             <p className="mt-3 text-xs text-muted-foreground">
-              Communauté locale&nbsp;: {countryFlag(answers.country)}{" "}
-              {countryName(answers.country)} — on te retrouvera aussi là.
+              {t("welcome.localCommunity", { flag: countryFlag(answers.country), country: countryName(answers.country) })}
             </p>
           )}
           {/* Capture WhatsApp post-conversion : l'utilisateur vient de recevoir
@@ -383,12 +386,15 @@ function ImmediateBranch({
 function PendingBranch({
   answers,
   result,
+  t,
 }: {
   answers: ProfileAnswers;
   result: WelcomeResult;
+  t: ReturnType<typeof useTranslations>;
 }) {
+  const reasonLabels = getReasonLabels(t);
   const reasons = result.reasons
-    .map((r) => REASON_LABELS[r] ?? r)
+    .map((r) => reasonLabels[r] ?? r)
     .filter(Boolean);
 
   return (
@@ -399,13 +405,12 @@ function PendingBranch({
           <Clock className="size-5" />
         </span>
         <div className="flex-1">
-          <MonoLabel className="text-muted-foreground">En traitement</MonoLabel>
+          <MonoLabel className="text-muted-foreground">{t("welcome.processing")}</MonoLabel>
           <h2 className="mt-1 font-display font-bold text-lg text-foreground">
-            On prépare ton invitation personnalisée.
+            {t("welcome.personalInvitation")}
           </h2>
           <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">
-            Pour certaines inscriptions, une touche humaine fait une vraie
-            différence. On revient vers toi par email avec ton accès.
+            {t("welcome.pendingDescription")}
           </p>
 
           {reasons.length > 0 && (
@@ -425,20 +430,19 @@ function PendingBranch({
           <div className="mt-4 grid grid-cols-2 gap-3">
             <MiniStat
               icon={<Clock className="size-3.5" />}
-              label="Statut"
-              value="EN ATTENTE"
+              label={t("welcome.status")}
+              value={t("welcome.pending")}
               tone="muted"
             />
             <MiniStat
               icon={<Mail className="size-3.5" />}
-              label="Contact"
+              label={t("welcome.contact")}
               value={answers.email}
               tone="muted"
             />
           </div>
           <p className="mt-4 text-xs text-muted-foreground">
-            Délai estimé&nbsp;: sous 48 h. Vérifie tes spams — l&apos;email vient
-            de HASHCODE.
+            {t("welcome.estimatedDelay")}
           </p>
         </div>
       </div>

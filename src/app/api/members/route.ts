@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { profileSchema, answersToCreatePayload } from "@/lib/profiling/validate";
+import { createProfileSchema, answersToCreatePayload } from "@/lib/profiling/validate";
 import { runAutoControls } from "@/lib/profiling/auto-controls";
 import { generateProfile } from "@/lib/profiling/engine";
 import { sendInvitationEmail, sendWelcomeEmail, sendWaitlistEmail, sendVerificationLinkEmail } from "@/lib/mail";
@@ -16,6 +16,7 @@ import {
   issuePhoneFillTicket,
   phoneFillSetCookie,
 } from "@/lib/phone-fill-ticket";
+import { getTranslations } from "next-intl/server";
 
 export const runtime = "nodejs";
 
@@ -30,8 +31,9 @@ export async function POST(req: NextRequest) {
   // Anti-spam: 5 submissions per IP per 10 minutes (bucket dédié).
   const rl = await rateLimit(`members-submit:${rateKey(req)}`, { capacity: 5, windowMs: 600000 });
   if (!rl.ok) {
+    const t = await getTranslations("profiling");
     return NextResponse.json(
-      { error: "Trop de soumissions. Réessaie dans quelques minutes." },
+      { error: t("api.tooManySubmissions") },
       {
         status: 429,
         headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) },
@@ -43,17 +45,22 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
+    const t = await getTranslations("profiling");
     return NextResponse.json(
-      { error: "Corps de requête invalide." },
+      { error: t("api.invalidJson") },
       { status: 400 },
     );
   }
+
+  // Get translations for validation
+  const t = await getTranslations("profiling");
+  const profileSchema = createProfileSchema(t);
 
   const parsed = profileSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
       {
-        error: "Données invalides.",
+        error: t("api.invalidData"),
         issues: parsed.error.issues.map((i) => ({
           path: i.path.join("."),
           message: i.message,
@@ -95,7 +102,7 @@ export async function POST(req: NextRequest) {
       {
         ok: true,
         duplicate: true,
-        message: "Tu as déjà commencé ton profil HASHCODE.",
+        message: t("api.duplicateProfile"),
       },
       { status: 200 },
     );
@@ -141,13 +148,13 @@ export async function POST(req: NextRequest) {
       {
         ok: true,
         duplicate: true,
-        message: "Tu as déjà commencé ton profil HASHCODE.",
+        message: t("api.duplicateProfile"),
       },
       { status: 200 },
     );
   }
 
-// Écritures secondaires en parallèle (analytics + draft) — jamais bloquantes.
+  // Écritures secondaires en parallèle (analytics + draft) — jamais bloquantes.
   const drafting = controls.profileStatus === "PENDING";
   await Promise.allSettled([
     db.analyticsEvent.create({
@@ -249,8 +256,9 @@ export async function POST(req: NextRequest) {
  *   défaut createdAt desc. Réponse {members, total, page, pageSize}. */
 export async function GET(req: NextRequest) {
   if (!isAdminAuthed(req)) {
+    const t = await getTranslations("profiling");
     return NextResponse.json(
-      { error: "Non autorisé.", code: "UNAUTHORIZED" },
+      { error: t("api.unauthorized"), code: "UNAUTHORIZED" },
       { status: 401 },
     );
   }
@@ -300,9 +308,10 @@ export async function GET(req: NextRequest) {
     }
     const parsedParams = paginationSchema.safeParse(rawParams);
     if (!parsedParams.success) {
+      const t = await getTranslations("profiling");
       return NextResponse.json(
         {
-          error: "Paramètres de pagination invalides.",
+          error: t("api.invalidPagination"),
           code: "INVALID_PAYLOAD",
           issues: parsedParams.error.issues,
         },
@@ -324,8 +333,9 @@ export async function GET(req: NextRequest) {
     const rawSort = p.sort ?? p.sortKey ?? p.orderBy ?? "createdAt";
     const mappedSort = SORT_FIELD_MAP[rawSort];
     if (!mappedSort) {
+      const t = await getTranslations("profiling");
       return NextResponse.json(
-        { error: "Tri invalide.", code: "INVALID_PAYLOAD" },
+        { error: t("api.invalidSort"), code: "INVALID_PAYLOAD" },
         { status: 422 },
       );
     }
@@ -414,8 +424,9 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ members, total, page, pageSize });
   } catch {
+    const t = await getTranslations("profiling");
     return NextResponse.json(
-      { error: "Erreur interne.", code: "INTERNAL_ERROR" },
+      { error: t("api.internalError"), code: "INTERNAL_ERROR" },
       { status: 500 },
     );
   }
