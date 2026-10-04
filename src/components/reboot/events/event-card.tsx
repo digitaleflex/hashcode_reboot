@@ -155,10 +155,11 @@ function EventCardBase({
           ) : null}
         </MetaRow>
 
-        {(level || domain) && (
+        {/* Le niveau est déjà porté par la pastille en tête de carte :
+            le répéter ici (« Niveau débutant ») était une redondance. */}
+        {domain && (
           <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 text-[13px] leading-5">
-            {level && <span className="text-muted-foreground">Niveau {level.toLowerCase()}</span>}
-            {domain && <span className="text-muted-foreground">Axe {domain}</span>}
+            <span className="text-muted-foreground">Axe {domain}</span>
           </div>
         )}
 
