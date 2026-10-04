@@ -111,12 +111,14 @@ export function EmailForm({ next }: { next: string }) {
       }
 
       const kind = classifyAuthError(err);
-      if (kind === "rateLimited" || kind === "network") {
+      // Les trois exceptions sont des pannes de la requête, pas des indices
+      // sur le compte : les afficher ne révèle rien de l'existence du compte.
+      // Tout le reste — y compris une éventuelle erreur pour une adresse
+      // inconnue — retombe sur la confirmation neutre.
+      if (kind === "rateLimited" || kind === "network" || kind === "unavailable") {
         setError(messageFor(kind));
         return;
       }
-      // Tout le reste — y compris une éventuelle réponse d'erreur pour une
-      // adresse inconnue — retombe sur la confirmation neutre.
       await acknowledge(trimmed, next);
     } catch {
       setError(messageFor("network"));
@@ -169,8 +171,7 @@ export function EmailForm({ next }: { next: string }) {
               "transition-colors duration-150",
               "disabled:cursor-not-allowed disabled:opacity-60",
               fieldError ? "border-destructive/70" : "border-border hover:border-border",
-              "focus:border-lime focus:outline-none focus-visible:ring-2",
-              "focus-visible:ring-lime/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+              "focus:border-lime focus:outline-none focus-visible:ring-2 focus-visible:ring-lime/45",
             ].join(" ")}
           />
         </div>

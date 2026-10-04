@@ -200,8 +200,7 @@ export function OtpInput({
             "text-foreground caret-lime transition-colors duration-150",
             "disabled:cursor-not-allowed disabled:opacity-60",
             invalid ? "border-destructive/70" : "border-border",
-            "focus:border-lime focus:outline-none focus-visible:ring-2",
-            "focus-visible:ring-lime/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+            "focus:border-lime focus:outline-none focus-visible:ring-2 focus-visible:ring-lime/45",
           ].join(" ")}
         />
       ))}
