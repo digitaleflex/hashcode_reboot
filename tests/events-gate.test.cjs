@@ -217,3 +217,80 @@ describe("normalizeEventFilters", () => {
     assert.equal(ko.domain, undefined);
   });
 });
+
+// ── Mirror of matchesPeriod (src/lib/event-period.ts) ──
+
+function matchesPeriod(startsAt, period, now = new Date()) {
+  if (period === "all") return true;
+  const start = new Date(startsAt);
+
+  if (period === "week") {
+    const offsetToMonday = (now.getDay() + 6) % 7;
+    const startOfWeek = new Date(
+      now.getFullYear(), now.getMonth(), now.getDate() - offsetToMonday,
+      0, 0, 0, 0,
+    );
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+    return start >= startOfWeek && start <= endOfWeek;
+  }
+
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  return start >= startOfMonth && start <= endOfMonth;
+}
+
+describe("matchesPeriod", () => {
+  // Lundi 5 octobre 2026, 10:00 (heure locale). 4 oct 2026 = dimanche,
+  // 5 = lundi, 11 = dimanche, 12 = lundi.
+  const now = new Date(2026, 9, 5, 10, 0, 0, 0);
+  const at = (d, h, m = 0, s = 0, ms = 0) => new Date(2026, 9, d, h, m, s, ms);
+
+  test("« all » accepte tout, même une date passée", () => {
+    assert.equal(matchesPeriod(at(1, 9).toISOString(), "all", now), true);
+    assert.equal(matchesPeriod("2020-01-01T09:00:00.000Z", "all", now), true);
+  });
+
+  test("« week » = semaine calendaire lundi → dimanche (non-régression)", () => {
+    // Toute la semaine en cours.
+    assert.equal(matchesPeriod(at(5, 9).toISOString(), "week", now), true); // lundi
+    assert.equal(matchesPeriod(at(7, 19).toISOString(), "week", now), true); // mercredi
+    assert.equal(matchesPeriod(at(10, 23).toISOString(), "week", now), true); // samedi
+    assert.equal(matchesPeriod(at(11, 23).toISOString(), "week", now), true); // dimanche
+  });
+
+  test("le dimanche NE fait PAS partie de la semaine qui commence le lundi", () => {
+    // Bug corrigé : la fenêtre était derivée du jour de l'événement et
+    // démarrait le dimanche. Dimanche 4 octobre appartient à la semaine
+    // précédente : il doit être exclu.
+    assert.equal(matchesPeriod(at(4, 19).toISOString(), "week", now), false);
+    assert.equal(matchesPeriod(at(12, 9).toISOString(), "week", now), false); // lundi suivant
+  });
+
+  test("bornes incluses : lundi 00:00:00.000 et dimanche 23:59:59.999", () => {
+    assert.equal(matchesPeriod(at(5, 0, 0, 0, 0).toISOString(), "week", now), true); // début inclus
+    assert.equal(matchesPeriod(at(11, 23, 59, 59, 999).toISOString(), "week", now), true); // fin incluse
+    assert.equal(matchesPeriod(at(4, 23, 59, 59, 999).toISOString(), "week", now), false); // veille
+    assert.equal(matchesPeriod(at(12, 0, 0, 0, 0).toISOString(), "week", now), false); // lundi suivant
+  });
+
+  test("la fenêtre ne dépend pas du jour de la semaine de l'événement", () => {
+    // Même événement, deux « aujourd'hui » de la même semaine -> même verdict.
+    const event = at(9, 19).toISOString(); // vendredi
+    assert.equal(matchesPeriod(event, "week", new Date(2026, 9, 5, 8)), true); // lundi
+    assert.equal(matchesPeriod(event, "week", new Date(2026, 9, 9, 20)), true); // vendredi
+    assert.equal(matchesPeriod(event, "week", new Date(2026, 9, 11, 22)), true); // dimanche
+    assert.equal(matchesPeriod(event, "week", new Date(2026, 9, 12, 8)), false); // lundi +1
+  });
+
+  test("« month » = mois calendaire en cours, bornes incluses", () => {
+    assert.equal(matchesPeriod(at(1, 0, 0, 0, 0).toISOString(), "month", now), true);
+    assert.equal(matchesPeriod(at(31, 23, 59, 59, 999).toISOString(), "month", now), true);
+    // Septembre : `at()` construit toujours des dates d'octobre (index 9),
+    // donc ces deux dates sont construites explicitement.
+    const sep = new Date(2026, 8, 15);
+    assert.equal(matchesPeriod(new Date(2026, 8, 30, 23).toISOString(), "month", sep), true);
+    assert.equal(matchesPeriod(new Date(2026, 9, 1, 1).toISOString(), "month", sep), false);
+  });
+});
