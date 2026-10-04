@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAdminRole } from "@/lib/admin-auth";
-import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
 import {
   SUBMISSION_STATUSES,
   ENROLLMENT_STATUSES,
 } from "@/lib/workshop-validation";
+import {
+  ForbiddenError,
+  RateLimitError,
+  errorToResponse,
+} from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,25 +42,20 @@ function zeroed(keys: readonly string[]): Record<string, number> {
  * / nombre de membres ayant effectivement soumis (pas les inscrits).
  */
 export async function GET(req: NextRequest) {
-  if (!(await requireAdminRole(req, "operator"))) {
-    return NextResponse.json(
-      { error: "Accès refusé.", code: "FORBIDDEN" },
-      { status: 403 },
-    );
-  }
+  try {
+    if (!(await requireAdminRole(req, "operator"))) {
+      throw new ForbiddenError("Accès refusé.");
+    }
 
-  const rl = await rateLimit(`admin-workshop-stats:${rateKey(req)}`, {
-    capacity: 120,
-    windowMs: 60_000,
-  });
-  if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de requêtes.", code: "RATE_LIMITED" },
-      { status: 429, headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) } },
-    );
-  }
+    const rl = await rateLimit(`admin-workshop-stats:${rateKey(req)}`, {
+      capacity: 120,
+      windowMs: 60_000,
+    });
+    if (!rl.ok) {
+      throw new RateLimitError("Trop de requêtes.", rl.retryAfterMs);
+    }
 
-  const [
+    const [
     totalWorkshops,
     totalEnrollments,
     totalSubmissions,
@@ -229,4 +229,7 @@ export async function GET(req: NextRequest) {
     workshops: perWorkshop,
     recentReviews,
   });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

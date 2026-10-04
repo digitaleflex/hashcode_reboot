@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { isAdminAuthed } from "@/lib/admin-auth";
+import { AppError, AuthError, errorToResponse } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,8 +11,9 @@ const CATEGORIES = ["welcome", "waitlist", "engagement", "relance", "other"] as 
 
 /** GET /api/email-stats — email engagement per category + relance funnel (admin-only). */
 export async function GET(req: NextRequest) {
+  try {
   if (!(await isAdminAuthed(req))) {
-    return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+    throw new AuthError("Non autorisé.", "UNAUTHORIZED");
   }
 
   try {
@@ -48,11 +50,11 @@ export async function GET(req: NextRequest) {
         recovered: draftStats.recovered,
       },
     });
-  } catch {
-    return NextResponse.json(
-      { error: "Erreur interne.", code: "INTERNAL_ERROR" },
-      { status: 500 },
-    );
+  } catch (err) {
+    throw new AppError("Erreur interne.", { status: 500, code: "INTERNAL_ERROR" });
+  }
+  } catch (err) {
+    return errorToResponse(err);
   }
 }
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { isAdminAuthed } from "@/lib/admin-auth";
+import { AuthError, ValidationError, errorToResponse } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,11 +21,9 @@ const querySchema = z.object({
  * Admin-only.
  */
 export async function GET(req: NextRequest) {
+  try {
   if (!(await isAdminAuthed(req))) {
-    return NextResponse.json(
-      { error: "Non autorisé.", code: "UNAUTHORIZED" },
-      { status: 401 },
-    );
+    throw new AuthError("Non autorisé.", "UNAUTHORIZED");
   }
 
   const { searchParams } = new URL(req.url);
@@ -37,10 +36,7 @@ export async function GET(req: NextRequest) {
   });
 
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Paramètres invalides.", details: parsed.error.flatten() },
-      { status: 422 },
-    );
+    throw new ValidationError("Paramètres invalides.", parsed.error.flatten());
   }
 
   const { status, page, pageSize } = parsed.data;
@@ -151,6 +147,9 @@ export async function GET(req: NextRequest) {
       totalPages: Math.ceil(total / pageSize),
     },
   });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }
 
 /**

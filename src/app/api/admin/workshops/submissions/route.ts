@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAdminRole } from "@/lib/admin-auth";
-import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { SUBMISSION_STATUSES } from "@/lib/workshop-validation";
+import {
+  AppError,
+  ForbiddenError,
+  RateLimitError,
+  errorToResponse,
+} from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,44 +31,35 @@ const DEFAULT_QUEUE_STATUSES = ["PENDING", "IN_REVIEW"];
  * Sans `status`, la file se limite à PENDING + IN_REVIEW.
  */
 export async function GET(req: NextRequest) {
-  if (!(await requireAdminRole(req, "operator"))) {
-    return NextResponse.json(
-      { error: "Accès refusé.", code: "FORBIDDEN" },
-      { status: 403 },
-    );
-  }
+  try {
+    if (!(await requireAdminRole(req, "operator"))) {
+      throw new ForbiddenError("Accès refusé.");
+    }
 
-  const rl = await rateLimit(`admin-workshop-submissions:${rateKey(req)}`, {
-    capacity: 120,
-    windowMs: 60_000,
-  });
-  if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de requêtes.", code: "RATE_LIMITED" },
-      { status: 429, headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) } },
-    );
-  }
+    const rl = await rateLimit(`admin-workshop-submissions:${rateKey(req)}`, {
+      capacity: 120,
+      windowMs: 60_000,
+    });
+    if (!rl.ok) {
+      throw new RateLimitError("Trop de requêtes.", rl.retryAfterMs);
+    }
 
-  const { searchParams } = new URL(req.url);
-  const status = searchParams.get("status");
-  const workshopId = searchParams.get("workshopId");
-  const rawLimit = searchParams.get("limit");
-  const limit = rawLimit
-    ? Math.min(Math.max(1, Number(rawLimit) || 1), 500)
-    : 100;
+    const { searchParams } = new URL(req.url);
+    const status = searchParams.get("status");
+    const workshopId = searchParams.get("workshopId");
+    const rawLimit = searchParams.get("limit");
+    const limit = rawLimit
+      ? Math.min(Math.max(1, Number(rawLimit) || 1), 500)
+      : 100;
 
-  if (status && !(SUBMISSION_STATUSES as readonly string[]).includes(status)) {
-    return NextResponse.json(
-      {
-        error:
-          "Statut invalide. Attendu : PENDING | IN_REVIEW | APPROVED | REVISION | REJECTED.",
-        code: "INVALID_STATUS",
-      },
-      { status: 422 },
-    );
-  }
+    if (status && !(SUBMISSION_STATUSES as readonly string[]).includes(status)) {
+      throw new AppError(
+        "Statut invalide. Attendu : PENDING | IN_REVIEW | APPROVED | REVISION | REJECTED.",
+        { status: 422, code: "INVALID_STATUS" },
+      );
+    }
 
-  const rows = await db.workshopSubmission.findMany({
+    const rows = await db.workshopSubmission.findMany({
     where: {
       status: status ? status : { in: [...DEFAULT_QUEUE_STATUSES] },
       ...(workshopId
@@ -105,17 +102,20 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  const submissions = rows.map((row) => {
-    const { deliverable, ...rest } = row;
-    const { session, ...deliverableFields } = deliverable;
-    const { week, ...sessionFields } = session;
-    return {
-      ...rest,
-      deliverable: deliverableFields,
-      session: { ...sessionFields, weekNumber: week.number },
-      workshop: week.workshop,
-    };
-  });
+    const submissions = rows.map((row) => {
+      const { deliverable, ...rest } = row;
+      const { session, ...deliverableFields } = deliverable;
+      const { week, ...sessionFields } = session;
+      return {
+        ...rest,
+        deliverable: deliverableFields,
+        session: { ...sessionFields, weekNumber: week.number },
+        workshop: week.workshop,
+      };
+    });
 
-  return NextResponse.json({ submissions, total: submissions.length });
+    return NextResponse.json({ submissions, total: submissions.length });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

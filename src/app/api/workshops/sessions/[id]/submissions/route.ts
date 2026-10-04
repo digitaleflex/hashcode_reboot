@@ -2,22 +2,38 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/account-auth";
 import { checkCSRF } from "@/lib/admin-auth";
-import { rateLimit, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
 import { validateSubmission } from "@/lib/workshop-validation";
 import { getSessionAccess, type SessionAccessCode } from "@/lib/workshop-server";
 import { sendEmail } from "@/lib/mail";
 import { submissionEmail } from "@/lib/workshop-emails";
+import {
+  AuthError,
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+  RateLimitError,
+  ValidationError,
+  errorToResponse,
+  parseJsonBody,
+} from "@/lib/errors";
 
 export const runtime = "nodejs";
 
 type Params = { params: Promise<{ id: string }> };
 
-const ACCESS_STATUS: Record<SessionAccessCode, number> = {
-  NOT_FOUND: 404,
-  NOT_ENROLLED: 403,
-  SESSION_LOCKED: 403,
+const ACCESS_MESSAGES: Record<SessionAccessCode, string> = {
+  NOT_FOUND: "Ressource introuvable.",
+  NOT_ENROLLED: "Inscris-toi à l'atelier pour accéder à cette séance.",
+  SESSION_LOCKED: "Cette séance est encore verrouillée.",
 };
+
+/** Traduit un refus d'accès de séance en erreur applicative (404 / 403). */
+function accessError(code: SessionAccessCode): Error {
+  const message = ACCESS_MESSAGES[code];
+  return code === "NOT_FOUND" ? new NotFoundError(message) : new ForbiddenError(message);
+}
 
 /**
  * POST /api/workshops/sessions/[id]/submissions — soumettre / resoumettre
@@ -43,18 +59,16 @@ const ACCESS_STATUS: Record<SessionAccessCode, number> = {
  * APPROVED (créerait du bruit en régression d'état).
  */
 export async function POST(req: NextRequest, { params }: Params) {
+  try {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
 
   const session = await getSession(req);
   if (!session) {
-    return NextResponse.json(
-      { error: "Non authentifié.", code: "UNAUTHENTICATED" },
-      { status: 401 },
-    );
+    throw new AuthError("Non authentifié.", "UNAUTHENTICATED");
   }
   if (!checkCSRF(req)) {
-    return NextResponse.json({ error: "CSRF validation failed." }, { status: 403 });
+    throw new ForbiddenError("CSRF validation failed.");
   }
 
   const rl = await rateLimit(`workshop-submit:${session.member.id}`, {
@@ -62,35 +76,19 @@ export async function POST(req: NextRequest, { params }: Params) {
     windowMs: 600_000,
   });
   if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de soumissions. Réessaie dans quelques minutes." },
-      { status: 429, headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) } },
+    throw new RateLimitError(
+      "Trop de soumissions. Réessaie dans quelques minutes.",
+      rl.retryAfterMs,
     );
   }
 
   const { id } = await params;
   const access = await getSessionAccess(session.member.id, id);
   if (!access.ok) {
-    const messages: Record<SessionAccessCode, string> = {
-      NOT_FOUND: "Ressource introuvable.",
-      NOT_ENROLLED: "Inscris-toi à l'atelier pour accéder à cette séance.",
-      SESSION_LOCKED: "Cette séance est encore verrouillée.",
-    };
-    return NextResponse.json(
-      { error: messages[access.code], code: access.code },
-      { status: ACCESS_STATUS[access.code] },
-    );
+    throw accessError(access.code);
   }
 
-  let body: Record<string, unknown>;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json(
-      { error: "JSON invalide.", code: "INVALID_PAYLOAD" },
-      { status: 400 },
-    );
-  }
+  const body = (await parseJsonBody(req)) as Record<string, unknown>;
 
   const ws = await db.workshopSession.findUnique({
     where: { id },
@@ -101,10 +99,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     },
   });
   if (!ws || !ws.deliverable) {
-    return NextResponse.json(
-      { error: "Cette séance n'a pas de livrable.", code: "NOT_FOUND" },
-      { status: 404 },
-    );
+    throw new NotFoundError("Cette séance n'a pas de livrable.");
   }
   const deliverable = ws.deliverable;
 
@@ -119,24 +114,15 @@ export async function POST(req: NextRequest, { params }: Params) {
   });
   const latest = existing[0] ?? null;
   if (latest && (latest.status === "PENDING" || latest.status === "IN_REVIEW")) {
-    return NextResponse.json(
-      { error: "Une soumission est déjà en attente de review.", code: "ALREADY_PENDING" },
-      { status: 409 },
-    );
+    throw new ConflictError("Une soumission est déjà en attente de review.");
   }
   if (latest && latest.status === "APPROVED") {
-    return NextResponse.json(
-      { error: "Ce livrable est déjà approuvé.", code: "ALREADY_APPROVED" },
-      { status: 409 },
-    );
+    throw new ConflictError("Ce livrable est déjà approuvé.");
   }
 
   const validated = validateSubmission(body, deliverable.type);
   if (!validated.ok) {
-    return NextResponse.json(
-      { error: validated.error, code: "INVALID_PAYLOAD" },
-      { status: 422 },
-    );
+    throw new ValidationError(validated.error);
   }
 
   const submission = await db.workshopSubmission.create({
@@ -197,4 +183,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   return NextResponse.json({ ok: true, submission }, { status: 201 });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

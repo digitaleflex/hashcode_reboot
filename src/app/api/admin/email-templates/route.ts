@@ -6,6 +6,15 @@ import { audit } from "@/lib/admin-audit";
 import { bodyLimit } from "@/lib/body-limit";
 import { blockIfTesting } from "@/lib/test-guard";
 import {
+  AppError,
+  AuthError,
+  ConflictError,
+  ForbiddenError,
+  ValidationError,
+  errorToResponse,
+  parseJsonBody,
+} from "@/lib/errors";
+import {
   TEMPLATE_REGISTRY,
   CUSTOM_TEMPLATE_VARIABLES,
   getTemplateDefinition,
@@ -45,8 +54,9 @@ const createSchema = z.object({
  * les templates créés depuis l'admin (absents du registre).
  */
 export async function GET(req: NextRequest) {
+  try {
   if (!(await requireAdminRole(req, "viewer"))) {
-    return NextResponse.json({ error: "Non autorisé.", code: "UNAUTHORIZED" }, { status: 401 });
+    throw new AuthError("Non autorisé.", "UNAUTHORIZED");
   }
 
   const rows = await db.emailTemplate.findMany({
@@ -116,43 +126,39 @@ export async function GET(req: NextRequest) {
       missing: templates.filter((t) => t.missing).length,
     },
   });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }
 
 /** POST /api/admin/email-templates — crée un template (brouillon marketing). */
 export async function POST(req: NextRequest) {
+  try {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
   const tooLarge = bodyLimit(req);
   if (tooLarge) return tooLarge;
   if (!(await requireAdminRole(req, "operator"))) {
-    return NextResponse.json({ error: "Accès refusé. Rôle operator requis.", code: "FORBIDDEN" }, { status: 403 });
+    throw new ForbiddenError("Accès refusé. Rôle operator requis.");
   }
   if (!checkCSRF(req)) {
-    return NextResponse.json({ error: "CSRF validation failed." }, { status: 403 });
+    throw new ForbiddenError("CSRF validation failed.");
   }
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "JSON invalide.", code: "INVALID_PAYLOAD" }, { status: 400 });
-  }
+  const body = await parseJsonBody(req);
 
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.issues[0]?.message ?? "Données invalides.", code: "INVALID_PAYLOAD" },
-      { status: 422 },
+    throw new ValidationError(
+      parsed.error.issues[0]?.message ?? "Données invalides.",
+      parsed.error.flatten(),
     );
   }
   const d = parsed.data;
 
   const existing = await db.emailTemplate.findUnique({ where: { key: d.key }, select: { id: true } });
   if (existing) {
-    return NextResponse.json(
-      { error: `La clé « ${d.key} » existe déjà.`, code: "CONFLICT" },
-      { status: 409 },
-    );
+    throw new ConflictError(`La clé « ${d.key} » existe déjà.`);
   }
 
   const bodyHtml = d.bodyHtml?.trim() ? d.bodyHtml : STARTER_BODY;
@@ -165,13 +171,9 @@ export async function POST(req: NextRequest) {
     Object.fromEntries(CUSTOM_TEMPLATE_VARIABLES.map((v) => [v.key, v.preview])),
   );
   if (probe.warnings.length > 0) {
-    return NextResponse.json(
-      {
-        error: "Contenu refusé : corriger les problèmes signalés avant de créer.",
-        code: "INVALID_CONTENT",
-        warnings: probe.warnings,
-      },
-      { status: 422 },
+    throw new AppError(
+      "Contenu refusé : corriger les problèmes signalés avant de créer.",
+      { status: 422, code: "INVALID_CONTENT", details: { warnings: probe.warnings } },
     );
   }
 
@@ -198,4 +200,7 @@ export async function POST(req: NextRequest) {
   );
 
   return NextResponse.json({ ok: true, template: created, warnings: probe.warnings }, { status: 201 });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

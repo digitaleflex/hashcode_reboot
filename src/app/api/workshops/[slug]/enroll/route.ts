@@ -2,10 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/account-auth";
 import { checkCSRF } from "@/lib/admin-auth";
-import { rateLimit, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
 import { sendEmail } from "@/lib/mail";
 import { enrollmentEmail } from "@/lib/workshop-emails";
+import {
+  AuthError,
+  ForbiddenError,
+  NotFoundError,
+  RateLimitError,
+  errorToResponse,
+} from "@/lib/errors";
 
 export const runtime = "nodejs";
 
@@ -28,23 +35,18 @@ type Params = { params: Promise<{ slug: string }> };
  * Écriture idempotente : POST répété sans effet de bord.
  */
 export async function POST(req: NextRequest, { params }: Params) {
+  try {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
 
   const session = await getSession(req);
   if (!session) {
-    return NextResponse.json(
-      { error: "Non authentifié.", code: "UNAUTHENTICATED" },
-      { status: 401 },
-    );
+    throw new AuthError("Non authentifié.", "UNAUTHENTICATED");
   }
 
   // CSRF : même origine obligatoire (défense en profondeur sur SameSite=Lax).
   if (!checkCSRF(req)) {
-    return NextResponse.json(
-      { error: "CSRF validation failed." },
-      { status: 403 },
-    );
+    throw new ForbiddenError("CSRF validation failed.");
   }
 
   const rl = await rateLimit(`workshop-enroll:${session.member.id}`, {
@@ -52,9 +54,9 @@ export async function POST(req: NextRequest, { params }: Params) {
     windowMs: 600_000,
   });
   if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de requêtes. Réessaie dans quelques minutes." },
-      { status: 429, headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) } },
+    throw new RateLimitError(
+      "Trop de requêtes. Réessaie dans quelques minutes.",
+      rl.retryAfterMs,
     );
   }
 
@@ -64,10 +66,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     select: { id: true, status: true },
   });
   if (!workshop || workshop.status !== "published") {
-    return NextResponse.json(
-      { error: "Atelier introuvable.", code: "NOT_FOUND" },
-      { status: 404 },
-    );
+    throw new NotFoundError("Atelier introuvable.");
   }
 
   const existing = await db.workshopEnrollment.findUnique({
@@ -124,4 +123,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   return NextResponse.json({ ok: true, enrollment, already });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

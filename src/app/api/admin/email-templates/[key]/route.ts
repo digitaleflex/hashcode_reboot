@@ -9,12 +9,21 @@ import {
 import { audit } from "@/lib/admin-audit";
 import { bodyLimit } from "@/lib/body-limit";
 import { blockIfTesting } from "@/lib/test-guard";
-import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
+import {
+  AppError,
+  AuthError,
+  ForbiddenError,
+  NotFoundError,
+  RateLimitError,
+  ValidationError,
+  errorToResponse,
+  parseJsonBody,
+} from "@/lib/errors";
 import {
   getTemplateDefinition,
   getTemplateVariables,
   isCategoryEditable,
-  previewValues,
 } from "@/lib/email-templates/registry";
 import { renderEmailTemplate } from "@/lib/email-templates/render";
 import { invalidateActiveTemplates } from "@/lib/email-templates/active";
@@ -49,22 +58,19 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ key: string }> },
 ) {
+  try {
   if (!(await requireAdminRole(req, "viewer"))) {
-    return NextResponse.json({ error: "Non autorisé.", code: "UNAUTHORIZED" }, { status: 401 });
+    throw new AuthError("Non autorisé.", "UNAUTHORIZED");
   }
 
   const { key } = await params;
   const { row, def } = await loadTemplate(key);
 
   if (!row) {
-    return NextResponse.json(
-      {
-        error: def
-          ? `Template « ${key} » connu du code mais absent en base. Lance le seed.`
-          : `Template « ${key} » introuvable.`,
-        code: "NOT_FOUND",
-      },
-      { status: 404 },
+    throw new NotFoundError(
+      def
+        ? `Template « ${key} » connu du code mais absent en base. Lance le seed.`
+        : `Template « ${key} » introuvable.`,
     );
   }
 
@@ -96,6 +102,9 @@ export async function GET(
     },
     preview: { html: rendered.html, subject: rendered.subject, warnings: rendered.warnings },
   });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }
 
 /**
@@ -110,6 +119,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ key: string }> },
 ) {
+  try {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
   const tooLarge = bodyLimit(req);
@@ -120,51 +130,36 @@ export async function PATCH(
     windowMs: 60_000,
   });
   if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de requêtes.", code: "RATE_LIMITED" },
-      { status: 429, headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) } },
-    );
+    throw new RateLimitError("Trop de requêtes.", rl.retryAfterMs);
   }
 
   if (!(await requireAdminRole(req, "operator"))) {
-    return NextResponse.json(
-      { error: "Accès refusé. Rôle operator requis.", code: "FORBIDDEN" },
-      { status: 403 },
-    );
+    throw new ForbiddenError("Accès refusé. Rôle operator requis.");
   }
   if (!checkCSRF(req)) {
-    return NextResponse.json({ error: "CSRF validation failed." }, { status: 403 });
+    throw new ForbiddenError("CSRF validation failed.");
   }
 
   const { key } = await params;
   const { row, def } = await loadTemplate(key);
   if (!row) {
-    return NextResponse.json({ error: `Template « ${key} » introuvable.`, code: "NOT_FOUND" }, { status: 404 });
+    throw new NotFoundError(`Template « ${key} » introuvable.`);
   }
 
   if (!isCategoryEditable(row.category)) {
-    return NextResponse.json(
-      {
-        error:
-          `Template « ${key} » verrouillé (catégorie ${row.category}) : il transporte des liens ou ` +
-          "des secrets d'authentification. Son contenu reste géré dans le code.",
-        code: "LOCKED",
-      },
-      { status: 403 },
+    throw new AppError(
+      `Template « ${key} » verrouillé (catégorie ${row.category}) : il transporte des liens ou ` +
+        "des secrets d'authentification. Son contenu reste géré dans le code.",
+      { status: 403, code: "LOCKED" },
     );
   }
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "JSON invalide.", code: "INVALID_PAYLOAD" }, { status: 400 });
-  }
+  const body = await parseJsonBody(req);
   const parsed = patchSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.issues[0]?.message ?? "Données invalides.", code: "INVALID_PAYLOAD" },
-      { status: 422 },
+    throw new ValidationError(
+      parsed.error.issues[0]?.message ?? "Données invalides.",
+      parsed.error.flatten(),
     );
   }
   const patch = parsed.data;
@@ -183,13 +178,9 @@ export async function PATCH(
     Object.fromEntries(variables.map((v) => [v.key, v.preview])),
   );
   if (probe.warnings.length > 0) {
-    return NextResponse.json(
-      {
-        error: "Contenu refusé : corriger les problèmes signalés avant d'enregistrer.",
-        code: "INVALID_CONTENT",
-        warnings: probe.warnings,
-      },
-      { status: 422 },
+    throw new AppError(
+      "Contenu refusé : corriger les problèmes signalés avant d'enregistrer.",
+      { status: 422, code: "INVALID_CONTENT", details: { warnings: probe.warnings } },
     );
   }
 
@@ -227,4 +218,7 @@ export async function PATCH(
     template: updated,
     preview: { html: probe.html, subject: probe.subject, warnings: probe.warnings },
   });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

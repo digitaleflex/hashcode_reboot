@@ -2,8 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAdminRole, getAdminRole } from "@/lib/admin-auth";
 import { audit } from "@/lib/admin-audit";
-import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
+import {
+  errorToResponse,
+  ForbiddenError,
+  NotFoundError,
+  RateLimitError,
+} from "@/lib/errors";
 
 export const runtime = "nodejs";
 
@@ -18,13 +24,11 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  try {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
   if (!(await requireAdminRole(req, "operator"))) {
-    return NextResponse.json(
-      { error: "Opérateur requis.", code: "FORBIDDEN" },
-      { status: 403 },
-    );
+    throw new ForbiddenError("Opérateur requis.");
   }
   // Anti-abus : 20 invitations par IP toutes les 10 minutes.
   const rl = await rateLimit(`admin-invite:${rateKey(req)}`, {
@@ -32,13 +36,7 @@ export async function POST(
     windowMs: 600000, // 10 minutes
   });
   if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de requêtes. Réessaie dans quelques minutes." },
-      {
-        status: 429,
-        headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) },
-      },
-    );
+    throw new RateLimitError("Trop de requêtes. Réessaie dans quelques minutes.", rl.retryAfterMs);
   }
   const { id } = await params;
   const member = await db.member.findUnique({
@@ -46,7 +44,7 @@ export async function POST(
     select: { id: true, firstName: true, email: true, profileStatus: true, communityStatus: true, invitationStatus: true },
   });
   if (!member) {
-    return NextResponse.json({ error: "Membre introuvable." }, { status: 404 });
+    throw new NotFoundError("Membre introuvable.");
   }
 
   const updated = await db.member.update({
@@ -95,4 +93,7 @@ export async function POST(
     inviteMessage:
       `Bonjour ${member.firstName}, tu fais partie des premiers membres du Reboot HASHCODE. Rejoins la communauté officielle ici :`,
   });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

@@ -2,23 +2,39 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/account-auth";
 import { checkCSRF } from "@/lib/admin-auth";
-import { rateLimit, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
 import { parseAnswers } from "@/lib/workshop-validation";
 import { canAttempt, scoreAttempt } from "@/lib/workshop-quiz";
 import { getSessionAccess, type SessionAccessCode } from "@/lib/workshop-server";
 import { sendEmail } from "@/lib/mail";
 import { quizEmail } from "@/lib/workshop-emails";
+import {
+  AuthError,
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+  RateLimitError,
+  ValidationError,
+  errorToResponse,
+  parseJsonBody,
+} from "@/lib/errors";
 
 export const runtime = "nodejs";
 
 type Params = { params: Promise<{ id: string }> };
 
-const ACCESS_STATUS: Record<SessionAccessCode, number> = {
-  NOT_FOUND: 404,
-  NOT_ENROLLED: 403,
-  SESSION_LOCKED: 403,
+const ACCESS_MESSAGES: Record<SessionAccessCode, string> = {
+  NOT_FOUND: "Ressource introuvable.",
+  NOT_ENROLLED: "Inscris-toi à l'atelier pour accéder à cette séance.",
+  SESSION_LOCKED: "Cette séance est encore verrouillée.",
 };
+
+/** Traduit un refus d'accès de séance en erreur applicative (404 / 403). */
+function accessError(code: SessionAccessCode): Error {
+  const message = ACCESS_MESSAGES[code];
+  return code === "NOT_FOUND" ? new NotFoundError(message) : new ForbiddenError(message);
+}
 
 /**
  * POST /api/workshops/quizzes/[id]/attempts — soumettre les réponses du
@@ -39,18 +55,16 @@ const ACCESS_STATUS: Record<SessionAccessCode, number> = {
  *          tests de non-fuite).
  */
 export async function POST(req: NextRequest, { params }: Params) {
+  try {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
 
   const session = await getSession(req);
   if (!session) {
-    return NextResponse.json(
-      { error: "Non authentifié.", code: "UNAUTHENTICATED" },
-      { status: 401 },
-    );
+    throw new AuthError("Non authentifié.", "UNAUTHENTICATED");
   }
   if (!checkCSRF(req)) {
-    return NextResponse.json({ error: "CSRF validation failed." }, { status: 403 });
+    throw new ForbiddenError("CSRF validation failed.");
   }
 
   const rl = await rateLimit(`workshop-quiz:${session.member.id}`, {
@@ -58,9 +72,9 @@ export async function POST(req: NextRequest, { params }: Params) {
     windowMs: 600_000,
   });
   if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de tentatives. Réessaie dans quelques minutes." },
-      { status: 429, headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) } },
+    throw new RateLimitError(
+      "Trop de tentatives. Réessaie dans quelques minutes.",
+      rl.retryAfterMs,
     );
   }
 
@@ -88,41 +102,19 @@ export async function POST(req: NextRequest, { params }: Params) {
     },
   });
   if (!quiz) {
-    return NextResponse.json(
-      { error: "Quiz introuvable.", code: "NOT_FOUND" },
-      { status: 404 },
-    );
+    throw new NotFoundError("Quiz introuvable.");
   }
 
   const access = await getSessionAccess(session.member.id, quiz.session.id);
   if (!access.ok) {
-    const messages: Record<SessionAccessCode, string> = {
-      NOT_FOUND: "Ressource introuvable.",
-      NOT_ENROLLED: "Inscris-toi à l'atelier pour accéder à cette séance.",
-      SESSION_LOCKED: "Cette séance est encore verrouillée.",
-    };
-    return NextResponse.json(
-      { error: messages[access.code], code: access.code },
-      { status: ACCESS_STATUS[access.code] },
-    );
+    throw accessError(access.code);
   }
 
-  let body: Record<string, unknown>;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json(
-      { error: "JSON invalide.", code: "INVALID_PAYLOAD" },
-      { status: 400 },
-    );
-  }
+  const body = (await parseJsonBody(req)) as Record<string, unknown>;
 
   const answersShape = parseAnswers(body.answers);
   if (!answersShape.ok) {
-    return NextResponse.json(
-      { error: answersShape.error, code: "INVALID_PAYLOAD" },
-      { status: 422 },
-    );
+    throw new ValidationError(answersShape.error);
   }
 
   // Limite de tentatives (§17 : répétition libre sauf règle métier).
@@ -130,18 +122,12 @@ export async function POST(req: NextRequest, { params }: Params) {
     where: { quizId: quiz.id, memberId: session.member.id },
   });
   if (!canAttempt(quiz.maxAttempts, attemptsCount)) {
-    return NextResponse.json(
-      { error: "Nombre maximum de tentatives atteint.", code: "MAX_ATTEMPTS" },
-      { status: 409 },
-    );
+    throw new ConflictError("Nombre maximum de tentatives atteint.");
   }
 
   const score = scoreAttempt(quiz.questions, answersShape.answers, quiz.passThreshold);
   if (!score) {
-    return NextResponse.json(
-      { error: "Réponses invalides ou désalignées sur les questions.", code: "INVALID_PAYLOAD" },
-      { status: 422 },
-    );
+    throw new ValidationError("Réponses invalides ou désalignées sur les questions.");
   }
 
   const attempt = await db.workshopQuizAttempt.create({
@@ -216,4 +202,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     },
     { status: 201 },
   );
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

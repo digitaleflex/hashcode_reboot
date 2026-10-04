@@ -2,11 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireAdminRole, checkCSRF, getAdminIdentity } from "@/lib/admin-auth";
-import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { audit } from "@/lib/admin-audit";
 import { REVIEW_DECISIONS } from "@/lib/workshop-validation";
 import { sendEmail } from "@/lib/mail";
 import { reviewEmail } from "@/lib/workshop-emails";
+import {
+  ForbiddenError,
+  NotFoundError,
+  RateLimitError,
+  ValidationError,
+  errorToResponse,
+  parseJsonBody,
+} from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,67 +45,45 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  if (!(await requireAdminRole(req, "operator"))) {
-    return NextResponse.json(
-      { error: "Accès refusé.", code: "FORBIDDEN" },
-      { status: 403 },
-    );
-  }
-  if (!checkCSRF(req)) {
-    return NextResponse.json(
-      { error: "CSRF validation failed.", code: "FORBIDDEN" },
-      { status: 403 },
-    );
-  }
-
-  const reviewer = await getAdminIdentity(req);
-  const rl = await rateLimit(`admin-workshop-review:${reviewer}:${rateKey(req)}`, {
-    capacity: 30,
-    windowMs: 60_000,
-  });
-  if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de revues. Réessaie dans une minute.", code: "RATE_LIMITED" },
-      { status: 429, headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) } },
-    );
-  }
-
-  const { id } = await params;
-
-  let body: unknown;
   try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json(
-      { error: "JSON invalide.", code: "INVALID_PAYLOAD" },
-      { status: 400 },
-    );
-  }
+    if (!(await requireAdminRole(req, "operator"))) {
+      throw new ForbiddenError("Accès refusé.");
+    }
+    if (!checkCSRF(req)) {
+      throw new ForbiddenError("CSRF validation failed.");
+    }
 
-  const parsed = reviewSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      {
-        error: parsed.error.issues[0]?.message ?? "Données invalides.",
-        code: "INVALID_PAYLOAD",
-      },
-      { status: 422 },
-    );
-  }
-  const { decision, feedback } = parsed.data;
+    const reviewer = await getAdminIdentity(req);
+    const rl = await rateLimit(`admin-workshop-review:${reviewer}:${rateKey(req)}`, {
+      capacity: 30,
+      windowMs: 60_000,
+    });
+    if (!rl.ok) {
+      throw new RateLimitError("Trop de revues. Réessaie dans une minute.", rl.retryAfterMs);
+    }
 
-  const existing = await db.workshopSubmission.findUnique({
-    where: { id },
-    select: { id: true },
-  });
-  if (!existing) {
-    return NextResponse.json(
-      { error: "Soumission introuvable.", code: "NOT_FOUND" },
-      { status: 404 },
-    );
-  }
+    const { id } = await params;
 
-  const reviewedAt = new Date();
+    const body = await parseJsonBody(req);
+
+    const parsed = reviewSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new ValidationError(
+        parsed.error.issues[0]?.message ?? "Données invalides.",
+        parsed.error.flatten(),
+      );
+    }
+    const { decision, feedback } = parsed.data;
+
+    const existing = await db.workshopSubmission.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!existing) {
+      throw new NotFoundError("Soumission introuvable.");
+    }
+
+    const reviewedAt = new Date();
   const { review, submission } = await db.$transaction(async (tx) => {
     const createdReview = await tx.workshopReview.create({
       data: {
@@ -172,5 +158,8 @@ export async function POST(
     }).catch(() => {});
   }
 
-  return NextResponse.json({ ok: true, review, submission });
+    return NextResponse.json({ ok: true, review, submission });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

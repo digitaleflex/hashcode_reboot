@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { isAdminAuthed, getAdminRole } from "@/lib/admin-auth";
-import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { audit } from "@/lib/admin-audit";
+import { AppError, AuthError, RateLimitError, errorToResponse } from "@/lib/errors";
 
 export const runtime = "nodejs";
 
@@ -16,11 +17,9 @@ const MAX_EXPORT = 2000;
  * integrations or re-importing into another system.
  */
 export async function GET(req: NextRequest) {
+  try {
   if (!(await isAdminAuthed(req))) {
-    return NextResponse.json(
-      { error: "Non autorisé.", code: "UNAUTHORIZED" },
-      { status: 401 },
-    );
+    throw new AuthError("Non autorisé.", "UNAUTHORIZED");
   }
   // Anti-abus : 20 exports par IP toutes les 10 minutes.
   const rl = await rateLimit(`export-json:${rateKey(req)}`, {
@@ -28,12 +27,9 @@ export async function GET(req: NextRequest) {
     windowMs: 600000, // 10 minutes
   });
   if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de requêtes. Réessaie dans quelques minutes.", code: "RATE_LIMITED" },
-      {
-        status: 429,
-        headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) },
-      },
+    throw new RateLimitError(
+      "Trop de requêtes. Réessaie dans quelques minutes.",
+      rl.retryAfterMs,
     );
   }
   try {
@@ -123,10 +119,11 @@ export async function GET(req: NextRequest) {
         },
       },
     );
-  } catch {
-    return NextResponse.json(
-      { error: "Erreur interne.", code: "INTERNAL_ERROR" },
-      { status: 500 },
-    );
+  } catch (err) {
+    if (err instanceof AppError) throw err;
+    throw new AppError("Erreur interne.", { status: 500, code: "INTERNAL_ERROR" });
+  }
+  } catch (err) {
+    return errorToResponse(err);
   }
 }

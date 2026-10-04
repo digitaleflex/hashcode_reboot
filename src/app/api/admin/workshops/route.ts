@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAdminRole } from "@/lib/admin-auth";
-import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { WORKSHOP_STATUSES } from "@/lib/workshop-validation";
+import {
+  AppError,
+  ForbiddenError,
+  RateLimitError,
+  errorToResponse,
+} from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,42 +30,34 @@ const AWAITING_REVIEW = new Set(["PENDING", "IN_REVIEW"]);
  * Tri : createdAt desc (les plus récents d'abord).
  */
 export async function GET(req: NextRequest) {
-  if (!(await requireAdminRole(req, "operator"))) {
-    return NextResponse.json(
-      { error: "Accès refusé.", code: "FORBIDDEN" },
-      { status: 403 },
-    );
-  }
+  try {
+    if (!(await requireAdminRole(req, "operator"))) {
+      throw new ForbiddenError("Accès refusé.");
+    }
 
-  const rl = await rateLimit(`admin-workshops-list:${rateKey(req)}`, {
-    capacity: 120,
-    windowMs: 60_000,
-  });
-  if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de requêtes.", code: "RATE_LIMITED" },
-      { status: 429, headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) } },
-    );
-  }
+    const rl = await rateLimit(`admin-workshops-list:${rateKey(req)}`, {
+      capacity: 120,
+      windowMs: 60_000,
+    });
+    if (!rl.ok) {
+      throw new RateLimitError("Trop de requêtes.", rl.retryAfterMs);
+    }
 
-  const { searchParams } = new URL(req.url);
-  const status = searchParams.get("status");
-  const rawLimit = searchParams.get("limit");
-  const limit = rawLimit
-    ? Math.min(Math.max(1, Number(rawLimit) || 1), 200)
-    : 50;
+    const { searchParams } = new URL(req.url);
+    const status = searchParams.get("status");
+    const rawLimit = searchParams.get("limit");
+    const limit = rawLimit
+      ? Math.min(Math.max(1, Number(rawLimit) || 1), 200)
+      : 50;
 
-  if (status && !(WORKSHOP_STATUSES as readonly string[]).includes(status)) {
-    return NextResponse.json(
-      {
-        error: "Statut invalide. Attendu : draft | published | archived.",
+    if (status && !(WORKSHOP_STATUSES as readonly string[]).includes(status)) {
+      throw new AppError("Statut invalide. Attendu : draft | published | archived.", {
+        status: 422,
         code: "INVALID_STATUS",
-      },
-      { status: 422 },
-    );
-  }
+      });
+    }
 
-  const workshops = await db.workshop.findMany({
+    const workshops = await db.workshop.findMany({
     where: status ? { status } : {},
     orderBy: { createdAt: "desc" },
     take: limit,
@@ -187,5 +185,8 @@ export async function GET(req: NextRequest) {
       recentEnrollments: w.enrollments,
     })),
     total: workshops.length,
-  });
+    });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

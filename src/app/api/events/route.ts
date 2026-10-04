@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/account-auth";
 import { requireAdminRole, checkCSRF, getAdminRole } from "@/lib/admin-auth";
 import { sendEventNotificationEmail } from "@/lib/mail";
-import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { validateEventCreate, notifyWhere, parseNotify } from "@/lib/events-validation";
 import { zoneForCountry } from "@/lib/events-timezone";
 import { sendPacedBatch } from "@/lib/email-batch";
@@ -11,6 +11,14 @@ import { planBatch } from "@/lib/email-budget";
 import { audit } from "@/lib/admin-audit";
 import { blockIfTesting } from "@/lib/test-guard";
 import { bodyLimit } from "@/lib/body-limit";
+import {
+  AuthError,
+  ForbiddenError,
+  RateLimitError,
+  ValidationError,
+  errorToResponse,
+  parseJsonBody,
+} from "@/lib/errors";
 
 export const runtime = "nodejs";
 
@@ -19,13 +27,11 @@ export const runtime = "nodejs";
  * Admin : ?status=all pour tout voir (y compris past/cancelled/completed).
  */
 export async function GET(req: NextRequest) {
+  try {
   const session = await getSession(req);
   const isAdmin = await requireAdminRole(req, "viewer");
   if (!session && !isAdmin) {
-    return NextResponse.json(
-      { error: "Non authentifié.", code: "UNAUTHENTICATED" },
-      { status: 401 },
-    );
+    throw new AuthError("Non authentifié.", "UNAUTHENTICATED");
   }
 
   const url = new URL(req.url);
@@ -48,10 +54,7 @@ export async function GET(req: NextRequest) {
   // Admin avec status=all → tout voir (gestion)
   if (status === "all") {
     if (!isAdmin) {
-      return NextResponse.json(
-        { error: "Accès refusé.", code: "FORBIDDEN" },
-        { status: 403 },
-      );
+      throw new ForbiddenError("Accès refusé.");
     }
     // pas de filtre status/date → tous les events
   } else if (!status || status === "upcoming") {
@@ -189,6 +192,9 @@ export async function GET(req: NextRequest) {
     });
 
   return NextResponse.json({ events: enriched });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }
 
 /**
@@ -196,6 +202,7 @@ export async function GET(req: NextRequest) {
  * Envoie une notification email en masse aux membres approuvés.
  */
 export async function POST(req: NextRequest) {
+  try {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
   const tooLarge = bodyLimit(req);
@@ -206,58 +213,35 @@ export async function POST(req: NextRequest) {
     windowMs: 600000,
   });
   if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de requêtes. Réessaie dans quelques minutes." },
-      {
-        status: 429,
-        headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) },
-      },
+    throw new RateLimitError(
+      "Trop de requêtes. Réessaie dans quelques minutes.",
+      rl.retryAfterMs,
     );
   }
 
   // Admin RBAC: operator uniquement
   if (!(await requireAdminRole(req, "operator"))) {
-    return NextResponse.json(
-      { error: "Accès refusé. Rôle operator requis.", code: "FORBIDDEN" },
-      { status: 403 },
-    );
+    throw new ForbiddenError("Accès refusé. Rôle operator requis.");
   }
 
   if (!checkCSRF(req)) {
-    return NextResponse.json(
-      { error: "CSRF validation failed." },
-      { status: 403 },
-    );
+    throw new ForbiddenError("CSRF validation failed.");
   }
 
-  let body: Record<string, unknown>;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json(
-      { error: "JSON invalide.", code: "INVALID_PAYLOAD" },
-      { status: 400 },
-    );
-  }
+  const body = (await parseJsonBody(req)) as Record<string, unknown>;
 
   // notify : optionnel, booléen strict. Sans ce contrôle, une chaîne "no"
   // ou un 0 déclencherait un envoi de masse involontaire (notify !== false).
   const notifyCheck = parseNotify(body.notify);
   if (!notifyCheck.ok) {
-    return NextResponse.json(
-      { error: notifyCheck.error, code: "INVALID_PAYLOAD" },
-      { status: 422 },
-    );
+    throw new ValidationError(notifyCheck.error);
   }
   const { notify } = notifyCheck;
 
   // Validation stricte partagée (enums, longueurs, dates, url, capacité).
   const validated = validateEventCreate(body);
   if (!validated.ok) {
-    return NextResponse.json(
-      { error: validated.error, code: "INVALID_PAYLOAD" },
-      { status: 422 },
-    );
+    throw new ValidationError(validated.error);
   }
   const v = validated.data;
 
@@ -394,4 +378,7 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ ok: true, event }, { status: 201 });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

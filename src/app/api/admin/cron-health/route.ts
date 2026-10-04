@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { isAdminAuthed } from "@/lib/admin-auth";
+import { AuthError, errorToResponse } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,11 +22,9 @@ const CRONS = [
  * Si un cron quotidien ne tourne plus, le dashboard l'affiche en alerte.
  */
 export async function GET(req: NextRequest) {
+  try {
   if (!(await isAdminAuthed(req))) {
-    return NextResponse.json(
-      { error: "Non autorisé.", code: "UNAUTHORIZED" },
-      { status: 401 },
-    );
+    throw new AuthError("Non autorisé.", "UNAUTHORIZED");
   }
 
   const now = Date.now();
@@ -56,4 +55,7 @@ export async function GET(req: NextRequest) {
   );
 
   return NextResponse.json({ ok: true, crons });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAdminRole } from "@/lib/admin-auth";
-import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
+import { ForbiddenError, RateLimitError, errorToResponse } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,11 +20,9 @@ export const HIGH_BUDGET_TIERS = ["20000-30000", ">30000"];
  * AUTH : admin operator (403 sinon).
  */
 export async function GET(req: NextRequest) {
+  try {
   if (!(await requireAdminRole(req, "operator"))) {
-    return NextResponse.json(
-      { error: "Accès refusé.", code: "FORBIDDEN" },
-      { status: 403 },
-    );
+    throw new ForbiddenError("Accès refusé.");
   }
 
   const rl = await rateLimit(`admin-mentoring-leads:${rateKey(req)}`, {
@@ -31,10 +30,7 @@ export async function GET(req: NextRequest) {
     windowMs: 60_000,
   });
   if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de requêtes.", code: "RATE_LIMITED" },
-      { status: 429, headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) } },
-    );
+    throw new RateLimitError("Trop de requêtes.", rl.retryAfterMs);
   }
 
   const leads = await db.member.findMany({
@@ -75,4 +71,7 @@ export async function GET(req: NextRequest) {
   });
 
   return NextResponse.json({ leads, total: leads.length });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

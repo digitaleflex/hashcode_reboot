@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAdminRole } from "@/lib/admin-auth";
+import { AppError, ForbiddenError, errorToResponse } from "@/lib/errors";
 
 export const runtime = "nodejs";
 
@@ -14,11 +15,9 @@ export const runtime = "nodejs";
  * Requires operator role.
  */
 export async function GET(req: NextRequest) {
+  try {
   if (!(await requireAdminRole(req, "operator"))) {
-    return NextResponse.json(
-      { error: "Accès refusé.", code: "FORBIDDEN" },
-      { status: 403 },
-    );
+    throw new ForbiddenError("Accès refusé.");
   }
 
   try {
@@ -102,10 +101,11 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json({ logs: enriched, total: enriched.length });
-  } catch {
-    return NextResponse.json(
-      { error: "Erreur interne.", code: "INTERNAL_ERROR" },
-      { status: 500 },
-    );
+  } catch (err) {
+    if (err instanceof AppError) throw err;
+    throw new AppError("Erreur interne.", { status: 500, code: "INTERNAL_ERROR" });
+  }
+  } catch (err) {
+    return errorToResponse(err);
   }
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { isAdminAuthed } from "@/lib/admin-auth";
+import { AuthError, errorToResponse } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,16 +15,14 @@ export const revalidate = 0;
  * sur 30 jours + distincts 7j / 30j.
  */
 export async function GET(req: NextRequest) {
-  if (!(await isAdminAuthed(req))) {
-    return NextResponse.json(
-      { error: "Non autorisé.", code: "UNAUTHORIZED" },
-      { status: 401 },
-    );
-  }
+  try {
+    if (!(await isAdminAuthed(req))) {
+      throw new AuthError("Non autorisé.", "UNAUTHORIZED");
+    }
 
-  const rows = await db.$queryRaw<
-    Array<{ day: string; active: bigint }>
-  >`
+    const rows = await db.$queryRaw<
+      Array<{ day: string; active: bigint }>
+    >`
     SELECT
       to_char(date_trunc('day', "lastSeenAt"), 'YYYY-MM-DD') AS day,
       COUNT(DISTINCT "memberId") AS active
@@ -34,26 +33,32 @@ export async function GET(req: NextRequest) {
     ORDER BY 1 ASC
   `;
 
-  const byDay = new Map(rows.map((r) => [r.day, Number(r.active)]));
-  const daily: { date: string; active: number }[] = [];
-  const today = new Date();
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date(today);
-    d.setUTCDate(d.getUTCDate() - i);
-    const key = d.toISOString().split("T")[0];
-    daily.push({ date: key, active: byDay.get(key) ?? 0 });
+    const byDay = new Map(rows.map((r) => [r.day, Number(r.active)]));
+    const daily: { date: string; active: number }[] = [];
+    const today = new Date();
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(today);
+      d.setUTCDate(d.getUTCDate() - i);
+      const key = d.toISOString().split("T")[0];
+      daily.push({ date: key, active: byDay.get(key) ?? 0 });
+    }
+
+    const last7 = daily.slice(-7).reduce((a, d) => a + d.active, 0);
+    const distinct30 = await db.memberSession.groupBy({
+      by: ["memberId"],
+      where: {
+        lastSeenAt: { gte: new Date(Date.now() - 30 * 24 * 3600 * 1000) },
+        revokedAt: null,
+      },
+    });
+
+    return NextResponse.json({
+      ok: true,
+      daily,
+      dau7Avg: Math.round((last7 / 7) * 10) / 10,
+      distinct30: distinct30.length,
+    });
+  } catch (err) {
+    return errorToResponse(err);
   }
-
-  const last7 = daily.slice(-7).reduce((a, d) => a + d.active, 0);
-  const distinct30 = await db.memberSession.groupBy({
-    by: ["memberId"],
-    where: { lastSeenAt: { gte: new Date(Date.now() - 30 * 24 * 3600 * 1000) }, revokedAt: null },
-  });
-
-  return NextResponse.json({
-    ok: true,
-    daily,
-    dau7Avg: Math.round((last7 / 7) * 10) / 10,
-    distinct30: distinct30.length,
-  });
 }

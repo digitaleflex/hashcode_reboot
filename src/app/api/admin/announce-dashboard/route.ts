@@ -4,7 +4,15 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireAdminRole, checkCSRF } from "@/lib/admin-auth";
 import { blockIfTesting } from "@/lib/test-guard";
-import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
+import {
+  AppError,
+  ForbiddenError,
+  RateLimitError,
+  ValidationError,
+  errorToResponse,
+  parseJsonBody,
+} from "@/lib/errors";
 import { generateOtp, hashOtp } from "@/lib/account-otp";
 import { createPendingSession } from "@/lib/account-auth";
 import { sendDashboardInviteEmail } from "@/lib/mail";
@@ -40,22 +48,17 @@ const bodySchema = z.object({
  *   Rappeler avec offset=nextOffset jusqu'à done=true.
  */
 export async function POST(req: NextRequest) {
+  try {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
 
   // Envoi de masse : rôle `operator` exigé + CSRF (défense en profondeur
   // avec SameSite=Lax, comme les 9 autres routes d'écriture admin).
   if (!(await requireAdminRole(req, "operator"))) {
-    return NextResponse.json(
-      { error: "Accès refusé. Rôle operator requis.", code: "FORBIDDEN" },
-      { status: 403 },
-    );
+    throw new ForbiddenError("Accès refusé. Rôle operator requis.");
   }
   if (!checkCSRF(req)) {
-    return NextResponse.json(
-      { error: "CSRF validation failed.", code: "CSRF_FAILED" },
-      { status: 403 },
-    );
+    throw new AppError("CSRF validation failed.", { status: 403, code: "CSRF_FAILED" });
   }
 
   const rl = await rateLimit(`announce-dashboard:${rateKey(req)}`, {
@@ -63,27 +66,23 @@ export async function POST(req: NextRequest) {
     windowMs: 10 * 60 * 1000,
   });
   if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de demandes. Réessaie dans quelques minutes.", code: "RATE_LIMITED" },
-      { status: 429, headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) } },
+    throw new RateLimitError(
+      "Trop de demandes. Réessaie dans quelques minutes.",
+      rl.retryAfterMs,
     );
   }
 
+  // Corps tolérant : un body vide ou illisible vaut `{}` (toutes les options
+  // ont un défaut), on ne rejette donc pas l'appel sur un JSON invalide.
   let body: unknown;
   try {
-    body = await req.json().catch(() => ({}));
+    body = await parseJsonBody(req);
   } catch {
-    return NextResponse.json(
-      { error: "Corps de requête invalide.", code: "INVALID_JSON" },
-      { status: 400 },
-    );
+    body = {};
   }
   const parsed = bodySchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Paramètres invalides.", code: "INVALID_PAYLOAD" },
-      { status: 422 },
-    );
+    throw new ValidationError("Paramètres invalides.", parsed.error.flatten());
   }
   const { confirm, limit } = parsed.data;
 
@@ -192,4 +191,7 @@ export async function POST(req: NextRequest) {
     nextOffset,
     done: remaining === 0,
   });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

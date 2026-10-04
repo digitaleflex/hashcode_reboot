@@ -7,6 +7,7 @@ import {
   recentThroughput,
   remainingBatches,
 } from "@/lib/email-budget";
+import { AuthError, ValidationError, errorToResponse } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,11 +35,9 @@ export interface EmailOpsAlert {
  * dépasser un quota.
  */
 export async function GET(req: NextRequest) {
+  try {
   if (!(await isAdminAuthed(req))) {
-    return NextResponse.json(
-      { error: "Non autorisé.", code: "UNAUTHORIZED" },
-      { status: 401 },
-    );
+    throw new AuthError("Non autorisé.", "UNAUTHORIZED");
   }
 
   const { searchParams } = new URL(req.url);
@@ -47,10 +46,7 @@ export async function GET(req: NextRequest) {
     minutes: searchParams.get("minutes") ?? undefined,
   });
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Paramètres invalides.", details: parsed.error.flatten() },
-      { status: 422 },
-    );
+    throw new ValidationError("Paramètres invalides.", parsed.error.flatten());
   }
   const { batchSize, minutes } = parsed.data;
 
@@ -116,4 +112,7 @@ export async function GET(req: NextRequest) {
     unattributed,
     alerts,
   });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

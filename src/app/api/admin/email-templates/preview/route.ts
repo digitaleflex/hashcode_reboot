@@ -2,11 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdminRole, checkCSRF } from "@/lib/admin-auth";
 import { bodyLimit } from "@/lib/body-limit";
-import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
+import {
+  AppError,
+  AuthError,
+  ForbiddenError,
+  RateLimitError,
+  ValidationError,
+  errorToResponse,
+  parseJsonBody,
+} from "@/lib/errors";
 import {
   getTemplateDefinition,
   getTemplateVariables,
-  previewValues,
 } from "@/lib/email-templates/registry";
 import { renderEmailTemplate } from "@/lib/email-templates/render";
 
@@ -31,6 +39,7 @@ const previewSchema = z.object({
  * Variables remplies avec leurs valeurs d'exemple (aucune donnée membre).
  */
 export async function POST(req: NextRequest) {
+  try {
   const tooLarge = bodyLimit(req);
   if (tooLarge) return tooLarge;
 
@@ -39,32 +48,24 @@ export async function POST(req: NextRequest) {
     windowMs: 60_000,
   });
   if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de requêtes.", code: "RATE_LIMITED" },
-      { status: 429, headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) } },
-    );
+    throw new RateLimitError("Trop de requêtes.", rl.retryAfterMs);
   }
 
   if (!(await requireAdminRole(req, "viewer"))) {
-    return NextResponse.json({ error: "Non autorisé.", code: "UNAUTHORIZED" }, { status: 401 });
+    throw new AuthError("Non autorisé.", "UNAUTHORIZED");
   }
   // Invariant uniforme : toute route POST admin vérifie le CSRF.
   if (!checkCSRF(req)) {
-    return NextResponse.json({ error: "CSRF validation failed.", code: "CSRF_FAILED" }, { status: 403 });
+    throw new AppError("CSRF validation failed.", { status: 403, code: "CSRF_FAILED" });
   }
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "JSON invalide.", code: "INVALID_PAYLOAD" }, { status: 400 });
-  }
+  const body = await parseJsonBody(req);
 
   const parsed = previewSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.issues[0]?.message ?? "Données invalides.", code: "INVALID_PAYLOAD" },
-      { status: 422 },
+    throw new ValidationError(
+      parsed.error.issues[0]?.message ?? "Données invalides.",
+      parsed.error.flatten(),
     );
   }
   const d = parsed.data;
@@ -85,4 +86,7 @@ export async function POST(req: NextRequest) {
     text: rendered.text,
     warnings: rendered.warnings,
   });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }
