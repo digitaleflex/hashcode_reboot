@@ -7,6 +7,7 @@ import {
   yesterdayUTC,
   type MetricsProvider,
 } from "@/lib/email-metrics";
+import { AppError, AuthError, ValidationError, errorToResponse } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -25,21 +26,19 @@ const querySchema = z.object({
  * Défaut : jour précédent (UTC), tous les providers.
  */
 export async function GET(req: NextRequest) {
+  try {
   if (!process.env.CRON_SECRET) {
-    return NextResponse.json(
-      { ok: false, error: "collecte non configurée (CRON_SECRET manquant)" },
-      { status: 401 },
-    );
+    throw new AuthError("collecte non configurée (CRON_SECRET manquant)", "UNAUTHORIZED");
   }
   const authHeader = req.headers.get("authorization") || "";
   const expected = `Bearer ${process.env.CRON_SECRET}`;
   if (authHeader.length !== expected.length) {
-    return NextResponse.json({ ok: false }, { status: 401 });
+    throw new AuthError("Non autorisé.", "UNAUTHORIZED");
   }
   const a = Buffer.from(authHeader, "utf8");
   const b = Buffer.from(expected, "utf8");
   if (!timingSafeEqual(a, b)) {
-    return NextResponse.json({ ok: false }, { status: 401 });
+    throw new AuthError("Non autorisé.", "UNAUTHORIZED");
   }
 
   const { searchParams } = new URL(req.url);
@@ -48,10 +47,7 @@ export async function GET(req: NextRequest) {
     date: searchParams.get("date") ?? undefined,
   });
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Paramètres invalides.", code: "INVALID_PAYLOAD" },
-      { status: 422 },
-    );
+    throw new ValidationError("Paramètres invalides.", parsed.error.flatten());
   }
 
   const date = parsed.data.date
@@ -76,9 +72,12 @@ export async function GET(req: NextRequest) {
     const ok = Object.values(result).every((r) => r.ok);
     return NextResponse.json({ ok, date: date.toISOString().split("T")[0], result });
   } catch (err) {
-    return NextResponse.json(
-      { ok: false, error: err instanceof Error ? err.message : "erreur inconnue" },
-      { status: 500 },
-    );
+    throw new AppError(err instanceof Error ? err.message : "erreur inconnue", {
+      status: 500,
+      code: "INTERNAL_ERROR",
+    });
+  }
+  } catch (err) {
+    return errorToResponse(err);
   }
 }

@@ -2,11 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { isAdminAuthed, requireAdminRole, getAdminRole } from "@/lib/admin-auth";
-import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { audit } from "@/lib/admin-audit";
 import { sendStatusChangeEmail, type StatusChangeType } from "@/lib/mail";
 import { addToBlacklist } from "@/lib/blacklist";
 import { blockIfTesting } from "@/lib/test-guard";
+import {
+  AppError,
+  AuthError,
+  errorToResponse,
+  ForbiddenError,
+  NotFoundError,
+  parseJsonBody,
+  RateLimitError,
+  ValidationError,
+} from "@/lib/errors";
 
 export const runtime = "nodejs";
 
@@ -27,20 +37,13 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  if (!(await isAdminAuthed(req))) {
-    return NextResponse.json(
-      { error: "Non autorisé.", code: "UNAUTHORIZED" },
-      { status: 401 },
-    );
-  }
   try {
+    if (!(await isAdminAuthed(req))) {
+      throw new AuthError("Non autorisé.", "UNAUTHORIZED");
+    }
     const { id } = await params;
     const member = await db.member.findUnique({ where: { id } });
-    if (!member)
-      return NextResponse.json(
-        { error: "Membre introuvable.", code: "NOT_FOUND" },
-        { status: 404 },
-      );
+    if (!member) throw new NotFoundError("Membre introuvable.");
 
     const decode = <T,>(s: string, fallback: T): T => {
       try {
@@ -58,11 +61,8 @@ export async function GET(
         tags: decode<string[]>(member.tags, []),
       },
     });
-  } catch {
-    return NextResponse.json(
-      { error: "Erreur interne.", code: "INTERNAL_ERROR" },
-      { status: 500 },
-    );
+  } catch (err) {
+    return errorToResponse(err);
   }
 }
 
@@ -71,72 +71,47 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const blocked = blockIfTesting();
-  if (blocked) return blocked;
-  if (!(await requireAdminRole(req, "operator"))) {
-    return NextResponse.json(
-      { error: "Opérateur requis.", code: "FORBIDDEN" },
-      { status: 403 },
-    );
-  }
-  // Anti-abus : 20 mises à jour par IP toutes les 10 minutes.
-  const rlPatch = await rateLimit(`admin-member-write:${rateKey(req)}`, {
-    capacity: 20,
-    windowMs: 600000, // 10 minutes
-  });
-  if (!rlPatch.ok) {
-    return NextResponse.json(
-      { error: "Trop de requêtes. Réessaie dans quelques minutes.", code: "RATE_LIMITED" },
-      {
-        status: 429,
-        headers: {
-          "Retry-After": retryAfterHeader(rlPatch.retryAfterMs),
-        },
-      },
-    );
-  }
-  const { id } = await params;
-  let body: Record<string, unknown> = {};
   try {
-    body = (await req.json()) as Record<string, unknown>;
-  } catch {
-    return NextResponse.json(
-      { error: "JSON invalide.", code: "INVALID_JSON" },
-      { status: 400 },
-    );
-  }
+    const blocked = blockIfTesting();
+    if (blocked) return blocked;
+    if (!(await requireAdminRole(req, "operator"))) {
+      throw new ForbiddenError("Opérateur requis.");
+    }
+    // Anti-abus : 20 mises à jour par IP toutes les 10 minutes.
+    const rlPatch = await rateLimit(`admin-member-write:${rateKey(req)}`, {
+      capacity: 20,
+      windowMs: 600000, // 10 minutes
+    });
+    if (!rlPatch.ok) {
+      throw new RateLimitError(
+        "Trop de requêtes. Réessaie dans quelques minutes.",
+        rlPatch.retryAfterMs,
+      );
+    }
+    const { id } = await params;
+    const body = (await parseJsonBody(req)) as Record<string, unknown>;
 
-  const data: Prisma.MemberUpdateInput = {};
-  if (typeof body.profileStatus === "string") {
-    if (!VALID_PROFILE_STATUS.has(body.profileStatus))
-      return NextResponse.json(
-        { error: "profileStatus invalide.", code: "INVALID_PAYLOAD" },
-        { status: 422 },
-      );
-    data.profileStatus = body.profileStatus;
-    // Auto-cascade: approving → invite to community.
-    if (body.profileStatus === "APPROVED" && body.communityStatus === undefined)
-      data.communityStatus = "INVITED";
-  }
-  if (typeof body.communityStatus === "string") {
-    if (!VALID_COMMUNITY_STATUS.has(body.communityStatus))
-      return NextResponse.json(
-        { error: "communityStatus invalide.", code: "INVALID_PAYLOAD" },
-        { status: 422 },
-      );
-    data.communityStatus = body.communityStatus;
-  }
-  if (typeof body.adminNote === "string") data.adminNote = body.adminNote;
-  if (typeof body.accessLane === "string") {
-    if (body.accessLane !== "immediate" && body.accessLane !== "pending")
-      return NextResponse.json(
-        { error: "accessLane invalide.", code: "INVALID_PAYLOAD" },
-        { status: 422 },
-      );
-    data.accessLane = body.accessLane;
-  }
+    const data: Prisma.MemberUpdateInput = {};
+    if (typeof body.profileStatus === "string") {
+      if (!VALID_PROFILE_STATUS.has(body.profileStatus))
+        throw new ValidationError("profileStatus invalide.");
+      data.profileStatus = body.profileStatus;
+      // Auto-cascade: approving → invite to community.
+      if (body.profileStatus === "APPROVED" && body.communityStatus === undefined)
+        data.communityStatus = "INVITED";
+    }
+    if (typeof body.communityStatus === "string") {
+      if (!VALID_COMMUNITY_STATUS.has(body.communityStatus))
+        throw new ValidationError("communityStatus invalide.");
+      data.communityStatus = body.communityStatus;
+    }
+    if (typeof body.adminNote === "string") data.adminNote = body.adminNote;
+    if (typeof body.accessLane === "string") {
+      if (body.accessLane !== "immediate" && body.accessLane !== "pending")
+        throw new ValidationError("accessLane invalide.");
+      data.accessLane = body.accessLane;
+    }
 
-  try {
     // Charger le member AVANT l'update pour comparer le statut (anti-doublon
     // + détection d'un vrai changement de statut).
     const before = await db.member.findUnique({
@@ -151,10 +126,7 @@ export async function PATCH(
       },
     });
     if (!before || before.deletedAt) {
-      return NextResponse.json(
-        { error: "Membre introuvable.", code: "NOT_FOUND" },
-        { status: 404 },
-      );
+      throw new NotFoundError("Membre introuvable.");
     }
 
     const statusTransition =
@@ -212,20 +184,14 @@ export async function PATCH(
       );
     }
     return NextResponse.json({ member: updated });
-  } catch (e) {
+  } catch (err) {
     if (
-      e instanceof Prisma.PrismaClientKnownRequestError &&
-      e.code === "P2025"
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === "P2025"
     ) {
-      return NextResponse.json(
-        { error: "Membre introuvable.", code: "NOT_FOUND" },
-        { status: 404 },
-      );
+      return errorToResponse(new NotFoundError("Membre introuvable."));
     }
-    return NextResponse.json(
-      { error: "Erreur interne.", code: "INTERNAL_ERROR" },
-      { status: 500 },
-    );
+    return errorToResponse(err);
   }
 }
 
@@ -234,41 +200,31 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const blocked = blockIfTesting();
-  if (blocked) return blocked;
-  if (!(await requireAdminRole(req, "operator"))) {
-    return NextResponse.json(
-      { error: "Opérateur requis.", code: "FORBIDDEN" },
-      { status: 403 },
-    );
-  }
-  // Anti-abus : 20 suppressions par IP toutes les 10 minutes.
-  const rlDelete = await rateLimit(`admin-member-delete:${rateKey(req)}`, {
-    capacity: 20,
-    windowMs: 600000, // 10 minutes
-  });
-  if (!rlDelete.ok) {
-    return NextResponse.json(
-      { error: "Trop de requêtes. Réessaie dans quelques minutes.", code: "RATE_LIMITED" },
-      {
-        status: 429,
-        headers: {
-          "Retry-After": retryAfterHeader(rlDelete.retryAfterMs),
-        },
-      },
-    );
-  }
   try {
+    const blocked = blockIfTesting();
+    if (blocked) return blocked;
+    if (!(await requireAdminRole(req, "operator"))) {
+      throw new ForbiddenError("Opérateur requis.");
+    }
+    // Anti-abus : 20 suppressions par IP toutes les 10 minutes.
+    const rlDelete = await rateLimit(`admin-member-delete:${rateKey(req)}`, {
+      capacity: 20,
+      windowMs: 600000, // 10 minutes
+    });
+    if (!rlDelete.ok) {
+      throw new RateLimitError(
+        "Trop de requêtes. Réessaie dans quelques minutes.",
+        rlDelete.retryAfterMs,
+      );
+    }
+
     const { id } = await params;
     const member = await db.member.findUnique({
       where: { id },
       select: { id: true, email: true },
     });
     if (!member) {
-      return NextResponse.json(
-        { error: "Membre introuvable.", code: "NOT_FOUND" },
-        { status: 404 },
-      );
+      throw new NotFoundError("Membre introuvable.");
     }
     // Soft delete : on marque le membre plutôt que de le supprimer (RGPD :
     // les données restent récupérables tant que deletedAt est nul).
@@ -304,20 +260,14 @@ export async function DELETE(
       /* ignore */
     }
     return NextResponse.json({ ok: true, deleted: id });
-  } catch (e) {
+  } catch (err) {
     if (
-      e instanceof Prisma.PrismaClientKnownRequestError &&
-      e.code === "P2025"
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === "P2025"
     ) {
-      return NextResponse.json(
-        { error: "Membre introuvable.", code: "NOT_FOUND" },
-        { status: 404 },
-      );
+      return errorToResponse(new NotFoundError("Membre introuvable."));
     }
-    return NextResponse.json(
-      { error: "Erreur interne.", code: "INTERNAL_ERROR" },
-      { status: 500 },
-    );
+    return errorToResponse(err);
   }
 }
 

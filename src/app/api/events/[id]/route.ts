@@ -3,13 +3,22 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/account-auth";
 import { requireAdminRole, checkCSRF, getAdminRole } from "@/lib/admin-auth";
 import { sendEventNotificationEmail } from "@/lib/mail";
-import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { validateEventPatch, notifyWhere, parseNotify } from "@/lib/events-validation";
 import { zoneForCountry } from "@/lib/events-timezone";
 import { sendPacedBatch } from "@/lib/email-batch";
 import { planBatch } from "@/lib/email-budget";
 import { audit } from "@/lib/admin-audit";
 import { blockIfTesting } from "@/lib/test-guard";
+import {
+  AuthError,
+  ForbiddenError,
+  NotFoundError,
+  RateLimitError,
+  ValidationError,
+  errorToResponse,
+  parseJsonBody,
+} from "@/lib/errors";
 
 export const runtime = "nodejs";
 
@@ -21,22 +30,17 @@ type Params = { params: Promise<{ id: string }> };
  * Admin : inclut goingCount + maybeCount pour pilotage.
  */
 export async function GET(req: NextRequest, { params }: Params) {
+  try {
   const session = await getSession(req);
   const isAdmin = await requireAdminRole(req, "viewer");
   if (!session && !isAdmin) {
-    return NextResponse.json(
-      { error: "Non authentifié.", code: "UNAUTHENTICATED" },
-      { status: 401 },
-    );
+    throw new AuthError("Non authentifié.", "UNAUTHENTICATED");
   }
 
   const { id } = await params;
   const event = await db.event.findUnique({ where: { id } });
   if (!event) {
-    return NextResponse.json(
-      { error: "Événement introuvable.", code: "NOT_FOUND" },
-      { status: 404 },
-    );
+    throw new NotFoundError("Événement introuvable.");
   }
 
   const [goingCount, maybeCount] = await Promise.all([
@@ -59,6 +63,9 @@ export async function GET(req: NextRequest, { params }: Params) {
     maybeCount,
     myRsvp,
   });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }
 
 /**
@@ -68,6 +75,7 @@ export async function GET(req: NextRequest, { params }: Params) {
  * Si notify=true : renotifie tous les APPROVED (comme à la création).
  */
 export async function PATCH(req: NextRequest, { params }: Params) {
+  try {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
   const rl = await rateLimit(`events-patch:${rateKey(req)}`, {
@@ -75,74 +83,45 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     windowMs: 600000,
   });
   if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de requêtes. Réessaie dans quelques minutes." },
-      {
-        status: 429,
-        headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) },
-      },
+    throw new RateLimitError(
+      "Trop de requêtes. Réessaie dans quelques minutes.",
+      rl.retryAfterMs,
     );
   }
 
   if (!(await requireAdminRole(req, "operator"))) {
-    return NextResponse.json(
-      { error: "Accès refusé. Rôle operator requis.", code: "FORBIDDEN" },
-      { status: 403 },
-    );
+    throw new ForbiddenError("Accès refusé. Rôle operator requis.");
   }
   if (!checkCSRF(req)) {
-    return NextResponse.json(
-      { error: "CSRF validation failed." },
-      { status: 403 },
-    );
+    throw new ForbiddenError("CSRF validation failed.");
   }
 
   const { id } = await params;
   const existing = await db.event.findUnique({ where: { id } });
   if (!existing) {
-    return NextResponse.json(
-      { error: "Événement introuvable.", code: "NOT_FOUND" },
-      { status: 404 },
-    );
+    throw new NotFoundError("Événement introuvable.");
   }
 
-  let body: Record<string, unknown>;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json(
-      { error: "JSON invalide.", code: "INVALID_PAYLOAD" },
-      { status: 400 },
-    );
-  }
+  const body = (await parseJsonBody(req)) as Record<string, unknown>;
 
   // Validation stricte partagée (mêmes règles que la création).
   // `notify: true` seul est valide (renotification sans modification).
   // notify : booléen strict — même règle que la création (POST).
   const notifyCheck = parseNotify(body.notify);
   if (!notifyCheck.ok) {
-    return NextResponse.json(
-      { error: notifyCheck.error, code: "INVALID_PAYLOAD" },
-      { status: 422 },
-    );
+    throw new ValidationError(notifyCheck.error);
   }
   const validated = validateEventPatch(body, {
     startsAt: existing.startsAt,
     endsAt: existing.endsAt,
   });
   if (!validated.ok) {
-    return NextResponse.json(
-      { error: validated.error, code: "INVALID_PAYLOAD" },
-      { status: 422 },
-    );
+    throw new ValidationError(validated.error);
   }
   const data = validated.data;
 
   if (Object.keys(data).length === 0 && body.notify !== true) {
-    return NextResponse.json(
-      { error: "Rien à mettre à jour.", code: "INVALID_PAYLOAD" },
-      { status: 422 },
-    );
+    throw new ValidationError("Rien à mettre à jour.");
   }
 
   const event = Object.keys(data).length
@@ -233,6 +212,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }
 
   return NextResponse.json({ ok: true, event, notify: notifyResult });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }
 
 /**
@@ -240,19 +222,14 @@ export async function PATCH(req: NextRequest, { params }: Params) {
  * Les RSVP sont supprimés en cascade (onDelete: Cascade).
  */
 export async function DELETE(req: NextRequest, { params }: Params) {
+  try {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
   if (!(await requireAdminRole(req, "operator"))) {
-    return NextResponse.json(
-      { error: "Accès refusé. Rôle operator requis.", code: "FORBIDDEN" },
-      { status: 403 },
-    );
+    throw new ForbiddenError("Accès refusé. Rôle operator requis.");
   }
   if (!checkCSRF(req)) {
-    return NextResponse.json(
-      { error: "CSRF validation failed." },
-      { status: 403 },
-    );
+    throw new ForbiddenError("CSRF validation failed.");
   }
 
   const { id } = await params;
@@ -261,10 +238,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     select: { id: true, title: true },
   });
   if (!existing) {
-    return NextResponse.json(
-      { error: "Événement introuvable.", code: "NOT_FOUND" },
-      { status: 404 },
-    );
+    throw new NotFoundError("Événement introuvable.");
   }
 
   await db.event.delete({ where: { id } });
@@ -276,4 +250,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     { type: "admin", role: (await getAdminRole(req)) ?? "operator" },
   );
   return NextResponse.json({ ok: true, deleted: existing });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

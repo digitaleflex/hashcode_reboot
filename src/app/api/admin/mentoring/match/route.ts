@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAdminRole } from "@/lib/admin-auth";
-import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { suggestMentors, type MentorProfile } from "@/lib/matching";
+import {
+  ForbiddenError,
+  NotFoundError,
+  RateLimitError,
+  ValidationError,
+  errorToResponse,
+} from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,11 +23,9 @@ export const dynamic = "force-dynamic";
  * AUTH : admin operator (403 sinon). 404 si mentoré introuvable.
  */
 export async function GET(req: NextRequest) {
+  try {
   if (!(await requireAdminRole(req, "operator"))) {
-    return NextResponse.json(
-      { error: "Accès refusé.", code: "FORBIDDEN" },
-      { status: 403 },
-    );
+    throw new ForbiddenError("Accès refusé.");
   }
 
   const rl = await rateLimit(`admin-mentoring-match:${rateKey(req)}`, {
@@ -28,19 +33,13 @@ export async function GET(req: NextRequest) {
     windowMs: 60_000,
   });
   if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de requêtes.", code: "RATE_LIMITED" },
-      { status: 429, headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) } },
-    );
+    throw new RateLimitError("Trop de requêtes.", rl.retryAfterMs);
   }
 
   const { searchParams } = new URL(req.url);
   const menteeId = searchParams.get("menteeId");
   if (!menteeId) {
-    return NextResponse.json(
-      { error: "menteeId requis.", code: "INVALID" },
-      { status: 422 },
-    );
+    throw new ValidationError("menteeId requis.");
   }
 
   const mentee = await db.member.findUnique({
@@ -56,10 +55,7 @@ export async function GET(req: NextRequest) {
     },
   });
   if (!mentee || mentee.deletedAt) {
-    return NextResponse.json(
-      { error: "Mentoré introuvable.", code: "NOT_FOUND" },
-      { status: 404 },
-    );
+    throw new NotFoundError("Mentoré introuvable.");
   }
 
   const mentors = await db.member.findMany({
@@ -129,4 +125,7 @@ export async function GET(req: NextRequest) {
       };
     }),
   });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

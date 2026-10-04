@@ -8,48 +8,48 @@ import {
   getAdminPasscode,
 } from "@/lib/admin-auth";
 import { audit } from "@/lib/admin-audit";
+import {
+  AppError,
+  AuthError,
+  errorToResponse,
+  parseJsonBody,
+  ValidationError,
+} from "@/lib/errors";
 
 export const runtime = "nodejs";
 
 /** GET /api/admin/keys — return current key status. */
 export async function GET(req: NextRequest) {
-  if (!(await requireAdminRole(req, "operator"))) {
-    return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
-  }
+  try {
+    if (!(await requireAdminRole(req, "operator"))) {
+      throw new AuthError("Non autorisé.", "UNAUTHORIZED");
+    }
 
-  return NextResponse.json({
+    return NextResponse.json({
     keyAgeDays: getKeyAgeDays(),
     isStub: isKeyStub(),
     rotationThresholdDays: parseInt(
       process.env.ADMIN_KEY_ROTATION_DAYS || "90",
       10,
     ),
-  });
+    });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }
 
 /** POST /api/admin/keys — rotate the admin passcode. */
 export async function POST(req: NextRequest) {
-  if (!(await requireAdminRole(req, "operator"))) {
-    return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
-  }
-
-  let body: { confirmPasscode?: string };
   try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json(
-      { error: "Requête invalide.", code: "INVALID_JSON" },
-      { status: 400 },
-    );
-  }
+    if (!(await requireAdminRole(req, "operator"))) {
+      throw new AuthError("Non autorisé.", "UNAUTHORIZED");
+    }
 
-  const currentPasscode = body.confirmPasscode?.trim();
-  if (!currentPasscode) {
-    return NextResponse.json(
-      { error: "Confirme le passcode actuel pour autoriser la rotation.", code: "CONFIRMATION_REQUIRED" },
-      { status: 422 },
-    );
-  }
+    const body = (await parseJsonBody(req)) as { confirmPasscode?: string };
+    const currentPasscode = body.confirmPasscode?.trim();
+    if (!currentPasscode) {
+      throw new ValidationError("Confirme le passcode actuel pour autoriser la rotation.");
+    }
 
   // Verify current passcode to authorize rotation.
   try {
@@ -67,26 +67,21 @@ export async function POST(req: NextRequest) {
       diff |= 1;
     }
     if (diff !== 0) {
-      return NextResponse.json(
-        { error: "Passcode de confirmation invalide.", code: "UNAUTHORIZED" },
-        { status: 401 },
-      );
+      throw new AuthError("Passcode de confirmation invalide.", "UNAUTHORIZED");
     }
-  } catch {
-    return NextResponse.json(
-      { error: "Erreur de vérification.", code: "INTERNAL_ERROR" },
-      { status: 500 },
-    );
+  } catch (err) {
+    if (err instanceof AuthError) throw err;
+    throw new AppError("Erreur de vérification.", { status: 500, code: "INTERNAL_ERROR" });
   }
 
   // Generate new passcode.
   const newPasscode = rotateAdminPasscode();
   const validation = validateRotatedKey(newPasscode);
   if (!validation.valid) {
-    return NextResponse.json(
-      { error: validation.error, code: "KEY_GENERATION_ERROR" },
-      { status: 500 },
-    );
+    throw new AppError(validation.error ?? "Erreur génération de clé.", {
+      status: 500,
+      code: "KEY_GENERATION_ERROR",
+    });
   }
 
   // Audit the rotation.
@@ -102,4 +97,7 @@ export async function POST(req: NextRequest) {
     message: "Clé rotée avec succès. TOUS les sessions admin existants sont invalidés. Copie la nouvelle clé immédiatement.",
     keyAgeDays: 0,
   });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

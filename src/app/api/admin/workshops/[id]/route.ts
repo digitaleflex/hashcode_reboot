@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAdminRole } from "@/lib/admin-auth";
-import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { SUBMISSION_STATUSES } from "@/lib/workshop-validation";
+import {
+  ForbiddenError,
+  NotFoundError,
+  RateLimitError,
+  errorToResponse,
+} from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,27 +41,22 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  if (!(await requireAdminRole(req, "operator"))) {
-    return NextResponse.json(
-      { error: "Accès refusé.", code: "FORBIDDEN" },
-      { status: 403 },
-    );
-  }
+  try {
+    if (!(await requireAdminRole(req, "operator"))) {
+      throw new ForbiddenError("Accès refusé.");
+    }
 
-  const rl = await rateLimit(`admin-workshop-detail:${rateKey(req)}`, {
-    capacity: 120,
-    windowMs: 60_000,
-  });
-  if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de requêtes.", code: "RATE_LIMITED" },
-      { status: 429, headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) } },
-    );
-  }
+    const rl = await rateLimit(`admin-workshop-detail:${rateKey(req)}`, {
+      capacity: 120,
+      windowMs: 60_000,
+    });
+    if (!rl.ok) {
+      throw new RateLimitError("Trop de requêtes.", rl.retryAfterMs);
+    }
 
-  const { id } = await params;
+    const { id } = await params;
 
-  const workshop = await db.workshop.findUnique({
+    const workshop = await db.workshop.findUnique({
     where: { id },
     select: {
       id: true,
@@ -149,10 +150,7 @@ export async function GET(
   });
 
   if (!workshop) {
-    return NextResponse.json(
-      { error: "Atelier introuvable.", code: "NOT_FOUND" },
-      { status: 404 },
-    );
+    throw new NotFoundError("Atelier introuvable.");
   }
 
   const sessions = workshop.weeks.flatMap((w) => w.sessions);
@@ -271,4 +269,7 @@ export async function GET(
       submissions,
     },
   });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

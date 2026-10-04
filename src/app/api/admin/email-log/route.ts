@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { isAdminAuthed } from "@/lib/admin-auth";
+import { AppError, AuthError, ValidationError, errorToResponse } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,11 +37,9 @@ const querySchema = z.object({
  * restent à informer pour l'annonce, combien sont blacklistés / en bounce.
  */
 export async function GET(req: NextRequest) {
+  try {
   if (!(await isAdminAuthed(req))) {
-    return NextResponse.json(
-      { error: "Non autorisé.", code: "UNAUTHORIZED" },
-      { status: 401 },
-    );
+    throw new AuthError("Non autorisé.", "UNAUTHORIZED");
   }
 
   const { searchParams } = new URL(req.url);
@@ -52,10 +51,7 @@ export async function GET(req: NextRequest) {
     pageSize: searchParams.get("pageSize") ?? undefined,
   });
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Paramètres invalides.", code: "INVALID_PAYLOAD" },
-      { status: 422 },
-    );
+    throw new ValidationError("Paramètres invalides.", parsed.error.flatten());
   }
 
   const { kind, provider, search, page, pageSize } = parsed.data;
@@ -190,11 +186,12 @@ export async function GET(req: NextRequest) {
         totalPages: Math.max(1, Math.ceil(total / pageSize)),
       },
     });
-  } catch {
-    return NextResponse.json(
-      { error: "Erreur interne.", code: "INTERNAL_ERROR" },
-      { status: 500 },
-    );
+  } catch (err) {
+    if (err instanceof AppError) throw err;
+    throw new AppError("Erreur interne.", { status: 500, code: "INTERNAL_ERROR" });
+  }
+  } catch (err) {
+    return errorToResponse(err);
   }
 }
 

@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { requestEmailLink, confirmEmailLink, buildVerifyUrl } from "@/lib/verify-email";
 import { sendVerificationLinkEmail } from "@/lib/mail";
+import {
+  AppError,
+  RateLimitError,
+  ValidationError,
+  errorToResponse,
+  parseJsonBody,
+} from "@/lib/errors";
 
 export const runtime = "nodejs";
 
@@ -14,102 +21,87 @@ const sendSchema = z.object({
 /** POST /api/verify-email — envoie un lien magique 1-clic (public).
  * Anti-abus : 5 envois par IP toutes les 10 minutes + cooldown 60 s par email. */
 export async function POST(req: NextRequest) {
-  const rl = await rateLimit(`verify-email:${rateKey(req)}`, {
-    capacity: 5,
-    windowMs: 600000, // 10 minutes
-  });
-  if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de demandes. Réessaie dans quelques minutes.", code: "RATE_LIMITED" },
-      {
-        status: 429,
-        headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) },
-      },
-    );
-  }
-
-  let body: unknown;
   try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json(
-      { error: "Corps de requête invalide.", code: "INVALID_JSON" },
-      { status: 400 },
-    );
-  }
-
-  const parsed = sendSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Email invalide.", code: "INVALID_PAYLOAD" },
-      { status: 422 },
-    );
-  }
-  const { email, firstName } = parsed.data;
-
-  const requested = await requestEmailLink(email);
-  if (!requested.ok) {
-    return NextResponse.json(
-      {
-        error: `Lien déjà envoyé. Réessaie dans ${requested.cooldownSec ?? 60} secondes.`,
-        code: "COOLDOWN",
-        retryInSec: requested.cooldownSec ?? 60,
-      },
-      { status: 429 },
-    );
-  }
-
-  // Envoi fire-and-forget : on répond ok même si Resend échoue,
-  // le client pourra redemander après le cooldown.
-  try {
-    await sendVerificationLinkEmail({
-      to: email,
-      firstName: firstName || "toi",
-      url: buildVerifyUrl(requested.token),
+    const rl = await rateLimit(`verify-email:${rateKey(req)}`, {
+      capacity: 5,
+      windowMs: 600000, // 10 minutes
     });
-  } catch {
-    /* email must never break the flow */
-  }
+    if (!rl.ok) {
+      throw new RateLimitError(
+        "Trop de demandes. Réessaie dans quelques minutes.",
+        rl.retryAfterMs,
+      );
+    }
 
-  return NextResponse.json({ ok: true, message: "Lien envoyé. Vérifie ta boîte mail (1 clic)." });
+    const body = await parseJsonBody(req);
+
+    const parsed = sendSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new ValidationError("Email invalide.", parsed.error.flatten());
+    }
+    const { email, firstName } = parsed.data;
+
+    const requested = await requestEmailLink(email);
+    if (!requested.ok) {
+      throw new AppError(
+        `Lien déjà envoyé. Réessaie dans ${requested.cooldownSec ?? 60} secondes.`,
+        {
+          status: 429,
+          code: "COOLDOWN",
+          details: { retryInSec: requested.cooldownSec ?? 60 },
+        },
+      );
+    }
+
+    // Envoi fire-and-forget : on répond ok même si Resend échoue,
+    // le client pourra redemander après le cooldown.
+    try {
+      await sendVerificationLinkEmail({
+        to: email,
+        firstName: firstName || "toi",
+        url: buildVerifyUrl(requested.token),
+      });
+    } catch {
+      /* email must never break the flow */
+    }
+
+    return NextResponse.json({ ok: true, message: "Lien envoyé. Vérifie ta boîte mail (1 clic)." });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }
 
 /** GET /api/verify-email?token=xxx — vérifie le lien magique (public, usage unique).
  * Utilisé par la page /verify-email. */
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const token = (searchParams.get("token") || "").trim();
-  if (!token) {
-    return NextResponse.json(
-      { error: "Lien invalide.", code: "INVALID_LINK" },
-      { status: 422 },
-    );
-  }
-  const rl = await rateLimit(`verify-email-verify:${rateKey(req)}`, {
-    capacity: 10,
-    windowMs: 600000,
-  });
-  if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de tentatives. Réessaie dans quelques minutes.", code: "RATE_LIMITED" },
-      {
-        status: 429,
-        headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) },
-      },
-    );
-  }
-  const result = await confirmEmailLink(token);
-  if (!result.ok) {
-    const expired = result.reason === "expired";
-    return NextResponse.json(
-      {
-        error: expired
+  try {
+    const { searchParams } = new URL(req.url);
+    const token = (searchParams.get("token") || "").trim();
+    if (!token) {
+      throw new AppError("Lien invalide.", { status: 422, code: "INVALID_LINK" });
+    }
+    const rl = await rateLimit(`verify-email-verify:${rateKey(req)}`, {
+      capacity: 10,
+      windowMs: 600000,
+    });
+    if (!rl.ok) {
+      throw new RateLimitError(
+        "Trop de tentatives. Réessaie dans quelques minutes.",
+        rl.retryAfterMs,
+      );
+    }
+    const result = await confirmEmailLink(token);
+    if (!result.ok) {
+      const expired = result.reason === "expired";
+      throw new AppError(
+        expired
           ? "Lien expiré. Demande un nouveau lien."
           : "Lien invalide. Demande un nouveau lien.",
-        code: expired ? "EXPIRED" : "INVALID_LINK",
-      },
-      { status: 422 },
-    );
+        { status: 422, code: expired ? "EXPIRED" : "INVALID_LINK" },
+      );
+    }
+    return NextResponse.json({ ok: true, verified: true, email: result.email, message: "Email vérifié." });
+  } catch (err) {
+    return errorToResponse(err);
   }
-  return NextResponse.json({ ok: true, verified: true, email: result.email, message: "Email vérifié." });
 }

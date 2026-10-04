@@ -1,20 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/account-auth";
-import { rateLimit, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit } from "@/lib/rate-limit";
 import { getSessionAccess, type SessionAccessCode } from "@/lib/workshop-server";
 import { canAttempt, publicQuestions } from "@/lib/workshop-quiz";
+import {
+  AuthError,
+  ForbiddenError,
+  NotFoundError,
+  RateLimitError,
+  errorToResponse,
+} from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type Params = { params: Promise<{ id: string }> };
 
-const ACCESS_STATUS: Record<SessionAccessCode, number> = {
-  NOT_FOUND: 404,
-  NOT_ENROLLED: 403,
-  SESSION_LOCKED: 403,
+const ACCESS_MESSAGES: Record<SessionAccessCode, string> = {
+  NOT_FOUND: "Ressource introuvable.",
+  NOT_ENROLLED: "Inscris-toi à l'atelier pour accéder à cette séance.",
+  SESSION_LOCKED: "Cette séance est encore verrouillée.",
 };
+
+/** Traduit un refus d'accès de séance en erreur applicative (404 / 403). */
+function accessError(code: SessionAccessCode): Error {
+  const message = ACCESS_MESSAGES[code];
+  return code === "NOT_FOUND" ? new NotFoundError(message) : new ForbiddenError(message);
+}
 
 /**
  * GET /api/workshops/sessions/[id] — détail pédagogique d'une séance
@@ -33,12 +46,10 @@ const ACCESS_STATUS: Record<SessionAccessCode, number> = {
  * ne peut voir QUE ses propres soumissions (ownership strict).
  */
 export async function GET(req: NextRequest, { params }: Params) {
+  try {
   const session = await getSession(req);
   if (!session) {
-    return NextResponse.json(
-      { error: "Non authentifié.", code: "UNAUTHENTICATED" },
-      { status: 401 },
-    );
+    throw new AuthError("Non authentifié.", "UNAUTHENTICATED");
   }
 
   const rl = await rateLimit(`workshop-session:${session.member.id}`, {
@@ -46,24 +57,13 @@ export async function GET(req: NextRequest, { params }: Params) {
     windowMs: 60_000,
   });
   if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de requêtes.", code: "RATE_LIMITED" },
-      { status: 429, headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) } },
-    );
+    throw new RateLimitError("Trop de requêtes.", rl.retryAfterMs);
   }
 
   const { id } = await params;
   const access = await getSessionAccess(session.member.id, id);
   if (!access.ok) {
-    const messages: Record<SessionAccessCode, string> = {
-      NOT_FOUND: "Ressource introuvable.",
-      NOT_ENROLLED: "Inscris-toi à l'atelier pour accéder à cette séance.",
-      SESSION_LOCKED: "Cette séance est encore verrouillée.",
-    };
-    return NextResponse.json(
-      { error: messages[access.code], code: access.code },
-      { status: ACCESS_STATUS[access.code] },
-    );
+    throw accessError(access.code);
   }
 
   const ws = await db.workshopSession.findUnique({
@@ -106,10 +106,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     },
   });
   if (!ws) {
-    return NextResponse.json(
-      { error: "Ressource introuvable.", code: "NOT_FOUND" },
-      { status: 404 },
-    );
+    throw new NotFoundError("Ressource introuvable.");
   }
 
   // MES soumissions + reviews (ownership strict : memberId dans le where).
@@ -179,4 +176,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       : null,
     mySubmissions,
   });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

@@ -5,9 +5,17 @@ import {
   checkCSRF,
   getAdminRole,
 } from "@/lib/admin-auth";
-import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { audit } from "@/lib/admin-audit";
 import { blockIfTesting } from "@/lib/test-guard";
+import {
+  ForbiddenError,
+  NotFoundError,
+  RateLimitError,
+  ValidationError,
+  errorToResponse,
+  parseJsonBody,
+} from "@/lib/errors";
 
 export const runtime = "nodejs";
 
@@ -66,54 +74,49 @@ function parseBody(body: Record<string, unknown>): {
  * non pertinent côté admin) et les champs de déblocage.
  */
 export async function GET(req: NextRequest, { params }: Params) {
-  if (!(await requireAdminRole(req, "viewer"))) {
-    return NextResponse.json(
-      { error: "Accès refusé.", code: "FORBIDDEN" },
-      { status: 403 },
-    );
-  }
+  try {
+    if (!(await requireAdminRole(req, "viewer"))) {
+      throw new ForbiddenError("Accès refusé.");
+    }
 
-  const rl = await rateLimit(`admin-session-read:${rateKey(req)}`, {
-    capacity: 120,
-    windowMs: 60_000,
-  });
-  if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de requêtes.", code: "RATE_LIMITED" },
-      { status: 429, headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) } },
-    );
-  }
+    const rl = await rateLimit(`admin-session-read:${rateKey(req)}`, {
+      capacity: 120,
+      windowMs: 60_000,
+    });
+    if (!rl.ok) {
+      throw new RateLimitError("Trop de requêtes.", rl.retryAfterMs);
+    }
 
-  const { id } = await params;
-  const session = await db.workshopSession.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      number: true,
-      title: true,
-      objective: true,
-      deliverableRequired: true,
-      quizRequired: true,
-      eventId: true,
-      scheduledAt: true,
-      unlockOverride: true,
-      week: {
-        select: {
-          number: true,
-          title: true,
-          workshop: { select: { id: true, slug: true, title: true, status: true } },
+    const { id } = await params;
+    const session = await db.workshopSession.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        number: true,
+        title: true,
+        objective: true,
+        deliverableRequired: true,
+        quizRequired: true,
+        eventId: true,
+        scheduledAt: true,
+        unlockOverride: true,
+        week: {
+          select: {
+            number: true,
+            title: true,
+            workshop: { select: { id: true, slug: true, title: true, status: true } },
+          },
         },
       },
-    },
-  });
-  if (!session) {
-    return NextResponse.json(
-      { error: "Séance introuvable.", code: "NOT_FOUND" },
-      { status: 404 },
-    );
-  }
+    });
+    if (!session) {
+      throw new NotFoundError("Séance introuvable.");
+    }
 
-  return NextResponse.json({ session });
+    return NextResponse.json({ session });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }
 
 /**
@@ -126,98 +129,79 @@ export async function GET(req: NextRequest, { params }: Params) {
  * simplement levé quand unlockOverride=true.
  */
 export async function PATCH(req: NextRequest, { params }: Params) {
-  const blocked = blockIfTesting();
-  if (blocked) return blocked;
-
-  if (!(await requireAdminRole(req, "operator"))) {
-    return NextResponse.json(
-      { error: "Accès refusé. Rôle operator requis.", code: "FORBIDDEN" },
-      { status: 403 },
-    );
-  }
-  if (!checkCSRF(req)) {
-    return NextResponse.json(
-      { error: "CSRF validation failed." },
-      { status: 403 },
-    );
-  }
-
-  const rl = await rateLimit(`admin-session-write:${rateKey(req)}`, {
-    capacity: 30,
-    windowMs: 60_000,
-  });
-  if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de requêtes.", code: "RATE_LIMITED" },
-      { status: 429, headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) } },
-    );
-  }
-
-  const { id } = await params;
-  const existing = await db.workshopSession.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      number: true,
-      title: true,
-      scheduledAt: true,
-      unlockOverride: true,
-      week: { select: { workshop: { select: { id: true, title: true } } } },
-    },
-  });
-  if (!existing) {
-    return NextResponse.json(
-      { error: "Séance introuvable.", code: "NOT_FOUND" },
-      { status: 404 },
-    );
-  }
-
-  let body: Record<string, unknown>;
   try {
-    body = (await req.json()) as Record<string, unknown>;
-  } catch {
-    return NextResponse.json(
-      { error: "JSON invalide.", code: "INVALID_PAYLOAD" },
-      { status: 400 },
+    const blocked = blockIfTesting();
+    if (blocked) return blocked;
+
+    if (!(await requireAdminRole(req, "operator"))) {
+      throw new ForbiddenError("Accès refusé. Rôle operator requis.");
+    }
+    if (!checkCSRF(req)) {
+      throw new ForbiddenError("CSRF validation failed.");
+    }
+
+    const rl = await rateLimit(`admin-session-write:${rateKey(req)}`, {
+      capacity: 30,
+      windowMs: 60_000,
+    });
+    if (!rl.ok) {
+      throw new RateLimitError("Trop de requêtes.", rl.retryAfterMs);
+    }
+
+    const { id } = await params;
+    const existing = await db.workshopSession.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        number: true,
+        title: true,
+        scheduledAt: true,
+        unlockOverride: true,
+        week: { select: { workshop: { select: { id: true, title: true } } } },
+      },
+    });
+    if (!existing) {
+      throw new NotFoundError("Séance introuvable.");
+    }
+
+    const body = (await parseJsonBody(req)) as Record<string, unknown>;
+
+    const parsed = parseBody(body);
+    if (!parsed.ok) {
+      throw new ValidationError(parsed.error);
+    }
+
+    const session = await db.workshopSession.update({
+      where: { id },
+      data: parsed.data,
+      select: {
+        id: true,
+        number: true,
+        title: true,
+        scheduledAt: true,
+        unlockOverride: true,
+      },
+    });
+
+    const adminRole = (await getAdminRole(req)) ?? "operator";
+    void audit(
+      "workshop-session.unlock",
+      "workshop_session",
+      id,
+      {
+        fields: Object.keys(parsed.data),
+        unlockOverride: session.unlockOverride,
+        scheduledAt: session.scheduledAt?.toISOString() ?? null,
+        workshopId: existing.week.workshop.id,
+        workshopTitle: existing.week.workshop.title,
+        sessionNumber: existing.number,
+        sessionTitle: existing.title,
+      },
+      { type: "admin", role: adminRole },
     );
+
+    return NextResponse.json({ ok: true, session });
+  } catch (err) {
+    return errorToResponse(err);
   }
-
-  const parsed = parseBody(body);
-  if (!parsed.ok) {
-    return NextResponse.json(
-      { error: parsed.error, code: "INVALID_PAYLOAD" },
-      { status: 422 },
-    );
-  }
-
-  const session = await db.workshopSession.update({
-    where: { id },
-    data: parsed.data,
-    select: {
-      id: true,
-      number: true,
-      title: true,
-      scheduledAt: true,
-      unlockOverride: true,
-    },
-  });
-
-  const adminRole = (await getAdminRole(req)) ?? "operator";
-  void audit(
-    "workshop-session.unlock",
-    "workshop_session",
-    id,
-    {
-      fields: Object.keys(parsed.data),
-      unlockOverride: session.unlockOverride,
-      scheduledAt: session.scheduledAt?.toISOString() ?? null,
-      workshopId: existing.week.workshop.id,
-      workshopTitle: existing.week.workshop.title,
-      sessionNumber: existing.number,
-      sessionTitle: existing.title,
-    },
-    { type: "admin", role: adminRole },
-  );
-
-  return NextResponse.json({ ok: true, session });
 }

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/account-auth";
-import { rateLimit, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit } from "@/lib/rate-limit";
 import { loadWorkshopForMember } from "@/lib/workshop-server";
+import { AuthError, RateLimitError, errorToResponse } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,12 +20,10 @@ export const dynamic = "force-dynamic";
  * Les ateliers draft/archived ne sont jamais visibles ici.
  */
 export async function GET(req: NextRequest) {
+  try {
   const session = await getSession(req);
   if (!session) {
-    return NextResponse.json(
-      { error: "Non authentifié.", code: "UNAUTHENTICATED" },
-      { status: 401 },
-    );
+    throw new AuthError("Non authentifié.", "UNAUTHENTICATED");
   }
 
   const rl = await rateLimit(`workshops:${session.member.id}`, {
@@ -32,10 +31,7 @@ export async function GET(req: NextRequest) {
     windowMs: 60_000,
   });
   if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de requêtes.", code: "RATE_LIMITED" },
-      { status: 429, headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) } },
-    );
+    throw new RateLimitError("Trop de requêtes.", rl.retryAfterMs);
   }
 
   const published = await db.workshop.findMany({
@@ -69,4 +65,7 @@ export async function GET(req: NextRequest) {
   }
 
   return NextResponse.json({ workshops });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

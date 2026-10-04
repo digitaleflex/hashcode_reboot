@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAdminRole } from "@/lib/admin-auth";
+import { errorToResponse, ForbiddenError } from "@/lib/errors";
 
 export const runtime = "nodejs";
 
@@ -11,13 +12,10 @@ export const runtime = "nodejs";
  * so the admin can see a chronological feed with user detail per row.
  */
 export async function GET(req: NextRequest) {
-  if (!(await requireAdminRole(req, "operator"))) {
-    return NextResponse.json(
-      { error: "Accès refusé.", code: "FORBIDDEN" },
-      { status: 403 },
-    );
-  }
   try {
+    if (!(await requireAdminRole(req, "operator"))) {
+      throw new ForbiddenError("Accès refusé.");
+    }
     const { searchParams } = new URL(req.url);
     const rawLimit = searchParams.get("limit");
     const n = rawLimit === null ? 20 : Number(rawLimit);
@@ -64,10 +62,7 @@ export async function GET(req: NextRequest) {
     }));
 
     return NextResponse.json({ events: enriched });
-  } catch {
-    return NextResponse.json(
-      { error: "Erreur interne.", code: "INTERNAL_ERROR" },
-      { status: 500 },
-    );
+  } catch (err) {
+    return errorToResponse(err);
   }
 }

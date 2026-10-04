@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/account-auth";
-import { rateLimit, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit } from "@/lib/rate-limit";
 import { loadWorkshopForMember, type SessionStateView } from "@/lib/workshop-server";
+import { AuthError, NotFoundError, RateLimitError, errorToResponse } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,12 +26,10 @@ type Params = { params: Promise<{ slug: string }> };
  * GET /api/workshops/sessions/[id] (#85), gated par enrollment + unlock.
  */
 export async function GET(req: NextRequest, { params }: Params) {
+  try {
   const session = await getSession(req);
   if (!session) {
-    return NextResponse.json(
-      { error: "Non authentifié.", code: "UNAUTHENTICATED" },
-      { status: 401 },
-    );
+    throw new AuthError("Non authentifié.", "UNAUTHENTICATED");
   }
 
   const rl = await rateLimit(`workshop:${session.member.id}`, {
@@ -38,10 +37,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     windowMs: 60_000,
   });
   if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de requêtes.", code: "RATE_LIMITED" },
-      { status: 429, headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) } },
-    );
+    throw new RateLimitError("Trop de requêtes.", rl.retryAfterMs);
   }
 
   const { slug } = await params;
@@ -50,18 +46,12 @@ export async function GET(req: NextRequest, { params }: Params) {
     select: { id: true, status: true },
   });
   if (!workshop || workshop.status !== "published") {
-    return NextResponse.json(
-      { error: "Atelier introuvable.", code: "NOT_FOUND" },
-      { status: 404 },
-    );
+    throw new NotFoundError("Atelier introuvable.");
   }
 
   const view = await loadWorkshopForMember(session.member.id, workshop.id);
   if (!view) {
-    return NextResponse.json(
-      { error: "Atelier introuvable.", code: "NOT_FOUND" },
-      { status: 404 },
-    );
+    throw new NotFoundError("Atelier introuvable.");
   }
 
   // Prochain créneau des séances DÉBLOQUÉES liées à un Event.
@@ -110,4 +100,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     summary: view.summary,
     weeks,
   });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

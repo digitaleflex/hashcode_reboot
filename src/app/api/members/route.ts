@@ -7,11 +7,19 @@ import { runAutoControls } from "@/lib/profiling/auto-controls";
 import { generateProfile } from "@/lib/profiling/engine";
 import { sendInvitationEmail, sendWelcomeEmail, sendWaitlistEmail, sendVerificationLinkEmail } from "@/lib/mail";
 import { requestEmailLink, buildVerifyUrl } from "@/lib/verify-email";
-import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { isAdminAuthed } from "@/lib/admin-auth";
 import { isEmailBlacklisted } from "@/lib/blacklist";
 import { blockIfTesting } from "@/lib/test-guard";
 import { bodyLimit } from "@/lib/body-limit";
+import {
+  AppError,
+  AuthError,
+  errorToResponse,
+  parseJsonBody,
+  RateLimitError,
+  ValidationError,
+} from "@/lib/errors";
 import {
   issuePhoneFillTicket,
   phoneFillSetCookie,
@@ -24,6 +32,7 @@ export const runtime = "nodejs";
  * the automatic controls (branching), persists. Returns the access lane +
  * generated profile so the client can render the right branch. */
 export async function POST(req: NextRequest) {
+  try {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
   const tooLarge = bodyLimit(req);
@@ -32,25 +41,10 @@ export async function POST(req: NextRequest) {
   const rl = await rateLimit(`members-submit:${rateKey(req)}`, { capacity: 5, windowMs: 600000 });
   if (!rl.ok) {
     const t = await getTranslations("profiling");
-    return NextResponse.json(
-      { error: t("api.tooManySubmissions") },
-      {
-        status: 429,
-        headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) },
-      },
-    );
+    throw new RateLimitError(t("api.tooManySubmissions"), rl.retryAfterMs);
   }
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    const t = await getTranslations("profiling");
-    return NextResponse.json(
-      { error: t("api.invalidJson") },
-      { status: 400 },
-    );
-  }
+  const body = await parseJsonBody(req);
 
   // Get translations for validation
   const t = await getTranslations("profiling");
@@ -58,15 +52,12 @@ export async function POST(req: NextRequest) {
 
   const parsed = profileSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json(
-      {
-        error: t("api.invalidData"),
-        issues: parsed.error.issues.map((i) => ({
-          path: i.path.join("."),
-          message: i.message,
-        })),
-      },
-      { status: 422 },
+    throw new ValidationError(
+      t("api.invalidData"),
+      parsed.error.issues.map((i) => ({
+        path: i.path.join("."),
+        message: i.message,
+      })),
     );
   }
   const data = parsed.data;
@@ -85,13 +76,9 @@ export async function POST(req: NextRequest) {
     console.warn(
       `[signup] Blocked signup for blacklisted email (reason=${blacklisted.reason})`,
     );
-    return NextResponse.json(
-      {
-        error:
-          "Impossible de créer ton profil avec cet email. Contacte-nous à privacy@joinhashcode.com si tu penses qu'il s'agit d'une erreur.",
-        code: "EMAIL_NOT_ACCEPTED",
-      },
-      { status: 403 },
+    throw new AppError(
+      "Impossible de créer ton profil avec cet email. Contacte-nous à privacy@joinhashcode.com si tu penses qu'il s'agit d'une erreur.",
+      { status: 403, code: "EMAIL_NOT_ACCEPTED" },
     );
   }
 
@@ -245,6 +232,9 @@ export async function POST(req: NextRequest) {
     res.headers.append("Set-Cookie", phoneFillSetCookie(fillTicket));
   }
   return res;
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }
 
 /** GET /api/members — admin list with filters (admin-only).
@@ -255,12 +245,10 @@ export async function POST(req: NextRequest) {
  *   (createdAt/firstName/primaryDomain|domain/level/profileStatus|status),
  *   défaut createdAt desc. Réponse {members, total, page, pageSize}. */
 export async function GET(req: NextRequest) {
+  try {
   if (!(await isAdminAuthed(req))) {
     const t = await getTranslations("profiling");
-    return NextResponse.json(
-      { error: t("api.unauthorized"), code: "UNAUTHORIZED" },
-      { status: 401 },
-    );
+    throw new AuthError(t("api.unauthorized"), "UNAUTHORIZED");
   }
   try {
     const { searchParams } = new URL(req.url);
@@ -309,14 +297,7 @@ export async function GET(req: NextRequest) {
     const parsedParams = paginationSchema.safeParse(rawParams);
     if (!parsedParams.success) {
       const t = await getTranslations("profiling");
-      return NextResponse.json(
-        {
-          error: t("api.invalidPagination"),
-          code: "INVALID_PAYLOAD",
-          issues: parsedParams.error.issues,
-        },
-        { status: 422 },
-      );
+      throw new ValidationError(t("api.invalidPagination"), parsedParams.error.issues);
     }
     const p = parsedParams.data;
 
@@ -334,10 +315,7 @@ export async function GET(req: NextRequest) {
     const mappedSort = SORT_FIELD_MAP[rawSort];
     if (!mappedSort) {
       const t = await getTranslations("profiling");
-      return NextResponse.json(
-        { error: t("api.invalidSort"), code: "INVALID_PAYLOAD" },
-        { status: 422 },
-      );
+      throw new ValidationError(t("api.invalidSort"));
     }
     const dir = p.dir ?? p.sortDir ?? p.order ?? "desc";
 
@@ -423,11 +401,12 @@ export async function GET(req: NextRequest) {
     ]);
 
     return NextResponse.json({ members, total, page, pageSize });
-  } catch {
+  } catch (err) {
+    if (err instanceof AppError) throw err;
     const t = await getTranslations("profiling");
-    return NextResponse.json(
-      { error: t("api.internalError"), code: "INTERNAL_ERROR" },
-      { status: 500 },
-    );
+    throw new AppError(t("api.internalError"), { status: 500, code: "INTERNAL_ERROR" });
+  }
+  } catch (err) {
+    return errorToResponse(err);
   }
 }

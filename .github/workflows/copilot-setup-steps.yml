@@ -1,0 +1,52 @@
+name: "Copilot Setup Steps"
+
+# This workflow configures the environment for GitHub Copilot Agent
+# Automatically run the setup steps when they are changed to allow for easy validation
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+  pull_request:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+
+jobs:
+  # The job MUST be called 'copilot-setup-steps' to be recognized by GitHub Copilot Agent
+  copilot-setup-steps:
+    if: github.event.repository.fork == false
+    runs-on: ubuntu-latest
+
+    # Set minimal permissions for setup steps
+    # Copilot Agent receives its own token with appropriate permissions
+    permissions:
+      contents: read
+
+    steps:
+      # Checkout the repository to install dependencies
+      - name: Checkout code
+        uses: actions/checkout@v6.0.2
+
+      # Setup Node.js (for TypeScript/JavaScript SDK and tooling)
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      # Install Node.js dependencies (postinstall runs `prisma generate`)
+      - name: Install Node.js dependencies
+        run: npm ci
+
+      # Generate Prisma client (idempotent, in case postinstall was skipped)
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      # Verify the environment is ready
+      - name: Verify tool installations
+        run: |
+          echo "=== Verifying installations ==="
+          node --version
+          npm --version
+          npx next --version
+          echo "✅ All tools installed successfully"

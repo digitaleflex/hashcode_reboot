@@ -2,8 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireAdminRole } from "@/lib/admin-auth";
-import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
+import {
+  AppError,
+  errorToResponse,
+  ForbiddenError,
+  parseJsonBody,
+  RateLimitError,
+} from "@/lib/errors";
 
 export const runtime = "nodejs";
 
@@ -26,43 +33,33 @@ interface ImportError {
 
 /** POST /api/members/import — bulk CSV import (admin-only). */
 export async function POST(req: NextRequest) {
-  const blocked = blockIfTesting();
-  if (blocked) return blocked;
-  if (!(await requireAdminRole(req, "operator"))) {
-    return NextResponse.json(
-      { error: "Opérateur requis.", code: "FORBIDDEN" },
-      { status: 403 },
-    );
-  }
-
-  const rl = await rateLimit(`import:${rateKey(req)}`, {
-    capacity: 10,
-    windowMs: 600000, // 10 minutes
-  });
-  if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop d'imports. Réessaie plus tard.", code: "RATE_LIMITED" },
-      { status: 429, headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) } },
-    );
-  }
-
-  let body: unknown;
   try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "JSON invalide.", code: "BAD_REQUEST" }, { status: 400 });
-  }
+    const blocked = blockIfTesting();
+    if (blocked) return blocked;
+    if (!(await requireAdminRole(req, "operator"))) {
+      throw new ForbiddenError("Opérateur requis.");
+    }
 
-  const { rows } = body as { rows: unknown[] };
-  if (!Array.isArray(rows)) {
-    return NextResponse.json({ error: "Champ 'rows' requis (array).", code: "BAD_REQUEST" }, { status: 400 });
-  }
-  if (rows.length === 0) {
-    return NextResponse.json({ error: "Aucune ligne à importer.", code: "BAD_REQUEST" }, { status: 400 });
-  }
-  if (rows.length > 500) {
-    return NextResponse.json({ error: "Maximum 500 lignes par import.", code: "TOO_MANY_ROWS" }, { status: 400 });
-  }
+    const rl = await rateLimit(`import:${rateKey(req)}`, {
+      capacity: 10,
+      windowMs: 600000, // 10 minutes
+    });
+    if (!rl.ok) {
+      throw new RateLimitError("Trop d'imports. Réessaie plus tard.", rl.retryAfterMs);
+    }
+
+    const body = await parseJsonBody(req);
+
+    const { rows } = body as { rows: unknown[] };
+    if (!Array.isArray(rows)) {
+      throw new AppError("Champ 'rows' requis (array).", { status: 400, code: "BAD_REQUEST" });
+    }
+    if (rows.length === 0) {
+      throw new AppError("Aucune ligne à importer.", { status: 400, code: "BAD_REQUEST" });
+    }
+    if (rows.length > 500) {
+      throw new AppError("Maximum 500 lignes par import.", { status: 400, code: "TOO_MANY_ROWS" });
+    }
 
   const errors: ImportError[] = [];
   const seen = new Set<string>();
@@ -108,17 +105,15 @@ export async function POST(req: NextRequest) {
   }
 
   if (errors.length > 0) {
-    return NextResponse.json(
-      { error: "Erreurs de validation.", code: "VALIDATION_ERROR", errors },
-      { status: 422 },
-    );
+    throw new AppError("Erreurs de validation.", {
+      status: 422,
+      code: "VALIDATION_ERROR",
+      details: { errors },
+    });
   }
 
   if (validRows.length === 0) {
-    return NextResponse.json(
-      { error: "Aucune ligne valide.", code: "NO_VALID_ROWS" },
-      { status: 422 },
-    );
+    throw new AppError("Aucune ligne valide.", { status: 422, code: "NO_VALID_ROWS" });
   }
 
   // Check existing emails to determine create vs update
@@ -183,10 +178,7 @@ export async function POST(req: NextRequest) {
     }
   } catch (err) {
     console.error("Import error:", err);
-    return NextResponse.json(
-      { error: "INTERNAL_ERROR", code: "INTERNAL_ERROR" },
-      { status: 500 },
-    );
+    throw new AppError("INTERNAL_ERROR", { status: 500, code: "INTERNAL_ERROR" });
   }
 
   // Audit log
@@ -209,4 +201,7 @@ export async function POST(req: NextRequest) {
     skipped,
     errors: errors.length > 0 ? errors : undefined,
   });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

@@ -9,6 +9,7 @@ import {
   type EmailBudget,
   type BudgetLevel,
 } from "@/lib/email-budget";
+import { AuthError, ValidationError, errorToResponse } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -445,11 +446,9 @@ async function fetchEmailAudience() {
  * try/catch et renvoie `null` en cas d'erreur, avec un `_error` explicite.
  */
 export async function GET(req: NextRequest) {
+  try {
   if (!(await isAdminAuthed(req))) {
-    return NextResponse.json(
-      { error: "Non autorisé.", code: "UNAUTHORIZED" },
-      { status: 401 },
-    );
+    throw new AuthError("Non autorisé.", "UNAUTHORIZED");
   }
 
   const { searchParams } = new URL(req.url);
@@ -459,10 +458,7 @@ export async function GET(req: NextRequest) {
     throughputMinutes: searchParams.get("throughputMinutes") ?? undefined,
   });
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Paramètres invalides.", details: parsed.error.flatten() },
-      { status: 422 },
-    );
+    throw new ValidationError("Paramètres invalides.", parsed.error.flatten());
   }
   const { deliveryDays, batchSize, throughputMinutes } = parsed.data;
 
@@ -509,4 +505,7 @@ export async function GET(req: NextRequest) {
     audience: hasAudienceError ? null : audience,
     errors: Object.keys(errors).length > 0 ? errors : undefined,
   });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

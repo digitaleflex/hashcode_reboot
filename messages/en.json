@@ -26,7 +26,8 @@
         "FAQ"
       ],
       "cta": "Build my profile",
-      "ctaMobile": "Join"
+      "ctaMobile": "Join",
+      "editionBadge": "Reboot · 2026 Edition"
     },
     "hero": {
       "eyebrow": "Welcome to the Reboot — wherever you are",
@@ -451,7 +452,13 @@
         "valueEmpty": "1st",
         "labelWithCount": "Profiles already created",
         "labelEmpty": "Cohort in progress"
-      }
+      },
+      "linksTitle": "Links",
+      "links": [
+        "Build my profile",
+        "See the 3 tracks",
+        "Frequently asked questions"
+      ]
     },
     "stickyCta": {
       "title": "2 min · Free",
@@ -462,6 +469,99 @@
       "authenticated": "My space",
       "authenticatedWithName": "My space · {firstName}",
       "anonymous": "Sign in"
+    },
+    "why": {
+      "index": "01 · Why we're back",
+      "title": "HASHCODE is evolving.",
+      "intro": "Content alone is no longer enough. We want an environment where members can learn, practice, build, collaborate and grow — for real."
+    },
+    "pillars": {
+      "index": "03 · What really changes",
+      "title": "Four verbs. One direction.",
+      "intro": "From consuming to building.",
+      "items": [
+        {
+          "k": "01",
+          "t": "Learn",
+          "d": "Clear, solid fundamentals."
+        },
+        {
+          "k": "02",
+          "t": "Build",
+          "d": "Real projects, not demos."
+        },
+        {
+          "k": "03",
+          "t": "Practice",
+          "d": "Challenges to keep improving."
+        },
+        {
+          "k": "04",
+          "t": "Collaborate",
+          "d": "Grow with fellow members."
+        }
+      ],
+      "carouselAria": "What changes: four verbs, one direction",
+      "trackAria": "Scroll horizontally to see the four verbs. Left and right arrows available.",
+      "slideAria": "{i} of {total}: {pt}",
+      "prevAria": "See the previous verb",
+      "nextAria": "See the next verb",
+      "dotsAria": "Choose a verb",
+      "dotAria": "Go to verb {i}: {pt}"
+    },
+    "audience": {
+      "index": "04 · Who it's for",
+      "title": "No need to be an expert.",
+      "intro": "If you're curious and motivated, you belong here. Tap a profile to get started.",
+      "items": [
+        "Beginners",
+        "Students",
+        "Developers",
+        "Professionals",
+        "Entrepreneurs",
+        "Cyber enthusiasts",
+        "AI curious",
+        "Self-taught learners"
+      ],
+      "note": "Beginner or advanced — we start from where you really are."
+    },
+    "testimonial": {
+      "quote": "I arrived curious, left with a clear plan and my first challenge to do this week. We finally know where we're going.",
+      "avatarLetter": "A",
+      "name": "Aïcha · Student",
+      "role": "Web beginner · First 2026 cohort"
+    },
+    "coming": {
+      "index": "05 · What's next, concretely",
+      "title": "The Reboot is now.",
+      "intro": "First members are leading the way. Here is the real order.",
+      "items": [
+        {
+          "t": "Challenges",
+          "d": "Real-world problems to solve, regularly. The first one this week.",
+          "status": "Now"
+        },
+        {
+          "t": "Workshops",
+          "d": "Live sessions to learn together.",
+          "status": "Soon"
+        },
+        {
+          "t": "Projects",
+          "d": "Build as a team on real projects.",
+          "status": "Soon"
+        },
+        {
+          "t": "Mentoring",
+          "d": "Guidance for those who need it.",
+          "status": "Later"
+        },
+        {
+          "t": "HASHCODE Registry",
+          "d": "The future hub for profiles and journeys.",
+          "status": "Later"
+        }
+      ]
     }
   },
   "profiling": {
@@ -1261,7 +1361,8 @@
     "backLink": "← Back to site",
     "dashboardLink": "My space",
     "loginLink": "Sign in",
-    "footerText": "HASHCODE REBOOT · Tech talent network"
+    "footerText": "HASHCODE REBOOT · Tech talent network",
+    "notFoundTitle": "Profile not found"
   },
   "error": {
     "pageTitle": "Error — HASHCODE REBOOT",
@@ -3126,6 +3227,462 @@
       },
       "cookies": {
         "title": "Cookies"
+      }
+    }
+  },
+  "legal": {
+    "mentions": {
+      "metaTitle": "Legal notices — HASHCODE REBOOT",
+      "metaDescription": "Legal notices for HASHCODE REBOOT: publisher, hosting, intellectual property, liability, applicable law.",
+      "title": "Legal notices",
+      "subtitle": "Legal information regarding the HASHCODE REBOOT website.",
+      "backHome": "Back to HASHCODE",
+      "lastUpdated": "Last updated: {date}",
+      "navAria": "Legal notices navigation",
+      "nav": {
+        "privacy": "Privacy policy",
+        "terms": "Terms of use",
+        "cookies": "Cookie policy",
+        "mentions": "Legal notices"
+      },
+      "sections": {
+        "editor": {
+          "title": "Website publisher",
+          "label": "Name",
+          "value": "HASHCODE Association",
+          "address": "Address",
+          "addressValue": "Benin",
+          "email": "Email",
+          "phone": "Phone",
+          "phoneValue": "+229 XX XX XX XX",
+          "siret": "SIRET",
+          "siretValue": "Registration in progress",
+          "rcs": "RCS",
+          "rcsValue": "In progress",
+          "tva": "VAT number",
+          "tvaValue": "Not applicable (association)",
+          "director": "Publication director",
+          "directorValue": "HASHCODE Team"
+        },
+        "hosting": {
+          "title": "Hosting",
+          "label": "Host",
+          "value": "Vercel Inc.",
+          "address": "Address",
+          "addressValue": "340 S Lemon Ave #4133, Walnut, CA 91789, USA"
+        },
+        "intellectualProperty": {
+          "title": "Intellectual property",
+          "content1": "All content on the HASHCODE REBOOT website (texts, images, logos, trademarks, code, structure, databases) is the exclusive property of the HASHCODE Association or used with authorization.",
+          "content2": "Any reproduction, representation, modification, publication, adaptation of all or part of the site elements, by any means or process, is prohibited without prior written authorization.",
+          "content3": "The trademarks « HASHCODE » and « REBOOT » are registered trademarks. Any unauthorized use constitutes infringement."
+        },
+        "limitation": {
+          "title": "Limitation of liability",
+          "content1": "HASHCODE Association strives to provide accurate information. However, it cannot be held responsible for any errors, omissions, or unavailability of information.",
+          "content2": "Hyperlinks to third-party sites are provided for information only. HASHCODE Association exercises no control over these sites and declines all responsibility for their content."
+        },
+        "externalLinks": {
+          "title": "External links",
+          "content": "The site may contain links to third-party sites. HASHCODE Association is not responsible for the content, privacy policy, or practices of these sites."
+        },
+        "applicableLaw": {
+          "title": "Applicable law",
+          "content": "These legal notices are governed by Beninese law. Any dispute relating to their interpretation or execution shall be submitted to the competent courts of Benin."
+        },
+        "contact": {
+          "title": "Contact",
+          "content": "For any question regarding legal notices, you can contact us:"
+        }
+      }
+    },
+    "privacy": {
+      "metaTitle": "Privacy policy — HASHCODE REBOOT",
+      "metaDescription": "HASHCODE REBOOT privacy policy: data collected, purposes, recipients, rights, security, cookies, DPO contact.",
+      "title": "Privacy policy",
+      "subtitle": "How we collect, use and protect your personal data.",
+      "backHome": "Back to HASHCODE",
+      "lastUpdated": "Last updated: {date}",
+      "navAria": "Privacy policy navigation",
+      "nav": {
+        "mentions": "Legal notices",
+        "terms": "Terms of use",
+        "cookies": "Cookie policy",
+        "privacy": "Privacy policy"
+      },
+      "sections": {
+        "introduction": {
+          "title": "Introduction",
+          "content1": "Protecting your personal data is a priority for HASHCODE REBOOT. This policy explains what data we collect, why we collect it, how we use it, and what your rights are.",
+          "content2": "By using our services, you accept the collection and use of your data in accordance with this policy."
+        },
+        "controller": {
+          "title": "Data controller",
+          "content": "The HASHCODE Association, based in Benin, is the data controller for your personal data.",
+          "contact": "Data Protection Officer (DPO)"
+        },
+        "dataCollected": {
+          "title": "Data collected",
+          "profile": {
+            "title": "Profile data",
+            "items": [
+              "First name, last name",
+              "Email",
+              "Phone number (WhatsApp)",
+              "Country, city",
+              "Gender (optional)",
+              "Domain of interest (Web, Cyber, AI)",
+              "Level (Beginner to Advanced)",
+              "3-month goal",
+              "Weekly availability",
+              "Learning style",
+              "Mentoring interest",
+              "Indicative budget (optional)"
+            ]
+          },
+          "technical": {
+            "title": "Technical data",
+            "items": [
+              "IP address",
+              "Browser type and version",
+              "Operating system",
+              "Pages visited, time spent",
+              "Interaction events (clicks, submissions)",
+              "Error logs"
+            ]
+          },
+          "usage": {
+            "title": "Usage data",
+            "items": [
+              "Workshop progress",
+              "Quiz results",
+              "Submitted deliverables",
+              "Event participation (RSVP)",
+              "Mentoring history"
+            ]
+          }
+        },
+        "purposes": {
+          "title": "Processing purposes",
+          "items": [
+            {
+              "label": "Account creation and management",
+              "desc": "Identify user, send access code, manage profile"
+            },
+            {
+              "label": "Journey personalization",
+              "desc": "Suggest appropriate track (Web, Cyber, AI), recommend workshops and mentors"
+            },
+            {
+              "label": "Communication",
+              "desc": "Send notifications, WhatsApp invitations, transactional emails, newsletters"
+            },
+            {
+              "label": "Community animation",
+              "desc": "Manage workshop/event registrations, mentoring"
+            },
+            {
+              "label": "Service improvement",
+              "desc": "Analyze usage, fix bugs, measure satisfaction"
+            },
+            {
+              "label": "Legal obligations",
+              "desc": "Respond to authority requests, prevent fraud"
+            }
+          ]
+        },
+        "legalBasis": {
+          "title": "Legal bases",
+          "items": [
+            {
+              "purpose": "Contract performance (account creation, service access)",
+              "basis": "Article 6.1.b GDPR"
+            },
+            {
+              "purpose": "Consent (newsletter, non-essential cookies)",
+              "basis": "Article 6.1.a GDPR"
+            },
+            {
+              "purpose": "Legitimate interest (analytics, security, improvement)",
+              "basis": "Article 6.1.f GDPR"
+            },
+            {
+              "purpose": "Legal obligation (log retention, authority responses)",
+              "basis": "Article 6.1.c GDPR"
+            }
+          ]
+        },
+        "recipients": {
+          "title": "Data recipients",
+          "content1": "Your data is never sold. It is accessible only to authorized persons:",
+          "content2": "We may share your data with technical subcontractors (hosting, email, analytics) bound by GDPR subcontractor agreements.",
+          "categories": [
+            "HASHCODE team (admins, mentors)",
+            "Subcontractors: Vercel (hosting), Resend/Brevo (email), Plausible (analytics)"
+          ]
+        },
+        "transfers": {
+          "title": "Transfers outside EU",
+          "content": "Some subcontractors (Vercel, Resend) are based in the USA. Transfers rely on EU Standard Contractual Clauses and/or the EU-US Data Privacy Framework adequacy decision."
+        },
+        "retention": {
+          "title": "Retention periods",
+          "items": [
+            {
+              "category": "Account data (profile, email, phone)",
+              "duration": "Registration duration + 3 years of inactivity"
+            },
+            {
+              "category": "Progress data (workshops, quizzes, deliverables)",
+              "duration": "Registration duration + 3 years"
+            },
+            {
+              "category": "Technical logs (IP, navigation, errors)",
+              "duration": "13 months maximum"
+            },
+            {
+              "category": "Mentoring data",
+              "duration": "Relationship duration + 3 years"
+            },
+            {
+              "category": "Cookies (see cookie policy)",
+              "duration": "Varies by type (session to 13 months)"
+            }
+          ]
+        },
+        "rights": {
+          "title": "Your rights",
+          "content": "In accordance with GDPR and Beninese law, you have the following rights:",
+          "list": [
+            "Right of access: obtain a copy of your data",
+            "Right of rectification: correct inaccurate data",
+            "Right to erasure (« right to be forgotten »): request deletion",
+            "Right to restriction: freeze use of your data",
+            "Right to object: refuse processing for legitimate reasons",
+            "Right to portability: receive your data in a structured format",
+            "Right to withdraw consent (for consent-based processing)",
+            "Right to lodge a complaint with the data protection authority (Benin or EU)"
+          ],
+          "exercise": "To exercise your rights, contact our DPO at {email} or via your member area (« My data » section). We respond within 30 days."
+        },
+        "security": {
+          "title": "Security",
+          "content": "We implement appropriate technical and organizational measures: TLS 1.3 encryption, strong authentication (magic link + OTP), data isolation, access logging, encrypted backups, regular security testing."
+        },
+        "cookies": {
+          "title": "Cookies",
+          "content": "We use essential cookies (session, security) and, with your consent, privacy-respecting analytics cookies (Plausible).",
+          "link": "View full cookie policy"
+        },
+        "changes": {
+          "title": "Policy changes",
+          "content": "This policy may be updated. Substantial changes will be notified by email or via the app. The current version is always accessible on this page."
+        },
+        "contact": {
+          "title": "DPO contact",
+          "content": "For any question regarding your data protection:"
+        }
+      }
+    },
+    "terms": {
+      "metaTitle": "Terms of use — HASHCODE REBOOT",
+      "metaDescription": "HASHCODE REBOOT terms of use: acceptance, service description, access, account, obligations, intellectual property, suspension, liability, modifications, termination, applicable law.",
+      "title": "Terms of use",
+      "subtitle": "Rules governing access to and use of HASHCODE REBOOT services.",
+      "backHome": "Back to HASHCODE",
+      "lastUpdated": "Last updated: {date}",
+      "navAria": "Terms of use navigation",
+      "nav": {
+        "mentions": "Legal notices",
+        "privacy": "Privacy policy",
+        "cookies": "Cookie policy",
+        "terms": "Terms of use"
+      },
+      "sections": {
+        "acceptance": {
+          "title": "Acceptance of terms",
+          "content1": "By accessing or using HASHCODE REBOOT services (website, app, workshops, mentoring, community), you accept these terms of use without reservation.",
+          "content2": "If you do not accept these terms, please do not use our services."
+        },
+        "description": {
+          "title": "Service description",
+          "content1": "HASHCODE REBOOT is a tech community (web development, cybersecurity, applied AI) offering: guided profiling, practical workshops, challenges, mentoring, events, WhatsApp network, member area.",
+          "content2": "Services are free for members. Some future options (premium mentoring, certifications) may be paid, always optionally and transparently.",
+          "content3": "We reserve the right to modify, suspend or stop any part of the services at any time, with reasonable notice."
+        },
+        "access": {
+          "title": "Service access",
+          "content1": "Access requires creating a profile via the profiling questionnaire (about 2 minutes).",
+          "content2": "Admission is subject to validation by the HASHCODE team (statuses: Approved, Pending, Waitlist, Not selected).",
+          "content3": "A single user may only have one account. Multiple accounts are prohibited.",
+          "content4": "Access to the official WhatsApp group is reserved for approved members."
+        },
+        "account": {
+          "title": "User account",
+          "content1": "You are responsible for the confidentiality of your access (magic link, OTP code). Do not share them.",
+          "content2": "You must provide accurate information and keep it updated. Any false declaration may lead to account suspension.",
+          "content3": "You can delete your account at any time from the member area (« My data » section). This action is irreversible.",
+          "content4": "In case of account compromise, contact us immediately via WhatsApp."
+        },
+        "userObligations": {
+          "title": "User obligations",
+          "content1": "As a member, you undertake to:",
+          "items": [
+            "Respect other members (kindness, no harassment, no discrimination)",
+            "Not distribute illegal, hateful, pornographic, spam content, or content infringing third-party rights",
+            "Not attempt to bypass security measures, extract data (scraping), or disrupt services",
+            "Use resources (workshops, mentoring) in good faith and for personal learning purposes",
+            "Report any inappropriate behavior through provided channels"
+          ]
+        },
+        "content": {
+          "title": "User content",
+          "content1": "You retain ownership of your deliverables (code, texts, projects) submitted as part of workshops.",
+          "content2": "By submitting a deliverable, you grant HASHCODE a non-exclusive, worldwide, royalty-free license for the duration of your registration to evaluate, correct, display in your public profile (if you authorize).",
+          "content3": "You warrant that your submissions do not infringe third-party intellectual property rights.",
+          "content4": "HASHCODE may refuse, hide or remove any non-compliant content without notice."
+        },
+        "intellectualProperty": {
+          "title": "HASHCODE intellectual property",
+          "content1": "The HASHCODE brand, logo, website design, educational content (workshops, quizzes, challenges) are the exclusive property of the HASHCODE Association.",
+          "content2": "Any reproduction, distribution, commercial exploitation without written authorization is prohibited.",
+          "content3": "Feedback you give us on the service may be freely used to improve it."
+        },
+        "suspension": {
+          "title": "Suspension and termination",
+          "content1": "We may suspend or terminate your access in case of serious or repeated violation of the terms (harassment, fraud, scraping, illegal content).",
+          "content2": "You will be informed by email of the reasons. You may contest the decision within 15 days by contacting the team.",
+          "content3": "In case of termination, your data will be processed according to the privacy policy (deletion or anonymization)."
+        },
+        "liability": {
+          "title": "Liability",
+          "content1": "HASHCODE provides services « as is » without warranty of continuous availability, absence of bugs, or fitness for a particular purpose.",
+          "content2": "Our liability cannot be engaged for indirect damages (loss of opportunity, data, revenue) except in cases of gross negligence or willful misconduct.",
+          "content3": "In any event, our total liability is limited to the amount you may have paid (0 $ for free usage)."
+        },
+        "modifications": {
+          "title": "Terms modifications",
+          "content": "The terms may be modified. The current version is always accessible on this page. Substantial changes are notified by email 15 days before taking effect. Your continued use constitutes acceptance."
+        },
+        "termination": {
+          "title": "Termination",
+          "content1": "You may leave HASHCODE at any time by deleting your account from the member area.",
+          "content2": "We may terminate for legitimate reason (inactivity > 1 year, terms violation) with 30 days notice."
+        },
+        "law": {
+          "title": "Applicable law and jurisdiction",
+          "content": "These terms are governed by Beninese law. Any dispute shall be submitted to the competent courts of Benin, after attempt at amicable resolution."
+        },
+        "contact": {
+          "title": "Contact",
+          "content": "For any question regarding the terms:"
+        }
+      }
+    },
+    "cookies": {
+      "metaTitle": "Cookie policy — HASHCODE REBOOT",
+      "metaDescription": "HASHCODE REBOOT cookie policy: essential cookies, analytics, consent, management, third parties, retention, rights, contact.",
+      "title": "Cookie policy",
+      "subtitle": "How we use cookies and similar technologies.",
+      "backHome": "Back to HASHCODE",
+      "lastUpdated": "Last updated: {date}",
+      "navAria": "Cookie policy navigation",
+      "nav": {
+        "mentions": "Legal notices",
+        "privacy": "Privacy policy",
+        "terms": "Terms of use",
+        "cookies": "Cookie policy"
+      },
+      "sections": {
+        "whatAreCookies": {
+          "title": "What are cookies?",
+          "content": "Cookies are small text files placed on your device (computer, phone) when visiting a website. They allow recognizing your browser, remembering your preferences, and analyzing site usage."
+        },
+        "categories": {
+          "title": "Cookie categories used",
+          "list": [
+            {
+              "name": "Essential (strictly necessary)",
+              "desc": "Essential for site operation. Cannot be disabled.",
+              "cookies": [
+                "session_id: session identification (expires: browser close)",
+                "auth_token: magic link/OTP auth token (expires: 15 min)",
+                "csrf_token: CSRF protection (expires: session)",
+                "locale: language preference (expires: 1 year)"
+              ]
+            },
+            {
+              "name": "Analytics (optional, with consent)",
+              "desc": "Measure audience in a privacy-respecting way (Plausible, no third-party cookies, anonymized data).",
+              "cookies": [
+                "plausible_session: analytics session (expires: 30 min)",
+                "plausible_visitor: unique visitor (expires: 1 year)"
+              ]
+            },
+            {
+              "name": "Functional (optional)",
+              "desc": "Improve user experience (preferences, interface).",
+              "cookies": [
+                "theme: light/dark mode (expires: 1 year)",
+                "sidebar_state: dashboard sidebar state (expires: session)"
+              ]
+            }
+          ]
+        },
+        "consent": {
+          "title": "Consent",
+          "content1": "Essential cookies are placed automatically (legal basis: legitimate interest / contract performance).",
+          "content2": "Analytics and functional cookies are only placed after your explicit consent (banner on first visit). You can withdraw consent at any time.",
+          "content3": "Refusing optional cookies does not prevent access to services."
+        },
+        "manage": {
+          "title": "Manage preferences",
+          "content1": "You can change your choices at any time via the « Cookies » link in the footer or your browser settings.",
+          "content2": "To delete or block cookies:",
+          "browsers": [
+            "Chrome: Settings → Privacy → Cookies",
+            "Firefox: Options → Privacy → Cookies",
+            "Safari: Preferences → Privacy → Manage data",
+            "Edge: Settings → Cookies and site permissions"
+          ]
+        },
+        "thirdParty": {
+          "title": "Third-party services",
+          "content1": "Some cookies are placed by third-party services we use:",
+          "content2": "These services have their own privacy policies. We do not control their cookies.",
+          "services": [
+            "Vercel (hosting): technical session cookies",
+            "Resend / Brevo (email): open/click tracking cookies (transactional emails only)",
+            "Plausible (analytics): anonymous cookies, no personal data",
+            "WhatsApp (invitation link): WhatsApp/Meta cookies if you click the link"
+          ]
+        },
+        "retention": {
+          "title": "Retention periods",
+          "content": "Cookies expire automatically according to the durations indicated above. You can delete them manually at any time.",
+          "details": "Maximum durations:",
+          "durations": [
+            "Session cookies: deleted on browser close",
+            "Authentication cookies: 15 minutes (OTP code) to 30 days (member session)",
+            "Preference cookies (language, theme): 1 year",
+            "Analytics cookies (Plausible): 30 min (session) to 1 year (visitor)"
+          ]
+        },
+        "yourRights": {
+          "title": "Your rights",
+          "content": "In accordance with GDPR and ePrivacy Directive, you have the following rights regarding cookies:",
+          "list": [
+            "Right to be informed: this policy informs you",
+            "Right to consent: for non-essential cookies",
+            "Right to withdraw: withdraw consent at any time",
+            "Right to object: refuse cookies via your browser",
+            "Right to access/rectification/erasure: on personal data linked to cookies"
+          ]
+        },
+        "contact": {
+          "title": "Contact",
+          "content": "For any question regarding cookies:"
+        }
       }
     }
   }

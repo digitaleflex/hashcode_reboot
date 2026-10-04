@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { isAdminAuthed } from "@/lib/admin-auth";
+import { AuthError, errorToResponse, ValidationError } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,11 +29,9 @@ const KIND_LABEL: Record<string, string> = {
  * Triés du plus récent au plus ancien.
  */
 export async function GET(req: NextRequest) {
+  try {
   if (!(await isAdminAuthed(req))) {
-    return NextResponse.json(
-      { error: "Non autorisé.", code: "UNAUTHORIZED" },
-      { status: 401 },
-    );
+    throw new AuthError("Non autorisé.", "UNAUTHORIZED");
   }
 
   const { searchParams } = new URL(req.url);
@@ -40,10 +39,7 @@ export async function GET(req: NextRequest) {
     memberId: searchParams.get("memberId") ?? undefined,
   });
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Paramètres invalides.", code: "INVALID_PAYLOAD" },
-      { status: 422 },
-    );
+    throw new ValidationError("Paramètres invalides.", parsed.error.flatten());
   }
 
   const { memberId } = parsed.data;
@@ -78,4 +74,7 @@ export async function GET(req: NextRequest) {
       clickUrl: e.clickUrl,
     })),
   });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

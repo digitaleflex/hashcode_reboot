@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/account-auth";
 import { buildAccountData } from "@/lib/account-data";
+import { AuthError, errorToResponse } from "@/lib/errors";
 
 export const runtime = "nodejs";
 
@@ -16,18 +17,19 @@ export const runtime = "nodejs";
  * Exclut : deletedAt, otpHash, données sensibles admin.
  */
 export async function GET() {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json(
-      { error: "Non authentifié.", code: "UNAUTHENTICATED" },
-      { status: 401 },
-    );
-  }
+  try {
+    const session = await getSession();
+    if (!session) {
+      throw new AuthError("Non authentifié.", "UNAUTHENTICATED");
+    }
 
-  const data = buildAccountData(session.member);
-  return NextResponse.json(data, {
-    headers: {
-      "Cache-Control": "no-store, max-age=0",
-    },
-  });
+    const data = buildAccountData(session.member);
+    return NextResponse.json(data, {
+      headers: {
+        "Cache-Control": "no-store, max-age=0",
+      },
+    });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

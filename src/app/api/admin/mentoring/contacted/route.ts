@@ -2,10 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireAdminRole } from "@/lib/admin-auth";
-import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
 import { bodyLimit } from "@/lib/body-limit";
 import { audit } from "@/lib/admin-audit";
+import {
+  ForbiddenError,
+  NotFoundError,
+  RateLimitError,
+  ValidationError,
+  errorToResponse,
+} from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,13 +28,11 @@ const contactedSchema = z.object({ memberId: z.string().min(1) });
  * AUTH : admin operator. Garde TESTING active (écriture).
  */
 export async function POST(req: NextRequest) {
+  try {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
   if (!(await requireAdminRole(req, "operator"))) {
-    return NextResponse.json(
-      { error: "Accès refusé.", code: "FORBIDDEN" },
-      { status: 403 },
-    );
+    throw new ForbiddenError("Accès refusé.");
   }
   const tooLarge = bodyLimit(req);
   if (tooLarge) return tooLarge;
@@ -37,10 +42,7 @@ export async function POST(req: NextRequest) {
     windowMs: 60_000,
   });
   if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de requêtes.", code: "RATE_LIMITED" },
-      { status: 429, headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) } },
-    );
+    throw new RateLimitError("Trop de requêtes.", rl.retryAfterMs);
   }
 
   let body: unknown = null;
@@ -51,10 +53,7 @@ export async function POST(req: NextRequest) {
   }
   const parsed = contactedSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: "memberId requis.", code: "INVALID" },
-      { status: 422 },
-    );
+    throw new ValidationError("memberId requis.", parsed.error.flatten());
   }
 
   const member = await db.member.findUnique({
@@ -62,10 +61,7 @@ export async function POST(req: NextRequest) {
     select: { id: true, deletedAt: true },
   });
   if (!member || member.deletedAt) {
-    return NextResponse.json(
-      { error: "Membre introuvable.", code: "NOT_FOUND" },
-      { status: 404 },
-    );
+    throw new NotFoundError("Membre introuvable.");
   }
 
   const updated = await db.member.update({
@@ -76,4 +72,7 @@ export async function POST(req: NextRequest) {
 
   await audit("mentoring.contacted", "member", member.id, {});
   return NextResponse.json({ ok: true, member: updated });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

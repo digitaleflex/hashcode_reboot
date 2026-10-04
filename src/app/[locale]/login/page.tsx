@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Mail, Loader2 } from "lucide-react";
 import { Logo, HashSymbol } from "@/components/brand/logo";
 import { RebootButton, MonoLabel } from "@/components/reboot/shared";
-import { authClient } from "@/lib/auth/client";
 import { useTranslations } from "next-intl";
 
 function LoginForm() {
@@ -30,15 +29,17 @@ function LoginForm() {
     }
     setLoading(true);
     try {
-      const { error } = await authClient.signIn.emailOtp({
-        email: trimmed,
-        callbackURL: next,
+      const res = await fetch("/api/auth/request-magic-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmed }),
       });
-      if (error) {
-        if (error.status === 429) {
-          setError(error.message ?? t("errors.tooManyRequests"));
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 429) {
+          setError(data.error ?? t("errors.tooManyRequests"));
         } else {
-          setError(error.message ?? t("errors.generic"));
+          setError(data.error ?? t("errors.generic"));
         }
         return;
       }

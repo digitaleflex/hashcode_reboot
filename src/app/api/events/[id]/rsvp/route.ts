@@ -2,18 +2,32 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/account-auth";
-import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
 import { decideRsvp } from "@/lib/events-validation";
+import {
+  AppError,
+  AuthError,
+  ConflictError,
+  NotFoundError,
+  RateLimitError,
+  ValidationError,
+  errorToResponse,
+  parseJsonBody,
+} from "@/lib/errors";
 
 export const runtime = "nodejs";
 
-/** Codes de décision → statut HTTP (contrat historique conservé). */
-const RSVP_HTTP_STATUS: Record<string, number> = {
-  INVALID_STATUS: 422,
-  NOT_FOUND: 404,
-  PAST_EVENT: 400,
-  FULL: 409,
+/** Codes de décision → erreur applicative (contrat historique conservé). */
+const RSVP_ERRORS: Record<
+  string,
+  (message: string) => AppError
+> = {
+  INVALID_STATUS: (message) => new ValidationError(message),
+  NOT_FOUND: (message) => new NotFoundError(message),
+  // 400 historique : l'événement a déjà commencé.
+  PAST_EVENT: (message) => new AppError(message, { status: 400, code: "INVALID_PAYLOAD" }),
+  FULL: (message) => new ConflictError(message),
 };
 
 type RsvpOutcome =
@@ -35,14 +49,12 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  try {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
   const session = await getSession(req);
   if (!session) {
-    return NextResponse.json(
-      { error: "Non authentifié.", code: "UNAUTHENTICATED" },
-      { status: 401 },
-    );
+    throw new AuthError("Non authentifié.", "UNAUTHENTICATED");
   }
 
   // Rate-limit: 5 rsvp per member per 10 minutes
@@ -51,24 +63,13 @@ export async function POST(
     windowMs: 600000,
   });
   if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de requêtes. Réessaie dans quelques minutes." },
-      {
-        status: 429,
-        headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) },
-      },
+    throw new RateLimitError(
+      "Trop de requêtes. Réessaie dans quelques minutes.",
+      rl.retryAfterMs,
     );
   }
 
-  let body: Record<string, unknown>;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json(
-      { error: "JSON invalide.", code: "INVALID_PAYLOAD" },
-      { status: 400 },
-    );
-  }
+  const body = (await parseJsonBody(req)) as Record<string, unknown>;
 
   const { id } = await params;
 
@@ -126,13 +127,16 @@ export async function POST(
   }
 
   if (!outcome.ok) {
-    return NextResponse.json(
-      { error: outcome.error, code: outcome.code },
-      { status: RSVP_HTTP_STATUS[outcome.code] ?? 409 },
-    );
+    const build = RSVP_ERRORS[outcome.code];
+    throw build
+      ? build(outcome.error)
+      : new ConflictError(outcome.error);
   }
 
   return NextResponse.json({ ok: true, rsvp: outcome.rsvp });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }
 
 /**
@@ -142,14 +146,12 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  try {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
   const session = await getSession(req);
   if (!session) {
-    return NextResponse.json(
-      { error: "Non authentifié.", code: "UNAUTHENTICATED" },
-      { status: 401 },
-    );
+    throw new AuthError("Non authentifié.", "UNAUTHENTICATED");
   }
 
   const { id } = await params;
@@ -159,11 +161,11 @@ export async function DELETE(
   });
 
   if (deleted.count === 0) {
-    return NextResponse.json(
-      { error: "Aucun RSVP trouvé.", code: "NOT_FOUND" },
-      { status: 404 },
-    );
+    throw new NotFoundError("Aucun RSVP trouvé.");
   }
 
   return NextResponse.json({ ok: true });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }
