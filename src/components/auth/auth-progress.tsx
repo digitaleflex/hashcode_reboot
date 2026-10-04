@@ -47,9 +47,11 @@ export function AuthProgress({
             {isDone ? (
               <Check className="size-3" strokeWidth={2.5} aria-hidden="true" />
             ) : (
-              <span className="font-mono" aria-hidden="true">
-                {index}
-              </span>
+              <>
+                <span className="font-mono" aria-hidden="true">
+                  {index} —
+                </span>
+              </>
             )}
             <span>{label}</span>
             {isDone && <span className="sr-only">{t("stepDone")}</span>}

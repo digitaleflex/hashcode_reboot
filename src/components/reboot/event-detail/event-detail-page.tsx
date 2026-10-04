@@ -3,15 +3,16 @@
 import * as React from "react";
 import {
   ArrowLeft,
+  BarChart3,
   CalendarDays,
   Clock,
+  Compass,
   ExternalLink,
   MapPin,
   Users,
   Heart,
 } from "lucide-react";
 import { Link } from "@/i18n/routing";
-import { cn } from "@/lib/utils";
 import { EventsHeader } from "@/components/reboot/events/events-header";
 import { EventsFooter } from "@/components/reboot/events/events-footer";
 import { EventStatusBadge } from "@/components/reboot/events/event-status-badge";
@@ -194,13 +195,13 @@ export function EventDetailPage({
                     </MetaItem>
 
                     {level && (
-                      <MetaItem icon={<Users className="size-4" />} label="Niveau attendu">
+                      <MetaItem icon={<BarChart3 className="size-4" />} label="Niveau attendu">
                         {level}
                       </MetaItem>
                     )}
 
                     {domain && (
-                      <MetaItem icon={<Heart className="size-4" />} label="Axe">
+                      <MetaItem icon={<Compass className="size-4" />} label="Axe">
                         {domain}
                       </MetaItem>
                     )}
@@ -284,8 +285,11 @@ export function EventDetailPage({
                 )}
               </div>
 
-              {/* ── Colonne CTA (desktop) ───────────────────────────────── */}
-              <aside className="md:sticky md:top-24 md:self-start">
+              {/* ── Colonne CTA (desktop) ─────────────────────────────────
+                  Masquée sur mobile : la barre sticky du pied de page porte
+                  déjà les mêmes deux actions. Sans ce `hidden`, un visiteur
+                  mobile voyait le même duo de boutons deux fois. */}
+              <aside className="hidden md:block md:sticky md:top-24 md:self-start">
                 <div className="rounded-lg border border-border/70 bg-card/40 p-5">
                   <h2 className="font-mono text-[12px] uppercase tracking-[0.12em] text-muted-foreground">
                     Participer

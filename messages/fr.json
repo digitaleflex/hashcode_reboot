@@ -1355,7 +1355,8 @@
       "progressLabel": "Étapes de la connexion",
       "stepOne": "Email",
       "stepTwo": "Code",
-      "stepDone": "terminée"
+      "stepDone": "terminée",
+      "backHomeShort": "Retour"
     }
   },
   "evenements": {

@@ -2,12 +2,10 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { AdminKeysManager } from "@/components/reboot/admin/AdminKeysManager";
-import { ChangePasscodeDialog } from "@/components/reboot/admin/ChangePasscodeDialog";
 import { AuditLogViewer } from "@/components/reboot/admin/AuditLogViewer";
 import { RebootButton, MonoLabel } from "@/components/reboot/shared";
 import { fetchJson } from "@/components/reboot/admin/lib/fetchJson";
-import { Shield, KeyRound, Activity, Server, Clock, AlertCircle } from "lucide-react";
+import { Activity, Server, Clock, AlertCircle } from "lucide-react";
 
 export default function AdminSettingsPage() {
   const router = useRouter();
@@ -92,30 +90,7 @@ export default function AdminSettingsPage() {
         )}
       </section>
 
-      {/* Passcode Management */}
-      <section aria-label="Gestion du passcode" className="rounded-md border border-border/60 bg-card/40 p-4 sm:p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <KeyRound className="size-4 text-lime" aria-hidden />
-          <MonoLabel className="text-muted-foreground">Passcode</MonoLabel>
-        </div>
-        <p className="text-sm text-muted-foreground mb-4">
-          Le passcode est la clé d&apos;accès principal. Le changer révoque toutes les clés existantes
-          et déconnecte toutes les sessions actives.
-        </p>
-        <ChangePasscodeDialog
-          onSessionExpired={handleSessionExpired}
-          onChanged={() => router.refresh()}
-        />
-      </section>
-
-      {/* Admin Keys */}
-      <section aria-label="Clés admin" className="rounded-md border border-border/60 bg-card/40 p-4 sm:p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <Shield className="size-4 text-lime" aria-hidden />
-          <MonoLabel className="text-muted-foreground">Clés admin</MonoLabel>
-        </div>
-        <AdminKeysManager onSessionExpired={handleSessionExpired} />
-      </section>
+      
 
       {/* Audit Log */}
       <section aria-label="Journal d'audit" className="rounded-md border border-border/60 bg-card/40 p-4 sm:p-5">

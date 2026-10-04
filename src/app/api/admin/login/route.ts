@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkCSRF } from "@/lib/admin-auth";
+import { adminAllowList, checkCSRF } from "@/lib/admin-auth";
 import { rateLimit, rateKey, RATE_LIMITS } from "@/lib/rate-limit";
 import { audit } from "@/lib/admin-audit";
 import { auth } from "@/lib/auth";
@@ -83,12 +83,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Ensure the signed-in user is actually an admin (env allow-list).
-    const adminEmails = (process.env.ADMIN_EMAILS || process.env.ADMIN_OPERATORS || "")
-      .split(",")
-      .map((e) => e.trim().toLowerCase())
-      .filter(Boolean);
-    const isAdmin = adminEmails.length === 0 || adminEmails.includes(email);
-    if (!isAdmin) {
+    // Fail-closed : une liste vide signifie « personne n'est admin ».
+    // Avant, `adminEmails.length === 0` ouvrait l'espace admin à TOUT compte
+    // Better Auth valide dès que ADMIN_EMAILS/ADMIN_OPERATORS manquaient.
+    if (!adminAllowList().includes(email)) {
       auditLogin(ip, "failure");
       throw new ForbiddenError("Compte non autorisé pour l'espace admin.");
     }

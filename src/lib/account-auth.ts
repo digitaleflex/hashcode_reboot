@@ -10,6 +10,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { isEmailBlacklisted } from "@/lib/blacklist";
 
 export const SESSION_COOKIE_NAME = "better-auth.session_token";
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 jours
@@ -40,6 +41,19 @@ export async function getSession(req?: NextRequest) {
 
   const member = await db.member.findUnique({ where: { email } }).catch(() => null);
   if (!member || member.deletedAt) return null;
+
+  // Tue les sessions antérieures au blacklistage : un email blacklisté après
+  // connexion perd l'accès dès le prochain appel, même avec un cookie valide.
+  // Note perf assumée : getSession() est le chemin chaud de l'app (chaque
+  // page dashboard) — on ajoute 1 lecture point sur la colonne `email`
+  // @unique (indexée) de MemberBlacklist. Sécurité > micro-perf : ce coût
+  // est accepté tel quel, sans cache qui masquerait un déblacklistage.
+  // Fail-closed : en cas d'erreur DB, on refuse la session (doute = refus).
+  try {
+    if (await isEmailBlacklisted(email)) return null;
+  } catch {
+    return null;
+  }
 
   return {
     id: authSession?.session?.id ?? member.id,

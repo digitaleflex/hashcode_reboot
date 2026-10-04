@@ -41,12 +41,12 @@ function VerifyOtpBody() {
       backHref={`/login?next=${encodeURIComponent(next)}`}
       backLabel={t("backLinkLong")}
       aside={
-        <p className="mt-3 flex items-center justify-center gap-2 text-[13.5px] text-muted-foreground">
+        <p className="mt-3 flex flex-wrap items-center justify-center gap-x-2 text-[13.5px] text-muted-foreground">
           <span className="mono-label">{t("sentToLabel")}</span>
           {/* Adresse masquée : l'email reste en clair dans l'URL (le lien
               magique en dépend) mais ne doit pas être lisible par-dessus
               l'épaule pendant la saisie. */}
-          <span className="font-mono text-foreground">{masked}</span>
+          <span className="min-w-0 break-all font-mono text-foreground">{masked}</span>
         </p>
       }
     >

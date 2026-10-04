@@ -1355,7 +1355,8 @@
       "progressLabel": "Sign-in steps",
       "stepOne": "Email",
       "stepTwo": "Code",
-      "stepDone": "done"
+      "stepDone": "done",
+      "backHomeShort": "Back"
     }
   },
   "evenements": {
