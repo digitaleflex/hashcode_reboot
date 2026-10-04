@@ -1,60 +1,15 @@
 "use client";
 
 import * as React from "react";
-import {
-  Calendar,
-  CheckCircle2,
-  Clock,
-  MapPin,
-  ExternalLink,
-  Users,
-  Loader2,
-  Video,
-  Heart,
-  AlertTriangle,
-  Filter,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Loader2, AlertTriangle } from "lucide-react";
 import { track } from "@/lib/analytics";
-import type { PublicEvent as SharedPublicEvent } from "@/lib/public-events";
+import { EventsFilterBar } from "./events/events-filter-bar";
+import { EventTimeline, type EventDateGroup } from "./events/event-timeline";
+import { EmptyEventsState } from "./events/empty-events-state";
+import { DEFAULT_FILTERS, type EventFilters, type PublicEvent } from "./events/types";
+import { groupKey } from "./events/format";
 
-/* ── Types ─────────────────────────────────────────────────────────────── */
-
-/** Mêmes champs que l'endpoint public + `myRsvp` renvoyé par l'endpoint membre. */
-interface PublicEvent extends SharedPublicEvent {
-  /** RSVP du membre connecté (uniquement sur l'endpoint authentifié). */
-  myRsvp?: string | null;
-}
-
-const TYPE_CONFIG: Record<
-  string,
-  { label: string; icon: React.ReactNode; color: string }
-> = {
-  session: { label: "Session", icon: <Users className="size-4" />, color: "text-lime" },
-  workshop: { label: "Workshop", icon: <Video className="size-4" />, color: "text-blue-400" },
-  meetup: { label: "Meetup", icon: <Users className="size-4" />, color: "text-amber-400" },
-  webinar: { label: "Webinaire", icon: <Video className="size-4" />, color: "text-purple-400" },
-  other: { label: "Événement", icon: <Calendar className="size-4" />, color: "text-muted-foreground" },
-};
-
-const DOMAIN_LABELS: Record<string, string> = {
-  web: "Web",
-  cybersecurity: "Cyber",
-  ai: "AI",
-};
-
-const LEVEL_LABELS: Record<string, string> = {
-  beginner: "Débutant",
-  practicing: "Pratiquant",
-  autonomous: "Autonome",
-  advanced: "Avancé",
-};
-
-const RECURRENCE_LABELS: Record<string, string> = {
-  weekly: "Chaque semaine",
-  biweekly: "Toutes les 2 semaines",
-  monthly: "Chaque mois",
-};
+/* ── Intérêt anonyme (localStorage) ──────────────────────────────────────── */
 
 const INTEREST_STORAGE_KEY = "hashcode:event-interest";
 
@@ -77,58 +32,42 @@ function writeInterested(ids: string[]) {
   }
 }
 
-function formatEventDate(startsAt: string): string {
+/* ── Filtrage + regroupement ─────────────────────────────────────────────── */
+
+function matchesPeriod(startsAt: string, period: EventFilters["period"]): boolean {
+  if (period === "all") return true;
+  const now = new Date();
   const start = new Date(startsAt);
-  const diffDays = Math.ceil((start.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-  const dateStr = start.toLocaleDateString("fr-FR", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
-  const timeStr = start.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-  if (diffDays === 0) return `Aujourd'hui à ${timeStr}`;
-  if (diffDays === 1) return `Demain à ${timeStr}`;
-  return `${dateStr} à ${timeStr}`;
-}
-
-function formatDuration(startsAt: string, endsAt: string | null): string | null {
-  if (!endsAt) return null;
-  const diffMin = Math.round(
-    (new Date(endsAt).getTime() - new Date(startsAt).getTime()) / 60000,
-  );
-  if (diffMin <= 0) return null;
-  if (diffMin < 60) return `${diffMin}min`;
-  const h = Math.floor(diffMin / 60);
-  const m = diffMin % 60;
-  return m > 0 ? `${h}h${m}` : `${h}h`;
-}
-
-function groupByDate(events: PublicEvent[]): Map<string, PublicEvent[]> {
-  const groups = new Map<string, PublicEvent[]>();
-  for (const event of events) {
-    const date = new Date(event.startsAt).toLocaleDateString("fr-FR", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-    groups.set(date, [...(groups.get(date) ?? []), event]);
+  if (period === "week") {
+    // Semaine calendaire FRANÇAISE : lundi → dimanche.
+    // `getDay()` : 0 = dimanche … 6 = lundi. Décaler de (getDay() + 6) % 7
+    // donne le lundi de la semaine en cours.
+    //
+    // L'ancienne version calculait la fenêtre à partir du jour de la SEMAINE
+    // de l'événement, ce qui produisait une fenêtre glissante de 7 jours
+    // décalée au lieu de la semaine courante.
+    const offsetToMonday = (now.getDay() + 6) % 7;
+    const startOfWeek = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() - offsetToMonday,
+      0,
+      0,
+      0,
+      0,
+    );
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+    return start >= startOfWeek && start <= endOfWeek;
   }
-  return groups;
+  // "month" : mois calendaire en cours.
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  return start >= startOfMonth && start <= endOfMonth;
 }
 
-
-/* Actions d'événement — hauteur tactile 40px, pleine largeur sur mobile,
-   côte à côte dès sm. Aucune surcharge de tracking (design system). */
-const ACTION_BASE =
-  "inline-flex min-h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 w-full sm:w-auto";
-const ACTION_PRIMARY = `${ACTION_BASE} bg-lime text-background hover:bg-lime/90`;
-const ACTION_OUTLINE = `${ACTION_BASE} border border-border bg-background text-muted-foreground hover:border-lime/40 hover:text-lime`;
-const ACTION_GHOST_LIME = `${ACTION_BASE} border border-lime/30 bg-lime/10 text-lime hover:bg-lime/20`;
-const ACTION_GHOST_AMBER = `${ACTION_BASE} border border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20`;
-const ACTION_GHOST_PINK = `${ACTION_BASE} border border-pink-500/40 bg-pink-500/10 text-pink-400 hover:bg-pink-500/20`;
-
-/* ── Composant ─────────────────────────────────────────────────────────── */
+/* ── Composant ───────────────────────────────────────────────────────────── */
 
 export function PublicEvents({
   isAuthed,
@@ -148,7 +87,7 @@ export function PublicEvents({
   const [events, setEvents] = React.useState<PublicEvent[]>(initialEvents);
   const [loading, setLoading] = React.useState(!initialLoaded);
   const [error, setError] = React.useState<string | null>(null);
-  const [filterType, setFilterType] = React.useState("all");
+  const [filters, setFilters] = React.useState<EventFilters>(DEFAULT_FILTERS);
   const [rsvpStates, setRsvpStates] = React.useState<Record<string, string | null>>({});
   const [interested, setInterested] = React.useState<string[]>([]);
   const [interestCounts, setInterestCounts] = React.useState<Record<string, number>>(() => {
@@ -157,19 +96,48 @@ export function PublicEvents({
     return seed;
   });
   const [pendingId, setPendingId] = React.useState<string | null>(null);
+  /**
+   * Ids pour lesquels le signal d'intérêt a DÉJÀ été émis (ce navigateur).
+   * Le toggle est réversible côté UI : sans cette garde, un « on → off → on »
+   * enverrait deux beacons et `interestCount` gonflerait de 2 alors que
+   * l'interface en affiche 1. Alimenté à partir du localStorage au montage.
+   */
+  const signalledInterest = React.useRef<Set<string>>(new Set());
+  /** Le serveur a-t-il rendu des événements dans le HTML initial ? */
+  const hasServerData = React.useRef(initialEvents.length > 0);
+  /**
+   * Clé de la dernière combinaison (auth, type) réellement fetchée.
+   * Sans cette garde, le composant re-téléchargeait au montage la liste que le
+   * serveur venait de rendre : le HTML indexable était systématiquement
+   * écrasé par un aller-retour réseau inutile.
+   */
+  const fetchedKey = React.useRef<string | null>(null);
 
+  // Restaure l'intérêt déclaré par ce visiteur (clef localStorage inchangée)
+  // et alimente la garde d'émission.
   React.useEffect(() => {
-    setInterested(readInterested());
+    const ids = readInterested();
+    setInterested(ids);
+    signalledInterest.current = new Set(ids);
   }, []);
 
+  // Seul le TYPE est poussé sur l'API — endpoint inchangé.
   React.useEffect(() => {
+    const key = `${isAuthed ? "auth" : "anon"}:${filters.type}`;
+
+    // Déjà chargé pour cette combinaison, ou rendu par le serveur : inutile
+    // de refaire l'aller-retour.
+    if (fetchedKey.current === key) return;
+    const isFirstLoad = fetchedKey.current === null;
+    fetchedKey.current = key;
+    if (isFirstLoad && hasServerData.current) return;
+
     let cancelled = false;
     setError(null);
 
-    // Connecté → endpoint authentifié (renvoie monRsvp). Anonyme → endpoint public.
     const endpoint = isAuthed
-      ? `/api/events?limit=50${filterType !== "all" ? `&type=${filterType}` : ""}&memberId=me`
-      : `/api/public/events?limit=50${filterType !== "all" ? `&type=${filterType}` : ""}`;
+      ? `/api/events?limit=50${filters.type !== "all" ? `&type=${filters.type}` : ""}&memberId=me`
+      : `/api/public/events?limit=50${filters.type !== "all" ? `&type=${filters.type}` : ""}`;
 
     fetch(endpoint, { cache: "no-store" })
       .then(async (res) => {
@@ -199,7 +167,7 @@ export function PublicEvents({
     return () => {
       cancelled = true;
     };
-  }, [isAuthed, filterType]);
+  }, [isAuthed, filters.type]);
 
   const handleRsvp = React.useCallback(
     async (eventId: string, status: "going" | "maybe") => {
@@ -227,294 +195,159 @@ export function PublicEvents({
     [rsvpStates],
   );
 
+  /** Toggle : on peut revenir en arrière (suppression de l'intérêt). */
   const handleInterest = React.useCallback(
-    (eventId: string) => {
-      if (interested.includes(eventId)) return;
-      const next = [...interested, eventId];
+    (eventId: string, nextActive: boolean) => {
+      const isActive = interested.includes(eventId);
+      if (nextActive === isActive) return;
+
+      const next = nextActive
+        ? [...interested, eventId]
+        : interested.filter((id) => id !== eventId);
+
       setInterested(next);
-      setInterestCounts((prev) => ({ ...prev, [eventId]: (prev[eventId] ?? 0) + 1 }));
+      setInterestCounts((prev) => ({
+        ...prev,
+        [eventId]: Math.max(0, (prev[eventId] ?? 0) + (nextActive ? 1 : -1)),
+      }));
       writeInterested(next);
       // Signal anonyme (sendBeacon) — best-effort, ne bloque jamais l'UI.
-      track({ type: "event_interest", ref: eventId });
+      // Émis UNE FOIS par navigateur et par événement : le toggle UI est
+      // réversible, mais on ne veut pas d-interestCount à chaque aller-retour.
+      if (nextActive && !signalledInterest.current.has(eventId)) {
+        signalledInterest.current.add(eventId);
+        track({ type: "event_interest", ref: eventId });
+      }
     },
     [interested],
   );
 
-  const grouped = groupByDate(events);
+  const resetFilters = React.useCallback(() => setFilters(DEFAULT_FILTERS), []);
 
-  const typeFilters = [
-    { value: "all", label: "Tous" },
-    { value: "session", label: "Sessions" },
-    { value: "workshop", label: "Workshops" },
-    { value: "meetup", label: "Meetups" },
-    { value: "webinar", label: "Webinaires" },
-  ];
+  /* ── Filtrage + groupement mémoïsés ───────────────────────────────────── */
+
+  const filtered = React.useMemo(() => {
+    return events.filter((e) => {
+      if (filters.level !== "all" && e.level !== filters.level) return false;
+      if (filters.domain !== "all" && e.domain !== filters.domain) return false;
+      if (!matchesPeriod(e.startsAt, filters.period)) return false;
+      return true;
+    });
+  }, [events, filters.level, filters.domain, filters.period]);
+
+  const groups = React.useMemo<EventDateGroup[]>(() => {
+    const map = new Map<string, EventDateGroup>();
+    for (const event of filtered) {
+      const key = groupKey(event.startsAt);
+      const existing = map.get(key);
+      if (existing) existing.events.push(event);
+      else map.set(key, { key, startsAt: event.startsAt, events: [event] });
+    }
+    return Array.from(map.values());
+  }, [filtered]);
+
+  // UNE seule carte « à la une » : la première de la liste non filtrée.
+  const featuredId = React.useMemo(() => events[0]?.id ?? null, [events]);
+
+  const hasActiveFilters =
+    filters.type !== "all" ||
+    filters.level !== "all" ||
+    filters.domain !== "all" ||
+    filters.period !== "all";
+
+  /* ── Rendu ────────────────────────────────────────────────────────────── */
+
+  // Le contenu initial n'est JAMAIS masqué : le spinner ne s'affiche que
+  // s'il n'y a rien à afficher (donc pas de trou au premier paint).
+  const showSpinner = loading && events.length === 0;
+  const showError = !loading && Boolean(error) && events.length === 0;
 
   return (
-    <div className="space-y-6">
-      <header className="space-y-2">
-        <h1 className="font-display font-bold text-3xl tracking-tight">
-          Événements HASHCODE REBOOT
-        </h1>
-        <p className="text-sm text-muted-foreground max-w-2xl">
-          Sessions, workshops et meetups ouverts à la communauté.
-          {isAuthed
-            ? ` Inscris-toi en un clic${firstName ? `, ${firstName}` : ""} — ton RSVP est enregistré dans ton espace.`
-            : " Dis-nous que ça t'intéresse, puis crée ton profil pour t'inscrire officiellement."}
-        </p>
-      </header>
+    <section aria-label="Liste des événements" className="pb-16">
+      <EventsFilterBar
+        filters={filters}
+        onChange={setFilters}
+        resultCount={filtered.length}
+        totalCount={events.length}
+      />
 
-      {/* Filtres */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Filter className="size-4" aria-hidden />
-          <span className="mono-label">Type :</span>
-        </span>
-        <div className="flex flex-wrap gap-1.5">
-          {typeFilters.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => setFilterType(opt.value)}
-              aria-pressed={filterType === opt.value}
-              className={cn(
-                "px-3 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer",
-                filterType === opt.value
-                  ? "bg-lime/15 text-lime border border-lime/30"
-                  : "text-muted-foreground border border-border/60 hover:border-lime/30",
-              )}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
+      <div className="mt-6">
+        {showSpinner && (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="size-6 animate-spin text-muted-foreground" aria-hidden />
+            <p className="sr-only">Chargement des événements</p>
+          </div>
+        )}
+
+        {showError && (
+          <div className="flex flex-col items-center rounded-lg border border-border/70 px-6 py-14 text-center">
+            <AlertTriangle className="size-8 text-muted-foreground/50" aria-hidden />
+            <p className="mt-4 text-sm text-foreground">{error}</p>
+            <p className="mt-1.5 text-[13px] text-muted-foreground">
+              Réessaie dans un instant — la programmation reste affichée entre-temps.
+            </p>
+          </div>
+        )}
+
+        {!showSpinner && !showError && events.length === 0 && (
+          // Un filtre de TYPE actif vide aussi la liste côté API : dans ce cas
+          // le site n'est pas vide, c'est la sélection qui ne matche rien.
+          // L'ancienne version annonçait « aucun événement à venir », ce qui
+          // poussait à croire que la programmation était terminée.
+          hasActiveFilters ? (
+            <EmptyEventsState
+              variant="filtered"
+              hasActiveFilters
+              onReset={resetFilters}
+            />
+          ) : (
+            <EmptyEventsState variant="empty" />
+          )
+        )}
+
+        {!showSpinner && !showError && events.length > 0 && groups.length === 0 && (
+          <EmptyEventsState
+            variant="filtered"
+            hasActiveFilters={hasActiveFilters}
+            onReset={resetFilters}
+          />
+        )}
+
+        {groups.length > 0 && (
+          <>
+            <EventTimeline
+              groups={groups}
+              featuredId={featuredId}
+              isAuthed={isAuthed}
+              rsvpById={rsvpStates}
+              interestedIds={interested}
+              interestCounts={interestCounts}
+              pendingId={pendingId}
+              onInterest={handleInterest}
+              onRsvp={(id, status) => void handleRsvp(id, status)}
+              onJoin={onJoin}
+              className={loading ? "opacity-60 transition-opacity" : undefined}
+            />
+
+            {/* Badge de rechargement discret — ne remplace jamais le contenu. */}
+            {loading && (
+              <p className="mt-4 inline-flex items-center gap-2 text-[13px] text-muted-foreground">
+                <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                Mise à jour de la programmation…
+              </p>
+            )}
+
+            {!isAuthed && (
+              <p className="mt-8 max-w-2xl text-[13px] leading-relaxed text-muted-foreground">
+                « Ça m&apos;intéresse » est un signal anonyme : aucun compte
+                requis, aucune donnée personnelle collectée. Pour
+                t&apos;inscrire réellement, crée ton profil — tu pourras alors
+                t&apos;inscrire en un clic depuis ton espace.
+              </p>
+            )}
+          </>
+        )}
       </div>
-
-      {loading && (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="size-6 animate-spin text-muted-foreground" aria-label="Chargement" />
-        </div>
-      )}
-
-      {!loading && error && (
-        <div className="text-center py-16">
-          <AlertTriangle className="size-8 text-muted-foreground/40 mx-auto mb-3" aria-hidden />
-          <p className="text-sm text-muted-foreground">{error}</p>
-        </div>
-      )}
-
-      {!loading && !error && events.length === 0 && (
-        <div className="text-center py-16">
-          <Calendar className="size-12 text-muted-foreground/20 mx-auto mb-4" aria-hidden />
-          <p className="text-muted-foreground">Aucun événement à venir pour le moment.</p>
-          <p className="text-xs text-muted-foreground/60 mt-1">
-            Les prochaines sessions seront annoncées ici.
-          </p>
-        </div>
-      )}
-
-      {!loading && !error && events.length > 0 && (
-        <div className="space-y-8">
-          {Array.from(grouped.entries()).map(([date, dateEvents]) => (
-            <div key={date}>
-              <h2 className="mb-3 flex items-center gap-3 text-sm font-semibold text-foreground">
-                <span>{date}</span>
-                <span className="h-px flex-1 bg-border" aria-hidden />
-              </h2>
-              <div className="space-y-3">
-                {dateEvents.map((event) => {
-                  const config = TYPE_CONFIG[event.type] ?? TYPE_CONFIG.other;
-                  const duration = formatDuration(event.startsAt, event.endsAt);
-                  const myRsvp = rsvpStates[event.id] ?? null;
-                  const isFull = event.spotsLeft === 0;
-                  const alreadyInterested = interested.includes(event.id);
-
-                  return (
-                    <article
-                      key={event.id}
-                      className={cn(
-                        "rounded-lg border border-border/60 bg-card/40 p-5",
-                        "hover:border-lime/30 transition-colors",
-                        event.status === "live" && "border-red-500/30 bg-red-500/5",
-                      )}
-                    >
-                      <div className="flex items-start gap-4">
-                        <span className={cn("shrink-0 mt-0.5", config.color)} aria-hidden>
-                          {config.icon}
-                        </span>
-
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="text-base font-medium">{event.title}</h3>
-                            <span
-                              className={cn(
-                                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium",
-                                config.color,
-                                "border-current/20 bg-current/5",
-                              )}
-                            >
-                              {config.label}
-                            </span>
-                            {event.domain && (
-                              <span className="inline-flex items-center rounded-full border border-border/60 bg-secondary/50 px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                                {DOMAIN_LABELS[event.domain] ?? event.domain}
-                              </span>
-                            )}
-                            {event.level && (
-                              <span className="inline-flex items-center rounded-full border border-border/60 bg-secondary/50 px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                                {LEVEL_LABELS[event.level] ?? event.level}
-                              </span>
-                            )}
-                            {isFull && (
-                              <span className="inline-flex items-center rounded-full border border-destructive/30 bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive">
-                                Complet
-                              </span>
-                            )}
-                          </div>
-
-                          {event.description && (
-                            <p className="text-sm text-muted-foreground mt-2">{event.description}</p>
-                          )}
-
-                          <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground flex-wrap">
-                            <span className="inline-flex items-center gap-1.5">
-                              <Clock className="size-3.5" aria-hidden />
-                              {formatEventDate(event.startsAt)}
-                              {duration && (
-                                <span className="text-muted-foreground/60">· {duration}</span>
-                              )}
-                            </span>
-                            {event.location && (
-                              <span className="inline-flex items-center gap-1.5">
-                                <MapPin className="size-3.5" aria-hidden />
-                                {event.location}
-                              </span>
-                            )}
-                            {event.recurrence && (
-                              <span className="text-muted-foreground/60">
-                                {RECURRENCE_LABELS[event.recurrence] ?? event.recurrence}
-                              </span>
-                            )}
-                            {event.goingCount > 0 && (
-                              <span className="inline-flex items-center gap-1 text-lime">
-                                <Users className="size-3.5" aria-hidden />
-                                {event.goingCount} inscrit{event.goingCount > 1 ? "s" : ""}
-                              </span>
-                            )}
-                            {!isAuthed && (interestCounts[event.id] ?? 0) > 0 && (
-                              <span className="inline-flex items-center gap-1 text-pink-400">
-                                <Heart className="size-3.5" aria-hidden />
-                                {interestCounts[event.id]} intéressé
-                                {(interestCounts[event.id] ?? 0) > 1 ? "s" : ""}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {event.url && (
-                          <a
-                            href={event.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="shrink-0 p-2 rounded-md text-muted-foreground hover:text-lime hover:bg-lime/10 transition-colors"
-                            title="Ouvrir le lien de l'événement"
-                          >
-                            <ExternalLink className="size-4" />
-                          </a>
-                        )}
-                      </div>
-
-                      {event.status === "live" && (
-                        <div className="mt-3">
-                          <span className="inline-flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-500/15 px-2.5 py-1 text-xs font-medium text-red-400">
-                            <span className="inline-block size-1.5 rounded-full bg-red-400 animate-pulse" />
-                            EN DIRECT
-                          </span>
-                        </div>
-                      )}
-
-                      {event.status === "scheduled" && (
-                        <div className="mt-4">
-                          {isAuthed ? (
-                            myRsvp === "going" ? (
-                              <button
-                                type="button"
-                                onClick={() => void handleRsvp(event.id, "going")}
-                                disabled={pendingId === event.id}
-                                className={ACTION_GHOST_LIME}
-                              >
-                                <CheckCircle2 className="size-4" aria-hidden />
-                                Inscrit · Annuler
-                              </button>
-                            ) : myRsvp === "maybe" ? (
-                              <button
-                                type="button"
-                                onClick={() => void handleRsvp(event.id, "maybe")}
-                                disabled={pendingId === event.id}
-                                className={ACTION_GHOST_AMBER}
-                              >
-                                <CheckCircle2 className="size-4" aria-hidden />
-                                Peut-être · Annuler
-                              </button>
-                            ) : (
-                              <div className="flex flex-col gap-2 sm:flex-row">
-                                <button
-                                  type="button"
-                                  onClick={() => void handleRsvp(event.id, "going")}
-                                  disabled={pendingId === event.id || isFull}
-                                  className={ACTION_PRIMARY}
-                                >
-                                  <Users className="size-4" aria-hidden />
-                                  {isFull ? "Complet" : "Je participe"}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => void handleRsvp(event.id, "maybe")}
-                                  disabled={pendingId === event.id}
-                                  className={ACTION_OUTLINE}
-                                >
-                                  Peut-être
-                                </button>
-                              </div>
-                            )
-                          ) : alreadyInterested ? (
-                            <span className="inline-flex items-center gap-2 rounded-md border border-pink-500/30 bg-pink-500/10 px-3.5 py-2.5 text-sm font-medium text-pink-400">
-                              <Heart className="size-4" aria-hidden />
-                              Intérêt enregistré
-                            </span>
-                          ) : (
-                            <div className="flex flex-col gap-2 sm:flex-row">
-                              <button
-                                type="button"
-                                onClick={() => handleInterest(event.id)}
-                                className={ACTION_GHOST_PINK}
-                              >
-                                <Heart className="size-4" aria-hidden />
-                                Ça m&apos;intéresse
-                              </button>
-                              <button type="button" onClick={onJoin} className={ACTION_PRIMARY}>
-                                Créer mon profil pour m&apos;inscrire
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </article>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {!isAuthed && !loading && events.length > 0 && (
-        <p className="text-xs text-muted-foreground">
-          « Ça m&apos;intéresse » est un signal anonyme : aucun compte requis, aucune donnée
-          personnelle collectée. Pour t&apos;inscrire réellement, crée ton profil — tu pourras alors
-          t&apos;inscrire en un clic depuis ton espace.
-        </p>
-      )}
-    </div>
+    </section>
   );
 }

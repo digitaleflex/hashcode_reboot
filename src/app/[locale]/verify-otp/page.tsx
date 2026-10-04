@@ -1,297 +1,87 @@
 "use client";
 
 import * as React from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Loader2, Mail } from "lucide-react";
-import { Logo, HashSymbol } from "@/components/brand/logo";
-import { RebootButton, MonoLabel } from "@/components/reboot/shared";
-import { authClient } from "@/lib/auth/client";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { AuthLayout } from "@/components/auth/auth-layout";
+import { OtpForm, OTP_LENGTH } from "@/components/auth/otp-form";
+import { Link, useRouter } from "@/i18n/routing";
+import { maskEmail, sanitizeNext } from "@/lib/auth-ui";
 
-const OTP_LENGTH = 6;
-const RESEND_COOLDOWN_SEC = 60;
+export const dynamic = "force-dynamic";
 
-function VerifyOtpForm() {
+function VerifyOtpBody() {
   const t = useTranslations("auth.verifyOtp");
   const router = useRouter();
   const searchParams = useSearchParams();
+
   const email = searchParams.get("email") ?? "";
-  // Anti open-redirect : n'accepte que les chemins internes (pas d'URL externe, pas de //).
-  const rawNext = searchParams.get("next") || "/dashboard";
-  const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/dashboard";
-  // Lien magique 1-clic : ?code=123456 pré-remplit et auto-soumet (même session OTP).
+  // Anti open-redirect : n'accepte que les chemins internes (pas d'URL
+  // externe, pas de « // »). Même filtre que sur /login.
+  const next = sanitizeNext(searchParams.get("next"));
+  // Lien magique 1-clic : `?code=123456` pré-remplit et auto-soumet (même
+  // session OTP). Nettoyé à `0-9` et tronqué à 6 caractères.
   const linkCode = (searchParams.get("code") ?? "").replace(/\D/g, "").slice(0, OTP_LENGTH);
-  const autoSubmitRef = React.useRef(false);
-  const [digits, setDigits] = React.useState<string[]>(Array(OTP_LENGTH).fill(""));
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-  const [info, setInfo] = React.useState<string | null>(null);
-  const [resendCooldown, setResendCooldown] = React.useState(RESEND_COOLDOWN_SEC);
-  const inputsRef = React.useRef<Array<HTMLInputElement | null>>([]);
 
-  // Cooldown pour "Renvoyer le code"
-  React.useEffect(() => {
-    if (resendCooldown <= 0) return;
-    const t = setTimeout(() => setResendCooldown((c) => c - 1), 1000);
-    return () => clearTimeout(t);
-  }, [resendCooldown]);
-
-  // Si pas d'email, retour à /login
+  // Sans email, aucun code ne peut être vérifié : on renvoie à l'étape 1 en
+  // conservant la destination demandée.
   React.useEffect(() => {
     if (!email) {
-      router.replace("/login");
+      router.replace(`/login?next=${encodeURIComponent(next)}`);
     }
-  }, [email, router]);
+  }, [email, next, router]);
 
-  const code = digits.join("");
-  const canSubmit = code.length === OTP_LENGTH && !loading;
-
-  function setDigit(index: number, value: string) {
-    const v = value.replace(/\D/g, "").slice(0, 1);
-    setDigits((d) => {
-      const next = [...d];
-      next[index] = v;
-      return next;
-    });
-    if (v && index < OTP_LENGTH - 1) {
-      inputsRef.current[index + 1]?.focus();
-    }
-  }
-
-  function handleKeyDown(index: number, e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Backspace" && !digits[index] && index > 0) {
-      inputsRef.current[index - 1]?.focus();
-    }
-    if (e.key === "ArrowLeft" && index > 0) {
-      inputsRef.current[index - 1]?.focus();
-    }
-    if (e.key === "ArrowRight" && index < OTP_LENGTH - 1) {
-      inputsRef.current[index + 1]?.focus();
-    }
-  }
-
-  function handlePaste(e: React.ClipboardEvent<HTMLInputElement>) {
-    e.preventDefault();
-    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, OTP_LENGTH);
-    if (!pasted) return;
-    const newDigits = Array(OTP_LENGTH).fill("");
-    for (let i = 0; i < pasted.length; i++) newDigits[i] = pasted[i];
-    setDigits(newDigits);
-    const lastIdx = Math.min(pasted.length, OTP_LENGTH - 1);
-    inputsRef.current[lastIdx]?.focus();
-  }
-
-  async function submit(codeToSubmit: string) {
-    if (codeToSubmit.length !== OTP_LENGTH || loading) return;
-    setError(null);
-    setInfo(null);
-    setLoading(true);
-    try {
-      const data = await authClient.emailOtp.verifyEmail({
-        email,
-        otp: codeToSubmit,
-      });
-      if (!data?.error) {
-        router.push(next);
-        router.refresh();
-        return;
-      }
-      const err = data.error as any;
-      const status = err?.status ?? err?.statusCode ?? 0;
-      if (status === 429 || err?.code === "RATE_LIMITED") {
-        setError(err?.message ?? t("errors.tooManyAttempts"));
-      } else {
-        setError(err?.message ?? t("errors.generic"));
-        setDigits(Array(OTP_LENGTH).fill(""));
-        inputsRef.current[0]?.focus();
-      }
-    } catch {
-      setError(t("errors.network"));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // Auto-submit quand les 6 chiffres sont saisis
-  React.useEffect(() => {
-    if (code.length === OTP_LENGTH) {
-      void submit(code);
-    }
-
-  }, [code]);
-
-  // Lien magique : pré-remplit depuis ?code= et soumet une seule fois.
-  // Puis nettoie l'URL (retire ?code= de l'historique pour limiter l'exposition).
-  React.useEffect(() => {
-    if (autoSubmitRef.current) return;
-    if (linkCode.length !== OTP_LENGTH || !email) return;
-    autoSubmitRef.current = true;
-    setDigits(linkCode.split(""));
-    setInfo(t("info.magicLink"));
-    void submit(linkCode);
-    try {
-      const params = new URLSearchParams(window.location.search);
-      params.delete("code");
-      const clean = `${window.location.pathname}?${params.toString()}`;
-      window.history.replaceState(null, "", clean);
-    } catch {
-      /* best-effort */
-    }
-
-  }, [linkCode, email]);
-
-  async function handleResend() {
-    if (resendCooldown > 0) return;
-    setError(null);
-    setInfo(null);
-    try {
-      await authClient.signIn.emailOtp({
-        email,
-        callbackURL: next,
-      });
-      setInfo(t("info.resent"));
-      setResendCooldown(RESEND_COOLDOWN_SEC);
-      setDigits(Array(OTP_LENGTH).fill(""));
-      inputsRef.current[0]?.focus();
-    } catch {
-      setError(t("errors.network"));
-    }
-  }
+  const masked = React.useMemo(() => maskEmail(email), [email]);
 
   return (
-    <div className="w-full max-w-md">
-      <div className="text-center mb-8">
-        <HashSymbol className="mx-auto text-lime" size={36} />
-        <h1 className="mt-4 text-2xl sm:text-3xl font-display font-bold tracking-tight">
-          {t("title")}
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-            {t("subtitle", { email })} <strong className="text-foreground">{email}</strong>
-          </p>
-      </div>
-
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (canSubmit) void submit(code);
-        }}
-        className="space-y-5"
-      >
-        <div>
-          <MonoLabel className="text-muted-foreground">{t("codeLabel")}</MonoLabel>
-          <div
-            className="mt-2 flex items-center justify-between gap-2"
-            onPaste={handlePaste}
+    <AuthLayout
+      step={2}
+      title={t("title")}
+      subtitle={t("subtitle")}
+      backHref={`/login?next=${encodeURIComponent(next)}`}
+      backLabel={t("backLinkLong")}
+      aside={
+        <p className="mt-3 flex items-center justify-center gap-2 text-[13.5px] text-muted-foreground">
+          <span className="mono-label">{t("sentToLabel")}</span>
+          {/* Adresse masquée : l'email reste en clair dans l'URL (le lien
+              magique en dépend) mais ne doit pas être lisible par-dessus
+              l'épaule pendant la saisie. */}
+          <span className="font-mono text-foreground">{masked}</span>
+        </p>
+      }
+    >
+      {email ? (
+        <OtpForm email={email} next={next} linkCode={linkCode} />
+      ) : (
+        <div className="flex flex-col items-center gap-4">
+          <p className="text-center text-sm text-muted-foreground">{t("loadingText")}</p>
+          <Link
+            href="/login"
+            className="inline-flex min-h-[44px] items-center rounded-md text-[13px] text-foreground underline decoration-lime/60 underline-offset-4 transition-colors duration-150 hover:decoration-lime focus-lime"
           >
-            {digits.map((d, i) => (
-              <input
-                key={i}
-                ref={(el) => {
-                  inputsRef.current[i] = el;
-                }}
-                type="text"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={1}
-                value={d}
-                onChange={(e) => setDigit(i, e.target.value)}
-                onKeyDown={(e) => handleKeyDown(i, e)}
-                disabled={loading}
-                aria-label={t("digitAriaLabel", { index: i + 1 })}
-                className="h-14 w-12 sm:w-14 text-center text-xl font-mono font-bold rounded-md border border-border bg-card text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:border-lime transition-colors disabled:opacity-50"
-              />
-            ))}
-          </div>
+            {t("backLinkLong")}
+          </Link>
         </div>
-
-        {error && (
-          <div
-            role="alert"
-            className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive"
-          >
-            {error}
-          </div>
-        )}
-
-        {info && (
-          <div
-            role="status"
-            className="rounded-md border border-lime/40 bg-lime/5 p-3 text-sm text-foreground"
-          >
-            {info}
-          </div>
-        )}
-
-        <RebootButton
-          type="submit"
-          size="lg"
-          className="w-full"
-          disabled={!canSubmit}
-        >
-          {loading ? (
-            <>
-              <Loader2 className="size-4 animate-spin" />
-              {t("verifying")}
-            </>
-          ) : (
-            t("submit")
-          )}
-        </RebootButton>
-
-        <div className="text-center">
-          <button
-            type="button"
-            onClick={handleResend}
-            disabled={resendCooldown > 0}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1"
-          >
-            <Mail className="size-3" />
-            {resendCooldown > 0
-              ? t("resendCooldown", { resendCooldown })
-              : t("resend")}
-          </button>
-          <p className="mt-2 text-xs text-muted-foreground">{t("hint")}</p>
-        </div>
-      </form>
-    </div>
+      )}
+    </AuthLayout>
   );
 }
 
-function VerifyFallback() {
+/** Fallback de `<Suspense>` — même coquille que la page résolue. */
+function VerifyOtpFallback() {
   const t = useTranslations("auth.verifyOtp");
   return (
-    <div className="w-full max-w-md">
-      <div className="text-center mb-8">
-        <HashSymbol className="mx-auto text-lime" size={36} />
-        <h1 className="mt-4 text-2xl sm:text-3xl font-display font-bold tracking-tight">
-          {t("title")}
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">{t("loadingText")}</p>
-      </div>
-    </div>
+    <AuthLayout step={2} title={t("title")} subtitle={t("loadingText")} backHref="/login">
+      <p className="text-center text-sm text-muted-foreground">{t("loadingText")}</p>
+    </AuthLayout>
   );
 }
 
+/** Étape 2 du parcours de connexion : le code à 6 chiffres. */
 export default function VerifyOtpPage() {
-  const t = useTranslations("auth.verifyOtp");
   return (
-    <main className="min-h-screen bg-background text-foreground flex flex-col">
-      <header className="flex items-center justify-between p-4 sm:p-6">
-        <a
-          href="/login"
-          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="size-4" />
-          {t("backLink")}
-        </a>
-        <Logo />
-      </header>
-
-      <div className="flex-1 flex items-center justify-center px-4">
-        <React.Suspense fallback={<VerifyFallback />}>
-          <VerifyOtpForm />
-        </React.Suspense>
-      </div>
-    </main>
+    <React.Suspense fallback={<VerifyOtpFallback />}>
+      <VerifyOtpBody />
+    </React.Suspense>
   );
 }

@@ -8,10 +8,10 @@ export async function requestSignInOtp(email: string): Promise<void> {
   try {
     const base = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
     await auth.handler(
-      new Request(`${base.replace(/\/$/, "")}/api/auth/sign-in/email-otp`, {
+      new Request(`${base.replace(/\/$/, "")}/api/auth/email-otp/send-verification-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, type: "email-otp" }),
+        body: JSON.stringify({ email, type: "sign-in" }),
       }),
     );
   } catch {

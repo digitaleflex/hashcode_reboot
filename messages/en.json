@@ -1277,7 +1277,7 @@
   "auth": {
     "login": {
       "title": "Sign in",
-      "subtitle": "Enter your HASHCODE account email. We'll send you a sign-in code.",
+      "subtitle": "Sign in to your HASHCODE REBOOT space.",
       "emailLabel": "Email",
       "emailPlaceholder": "you@example.com",
       "submit": "Get my code",
@@ -1290,15 +1290,18 @@
       "alreadyConnectedSubtitle": "Your member space is already open on this device.",
       "alreadyConnectedCta": "Go to my space",
       "errors": {
-        "invalidEmail": "Invalid email.",
-        "tooManyRequests": "Too many requests. Try again in a few minutes.",
-        "generic": "Something went wrong. Try again.",
-        "network": "Network error. Check your connection."
-      }
+        "invalidEmail": "Enter a valid email address.",
+        "tooManyRequests": "Too many requests. Wait a few seconds, then try again.",
+        "unavailable": "The service isn't responding. Try again in a moment.",
+        "generic": "We couldn't send the code. Try again.",
+        "network": "No connection. Check your network, then try again."
+      },
+      "emailHint": "Enter your email. No password — we'll send you a code.",
+      "sent": "If that address matches a HASHCODE account, a code has just been sent."
     },
     "verifyOtp": {
       "title": "Enter your code",
-      "subtitle": "We sent a 6-digit code + a 1-click link to {email}.",
+      "subtitle": "Enter the 6-digit code to continue.",
       "codeLabel": "6-digit code",
       "digitAriaLabel": "Digit {index}",
       "submit": "Verify",
@@ -1309,17 +1312,23 @@
       "backLink": "Back",
       "loadingText": "Loading…",
       "info": {
-        "magicLink": "Link detected — signing you in automatically…",
-        "resent": "A new code + link have been sent. They expire in 15 minutes."
+        "magicLink": "Link detected — signing you in…",
+        "resent": "A new code is on its way. It expires in 15 minutes.",
+        "success": "Signed in."
       },
       "errors": {
-        "invalidOrExpired": "Invalid or expired code.",
-        "tooManyAttempts": "Too many attempts. Try again in a few minutes.",
-        "tooManyRequests": "Too many requests. Try again in a few minutes.",
-        "resendFailed": "Couldn't resend the code.",
-        "generic": "Something went wrong. Try again.",
-        "network": "Network error. Check your connection."
-      }
+        "codeInvalid": "That code isn't right. Check the 6 digits and try again.",
+        "codeExpired": "That code has expired. Request a new one below.",
+        "tooManyAttempts": "Too many attempts. Request a new code.",
+        "tooManyRequests": "Too many requests. Wait a few seconds, then try again.",
+        "unavailable": "The service isn't responding. Try again in a moment.",
+        "resendFailed": "We couldn't resend the code. Try again in a moment.",
+        "generic": "We couldn't verify the code. Try again.",
+        "network": "No connection. Check your network, then try again."
+      },
+      "sentToLabel": "Code sent to",
+      "codeHint": "The code is valid for 15 minutes. The same email includes a 1-click link.",
+      "backLinkLong": "Use another email"
     },
     "verifyEmail": {
       "verifyingTitle": "Verifying…",
@@ -1339,6 +1348,14 @@
         "expiredFallback": "Link expired. Request a new link.",
         "network": "Network error. Check your connection and try again."
       }
+    },
+    "common": {
+      "backHome": "Back to HASHCODE REBOOT",
+      "skipToForm": "Skip to form",
+      "progressLabel": "Sign-in steps",
+      "stepOne": "Email",
+      "stepTwo": "Code",
+      "stepDone": "done"
     }
   },
   "evenements": {

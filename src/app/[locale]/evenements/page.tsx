@@ -6,14 +6,14 @@ import { PublicEventsPage } from "@/components/reboot/public-events-page";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Événements HASHCODE REBOOT — sessions, workshops et meetups",
+  title: "Événements — HASHCODE REBOOT",
   description:
-    "Découvre les prochains événements de HASHCODE REBOOT : sessions, workshops et meetups. Inscris-toi en un clic ou dis-nous que ça t'intéresse.",
+    "Découvrez les prochains workshops, sessions, meetups et événements de la communauté HASHCODE REBOOT.",
   alternates: { canonical: "/evenements" },
   openGraph: {
-    title: "Événements HASHCODE REBOOT",
+    title: "Événements — HASHCODE REBOOT",
     description:
-      "Sessions, workshops et meetups ouverts à la communauté. Inscris-toi ou dis-nous que ça t'intéresse.",
+      "Découvrez les prochains workshops, sessions, meetups et événements de la communauté HASHCODE REBOOT.",
     type: "website",
     url: "/evenements",
   },

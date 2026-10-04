@@ -90,13 +90,22 @@ export const config = {
    * La réécriture next-intl évite cela : `/cgu` devient `/fr/cgu`, la locale
    * est valide, aucune route ne correspond, et Next renvoie un vrai 404.
    *
-   * Sont exclus : les API (une réécriture `/fr/api/…` casserait les routes) et
-   * les fichiers statiques (chemins contenant un point).
+   * Sont exclus : les API (une réécriture `/fr/api/…` casserait les routes),
+   * les fichiers statiques (chemins contenant un point) et le tunnel Sentry.
    */
   matcher: [
-    // Pages : tout ce qui n'est ni une API ni un asset statique. Les chemins
-    // dont le dernier segment contient un point sont écartés (fichiers).
-    "/((?!api|_next|.*\\.[^/]+$).*)",
+    // Pages : tout ce qui n'est ni une API, ni un asset statique, ni le tunnel
+    // Sentry. Les chemins dont le dernier segment contient un point sont
+    // écartés (fichiers).
+    //
+    // `monitoring` doit être exclu : c'est le `tunnelRoute` Sentry
+    // (next.config.ts). Le proxy s'exécute AVANT les `afterFiles` rewrites
+    // injectés par `withSentryConfig` ET avant la résolution du système de
+    // fichiers, donc sans cette exclusion `intlMiddleware` réécrit
+    // `/monitoring?o=…&p=…` en `/fr/monitoring?o=…&p=…` : ni la route
+    // `src/app/monitoring/route.ts` ni la réécriture Sentry ne sont alors
+    // jamais atteintes, et chaque enveloppe se termine en 404.
+    "/((?!api|_next|monitoring|.*\\.[^/]+$).*)",
     // Réincluse : `/api/account/*` porte sa propre règle 401 et ne doit jamais
     // passer par i18n, mais doit bien traverser le proxy.
     "/api/account/:path*",

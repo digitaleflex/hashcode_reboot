@@ -1277,7 +1277,7 @@
   "auth": {
     "login": {
       "title": "Connexion",
-      "subtitle": "Saisis l'email de ton compte HASHCODE. On t'envoie un code de connexion.",
+      "subtitle": "Connecte-toi à ton espace HASHCODE REBOOT.",
       "emailLabel": "Email",
       "emailPlaceholder": "toi@exemple.com",
       "submit": "Recevoir mon code",
@@ -1290,36 +1290,45 @@
       "alreadyConnectedSubtitle": "Ton espace membre est déjà ouvert sur cet appareil.",
       "alreadyConnectedCta": "Aller à mon espace",
       "errors": {
-        "invalidEmail": "Email invalide.",
-        "tooManyRequests": "Trop de demandes. Réessaie dans quelques minutes.",
-        "generic": "Une erreur est survenue. Réessaie.",
-        "network": "Erreur réseau. Vérifie ta connexion."
-      }
+        "invalidEmail": "Entre une adresse email valide.",
+        "tooManyRequests": "Trop de demandes. Attends quelques secondes puis réessaie.",
+        "unavailable": "Le service ne répond pas. Réessaie dans un instant.",
+        "generic": "Impossible d'envoyer le code. Réessaie.",
+        "network": "Pas de connexion. Vérifie ton réseau puis réessaie."
+      },
+      "emailHint": "Saisis ton email. Aucun mot de passe : on t'envoie un code.",
+      "sent": "Si cette adresse correspond à un compte HASHCODE, un code vient d'être envoyé."
     },
     "verifyOtp": {
       "title": "Saisis ton code",
-      "subtitle": "On a envoyé un code à 6 chiffres + un lien 1-clic à {email}.",
+      "subtitle": "Entre le code à 6 chiffres pour continuer.",
       "codeLabel": "Code à 6 chiffres",
       "digitAriaLabel": "Chiffre {index}",
       "submit": "Valider",
       "verifying": "Vérification…",
       "resend": "Renvoyer le code",
-      "resendCooldown": "Renvoyer le code ({resendCooldown}s)",
+      "resendCooldown": "Renvoyer le code ({resendCooldown} s)",
       "hint": "Rien reçu ? Vérifie tes spams, puis renvoie un code.",
       "backLink": "Retour",
       "loadingText": "Chargement…",
       "info": {
-        "magicLink": "Lien détecté — connexion automatique…",
-        "resent": "Un nouveau code + lien ont été envoyés. Ils expirent dans 15 minutes."
+        "magicLink": "Lien détecté — connexion en cours…",
+        "resent": "Nouveau code envoyé. Il expire dans 15 minutes.",
+        "success": "Connexion réussie."
       },
       "errors": {
-        "invalidOrExpired": "Code invalide ou expiré.",
-        "tooManyAttempts": "Trop de tentatives. Réessaie dans quelques minutes.",
-        "tooManyRequests": "Trop de demandes. Réessaie dans quelques minutes.",
-        "resendFailed": "Impossible de renvoyer le code.",
-        "generic": "Une erreur est survenue. Réessaie.",
-        "network": "Erreur réseau. Vérifie ta connexion."
-      }
+        "codeInvalid": "Code incorrect. Vérifie les 6 chiffres et réessaie.",
+        "codeExpired": "Code expiré. Demande-en un nouveau ci-dessous.",
+        "tooManyAttempts": "Trop de tentatives. Demande un nouveau code.",
+        "tooManyRequests": "Trop de demandes. Attends quelques secondes puis réessaie.",
+        "unavailable": "Le service ne répond pas. Réessaie dans un instant.",
+        "resendFailed": "Impossible de renvoyer le code. Réessaie dans un instant.",
+        "generic": "Impossible de vérifier le code. Réessaie.",
+        "network": "Pas de connexion. Vérifie ton réseau puis réessaie."
+      },
+      "sentToLabel": "Code envoyé à",
+      "codeHint": "Le code est valable 15 minutes. Un lien 1-clic arrive dans le même message.",
+      "backLinkLong": "Utiliser une autre adresse"
     },
     "verifyEmail": {
       "verifyingTitle": "Vérification en cours…",
@@ -1339,6 +1348,14 @@
         "expiredFallback": "Lien expiré. Demande un nouveau lien.",
         "network": "Erreur réseau. Vérifie ta connexion puis réessaie."
       }
+    },
+    "common": {
+      "backHome": "Retour à HASHCODE REBOOT",
+      "skipToForm": "Aller au formulaire",
+      "progressLabel": "Étapes de la connexion",
+      "stepOne": "Email",
+      "stepTwo": "Code",
+      "stepDone": "terminée"
     }
   },
   "evenements": {
