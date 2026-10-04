@@ -10,10 +10,21 @@
     "backHome": "Back to HASHCODE"
   },
   "landing": {
+    "meta": {
+      "title": "HASHCODE REBOOT — Join the dev, cyber & AI community",
+      "description": "Join the dev, cyber & AI community. Create your profile in 2 min, get your WhatsApp access and join the sessions.",
+      "ogTitle": "HASHCODE REBOOT — Dev, cyber & AI. Wherever you are.",
+      "ogDescription": "Create your profile in 2 min, get your WhatsApp access and join the sessions."
+    },
     "siteHeader": {
       "navAria": "Navigation",
-      "links": ["Tracks", "Events", "FAQ"],
-      "editionBadge": "Reboot · 2026 Edition",
+      "menuAria": "Open menu",
+      "menuCloseAria": "Close menu",
+      "links": [
+        "Tracks",
+        "Events",
+        "FAQ"
+      ],
       "cta": "Build my profile",
       "ctaMobile": "Join"
     },
@@ -22,114 +33,418 @@
       "brandTitle1": "HASHCODE",
       "brandTitle2": "REBOOT",
       "subtitle": "Join the new dev, cyber & AI community.",
-      "description": "Wherever you are. Create your profile in 2 min, get your WhatsApp access and start with your first challenge this week.",
+      "description": "Wherever you are. Build your profile in 2 min, get your WhatsApp access and start with your first challenge.",
       "primaryCta": "Build my profile",
       "secondaryCta": "Explore the tracks",
       "reassurance": "About 2 min · Free · No commitment",
       "stepLabel": "Step {n}",
       "steps": [
-        { "n": "01", "title": "Answer by clicking", "desc": "A few simple questions, about 2 minutes, no writing needed." },
-        { "n": "02", "title": "Get your track", "desc": "Web, Cyber or AI — based on your level and goal." },
-        { "n": "03", "title": "Join WhatsApp", "desc": "Instant access if compatible. Otherwise email, zero spam." }
+        {
+          "n": "01",
+          "title": "Answer with one click",
+          "desc": "A few simple questions, about 2 minutes, nothing to write."
+        },
+        {
+          "n": "02",
+          "title": "Get your track",
+          "desc": "Web, Cyber or AI — based on your level and your goal."
+        },
+        {
+          "n": "03",
+          "title": "Join on WhatsApp",
+          "desc": "Immediate access if compatible. Otherwise email, zero spam."
+        }
       ],
-      "altNote": "Otherwise email, zero spam, removal in 1 message.",
+      "altNote": "Otherwise email, zero spam, deleted with one message.",
       "scrollLabel": "Scroll",
-      "scrollAria": "Scroll down"
+      "scrollAria": "Scroll down",
+      "core": "ECOSYSTEM CORE",
+      "coreCaption": "Three tracks. One profile that places you.",
+      "orbitAria": "The three HASHCODE tracks",
+      "orbits": [
+        {
+          "k": "01",
+          "t": "Web Development",
+          "m": "Applications · Products · Experiences"
+        },
+        {
+          "k": "02",
+          "t": "Cybersecurity",
+          "m": "Understand · Protect · Analyse"
+        },
+        {
+          "k": "03",
+          "t": "Applied AI",
+          "m": "AI · Automation · Agents"
+        }
+      ]
     },
-    "why": {
-      "index": "01 · Why we're back",
+    "evolves": {
+      "index": "01 · Why we came back",
       "title": "HASHCODE is evolving.",
-      "intro": "Content alone is no longer enough. We want an environment where members can learn, practice, build, collaborate and grow — for real."
+      "intro": "Content alone is not enough. We want an environment where you learn, practise and build.",
+      "steps": [
+        {
+          "k": "Before",
+          "t": "Consume",
+          "d": "Scattered content, with no shared starting point and no visible progression."
+        },
+        {
+          "k": "The pivot",
+          "t": "Locate yourself",
+          "d": "A profile that places each person where they really are: level, goal, rhythm."
+        },
+        {
+          "k": "Now",
+          "t": "Build",
+          "d": "Learn, practise, build — then keep going with support."
+        }
+      ]
     },
     "axes": {
       "index": "02 · The three tracks",
-      "title": "Three fields. One community.",
-      "intro": "Choose your field. You can explore others later.",
+      "title": "Three grounds. One system.",
+      "intro": "Pick your ground. You can cross others later.",
       "items": [
-        { "id": "01", "title": "Web Development", "desc": "Build apps, products and digital experiences." },
-        { "id": "02", "title": "Cybersecurity", "desc": "Understand, protect, analyze and experiment." },
-        { "id": "03", "title": "Applied AI", "desc": "Build with AI, automation and agents." }
+        {
+          "id": "01",
+          "title": "Web Development",
+          "desc": "Build applications, products and digital experiences.",
+          "signal": "ARCHITECTURE",
+          "points": [
+            "Interfaces",
+            "Applications",
+            "Experience"
+          ]
+        },
+        {
+          "id": "02",
+          "title": "Cybersecurity",
+          "desc": "Understand, protect, analyse and experiment.",
+          "signal": "DEFENCE",
+          "points": [
+            "Networks",
+            "Systems",
+            "Threats"
+          ]
+        },
+        {
+          "id": "03",
+          "title": "Applied AI",
+          "desc": "Build with AI, automation and agents.",
+          "signal": "MODELS",
+          "points": [
+            "Data",
+            "Agents",
+            "Automation"
+          ]
+        }
       ],
       "cta": "Build my profile",
       "mobileCta": "Join the community"
     },
-    "pillars": {
-      "index": "03 · What really changes",
-      "title": "Four verbs. One direction.",
-      "intro": "From consuming to building.",
+    "method": {
+      "index": "03 · The method",
+      "title": "Learn. Practise. Build. Evolve.",
+      "intro": "Four states, not four promises. Lime shows where you stand.",
       "items": [
-        { "k": "01", "t": "Learn", "d": "Clear, solid fundamentals." },
-        { "k": "02", "t": "Build", "d": "Real projects, not demos." },
-        { "k": "03", "t": "Practice", "d": "Challenges to keep improving." },
-        { "k": "04", "t": "Collaborate", "d": "Grow with fellow members." }
+        {
+          "k": "01",
+          "t": "Learn",
+          "d": "The fundamentals, clear and solid."
+        },
+        {
+          "k": "02",
+          "t": "Practise",
+          "d": "Concrete challenges to move forward."
+        },
+        {
+          "k": "03",
+          "t": "Build",
+          "d": "Real projects, not demos."
+        },
+        {
+          "k": "04",
+          "t": "Evolve",
+          "d": "Support matched to your rhythm and your needs."
+        }
       ],
-      "carouselAria": "What changes: four verbs, one direction",
-      "trackAria": "Scroll horizontally to see the four verbs. Left and right arrows available.",
-      "slideAria": "{i} of {total}: {pt}",
-      "prevAria": "See the previous verb",
-      "nextAria": "See the next verb",
-      "dotsAria": "Choose a verb",
-      "dotAria": "Go to verb {i}: {pt}"
+      "railAria": "Method progression",
+      "doneAria": "done"
     },
-    "audience": {
-      "index": "04 · Who it's for",
-      "title": "No need to be an expert.",
-      "intro": "If you're curious and motivated, you belong here. Tap a profile to get started.",
-      "items": ["Beginners", "Students", "Developers", "Professionals", "Entrepreneurs", "Cyber enthusiasts", "AI curious", "Self-taught learners"],
-      "note": "Beginner or advanced — we start from where you really are."
-    },
-    "testimonial": {
-      "quote": "I arrived curious, left with a clear plan and my first challenge to do this week. We finally know where we're going.",
-      "avatarLetter": "A",
-      "name": "Aïcha · Student",
-      "role": "Web beginner · First 2026 cohort"
-    },
-    "coming": {
-      "index": "05 · What's next, concretely",
-      "title": "The Reboot is now.",
-      "intro": "First members are leading the way. Here is the real order.",
-      "items": [
-        { "t": "Challenges", "d": "Real-world problems to solve, regularly. The first one this week.", "status": "Now" },
-        { "t": "Workshops", "d": "Live sessions to learn together.", "status": "Soon" },
-        { "t": "Projects", "d": "Build as a team on real projects.", "status": "Soon" },
-        { "t": "Mentoring", "d": "Guidance for those who need it.", "status": "Later" },
-        { "t": "HASHCODE Registry", "d": "The future hub for profiles and journeys.", "status": "Later" }
+    "engine": {
+      "index": "04 · Your starting point",
+      "title": "See how HASHCODE can understand you.",
+      "intro": "One profile, seven steps. Readable rules and the same result everywhere — no black box.",
+      "path": [
+        {
+          "k": "01",
+          "t": "Profile",
+          "m": "First name, email, country"
+        },
+        {
+          "k": "02",
+          "t": "Domain",
+          "m": "Web, Cyber or AI"
+        },
+        {
+          "k": "03",
+          "t": "Goal",
+          "m": "What you want to achieve"
+        },
+        {
+          "k": "04",
+          "t": "Rhythm",
+          "m": "The time you can dedicate"
+        },
+        {
+          "k": "05",
+          "t": "Style",
+          "m": "How you progress best"
+        },
+        {
+          "k": "06",
+          "t": "Mentoring",
+          "m": "Whether you want support"
+        },
+        {
+          "k": "07",
+          "t": "Vision",
+          "m": "What you want to have achieved"
+        }
+      ],
+      "demoLabel": "Example profile card — demonstration",
+      "demoNote": "The data in this card is fictional. It only illustrates the output format.",
+      "archetypesTitle": "Five archetypes",
+      "archetypesNote": "Assigned by fixed rules, never by a model.",
+      "archetypes": [
+        {
+          "t": "WEB BUILDER",
+          "m": "Web · beginner or practising"
+        },
+        {
+          "t": "WEB ARCHITECT",
+          "m": "Web · advanced or autonomous"
+        },
+        {
+          "t": "CYBER BUILDER",
+          "m": "Cybersecurity"
+        },
+        {
+          "t": "AI EXPLORER",
+          "m": "Applied AI"
+        },
+        {
+          "t": "HASHCODE BUILDER",
+          "m": "Default profile"
+        }
       ]
     },
+    "community": {
+      "index": "05 · The community",
+      "title": "We build together.",
+      "intro": "Profiles, sessions, challenges — and people moving forward together.",
+      "liveAria": "Number of profiles already created",
+      "cardChallenge": {
+        "t": "Challenge",
+        "d": "Concrete problems to solve, regularly."
+      },
+      "cardWorkshop": {
+        "t": "Workshops",
+        "d": "Live sessions to learn together."
+      },
+      "cardMentoring": {
+        "t": "Mentoring",
+        "d": "Support for those who need it."
+      },
+      "audiencesLabel": "Who it is for",
+      "audiences": [
+        "Beginners",
+        "Students",
+        "Developers",
+        "Professionals",
+        "Founders",
+        "Cyber enthusiasts",
+        "AI curious",
+        "Self-taught"
+      ],
+      "note": "Beginner or advanced — we start where you really are."
+    },
+    "activity": {
+      "index": "06 · Right now",
+      "title": "HASHCODE is in motion.",
+      "intro": "The next sessions open to the community.",
+      "cta": "See all events",
+      "metaDate": "Date",
+      "metaLocation": "Location",
+      "metaAttendees": "Attendees",
+      "loading": "Loading sessions…",
+      "empty": "No session scheduled for now.",
+      "error": "Sessions unavailable for now.",
+      "going": "{count, plural, one {1 going} other {{count} going}}",
+      "interest": "{count, plural, one {1 interested} other {{count} interested}}",
+      "statusLive": "Live",
+      "statusScheduled": "Scheduled",
+      "types": {
+        "session": "Session",
+        "workshop": "Workshop",
+        "meetup": "Meetup",
+        "webinar": "Webinar",
+        "other": "Other"
+      },
+      "levels": {
+        "beginner": "Beginner",
+        "intermediate": "Intermediate",
+        "advanced": "Advanced"
+      },
+      "domains": {
+        "web": "Web",
+        "cybersecurity": "Cyber",
+        "ai": "AI"
+      }
+    },
+    "roadmap": {
+      "index": "07 · What is next",
+      "title": "The Reboot is happening now.",
+      "intro": "The real order, from nearest to furthest.",
+      "items": [
+        {
+          "t": "Challenges",
+          "d": "Concrete problems to solve, regularly.",
+          "status": "Now",
+          "live": true
+        },
+        {
+          "t": "Workshops",
+          "d": "Live sessions to learn together.",
+          "status": "Soon",
+          "live": false
+        },
+        {
+          "t": "Projects",
+          "d": "Build as a team on real projects.",
+          "status": "Soon",
+          "live": false
+        },
+        {
+          "t": "Mentoring",
+          "d": "Support for those who need it.",
+          "status": "Later",
+          "live": false
+        },
+        {
+          "t": "HASHCODE Registry",
+          "d": "The future hub for profiles and paths.",
+          "status": "Later",
+          "live": false
+        }
+      ],
+      "liveBadge": "In progress",
+      "nextBadge": "Upcoming"
+    },
     "faq": {
-      "index": "06 · Your questions",
-      "title": "You might be wondering…",
+      "index": "08 · Your questions",
+      "title": "You may be wondering…",
       "intro": "Answers to the most common questions about the Reboot.",
       "items": [
-        { "q": "What exactly is the Reboot?", "a": "The Reboot is the new entry point to the HASHCODE community. You build your profile in 2 minutes, get an initial orientation, and join the official community. It's the first step of the new HASHCODE." },
-        { "q": "How long does it take?", "a": "About 2 minutes. Most answers are just a click. We only ask what we need to understand your profile — nothing extra." },
-        { "q": "Do I need to be an expert to join?", "a": "No. HASHCODE is open to beginners, students, developers, professionals, entrepreneurs and self-taught learners. We start from where you really are." },
-        { "q": "Is it free?", "a": "Yes. The Reboot is free: profile + community access. If a paid option ever exists, it will be optional and clearly announced. Nothing is charged, nothing is hidden." },
-        { "q": "What happens after I sign up?", "a": "You answer by clicking (~2 min), you get your suggested track, then your WhatsApp access if your profile is compatible. Otherwise, we contact you by email for a personalized invitation. Zero spam, removal in 1 message." },
-        { "q": "Is my data protected?", "a": "Yes. We collect the minimum necessary, no resale, no advertising. You can request deletion of your data at any time." }
+        {
+          "id": "what",
+          "q": "What exactly is the Reboot?",
+          "a": "The Reboot is the new entry point to the HASHCODE community. You build your profile in 2 minutes, get a first orientation, and join the official community. It is the first step of the new HASHCODE."
+        },
+        {
+          "id": "duration",
+          "q": "How long does it take?",
+          "a": "About 2 minutes. Most answers are one click. We only ask what is needed to understand your profile — nothing superfluous."
+        },
+        {
+          "id": "expert",
+          "q": "Do I need to be an expert to join?",
+          "a": "No. HASHCODE is open to beginners, students, developers, professionals, founders and self-taught people. We start where you really are."
+        },
+        {
+          "id": "free",
+          "q": "Is it free?",
+          "a": "Yes. The Reboot is free: profile + community access. If a paid option ever exists, it will be optional and clearly announced. Nothing is charged, nothing is hidden."
+        },
+        {
+          "id": "after",
+          "q": "What happens after I sign up?",
+          "a": "You answer with one click (~2 min), get your suggested track, then your WhatsApp access if your profile is compatible. Otherwise we contact you by email for a personal invitation. Zero spam, deleted with one message."
+        },
+        {
+          "id": "privacy",
+          "q": "Is my data protected?",
+          "a": "Yes. We collect the minimum necessary, no resale, no advertising. You can request deletion of your data at any time."
+        }
       ],
       "privacyLink": "See the privacy policy",
       "cta": "Build my profile"
     },
     "finalCta": {
-      "title": "Ready to join the community?",
-      "description": "Create your profile in 2 min and get your WhatsApp access.",
+      "title": "JOIN THE REBOOT.",
+      "description": "Build your profile in 2 min and get your WhatsApp access.",
       "cta": "Build my profile",
       "reassurance": "Free · About 2 minutes · Zero spam"
     },
     "footer": {
-      "description": "The new dev, cyber & AI community. Your first challenge awaits this week, wherever you are.",
-      "linksTitle": "Links",
-      "links": ["Build my profile", "See the 3 tracks", "Frequently asked questions"],
+      "description": "The new dev, cyber & AI community. Wherever you are.",
+      "navAria": "Footer",
+      "columns": [
+        {
+          "title": "Product",
+          "links": [
+            {
+              "t": "Build my profile",
+              "a": "join"
+            },
+            {
+              "t": "The three tracks",
+              "a": "axes"
+            },
+            {
+              "t": "The method",
+              "a": "method"
+            }
+          ]
+        },
+        {
+          "title": "Resources",
+          "links": [
+            {
+              "t": "Events",
+              "a": "events"
+            },
+            {
+              "t": "FAQ",
+              "a": "faq"
+            }
+          ]
+        },
+        {
+          "title": "Community",
+          "links": [
+            {
+              "t": "My space",
+              "a": "account"
+            }
+          ]
+        }
+      ],
       "privacyTitle": "Privacy",
-      "privacyDesc": "Minimum necessary, zero resale, zero ads. Removal in 1 message, at any time.",
+      "privacyDesc": "Minimum necessary, no resale, no ads. Deleted with one message, at any time.",
       "privacyLink": "Read the full policy →",
-      "copyright": "© 2026 Hashcode · Reboot",
-      "tagline": "Born in Benin · Open to all",
+      "copyright": "© {year} Hashcode · Reboot",
+      "tagline": "Open to everyone",
       "socialProof": [
-        { "value": "2026", "label": "First cohort open" },
-        { "value": "3", "label": "Tracks: web, cyber, AI" },
-        { "value": "~2 min", "label": "Click-based profile, no friction" }
+        {
+          "value": "3",
+          "label": "Tracks: web, cyber, AI"
+        },
+        {
+          "value": "5",
+          "label": "Profile archetypes"
+        }
       ],
       "liveCount": {
         "valueWithCount": "{count}",
@@ -140,37 +455,68 @@
     },
     "stickyCta": {
       "title": "2 min · Free",
-      "subtitle": "Your challenge this week",
+      "subtitle": "Your profile, a few clicks",
       "cta": "Build my profile"
     },
     "accountLink": {
       "authenticated": "My space",
       "authenticatedWithName": "My space · {firstName}",
-      "anonymous": "Log in"
+      "anonymous": "Sign in"
     }
   },
   "profiling": {
-    "shell": {
-      "back": "Back",
-      "milestones": [
-        { "key": "profil", "label": "Profile" },
-        { "key": "objectifs", "label": "Goal" },
-        { "key": "rythme", "label": "Pace" },
-        { "key": "mentorat", "label": "Mentorship" },
-        { "key": "vision", "label": "Vision" }
-      ],
-      "stepCounter": "Question {currentStep} of {totalSteps}",
-      "timeRemaining": "~{minutes} min left",
-      "percent": "{percent}%",
-      "progressAriaLabel": "Profiling progress",
-      "footerNote": "Your answers help us better understand your profile.",
-      "keyboardHint": "to select",
-      "keyboardHintSeparator": "–"
+    "countryContinue": "Continue",
+    "countrySelect": {
+      "placeholder": "Select your country",
+      "searchPlaceholder": "Search for a country…",
+      "empty": "No country found."
+    },
+    "finalizing": {
+      "stepLabel": "Finalizing…",
+      "title": "We're finalizing your profile…",
+      "subtitle": "One second."
     },
     "flow": {
       "stepLabel": "Your HASHCODE profile",
       "beforeUnloadConfirm": "Are you sure you want to leave?",
       "beforeUnloadSaveNote": "Your answers are saved, you can resume later."
+    },
+    "labels": {
+      "domains": {
+        "web": "Web",
+        "cybersecurity": "Cyber",
+        "ai": "AI"
+      },
+      "levels": {
+        "beginner": "Beginner",
+        "practicing": "Practicing",
+        "autonomous": "Independent",
+        "advanced": "Advanced"
+      },
+      "budgets": {
+        "<2500": "< 2.5k",
+        "2500-5000": "2.5–5k",
+        "5000-10000": "5–10k",
+        "10000-20000": "10–20k",
+        "20000-30000": "20–30k",
+        ">30000": "> 30k",
+        "unknown": "Unsure"
+      },
+      "goals": {
+        "project": "Project",
+        "employment": "Job",
+        "freelance": "Freelance",
+        "upskill": "Skills",
+        "business": "Business",
+        "career": "Career",
+        "other": "Other"
+      }
+    },
+    "longText": {
+      "hintRemaining": "{remaining} characters left",
+      "hintDefault": "One sentence is enough.",
+      "counter": "{len}/{maxChars}",
+      "continue": "Continue"
     },
     "multiChoice": {
       "selectedCount": "{selectedCount} selected{plural}",
@@ -178,28 +524,6 @@
       "optionalHint": "Optional — you can skip",
       "continue": "Continue",
       "skip": "Skip"
-    },
-    "textView": { "optional": "Optional", "continue": "Continue", "skip": "Skip" },
-    "longText": {
-      "hintRemaining": "{remaining} characters left",
-      "hintDefault": "One sentence is enough.",
-      "counter": "{len}/{maxChars}",
-      "continue": "Continue"
-    },
-    "countrySelect": {
-      "placeholder": "Select your country",
-      "searchPlaceholder": "Search for a country…",
-      "empty": "No country found."
-    },
-    "countryContinue": "Continue",
-    "resumePrompt": {
-      "header": "Your HASHCODE profile",
-      "titleDuplicate": "You already have a HASHCODE account.",
-      "titleDraft": "You had a draft in progress.",
-      "bodyDuplicate": "Pick up where you left off — we found your profile.",
-      "bodyDraft": "You've already answered {answeredCount} question{plural}. You can pick up where you left off.",
-      "resume": "Resume",
-      "restart": "Start over"
     },
     "preview": {
       "stepLabel": "Your HASHCODE profile is ready",
@@ -209,11 +533,632 @@
       "edit": "Edit my answers",
       "whatsappNote": "You can add your WhatsApp number later, from your member area."
     },
-    "finalizing": {
-      "stepLabel": "Finalizing…",
-      "title": "We're finalizing your profile…",
-      "subtitle": "One second."
+    "profileCard": {
+      "domain": "Domain",
+      "level": "Level",
+      "goal": "Goal",
+      "availability": "Availability",
+      "style": "Learning style",
+      "mentoring": "Mentoring",
+      "profileWithName": "Profile of {firstName}",
+      "profileHashcode": "HASHCODE profile",
+      "threeMonthGoal": "3-month goal"
     },
+    "profileValues": {
+      "domain": {
+        "web": "Web Development",
+        "cybersecurity": "Cybersecurity",
+        "ai": "Applied AI"
+      },
+      "level": {
+        "beginner": "Beginner",
+        "practicing": "Practicing",
+        "autonomous": "Independent",
+        "advanced": "Advanced"
+      },
+      "goal": {
+        "project": "Build a project",
+        "employment": "Find a job",
+        "freelance": "Go freelance",
+        "upskill": "Level up my skills",
+        "business": "Develop a business",
+        "career": "Prepare a career",
+        "other": "Make progress"
+      },
+      "availability": {
+        "<2h": "Under 2 h / week",
+        "2-5h": "2 – 5 h / week",
+        "5-10h": "5 – 10 h / week",
+        "10-15h": "10 – 15 h / week",
+        "15h+": "15 h+ / week"
+      },
+      "style": {
+        "practice": "Practice & projects",
+        "path": "Structured path",
+        "group": "Group & peers",
+        "mentor": "Mentored",
+        "project": "Project build"
+      },
+      "mentoring": {
+        "no": "Not for now",
+        "maybe": "Curious",
+        "yes": "Interested"
+      }
+    },
+    "questions": [
+      {
+        "id": "firstName",
+        "label": "What should we call you?",
+        "description": "Your first name is enough to start.",
+        "placeholder": "E.g. Eurin",
+        "microcopy": "Perfect. Let's go."
+      },
+      {
+        "id": "email",
+        "label": "Where should we send your profile and access?",
+        "description": "Your email address. We use it to send you your profile and invite you to the community.",
+        "placeholder": "you@example.com",
+        "microcopy": "We're saving your profile."
+      },
+      {
+        "id": "country",
+        "label": "Which country do you live in?",
+        "description": "To understand the community where you are.",
+        "microcopy": "We're starting to get a sense of your profile."
+      },
+      {
+        "id": "primaryDomain",
+        "label": "Which field attracts you the most?",
+        "description": "You can add others later.",
+        "microcopy": "Good. We know where you want to go.",
+        "options": [
+          {
+            "value": "web",
+            "label": "Web Development",
+            "emoji": "🌐",
+            "description": "Building apps, products and digital experiences."
+          },
+          {
+            "value": "cybersecurity",
+            "label": "Cybersecurity",
+            "emoji": "🛡️",
+            "description": "Understanding, protecting, analyzing and experimenting."
+          },
+          {
+            "value": "ai",
+            "label": "Applied AI",
+            "emoji": "🤖",
+            "description": "Building with AI, automation and agents."
+          }
+        ]
+      },
+      {
+        "id": "domainSpecialty",
+        "label": "What interests you in this field?",
+        "description": "Choose what speaks to you — you can refine later.",
+        "microcopy": "Let's refine.",
+        "optionsByDomain": {
+          "cybersecurity": [
+            {
+              "value": "soc",
+              "label": "SOC / Blue Team",
+              "emoji": "🛡️"
+            },
+            {
+              "value": "pentest",
+              "label": "Pentest / Red Team",
+              "emoji": "⚔️"
+            },
+            {
+              "value": "osint",
+              "label": "OSINT",
+              "emoji": "🔍"
+            },
+            {
+              "value": "career",
+              "label": "Cyber career",
+              "emoji": "💼"
+            },
+            {
+              "value": "certification",
+              "label": "Certification",
+              "emoji": "📜"
+            },
+            {
+              "value": "project",
+              "label": "Cyber project",
+              "emoji": "🚧"
+            }
+          ],
+          "web": [
+            {
+              "value": "frontend",
+              "label": "Frontend",
+              "emoji": "🎨"
+            },
+            {
+              "value": "backend",
+              "label": "Backend",
+              "emoji": "🔧"
+            },
+            {
+              "value": "architecture",
+              "label": "Architecture",
+              "emoji": "🏛️"
+            },
+            {
+              "value": "project",
+              "label": "Web project",
+              "emoji": "🚧"
+            },
+            {
+              "value": "freelance",
+              "label": "Freelance",
+              "emoji": "🧳"
+            },
+            {
+              "value": "career",
+              "label": "Web career",
+              "emoji": "💼"
+            }
+          ],
+          "ai": [
+            {
+              "value": "llm",
+              "label": "LLM",
+              "emoji": "🧠"
+            },
+            {
+              "value": "agents",
+              "label": "Agents",
+              "emoji": "🤖"
+            },
+            {
+              "value": "automation",
+              "label": "Automation",
+              "emoji": "⚙️"
+            },
+            {
+              "value": "ai_engineering",
+              "label": "AI Engineering",
+              "emoji": "🛠️"
+            },
+            {
+              "value": "project",
+              "label": "AI project",
+              "emoji": "🚧"
+            },
+            {
+              "value": "business",
+              "label": "Business AI",
+              "emoji": "💼"
+            }
+          ]
+        }
+      },
+      {
+        "id": "goal",
+        "label": "What would you like to achieve with HASHCODE?",
+        "description": "No wrong answer. Be honest, we'll handle the rest.",
+        "microcopy": "Your profile is taking shape.",
+        "options": [
+          {
+            "value": "project",
+            "label": "Build a project",
+            "emoji": "🚀"
+          },
+          {
+            "value": "employment",
+            "label": "Find a job",
+            "emoji": "💼"
+          },
+          {
+            "value": "freelance",
+            "label": "Become a freelancer",
+            "emoji": "🧳"
+          },
+          {
+            "value": "upskill",
+            "label": "Level up your skills",
+            "emoji": "📈"
+          },
+          {
+            "value": "business",
+            "label": "Grow a business",
+            "emoji": "🧩"
+          },
+          {
+            "value": "career",
+            "label": "Prepare a career",
+            "emoji": "🎯"
+          },
+          {
+            "value": "other",
+            "label": "Something else",
+            "emoji": "✦"
+          }
+        ]
+      },
+      {
+        "id": "goalSituation",
+        "label": "Where are you today employment-wise?",
+        "description": "To best guide your next steps.",
+        "options": [
+          {
+            "value": "student",
+            "label": "Student",
+            "emoji": "🎓"
+          },
+          {
+            "value": "searching",
+            "label": "Actively job hunting",
+            "emoji": "🔎"
+          },
+          {
+            "value": "employed",
+            "label": "Employed, looking to pivot",
+            "emoji": "🔄"
+          },
+          {
+            "value": "between",
+            "label": "In between things",
+            "emoji": "🌤️"
+          }
+        ]
+      },
+      {
+        "id": "goalProjectStage",
+        "label": "Where is your project today?",
+        "description": "To calibrate the most useful type of help.",
+        "options": [
+          {
+            "value": "idea",
+            "label": "Just an idea",
+            "emoji": "💡"
+          },
+          {
+            "value": "planning",
+            "label": "Thinking / planning",
+            "emoji": "🧭"
+          },
+          {
+            "value": "building",
+            "label": "Under construction",
+            "emoji": "🚧"
+          },
+          {
+            "value": "launched",
+            "label": "Already launched",
+            "emoji": "🚀"
+          }
+        ]
+      },
+      {
+        "id": "level",
+        "label": "Where are you today?",
+        "description": "Tell us where you really are, we'll start from there — no pressure.",
+        "microcopy": "A few more choices.",
+        "options": [
+          {
+            "value": "beginner",
+            "label": "I'm just starting",
+            "emoji": "🌱"
+          },
+          {
+            "value": "practicing",
+            "label": "I already practice",
+            "emoji": "⚙️"
+          },
+          {
+            "value": "autonomous",
+            "label": "I'm independent",
+            "emoji": "🧭"
+          },
+          {
+            "value": "advanced",
+            "label": "I'm advanced",
+            "emoji": "🏆"
+          }
+        ]
+      },
+      {
+        "id": "availability",
+        "label": "How much time can you dedicate to your progress each week?",
+        "description": "An honest estimate, no pressure — we adapt to your pace.",
+        "options": [
+          {
+            "value": "<2h",
+            "label": "Under 2 hrs",
+            "hint": "Light pace"
+          },
+          {
+            "value": "2-5h",
+            "label": "2 – 5 hrs",
+            "hint": "Steady"
+          },
+          {
+            "value": "5-10h",
+            "label": "5 – 10 hrs",
+            "hint": "Committed"
+          },
+          {
+            "value": "10-15h",
+            "label": "10 – 15 hrs",
+            "hint": "Intensive"
+          },
+          {
+            "value": "15h+",
+            "label": "15 hrs and more",
+            "hint": "Full focus"
+          }
+        ]
+      },
+      {
+        "id": "learningStyle",
+        "label": "How do you learn best?",
+        "description": "It helps us suggest the right format.",
+        "microcopy": "Almost done.",
+        "options": [
+          {
+            "value": "practice",
+            "label": "By practicing",
+            "emoji": "🧩"
+          },
+          {
+            "value": "path",
+            "label": "With a guided path",
+            "emoji": "🧭"
+          },
+          {
+            "value": "group",
+            "label": "With a group",
+            "emoji": "🤝"
+          },
+          {
+            "value": "mentor",
+            "label": "With a mentor",
+            "emoji": "🧑‍🏫"
+          },
+          {
+            "value": "project",
+            "label": "By building a project",
+            "emoji": "🚧"
+          }
+        ]
+      },
+      {
+        "id": "mentoringInterest",
+        "label": "Do you need personalized guidance?",
+        "description": "Answer freely — we adapt what comes next to you.",
+        "options": [
+          {
+            "value": "no",
+            "label": "No",
+            "description": "I prefer to move forward on my own for now."
+          },
+          {
+            "value": "maybe",
+            "label": "Maybe",
+            "description": "I want to understand what it could bring me."
+          },
+          {
+            "value": "yes",
+            "label": "Yes",
+            "description": "Guidance would help me progress."
+          }
+        ]
+      },
+      {
+        "id": "mentoringMaybeReason",
+        "label": "What might make you consider a mentor?",
+        "description": "One sentence is enough.",
+        "placeholder": "E.g. If I feel stuck on a concrete project."
+      },
+      {
+        "id": "mentoringTypes",
+        "label": "What would you like guidance on?",
+        "description": "Select what would be most useful to you.",
+        "optionsByDomain": {
+          "cybersecurity": [
+            {
+              "value": "soc",
+              "label": "SOC / Blue Team"
+            },
+            {
+              "value": "pentest",
+              "label": "Pentest / Red Team"
+            },
+            {
+              "value": "osint",
+              "label": "OSINT"
+            },
+            {
+              "value": "career",
+              "label": "Career"
+            },
+            {
+              "value": "certification",
+              "label": "Certification"
+            },
+            {
+              "value": "project",
+              "label": "Project"
+            }
+          ],
+          "web": [
+            {
+              "value": "frontend",
+              "label": "Frontend"
+            },
+            {
+              "value": "backend",
+              "label": "Backend"
+            },
+            {
+              "value": "architecture",
+              "label": "Architecture"
+            },
+            {
+              "value": "project",
+              "label": "Project"
+            },
+            {
+              "value": "freelance",
+              "label": "Freelance"
+            },
+            {
+              "value": "career",
+              "label": "Career"
+            }
+          ],
+          "ai": [
+            {
+              "value": "llm",
+              "label": "LLM"
+            },
+            {
+              "value": "agents",
+              "label": "Agents"
+            },
+            {
+              "value": "automation",
+              "label": "Automation"
+            },
+            {
+              "value": "ai_engineering",
+              "label": "AI Engineering"
+            },
+            {
+              "value": "project",
+              "label": "Project"
+            },
+            {
+              "value": "business",
+              "label": "Business"
+            }
+          ]
+        }
+      },
+      {
+        "id": "mentoringFrequency",
+        "label": "How often would you like guidance?",
+        "options": [
+          {
+            "value": "weekly",
+            "label": "Weekly"
+          },
+          {
+            "value": "biweekly",
+            "label": "Every 2 weeks"
+          },
+          {
+            "value": "monthly",
+            "label": "Monthly"
+          },
+          {
+            "value": "on_demand",
+            "label": "On demand"
+          }
+        ]
+      },
+      {
+        "id": "budgetRange",
+        "label": "What level of monthly investment could you consider?",
+        "description": "No answer commits you to anything. It helps us understand the community.",
+        "options": [
+          {
+            "value": "<2500",
+            "label": "Less than 2,500 FCFA / month"
+          },
+          {
+            "value": "2500-5000",
+            "label": "2,500 – 5,000 FCFA / month"
+          },
+          {
+            "value": "5000-10000",
+            "label": "5,000 – 10,000 FCFA / month"
+          },
+          {
+            "value": "10000-20000",
+            "label": "10,000 – 20,000 FCFA / month"
+          },
+          {
+            "value": "20000-30000",
+            "label": "20,000 – 30,000 FCFA / month"
+          },
+          {
+            "value": ">30000",
+            "label": "More than 30,000 FCFA / month"
+          },
+          {
+            "value": "unknown",
+            "label": "I don't know yet"
+          },
+          {
+            "value": "not_now",
+            "label": "Not right now"
+          }
+        ]
+      },
+      {
+        "id": "threeMonthGoal",
+        "label": "In 3 months, what would you like to have accomplished?",
+        "description": "Even a short sentence is enough. We want to understand your direction.",
+        "placeholder": "E.g. Land my first internship."
+      }
+    ],
+    "resumePrompt": {
+      "header": "Your HASHCODE profile",
+      "titleDuplicate": "You already have a HASHCODE account.",
+      "titleDraft": "You had a draft in progress.",
+      "bodyDuplicate": "Pick up where you left off — we found your profile.",
+      "bodyDraft": "You've already answered {answeredCount} question{plural}. You can pick up where you left off.",
+      "resume": "Resume",
+      "restart": "Start over"
+    },
+    "shell": {
+      "back": "Back",
+      "milestones": [
+        {
+          "key": "profil",
+          "label": "Profile"
+        },
+        {
+          "key": "objectifs",
+          "label": "Goal"
+        },
+        {
+          "key": "rythme",
+          "label": "Pace"
+        },
+        {
+          "key": "mentorat",
+          "label": "Mentorship"
+        },
+        {
+          "key": "vision",
+          "label": "Vision"
+        }
+      ],
+      "stepCounter": "Question {currentStep} of {totalSteps}",
+      "timeRemaining": "~{minutes} min left",
+      "percent": "{percent}%",
+      "progressAriaLabel": "Profiling progress",
+      "footerNote": "Your answers help us better understand your profile.",
+      "keyboardHint": "to select",
+      "keyboardHintSeparator": "–"
+    },
+    "textView": {
+      "optional": "Optional",
+      "continue": "Continue",
+      "skip": "Skip"
+    },
+    "threeMonthGoalSuggestions": [
+      "Land my first internship",
+      "Finish my portfolio",
+      "Launch my first project",
+      "Get comfortable with the basics"
+    ],
     "validation": {
       "chooseOption": "Choose an option.",
       "invalidOption": "Invalid option.",
@@ -227,203 +1172,6 @@
       "emailRequired": "Your email address is required.",
       "emailInvalid": "Invalid email format.",
       "countryRequired": "Choose your country."
-    },
-    "questions": [
-      { "id": "firstName", "label": "What should we call you?", "description": "Your first name is enough to start.", "placeholder": "E.g. Eurin", "microcopy": "Perfect. Let's go." },
-      { "id": "email", "label": "Where should we send your profile and access?", "description": "Your email address. We use it to send you your profile and invite you to the community.", "placeholder": "you@example.com", "microcopy": "We're saving your profile." },
-      { "id": "country", "label": "Which country do you live in?", "description": "To understand the community where you are.", "microcopy": "We're starting to get a sense of your profile." },
-      {
-        "id": "primaryDomain",
-        "label": "Which field attracts you the most?",
-        "description": "You can add others later.",
-        "microcopy": "Good. We know where you want to go.",
-        "options": [
-          { "value": "web", "label": "Web Development", "emoji": "🌐", "description": "Building apps, products and digital experiences." },
-          { "value": "cybersecurity", "label": "Cybersecurity", "emoji": "🛡️", "description": "Understanding, protecting, analyzing and experimenting." },
-          { "value": "ai", "label": "Applied AI", "emoji": "🤖", "description": "Building with AI, automation and agents." }
-        ]
-      },
-      {
-        "id": "domainSpecialty",
-        "label": "What interests you in this field?",
-        "description": "Choose what speaks to you — you can refine later.",
-        "microcopy": "Let's refine.",
-        "optionsByDomain": {
-          "cybersecurity": [
-            { "value": "soc", "label": "SOC / Blue Team", "emoji": "🛡️" },
-            { "value": "pentest", "label": "Pentest / Red Team", "emoji": "⚔️" },
-            { "value": "osint", "label": "OSINT", "emoji": "🔍" },
-            { "value": "career", "label": "Cyber career", "emoji": "💼" },
-            { "value": "certification", "label": "Certification", "emoji": "📜" },
-            { "value": "project", "label": "Cyber project", "emoji": "🚧" }
-          ],
-          "web": [
-            { "value": "frontend", "label": "Frontend", "emoji": "🎨" },
-            { "value": "backend", "label": "Backend", "emoji": "🔧" },
-            { "value": "architecture", "label": "Architecture", "emoji": "🏛️" },
-            { "value": "project", "label": "Web project", "emoji": "🚧" },
-            { "value": "freelance", "label": "Freelance", "emoji": "🧳" },
-            { "value": "career", "label": "Web career", "emoji": "💼" }
-          ],
-          "ai": [
-            { "value": "llm", "label": "LLM", "emoji": "🧠" },
-            { "value": "agents", "label": "Agents", "emoji": "🤖" },
-            { "value": "automation", "label": "Automation", "emoji": "⚙️" },
-            { "value": "ai_engineering", "label": "AI Engineering", "emoji": "🛠️" },
-            { "value": "project", "label": "AI project", "emoji": "🚧" },
-            { "value": "business", "label": "Business AI", "emoji": "💼" }
-          ]
-        }
-      },
-      {
-        "id": "goal",
-        "label": "What would you like to achieve with HASHCODE?",
-        "description": "No wrong answer. Be honest, we'll handle the rest.",
-        "microcopy": "Your profile is taking shape.",
-        "options": [
-          { "value": "project", "label": "Build a project", "emoji": "🚀" },
-          { "value": "employment", "label": "Find a job", "emoji": "💼" },
-          { "value": "freelance", "label": "Become a freelancer", "emoji": "🧳" },
-          { "value": "upskill", "label": "Level up your skills", "emoji": "📈" },
-          { "value": "business", "label": "Grow a business", "emoji": "🧩" },
-          { "value": "career", "label": "Prepare a career", "emoji": "🎯" },
-          { "value": "other", "label": "Something else", "emoji": "✦" }
-        ]
-      },
-      {
-        "id": "goalSituation",
-        "label": "Where are you today employment-wise?",
-        "description": "To best guide your next steps.",
-        "options": [
-          { "value": "student", "label": "Student", "emoji": "🎓" },
-          { "value": "searching", "label": "Actively job hunting", "emoji": "🔎" },
-          { "value": "employed", "label": "Employed, looking to pivot", "emoji": "🔄" },
-          { "value": "between", "label": "In between things", "emoji": "🌤️" }
-        ]
-      },
-      {
-        "id": "goalProjectStage",
-        "label": "Where is your project today?",
-        "description": "To calibrate the most useful type of help.",
-        "options": [
-          { "value": "idea", "label": "Just an idea", "emoji": "💡" },
-          { "value": "planning", "label": "Thinking / planning", "emoji": "🧭" },
-          { "value": "building", "label": "Under construction", "emoji": "🚧" },
-          { "value": "launched", "label": "Already launched", "emoji": "🚀" }
-        ]
-      },
-      {
-        "id": "level",
-        "label": "Where are you today?",
-        "description": "Tell us where you really are, we'll start from there — no pressure.",
-        "microcopy": "A few more choices.",
-        "options": [
-          { "value": "beginner", "label": "I'm just starting", "emoji": "🌱" },
-          { "value": "practicing", "label": "I already practice", "emoji": "⚙️" },
-          { "value": "autonomous", "label": "I'm independent", "emoji": "🧭" },
-          { "value": "advanced", "label": "I'm advanced", "emoji": "🏆" }
-        ]
-      },
-      {
-        "id": "availability",
-        "label": "How much time can you dedicate to your progress each week?",
-        "description": "An honest estimate, no pressure — we adapt to your pace.",
-        "options": [
-          { "value": "<2h", "label": "Under 2 hrs", "hint": "Light pace" },
-          { "value": "2-5h", "label": "2 – 5 hrs", "hint": "Steady" },
-          { "value": "5-10h", "label": "5 – 10 hrs", "hint": "Committed" },
-          { "value": "10-15h", "label": "10 – 15 hrs", "hint": "Intensive" },
-          { "value": "15h+", "label": "15 hrs and more", "hint": "Full focus" }
-        ]
-      },
-      {
-        "id": "learningStyle",
-        "label": "How do you learn best?",
-        "description": "It helps us suggest the right format.",
-        "microcopy": "Almost done.",
-        "options": [
-          { "value": "practice", "label": "By practicing", "emoji": "🧩" },
-          { "value": "path", "label": "With a guided path", "emoji": "🧭" },
-          { "value": "group", "label": "With a group", "emoji": "🤝" },
-          { "value": "mentor", "label": "With a mentor", "emoji": "🧑‍🏫" },
-          { "value": "project", "label": "By building a project", "emoji": "🚧" }
-        ]
-      },
-      {
-        "id": "mentoringInterest",
-        "label": "Do you need personalized guidance?",
-        "description": "Answer freely — we adapt what comes next to you.",
-        "options": [
-          { "value": "no", "label": "No", "description": "I prefer to move forward on my own for now." },
-          { "value": "maybe", "label": "Maybe", "description": "I want to understand what it could bring me." },
-          { "value": "yes", "label": "Yes", "description": "Guidance would help me progress." }
-        ]
-      },
-      { "id": "mentoringMaybeReason", "label": "What might make you consider a mentor?", "description": "One sentence is enough.", "placeholder": "E.g. If I feel stuck on a concrete project." },
-      {
-        "id": "mentoringTypes",
-        "label": "What would you like guidance on?",
-        "description": "Select what would be most useful to you.",
-        "optionsByDomain": {
-          "cybersecurity": [
-            { "value": "soc", "label": "SOC / Blue Team" },
-            { "value": "pentest", "label": "Pentest / Red Team" },
-            { "value": "osint", "label": "OSINT" },
-            { "value": "career", "label": "Career" },
-            { "value": "certification", "label": "Certification" },
-            { "value": "project", "label": "Project" }
-          ],
-          "web": [
-            { "value": "frontend", "label": "Frontend" },
-            { "value": "backend", "label": "Backend" },
-            { "value": "architecture", "label": "Architecture" },
-            { "value": "project", "label": "Project" },
-            { "value": "freelance", "label": "Freelance" },
-            { "value": "career", "label": "Career" }
-          ],
-          "ai": [
-            { "value": "llm", "label": "LLM" },
-            { "value": "agents", "label": "Agents" },
-            { "value": "automation", "label": "Automation" },
-            { "value": "ai_engineering", "label": "AI Engineering" },
-            { "value": "project", "label": "Project" },
-            { "value": "business", "label": "Business" }
-          ]
-        }
-      },
-      {
-        "id": "mentoringFrequency",
-        "label": "How often would you like guidance?",
-        "options": [
-          { "value": "weekly", "label": "Weekly" },
-          { "value": "biweekly", "label": "Every 2 weeks" },
-          { "value": "monthly", "label": "Monthly" },
-          { "value": "on_demand", "label": "On demand" }
-        ]
-      },
-      {
-        "id": "budgetRange",
-        "label": "What level of monthly investment could you consider?",
-        "description": "No answer commits you to anything. It helps us understand the community.",
-        "options": [
-          { "value": "<2500", "label": "Less than 2,500 FCFA / month" },
-          { "value": "2500-5000", "label": "2,500 – 5,000 FCFA / month" },
-          { "value": "5000-10000", "label": "5,000 – 10,000 FCFA / month" },
-          { "value": "10000-20000", "label": "10,000 – 20,000 FCFA / month" },
-          { "value": "20000-30000", "label": "20,000 – 30,000 FCFA / month" },
-          { "value": ">30000", "label": "More than 30,000 FCFA / month" },
-          { "value": "unknown", "label": "I don't know yet" },
-          { "value": "not_now", "label": "Not right now" }
-        ]
-      },
-      { "id": "threeMonthGoal", "label": "In 3 months, what would you like to have accomplished?", "description": "Even a short sentence is enough. We want to understand your direction.", "placeholder": "E.g. Land my first internship." }
-    ],
-    "threeMonthGoalSuggestions": ["Land my first internship", "Finish my portfolio", "Launch my first project", "Get comfortable with the basics"],
-    "labels": {
-      "domains": { "web": "Web", "cybersecurity": "Cyber", "ai": "AI" },
-      "levels": { "beginner": "Beginner", "practicing": "Practicing", "autonomous": "Independent", "advanced": "Advanced" },
-      "budgets": { "<2500": "< 2.5k", "2500-5000": "2.5–5k", "5000-10000": "5–10k", "10000-20000": "10–20k", "20000-30000": "20–30k", ">30000": "> 30k", "unknown": "Unsure" },
-      "goals": { "project": "Project", "employment": "Job", "freelance": "Freelance", "upskill": "Skills", "business": "Business", "career": "Career", "other": "Other" }
     }
   },
   "auth": {
@@ -500,7 +1248,13 @@
     "ogDescription": "Sessions, workshops and meetups open to the community. Register or let us know you're interested."
   },
   "profile": {
-    "notFoundTitle": "Profile not found",
+    "notFound": {
+      "title": "Profile not found",
+      "description": "This profile doesn't exist or is no longer available.",
+      "backToSite": "Back to HASHCODE",
+      "mySpace": "My space",
+      "login": "Sign in"
+    },
     "metaTitle": "{firstName} — HASHCODE Profile",
     "metaDescription": "{archetype} · {domain} · {level}",
     "brandLabel": "HASHCODE REBOOT",
@@ -891,7 +1645,12 @@
   "account": {
     "header": {
       "profileGenerating": "Generating your profile…",
-      "statusBadge": { "approved": "Approved", "pending": "Pending", "waitlist": "Waitlist", "rejected": "Not selected" }
+      "statusBadge": {
+        "approved": "Approved",
+        "pending": "Pending",
+        "waitlist": "Waitlist",
+        "rejected": "Not selected"
+      }
     },
     "status": {
       "approvedTitle": "You're approved in HASHCODE.",
@@ -918,7 +1677,13 @@
       "cityLabel": "City",
       "cityPlaceholder": "E.g. Cotonou",
       "genderLabel": "Gender",
-      "genderOptions": { "unspecified": "Not specified", "male": "Male", "female": "Female", "other": "Other", "preferNotSay": "Prefer not to say" },
+      "genderOptions": {
+        "unspecified": "Not specified",
+        "male": "Male",
+        "female": "Female",
+        "other": "Other",
+        "preferNotSay": "Prefer not to say"
+      },
       "goalLabel": "3-month goal",
       "goalPlaceholder": "E.g. Land my first web dev job.",
       "goalHint": "4 characters minimum. This is what helps with approval.",
@@ -971,7 +1736,10 @@
   "admin": {
     "members": {
       "page": {
-        "sections": { "members": "Members", "inviteFormer": "Invite former members" },
+        "sections": {
+          "members": "Members",
+          "inviteFormer": "Invite former members"
+        },
         "retry": "Retry",
         "bulkErrorBase": "Bulk action failed.",
         "bulkErrorPrefix": "Error: {detail}",
@@ -986,7 +1754,13 @@
         "title": "Invite former members (CSV)",
         "subtitle": "— email, first name, phone, country, level",
         "descriptionIntro": "Paste your CSV here (one member per line). The system automatically detects columns:",
-        "descriptionFields": { "email": "email", "name": "name", "phone": "phone", "country": "country", "level": "level" },
+        "descriptionFields": {
+          "email": "email",
+          "name": "name",
+          "phone": "phone",
+          "country": "country",
+          "level": "level"
+        },
         "descriptionSuffix": "Each new member will receive an email with a magic login link (valid for 72h).",
         "placeholder": "email,Prénom,Téléphone,Pays,Niveau\njean@example.com,Jean,+22505010203,Côte d'Ivoire,Intermédiaire\nfatou@example.com,Fatou,+22399887766,Mali,Débutant",
         "analyze": "Analyze",
@@ -998,28 +1772,77 @@
         "toastCreatedTitle": "{created} member(s) created",
         "toastSentDescription": "{emailsSent} email(s) sent.",
         "dryRunTitle": "Analysis complete",
-        "dryRunStats": { "csvRows": "CSV rows", "validEmails": "Valid emails", "newMembers": "New members", "alreadyExist": "Already existing", "toReinvite": "To re-invite" },
+        "dryRunStats": {
+          "csvRows": "CSV rows",
+          "validEmails": "Valid emails",
+          "newMembers": "New members",
+          "alreadyExist": "Already existing",
+          "toReinvite": "To re-invite"
+        },
         "previewLabel": "Preview:",
         "previewMore": "…",
         "resultTitle": "Import complete",
-        "resultStats": { "created": "Created", "emailsSent": "Emails sent", "resent": "Resent", "failed": "Failed", "skipped": "Skipped (existing)" },
+        "resultStats": {
+          "created": "Created",
+          "emailsSent": "Emails sent",
+          "resent": "Resent",
+          "failed": "Failed",
+          "skipped": "Skipped (existing)"
+        },
         "failedEmails": "Failed emails: {list}",
         "alreadyExistEmails": "Already existing: {list}"
       }
     },
     "invitations": {
-      "header": { "title": "Invitations", "subtitle": "Invitation management, click tracking and follow-ups", "relanceAll": "Follow up all ({count})" },
-      "status": {
-        "notInvited": { "label": "Not invited", "description": "Members who have never received an invitation" },
-        "invited": { "label": "Invited", "description": "Invitation sent, awaiting click" },
-        "accepted": { "label": "Accepted", "description": "Clicked and joined the community" },
-        "refused": { "label": "Declined", "description": "Explicitly declined the invitation" },
-        "bounced": { "label": "Bounced", "description": "Email undelivered (invalid address)" },
-        "expired": { "label": "Expired", "description": "Invitation link expired (72h)" }
+      "header": {
+        "title": "Invitations",
+        "subtitle": "Invitation management, click tracking and follow-ups",
+        "relanceAll": "Follow up all ({count})"
       },
-      "domainLabels": { "web": "Web", "cybersecurity": "Cyber", "ai": "AI" },
-      "levelLabels": { "beginner": "Beginner", "practicing": "Practicing", "autonomous": "Autonomous", "advanced": "Advanced" },
-      "row": { "lastEventOpened": "Opened", "lastEventClick": "Click", "relanceTitle": "Follow up on this invitation", "relance": "Follow up", "engaged": "Engaged" },
+      "status": {
+        "notInvited": {
+          "label": "Not invited",
+          "description": "Members who have never received an invitation"
+        },
+        "invited": {
+          "label": "Invited",
+          "description": "Invitation sent, awaiting click"
+        },
+        "accepted": {
+          "label": "Accepted",
+          "description": "Clicked and joined the community"
+        },
+        "refused": {
+          "label": "Declined",
+          "description": "Explicitly declined the invitation"
+        },
+        "bounced": {
+          "label": "Bounced",
+          "description": "Email undelivered (invalid address)"
+        },
+        "expired": {
+          "label": "Expired",
+          "description": "Invitation link expired (72h)"
+        }
+      },
+      "domainLabels": {
+        "web": "Web",
+        "cybersecurity": "Cyber",
+        "ai": "AI"
+      },
+      "levelLabels": {
+        "beginner": "Beginner",
+        "practicing": "Practicing",
+        "autonomous": "Autonomous",
+        "advanced": "Advanced"
+      },
+      "row": {
+        "lastEventOpened": "Opened",
+        "lastEventClick": "Click",
+        "relanceTitle": "Follow up on this invitation",
+        "relance": "Follow up",
+        "engaged": "Engaged"
+      },
       "relanceDialog": {
         "title": "Follow up on {count} invitation{s}?",
         "description": "A follow-up email will be sent to members who have not yet clicked their invitation.",
@@ -1029,26 +1852,76 @@
         "send": "Send"
       },
       "emptyState": {
-        "all": { "title": "No members", "description": "No members match your criteria." },
-        "invited": { "title": "No pending invitations", "description": "Sent invitations will appear here." },
-        "accepted": { "title": "No accepted members", "description": "Members who joined will appear here." },
-        "refused": { "title": "No declines", "description": "Declined invitations will appear here." },
-        "bounced": { "title": "No bounces", "description": "Undelivered emails will appear here." },
-        "expired": { "title": "No expired invitations", "description": "Expired invitations will appear here." },
-        "notInvited": { "title": "No uninvited members", "description": "All members have been invited." },
+        "all": {
+          "title": "No members",
+          "description": "No members match your criteria."
+        },
+        "invited": {
+          "title": "No pending invitations",
+          "description": "Sent invitations will appear here."
+        },
+        "accepted": {
+          "title": "No accepted members",
+          "description": "Members who joined will appear here."
+        },
+        "refused": {
+          "title": "No declines",
+          "description": "Declined invitations will appear here."
+        },
+        "bounced": {
+          "title": "No bounces",
+          "description": "Undelivered emails will appear here."
+        },
+        "expired": {
+          "title": "No expired invitations",
+          "description": "Expired invitations will appear here."
+        },
+        "notInvited": {
+          "title": "No uninvited members",
+          "description": "All members have been invited."
+        },
         "seeAll": "See all"
       },
       "stats": {
-        "total": { "label": "Total", "description": "All members" },
-        "invited": { "label": "Invited", "description": "Awaiting click" },
-        "accepted": { "label": "Accepted", "description": "Joined the community" },
-        "refused": { "label": "Declined", "description": "Declined the invitation" },
-        "bounced": { "label": "Bounces", "description": "Undelivered emails" },
-        "expired": { "label": "Expired", "description": "Link expired (72h)" },
-        "notInvited": { "label": "Not invited", "description": "Never invited" }
+        "total": {
+          "label": "Total",
+          "description": "All members"
+        },
+        "invited": {
+          "label": "Invited",
+          "description": "Awaiting click"
+        },
+        "accepted": {
+          "label": "Accepted",
+          "description": "Joined the community"
+        },
+        "refused": {
+          "label": "Declined",
+          "description": "Declined the invitation"
+        },
+        "bounced": {
+          "label": "Bounces",
+          "description": "Undelivered emails"
+        },
+        "expired": {
+          "label": "Expired",
+          "description": "Link expired (72h)"
+        },
+        "notInvited": {
+          "label": "Not invited",
+          "description": "Never invited"
+        }
       },
       "searchPlaceholder": "Search by name, email, phone…",
-      "tableHeaders": { "member": "Member", "status": "Status", "levelDomain": "Level / Domain", "country": "Country", "clicks": "Clicks", "lastEvent": "Last event", "actions": "Actions" },
+      "tableHeaders": {
+        "member": "Member",
+        "status": "Status",
+        "levelDomain": "Level / Domain",
+        "country": "Country",
+        "clicks": "Clicks",
+        "lastEvent": "Last event",
+        "actions": "Actions"
+      },
       "sortBy": "Sort by {label}",
       "loading": "Loading…",
       "pagination": "{total} result(s) · page {page}/{totalPages}",
@@ -1069,8 +1942,21 @@
     "marketing": {
       "title": "Marketing",
       "subtitle": "Manage emails, campaigns, imports and tests from a single place.",
-      "tabs": { "overview": "Overview", "campaigns": "Campaigns", "history": "History", "import": "Import", "test": "Test" },
-      "sectionsAria": { "tablist": "Marketing sections", "overview": "Marketing overview", "campaigns": "Campaigns", "history": "Campaign history", "import": "Import and invitation", "test": "Email test" },
+      "tabs": {
+        "overview": "Overview",
+        "campaigns": "Campaigns",
+        "history": "History",
+        "import": "Import",
+        "test": "Test"
+      },
+      "sectionsAria": {
+        "tablist": "Marketing sections",
+        "overview": "Marketing overview",
+        "campaigns": "Campaigns",
+        "history": "Campaign history",
+        "import": "Import and invitation",
+        "test": "Email test"
+      },
       "quickActions": "Quick actions",
       "cards": {
         "relanceTitle": "Follow up on invitations",
@@ -1093,10 +1979,30 @@
       }
     },
     "emailTemplates": {
-      "categories": { "marketing": "Marketing", "notification": "Notification", "code": "Code / auth" },
-      "badges": { "locked": "Locked", "active": "Active", "inactive": "Inactive" },
-      "stats": { "templates": "Templates", "marketing": "Marketing", "active": "Active", "missing": "Not initialized" },
-      "errors": { "loadFailed": "Unable to load.", "notFound": "Template not found.", "refused": "Content rejected.", "saveFailed": "Unable to save.", "actionFailed": "Unable to perform action.", "createFailed": "Unable to create." },
+      "categories": {
+        "marketing": "Marketing",
+        "notification": "Notification",
+        "code": "Code / auth"
+      },
+      "badges": {
+        "locked": "Locked",
+        "active": "Active",
+        "inactive": "Inactive"
+      },
+      "stats": {
+        "templates": "Templates",
+        "marketing": "Marketing",
+        "active": "Active",
+        "missing": "Not initialized"
+      },
+      "errors": {
+        "loadFailed": "Unable to load.",
+        "notFound": "Template not found.",
+        "refused": "Content rejected.",
+        "saveFailed": "Unable to save.",
+        "actionFailed": "Unable to perform action.",
+        "createFailed": "Unable to create."
+      },
       "notices": {
         "saved": "Template \"{name}\" saved (v{version}).",
         "activated": "Template \"{name}\" ACTIVATED: future sends will use this content.",
@@ -1155,16 +2061,45 @@
         "searchAria": "Search templates",
         "clearSearch": "Clear search"
       },
-      "states": { "loading": "Loading…", "empty": "No templates match these filters." },
-      "cards": { "state": "Status", "version": "Version", "lastModified": "Last modified", "missingInDb": "Missing in database — run the seed.", "open": "Open" },
-      "tableHeaders": { "template": "Template", "category": "Category", "subject": "Subject", "state": "Status", "modified": "Modified", "action": "Action" },
+      "states": {
+        "loading": "Loading…",
+        "empty": "No templates match these filters."
+      },
+      "cards": {
+        "state": "Status",
+        "version": "Version",
+        "lastModified": "Last modified",
+        "missingInDb": "Missing in database — run the seed.",
+        "open": "Open"
+      },
+      "tableHeaders": {
+        "template": "Template",
+        "category": "Category",
+        "subject": "Subject",
+        "state": "Status",
+        "modified": "Modified",
+        "action": "Action"
+      },
       "missingBadge": "seed required",
       "footerNote": "Notification and Code / auth categories are locked for editing: they carry authentication links and secrets (login link, verification code). They remain viewable in preview."
     },
     "emailDeliverability": {
-      "statusBadge": { "ok": "OK", "warn": "WARN", "critical": "CRITICAL", "blocked": "BLOCKED" },
-      "header": { "kicker": "HASHCODE · ADMIN", "title": "Email deliverability monitoring", "subtitle": "All delivery systems for active providers: Resend & Brevo", "refresh": "Refresh" },
-      "error": { "loadFailed": "Unable to load metrics: {error}", "unknown": "Unknown error" },
+      "statusBadge": {
+        "ok": "OK",
+        "warn": "WARN",
+        "critical": "CRITICAL",
+        "blocked": "BLOCKED"
+      },
+      "header": {
+        "kicker": "HASHCODE · ADMIN",
+        "title": "Email deliverability monitoring",
+        "subtitle": "All delivery systems for active providers: Resend & Brevo",
+        "refresh": "Refresh"
+      },
+      "error": {
+        "loadFailed": "Unable to load metrics: {error}",
+        "unknown": "Unknown error"
+      },
       "loading": "Loading metrics…",
       "realtime": {
         "title": "REAL TIME",
@@ -1199,7 +2134,10 @@
         "alertWarning": "Warning: one or more thresholds exceeded",
         "noAlert": "No alerts for this period"
       },
-      "history": { "title": "HISTORY — {provider}", "lastPoint": "Last data point: {date}" },
+      "history": {
+        "title": "HISTORY — {provider}",
+        "lastPoint": "Last data point: {date}"
+      },
       "crons": {
         "title": "CRON HEALTH",
         "description": "Last run of each scheduled task. A daily cron in alert = check cron-job.org.",
@@ -1219,7 +2157,12 @@
       "exporting": "Exporting…",
       "csv": "CSV",
       "json": "JSON",
-      "toast": { "errorTitle": "Error", "exportFailed": "Export failed.", "exportDoneTitle": "Export {kind} complete", "downloaded": "The file has been downloaded." }
+      "toast": {
+        "errorTitle": "Error",
+        "exportFailed": "Export failed.",
+        "exportDoneTitle": "Export {kind} complete",
+        "downloaded": "The file has been downloaded."
+      }
     },
     "events": {
       "title": "Events",
@@ -1270,11 +2213,31 @@
         "editUrl": "https://…",
         "editSeats": "Seats"
       },
-      "typeOptions": ["Session", "Workshop", "Meetup", "Webinar", "Other"],
+      "typeOptions": [
+        "Session",
+        "Workshop",
+        "Meetup",
+        "Webinar",
+        "Other"
+      ],
       "domainOptionsAll": "All",
-      "domainOptions": ["Web", "Cybersecurity", "AI"],
-      "levelOptions": ["Beginner", "Practitioner", "Independent", "Advanced"],
-      "recurrenceOptions": ["One-time", "Weekly", "Every 2 weeks", "Monthly"],
+      "domainOptions": [
+        "Web",
+        "Cybersecurity",
+        "AI"
+      ],
+      "levelOptions": [
+        "Beginner",
+        "Practitioner",
+        "Independent",
+        "Advanced"
+      ],
+      "recurrenceOptions": [
+        "One-time",
+        "Weekly",
+        "Every 2 weeks",
+        "Monthly"
+      ],
       "notifyCountActive": "(active targeting)",
       "notifyCountSingular": "will be notified",
       "notifyCountPlural": "will be notified",
@@ -1304,8 +2267,17 @@
         "save": "Save",
         "statusToPrefix": "→ "
       },
-      "statusLabels": { "scheduled": "Scheduled", "live": "Live", "completed": "Completed", "cancelled": "Cancelled" },
-      "reminderBadges": ["D-3", "D-1", "H-1"],
+      "statusLabels": {
+        "scheduled": "Scheduled",
+        "live": "Live",
+        "completed": "Completed",
+        "cancelled": "Cancelled"
+      },
+      "reminderBadges": [
+        "D-3",
+        "D-1",
+        "H-1"
+      ],
       "reminderTitle": "Sent on {sentAt} to {sentCount} member(s)",
       "confirmDelete": "Delete \"{title}\"? RSVPs will be deleted too.",
       "confirmUnlock": "Unlock \"{title}\" for all members, even if previous sessions are not completed?"
@@ -1314,13 +2286,24 @@
       "title": "Workshops",
       "subtitle": "Manage workshops: learning structure, enrollments, submissions and quizzes.",
       "overview": "Overview",
-      "statCards": { "workshops": "Workshops", "enrollments": "Enrollments", "submissions": "Submissions", "reviews": "Reviews", "quizSuccess": "Quiz success" },
+      "statCards": {
+        "workshops": "Workshops",
+        "enrollments": "Enrollments",
+        "submissions": "Submissions",
+        "reviews": "Reviews",
+        "quizSuccess": "Quiz success"
+      },
       "statHints": {
         "enrollments": "{active} active · {completed} completed",
         "submissions": "{pending} pending · {revision} in revision",
         "quiz": "{passed}/{total} successful attempts"
       },
-      "filters": ["All", "Drafts", "Published", "Archived"],
+      "filters": [
+        "All",
+        "Drafts",
+        "Published",
+        "Archived"
+      ],
       "countSingular": "workshop",
       "emptyNone": "No workshops yet.",
       "emptyFilter": "No workshops match this filter.",
@@ -1331,15 +2314,30 @@
       "awaitingReview": "Awaiting review",
       "noPendingReview": "No submissions awaiting review.",
       "latestEnrollments": "Latest enrollments",
-      "statusLabels": { "draft": "Draft", "published": "Published", "archived": "Archived" },
-      "enrollmentStatus": { "active": "Active", "completed": "Completed", "dropped": "Dropped" },
+      "statusLabels": {
+        "draft": "Draft",
+        "published": "Published",
+        "archived": "Archived"
+      },
+      "enrollmentStatus": {
+        "active": "Active",
+        "completed": "Completed",
+        "dropped": "Dropped"
+      },
       "loadError": "Unable to load workshops.",
       "statsError": "Unable to load statistics.",
       "rateLimited": "Too many requests.",
       "reviewQueue": {
         "title": "Review queue",
         "subtitle": "Process deliverables submitted by members: approve, request revision or reject.",
-        "filters": ["Pending", "In review", "Approved", "Revisions", "Rejected", "All"],
+        "filters": [
+          "Pending",
+          "In review",
+          "Approved",
+          "Revisions",
+          "Rejected",
+          "All"
+        ],
         "empty": "No submissions in this queue.",
         "countSingular": "submission",
         "refresh": "Refresh",
@@ -1352,8 +2350,16 @@
         "reviewTitle": "Submission review",
         "reviewCloseAria": "Close review panel",
         "decision": "Decision",
-        "decisions": ["Approve", "Request revision", "Reject"],
-        "decisionHints": ["The deliverable is approved.", "The member must revise and resubmit.", "The deliverable is rejected."],
+        "decisions": [
+          "Approve",
+          "Request revision",
+          "Reject"
+        ],
+        "decisionHints": [
+          "The deliverable is approved.",
+          "The member must revise and resubmit.",
+          "The deliverable is rejected."
+        ],
         "feedbackLabel": "Feedback ({min} characters minimum)",
         "feedbackPlaceholder": "Explain the decision to the member (strengths, expected corrections…)",
         "feedbackMinError": "Feedback must contain at least {min} characters.",
@@ -1364,14 +2370,30 @@
         "loadError": "Unable to load submissions.",
         "reviewSaveError": "Failed to save review."
       },
-      "statusLabelsSubmissions": { "PENDING": "Pending", "IN_REVIEW": "In review", "APPROVED": "Approved", "REVISION": "Revision", "REJECTED": "Rejected" },
+      "statusLabelsSubmissions": {
+        "PENDING": "Pending",
+        "IN_REVIEW": "In review",
+        "APPROVED": "Approved",
+        "REVISION": "Revision",
+        "REJECTED": "Rejected"
+      },
       "detailPage": {
         "back": "Back to workshops",
         "notFound": "Workshop not found.",
         "createdAt": "Created on {date}",
         "updatedAt": "Updated on {date}",
-        "tabs": ["Structure", "Enrollments", "Submissions", "Quiz"],
-        "tableHeaders": ["Member", "Email", "Status", "Enrolled on"],
+        "tabs": [
+          "Structure",
+          "Enrollments",
+          "Submissions",
+          "Quiz"
+        ],
+        "tableHeaders": [
+          "Member",
+          "Email",
+          "Status",
+          "Enrolled on"
+        ],
         "emptyWeeks": "No weeks defined for this workshop.",
         "emptySessions": "No sessions in this week.",
         "emptyEnrollments": "No enrollments for this workshop.",
@@ -1383,7 +2405,10 @@
         "quizRequired": "Quiz required",
         "program": "Program",
         "activities": "Activities",
-        "activityKinds": { "practice": "Practice", "resource": "Resource" },
+        "activityKinds": {
+          "practice": "Practice",
+          "resource": "Resource"
+        },
         "open": "Open",
         "deliverable": "Deliverable",
         "quiz": "Quiz",
@@ -1403,7 +2428,15 @@
         "toastDateUpdated": "Unlock date updated.",
         "toastDateDeleted": "Unlock date deleted.",
         "toastInvalidDate": "Invalid date.",
-        "deliverableTypes": { "url": "URL", "github_repo": "GitHub repository", "pull_request": "Pull request", "project": "Project", "deployed_url": "Deployed site", "screenshot": "Screenshot", "text": "Text" },
+        "deliverableTypes": {
+          "url": "URL",
+          "github_repo": "GitHub repository",
+          "pull_request": "Pull request",
+          "project": "Project",
+          "deployed_url": "Deployed site",
+          "screenshot": "Screenshot",
+          "text": "Text"
+        },
         "threshold": "Threshold {value}%",
         "maxAttempts": "{value} max attempts",
         "unlimitedAttempts": "Unlimited attempts",
@@ -1412,7 +2445,11 @@
         "questionSingular": "question",
         "thresholdShort": "threshold",
         "pointSingular": "pt",
-        "questionTypes": { "single": "Single choice", "multiple": "Multiple choice", "true_false": "True / False" },
+        "questionTypes": {
+          "single": "Single choice",
+          "multiple": "Multiple choice",
+          "true_false": "True / False"
+        },
         "reviewHistory": "Review history",
         "attemptShort": "attempt {n}",
         "submittedShort": "submitted on {date}",
@@ -1435,12 +2472,18 @@
       "refresh": "Refresh",
       "retry": "Retry",
       "alertPrefix": "Alert: {section}",
-      "sectionErrors": { "stats": "Member statistics", "emailStats": "Email engagement", "emailOps": "Real-time email quotas" },
+      "sectionErrors": {
+        "stats": "Member statistics",
+        "emailStats": "Email engagement",
+        "emailOps": "Real-time email quotas"
+      },
       "membersOverviewAria": "Members overview",
       "loadError": "Dashboard loading error.",
       "genericLoadError": "Data loading error. Check your connection then refresh."
     },
-    "activity": { "aria": "Activity" },
+    "activity": {
+      "aria": "Activity"
+    },
     "auditLog": {
       "title": "Audit log",
       "subtitle": "Detailed history of all administrator actions."
@@ -1498,16 +2541,28 @@
       "title": "Mentoring",
       "headerCount": "{leads} priority lead{s} · {mentors} potential mentor{s}",
       "tabsAria": "Mentoring views",
-      "tabs": ["Priority leads", "Mentors"],
+      "tabs": [
+        "Priority leads",
+        "Mentors"
+      ],
       "leadsSectionAria": "Priority leads",
       "mentorsSectionAria": "Potential mentors",
       "loadingAria": "Loading",
       "retry": "Retry",
       "loadError": "Unable to load.",
       "budgetFilterAria": "Filter by budget",
-      "budgetOptions": ["All budgets", "20–30k", ">30k"],
+      "budgetOptions": [
+        "All budgets",
+        "20–30k",
+        ">30k"
+      ],
       "domainFilterAria": "Filter by domain",
-      "domainOptions": ["All domains", "Web", "Cyber", "AI"],
+      "domainOptions": [
+        "All domains",
+        "Web",
+        "Cyber",
+        "AI"
+      ],
       "emptyLeads": "No priority leads for now.",
       "emptyMentors": "No potential mentors for now.",
       "emptySuggestions": "No mentors available.",
@@ -1529,7 +2584,23 @@
     "sidebar": {
       "brand": "HASHCODE",
       "version": "v2.0 · Admin",
-      "items": ["Overview", "Members", "Workshops", "Mentoring", "Invitations", "Marketing", "Deliverability tracking", "Events", "Email templates", "Activity", "Exports", "Blacklist", "Audit", "Keys", "Settings"],
+      "items": [
+        "Overview",
+        "Members",
+        "Workshops",
+        "Mentoring",
+        "Invitations",
+        "Marketing",
+        "Deliverability tracking",
+        "Events",
+        "Email templates",
+        "Activity",
+        "Exports",
+        "Blacklist",
+        "Audit",
+        "Keys",
+        "Settings"
+      ],
       "commands": "Commands",
       "shortcut": "Ctrl K",
       "navAria": "Admin navigation",
@@ -1666,42 +2737,101 @@
             "title": "Data collected",
             "profile": {
               "title": "Profile data",
-              "items": ["First name, last name", "Email", "Phone number (WhatsApp)", "Country, city", "Gender (optional)", "Domain of interest (Web, Cyber, AI)", "Level (Beginner to Advanced)", "3-month goal", "Weekly availability", "Learning style", "Mentoring interest", "Indicative budget (optional)"]
+              "items": [
+                "First name, last name",
+                "Email",
+                "Phone number (WhatsApp)",
+                "Country, city",
+                "Gender (optional)",
+                "Domain of interest (Web, Cyber, AI)",
+                "Level (Beginner to Advanced)",
+                "3-month goal",
+                "Weekly availability",
+                "Learning style",
+                "Mentoring interest",
+                "Indicative budget (optional)"
+              ]
             },
             "technical": {
               "title": "Technical data",
-              "items": ["IP address", "Browser type and version", "Operating system", "Pages visited, time spent", "Interaction events (clicks, submissions)", "Error logs"]
+              "items": [
+                "IP address",
+                "Browser type and version",
+                "Operating system",
+                "Pages visited, time spent",
+                "Interaction events (clicks, submissions)",
+                "Error logs"
+              ]
             },
             "usage": {
               "title": "Usage data",
-              "items": ["Workshop progress", "Quiz results", "Submitted deliverables", "Event participation (RSVP)", "Mentoring history"]
+              "items": [
+                "Workshop progress",
+                "Quiz results",
+                "Submitted deliverables",
+                "Event participation (RSVP)",
+                "Mentoring history"
+              ]
             }
           },
           "purposes": {
             "title": "Processing purposes",
             "items": [
-              { "label": "Account creation and management", "desc": "Identify user, send access code, manage profile" },
-              { "label": "Journey personalization", "desc": "Suggest appropriate track (Web, Cyber, AI), recommend workshops and mentors" },
-              { "label": "Communication", "desc": "Send notifications, WhatsApp invitations, transactional emails, newsletters" },
-              { "label": "Community animation", "desc": "Manage workshop/event registrations, mentoring" },
-              { "label": "Service improvement", "desc": "Analyze usage, fix bugs, measure satisfaction" },
-              { "label": "Legal obligations", "desc": "Respond to authority requests, prevent fraud" }
+              {
+                "label": "Account creation and management",
+                "desc": "Identify user, send access code, manage profile"
+              },
+              {
+                "label": "Journey personalization",
+                "desc": "Suggest appropriate track (Web, Cyber, AI), recommend workshops and mentors"
+              },
+              {
+                "label": "Communication",
+                "desc": "Send notifications, WhatsApp invitations, transactional emails, newsletters"
+              },
+              {
+                "label": "Community animation",
+                "desc": "Manage workshop/event registrations, mentoring"
+              },
+              {
+                "label": "Service improvement",
+                "desc": "Analyze usage, fix bugs, measure satisfaction"
+              },
+              {
+                "label": "Legal obligations",
+                "desc": "Respond to authority requests, prevent fraud"
+              }
             ]
           },
           "legalBasis": {
             "title": "Legal bases",
             "items": [
-              { "purpose": "Contract performance (account creation, service access)", "basis": "Article 6.1.b GDPR" },
-              { "purpose": "Consent (newsletter, non-essential cookies)", "basis": "Article 6.1.a GDPR" },
-              { "purpose": "Legitimate interest (analytics, security, improvement)", "basis": "Article 6.1.f GDPR" },
-              { "purpose": "Legal obligation (log retention, authority responses)", "basis": "Article 6.1.c GDPR" }
+              {
+                "purpose": "Contract performance (account creation, service access)",
+                "basis": "Article 6.1.b GDPR"
+              },
+              {
+                "purpose": "Consent (newsletter, non-essential cookies)",
+                "basis": "Article 6.1.a GDPR"
+              },
+              {
+                "purpose": "Legitimate interest (analytics, security, improvement)",
+                "basis": "Article 6.1.f GDPR"
+              },
+              {
+                "purpose": "Legal obligation (log retention, authority responses)",
+                "basis": "Article 6.1.c GDPR"
+              }
             ]
           },
           "recipients": {
             "title": "Data recipients",
             "content1": "Your data is never sold. It is accessible only to authorized persons:",
             "content2": "We may share your data with technical subcontractors (hosting, email, analytics) bound by GDPR subcontractor agreements.",
-            "categories": ["HASHCODE team (admins, mentors)", "Subcontractors: Vercel (hosting), Resend/Brevo (email), Plausible (analytics)"]
+            "categories": [
+              "HASHCODE team (admins, mentors)",
+              "Subcontractors: Vercel (hosting), Resend/Brevo (email), Plausible (analytics)"
+            ]
           },
           "transfers": {
             "title": "Transfers outside EU",
@@ -1710,11 +2840,26 @@
           "retention": {
             "title": "Retention periods",
             "items": [
-              { "category": "Account data (profile, email, phone)", "duration": "Registration duration + 3 years of inactivity" },
-              { "category": "Progress data (workshops, quizzes, deliverables)", "duration": "Registration duration + 3 years" },
-              { "category": "Technical logs (IP, navigation, errors)", "duration": "13 months maximum" },
-              { "category": "Mentoring data", "duration": "Relationship duration + 3 years" },
-              { "category": "Cookies (see cookie policy)", "duration": "Varies by type (session to 13 months)" }
+              {
+                "category": "Account data (profile, email, phone)",
+                "duration": "Registration duration + 3 years of inactivity"
+              },
+              {
+                "category": "Progress data (workshops, quizzes, deliverables)",
+                "duration": "Registration duration + 3 years"
+              },
+              {
+                "category": "Technical logs (IP, navigation, errors)",
+                "duration": "13 months maximum"
+              },
+              {
+                "category": "Mentoring data",
+                "duration": "Relationship duration + 3 years"
+              },
+              {
+                "category": "Cookies (see cookie policy)",
+                "duration": "Varies by type (session to 13 months)"
+              }
             ]
           },
           "rights": {
@@ -1868,9 +3013,32 @@
           "categories": {
             "title": "Cookie categories used",
             "list": [
-              { "name": "Essential (strictly necessary)", "desc": "Essential for site operation. Cannot be disabled.", "cookies": ["session_id: session identification (expires: browser close)", "auth_token: magic link/OTP auth token (expires: 15 min)", "csrf_token: CSRF protection (expires: session)", "locale: language preference (expires: 1 year)"] },
-              { "name": "Analytics (optional, with consent)", "desc": "Measure audience in a privacy-respecting way (Plausible, no third-party cookies, anonymized data).", "cookies": ["plausible_session: analytics session (expires: 30 min)", "plausible_visitor: unique visitor (expires: 1 year)"] },
-              { "name": "Functional (optional)", "desc": "Improve user experience (preferences, interface).", "cookies": ["theme: light/dark mode (expires: 1 year)", "sidebar_state: dashboard sidebar state (expires: session)"] }
+              {
+                "name": "Essential (strictly necessary)",
+                "desc": "Essential for site operation. Cannot be disabled.",
+                "cookies": [
+                  "session_id: session identification (expires: browser close)",
+                  "auth_token: magic link/OTP auth token (expires: 15 min)",
+                  "csrf_token: CSRF protection (expires: session)",
+                  "locale: language preference (expires: 1 year)"
+                ]
+              },
+              {
+                "name": "Analytics (optional, with consent)",
+                "desc": "Measure audience in a privacy-respecting way (Plausible, no third-party cookies, anonymized data).",
+                "cookies": [
+                  "plausible_session: analytics session (expires: 30 min)",
+                  "plausible_visitor: unique visitor (expires: 1 year)"
+                ]
+              },
+              {
+                "name": "Functional (optional)",
+                "desc": "Improve user experience (preferences, interface).",
+                "cookies": [
+                  "theme: light/dark mode (expires: 1 year)",
+                  "sidebar_state: dashboard sidebar state (expires: session)"
+                ]
+              }
             ]
           },
           "consent": {
@@ -1928,6 +3096,36 @@
             "content": "For any question regarding cookies:"
           }
         }
+      }
+    }
+  },
+  "legalPending": {
+    "metaTitleSuffix": " — HASHCODE REBOOT",
+    "metaDescription": "This legal document is not published yet. No text is served at this address.",
+    "badge": "Document being written",
+    "heading": "This document is not published yet.",
+    "body": "This page does not contain a document yet. It is deliberately empty rather than filled with text that would not reflect the organisation's actual situation.",
+    "contactLead": "Any question about this? Write to us at",
+    "backHome": "Back to home",
+    "navAria": "Other legal pages",
+    "nav": {
+      "terms": "Terms of use",
+      "privacy": "Privacy",
+      "mentions": "Legal notice",
+      "cookies": "Cookies"
+    },
+    "docs": {
+      "terms": {
+        "title": "Terms of use"
+      },
+      "privacy": {
+        "title": "Privacy policy"
+      },
+      "mentions": {
+        "title": "Legal notice"
+      },
+      "cookies": {
+        "title": "Cookies"
       }
     }
   }

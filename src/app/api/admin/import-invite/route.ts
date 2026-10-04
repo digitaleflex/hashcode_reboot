@@ -4,8 +4,6 @@ import { db } from "@/lib/db";
 import { requireAdminRole, checkCSRF } from "@/lib/admin-auth";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
-import { generateOtp, hashOtp } from "@/lib/account-otp";
-import { createPendingSession } from "@/lib/account-auth";
 import { sendRejoinEmail } from "@/lib/mail";
 import { logMemberEmail, memberIdsWithEmailLog } from "@/lib/member-email-log";
 import { planBatch } from "@/lib/email-budget";
@@ -349,18 +347,11 @@ export async function POST(req: NextRequest) {
         });
         created++;
 
-        // Générer magic link 1-clic
-        const otp = generateOtp();
-        const otpHash = await hashOtp(otp);
-        await createPendingSession({
-          memberId: member.id,
-          otpHash,
-          ttlMs: INVITE_TTL_MS,
-          ip: null,
-          userAgent: "admin-import-invite",
-        });
+        // Magic link : code envoyé par Better Auth, lien direct vers /verify-otp.
+        const { requestSignInOtp } = await import("@/lib/auth");
+        await requestSignInOtp(member.email);
 
-        const url = `${base.replace(/\/$/, "")}/verify-otp?email=${encodeURIComponent(member.email)}&code=${encodeURIComponent(otp)}&next=${encodeURIComponent("/dashboard")}`;
+        const url = `${base.replace(/\/$/, "")}/verify-otp?email=${encodeURIComponent(member.email)}&next=${encodeURIComponent("/dashboard")}`;
 
         const res = await sendRejoinEmail({
           to: member.email,
@@ -414,20 +405,9 @@ export async function POST(req: NextRequest) {
     for (const member of toResend) {
       if (resendLogged.has(member.id)) continue;
       try {
-        await db.memberSession.updateMany({
-          where: { memberId: member.id, otpHash: { not: null }, revokedAt: null },
-          data: { revokedAt: new Date() },
-        });
-        const otp = generateOtp();
-        const otpHash = await hashOtp(otp);
-        await createPendingSession({
-          memberId: member.id,
-          otpHash,
-          ttlMs: INVITE_TTL_MS,
-          ip: null,
-          userAgent: "admin-import-invite",
-        });
-        const url = `${base.replace(/\/$/, "")}/verify-otp?email=${encodeURIComponent(member.email)}&code=${encodeURIComponent(otp)}&next=${encodeURIComponent("/dashboard")}`;
+        const { requestSignInOtp } = await import("@/lib/auth");
+        await requestSignInOtp(member.email);
+        const url = `${base.replace(/\/$/, "")}/verify-otp?email=${encodeURIComponent(member.email)}&next=${encodeURIComponent("/dashboard")}`;
         const res = await sendRejoinEmail({
           to: member.email,
           firstName: member.firstName || "toi",

@@ -5,8 +5,6 @@ import { db } from "@/lib/db";
 import { requireAdminRole, checkCSRF } from "@/lib/admin-auth";
 import { blockIfTesting } from "@/lib/test-guard";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
-import { generateOtp, hashOtp } from "@/lib/account-otp";
-import { createPendingSession } from "@/lib/account-auth";
 import { sendDashboardInviteEmail } from "@/lib/mail";
 import { logMemberEmail } from "@/lib/member-email-log";
 import { planBatch } from "@/lib/email-budget";
@@ -124,25 +122,11 @@ export async function POST(req: NextRequest) {
 
   for (const member of toSend) {
     try {
-      // Invalider les sessions OTP en attente (anti double-code), comme /request-magic-link.
-      await db.memberSession
-        .updateMany({
-          where: { memberId: member.id, otpHash: { not: null }, revokedAt: null },
-          data: { revokedAt: new Date() },
-        })
-        .catch(() => {});
+      // Envoyer le code de connexion Better Auth + lien vers /verify-otp.
+      const { requestSignInOtp } = await import("@/lib/auth");
+      await requestSignInOtp(member.email);
 
-      const otp = generateOtp();
-      const otpHash = await hashOtp(otp);
-      await createPendingSession({
-        memberId: member.id,
-        otpHash,
-        ttlMs: ANNOUNCE_TTL_MS,
-        ip: null,
-        userAgent: "admin-announce-dashboard",
-      });
-
-      const url = `${base.replace(/\/$/, "")}/verify-otp?email=${encodeURIComponent(member.email)}&code=${encodeURIComponent(otp)}&next=${encodeURIComponent("/dashboard")}`;
+      const url = `${base.replace(/\/$/, "")}/verify-otp?email=${encodeURIComponent(member.email)}&next=${encodeURIComponent("/dashboard")}`;
       const res = await sendDashboardInviteEmail({
         to: member.email,
         firstName: member.firstName || "toi",

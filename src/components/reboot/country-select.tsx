@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -40,7 +40,7 @@ export function CountrySelect({
         <button
           type="button"
           className={cn(
-            "w-full h-12 rounded-md border bg-card px-4 flex items-center justify-between gap-3 transition-colors duration-180 focus-lime",
+            "w-full h-12 rounded-md border bg-card px-4 flex items-center justify-between gap-3 transition-colors duration-200 focus-lime",
             value ? "border-lime" : "border-border hover:border-lime/50",
           )}
           aria-label={t("countrySelect.selectCountry")}
@@ -107,7 +107,7 @@ export function CountrySelect({
               <span className="text-lg leading-none">{c.flag}</span>
               <span className="flex-1">{c.name}</span>
               {value === c.code && (
-                <span className="mono-label text-lime">✓</span>
+                <span className="mono-label text-lime">âœ“</span>
               )}
             </button>
           ))}

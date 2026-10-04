@@ -1,127 +1,31 @@
-import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Sora } from "next/font/google";
-import NextTopLoader from "nextjs-toploader";
 import "./globals.css";
-import { Toaster } from "@/components/ui/toaster";
-import { Providers } from "./providers";
-import { SpeedInsights } from "@vercel/speed-insights/next";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-const sora = Sora({
-  variable: "--font-sora",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-});
-
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-  viewportFit: "cover",
-  themeColor: "#0A0A0A",
-};
-
-export const metadata: Metadata = {
-  metadataBase: new URL("https://reboot.joinhashcode.com"),
-  alternates: { canonical: "/" },
-  title: "HASHCODE REBOOT — Rejoins la communauté dev, cyber & IA",
-  description:
-    "Où que tu sois. Crée ton profil en 2 min, reçois ton accès WhatsApp et commence avec ton premier challenge cette semaine.",
-  keywords: [
-    "HASHCODE",
-    "Reboot",
-    "communauté tech",
-    "communauté développeurs",
-    "Web Development",
-    "Cybersecurity",
-    "Applied AI",
-    "apprendre à coder",
-  ],
-  authors: [{ name: "HASHCODE" }],
-  openGraph: {
-    title: "HASHCODE REBOOT — Dev, cyber & IA. Où que tu sois.",
-    description:
-      "Crée ton profil en 2 min, reçois ton accès WhatsApp et commence avec ton premier challenge cette semaine.",
-    siteName: "HASHCODE REBOOT",
-    type: "website",
-    locale: "fr_FR",
-    images: [
-      {
-        url: "/og-cover.png",
-        width: 1200,
-        height: 630,
-        alt: "HASHCODE REBOOT — Rejoins la communauté dev, cyber & IA, où que tu sois",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "HASHCODE REBOOT — Dev, cyber & IA. Où que tu sois.",
-    description:
-      "Crée ton profil en 2 min, reçois ton accès WhatsApp et commence avec ton premier challenge cette semaine.",
-    images: ["/og-cover.png"],
-  },
-  icons: {
-    icon: [
-      {
-        url:
-          "data:image/svg+xml," +
-          encodeURIComponent(
-            `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="6" fill="#0A0A0A"/><g transform="skewX(-14) translate(2 0)"><rect x="7" y="7" width="4" height="18" fill="#C5F441"/><rect x="21" y="7" width="4" height="18" fill="#C5F441"/><rect x="7" y="14" width="18" height="4" fill="#C5F441"/></g></svg>`,
-          ),
-      },
-    ],
-  },
-  robots: { index: true, follow: true },
-};
-
-const SITE_URL = "https://reboot.joinhashcode.com";
-
-const organizationJsonLd = {
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  name: "HASHCODE REBOOT",
-  url: SITE_URL,
-  logo: `${SITE_URL}/logo.png`,
-};
-
+/**
+ * Layout racine minimal — volontairement sans `<html>` ni `<body>`.
+ *
+ * Toutes les pages vivent sous `app/[locale]/`, et c'est ce layout-là qui
+ * porte `<html lang={locale}>`. C'est la seule façon d'obtenir un attribut
+ * `lang` correct : un layout racine ne connaît pas le segment `[locale]`, il
+ * annonçait donc `lang="fr"` même sur `/en` (mauvaise indexation des pages
+ * anglaises, mauvaise synthèse vocale).
+ *
+ * Ce fichier ne sert plus qu'à charger la feuille de styles globale et à
+ * satisfaire la convention de l'App Router. `metadata`, `viewport` et le
+ * `<body>` ont migré dans `app/[locale]/layout.tsx`.
+ *
+ * Limite connue : sur les réponses 404, Next sert son document d'erreur
+ * (`<html id="__next_error__">`) construit sans le layout racine, donc sans
+ * attribut `lang` dans le HTML initial. L'attribut est restauré dès
+ * l'hydratation (React applique `<html lang={locale}>` au document existant) :
+ * `document.documentElement.lang` est donc correct pour l'utilisateur et pour
+ * les lecteurs d'écran. Ces pages sont par ailleurs en `noindex` et le HTML
+ * initial ne contient déjà pas le contenu de la 404. Les pages de contenu, elles,
+ * sont bien servies avec le bon `lang` (vérifié sur `/`, `/en`, `/login`, etc.).
+ */
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return (
-    <html lang="fr">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} ${sora.variable} font-sans antialiased bg-background text-foreground`}
-      >
-        {/* Barre de progression des navigations (charte lime, sans spinner) */}
-        <NextTopLoader
-          color="#C5F441"
-          height={3}
-          showSpinner={false}
-          zIndex={100}
-        />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(organizationJsonLd),
-          }}
-        />
-        <Providers>
-          {children}
-          <Toaster />
-        </Providers>
-        <SpeedInsights />
-      </body>
-    </html>
-  );
+  return children;
 }

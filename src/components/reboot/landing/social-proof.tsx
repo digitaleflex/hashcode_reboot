@@ -49,7 +49,8 @@ export function SocialProofBar() {
   const socialProof = t.raw("socialProof") as Array<{ value: string; label: string }>;
   return (
     <div className="border-b border-border/60 bg-card/30">
-      <div className="mx-auto max-w-6xl px-5 sm:px-8 py-6 grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+      {/* 2 statistiques produit + le compteur réel = 3 cellules. */}
+      <div className="shell grid grid-cols-1 gap-4 py-6 text-center sm:grid-cols-3">
         {socialProof.map((stat, i) => (
           <SocialProofStat key={i} value={stat.value} label={stat.label} />
         ))}

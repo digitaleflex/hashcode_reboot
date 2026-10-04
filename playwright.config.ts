@@ -24,13 +24,15 @@ export default defineConfig({
       },
     },
   ],
-  // Don't start a web server - assume one is already running on localhost:3000
-  // webServer: {
-  //   command: process.env.CI ? 'npm run start' : 'npm run dev',
-  //   url: 'http://localhost:3000',
-  //   reuseExistingServer: true, // Always reuse existing server to avoid memory issues
-  //   timeout: 120000,
-  // },
+  // Démarre automatiquement le serveur de dev en local ; réutilise un serveur existant.
+  // Délai large : le premier démarrage Turbopack compile l'instrumentation et le
+  // middleware et peut dépasser deux minutes sur cette machine (Windows).
+  webServer: {
+    command: process.env.CI ? 'npm run start' : 'npm run dev',
+    url: 'http://localhost:3000',
+    reuseExistingServer: true,
+    timeout: 240000,
+  },
   // Increase timeout for tests
   timeout: 60000,
   expect: {

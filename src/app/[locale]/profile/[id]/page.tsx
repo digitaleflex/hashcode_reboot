@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, unstable_rethrow } from "next/navigation";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { PublicProfileCard, type PublicProfile } from "@/components/reboot/profile/PublicProfileCard";
@@ -15,14 +15,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const res = await fetch(`${baseUrl}/api/profile/${id}`, {
       cache: "no-store",
     });
-    if (!res.ok) return { title: "Profil introuvable" };
+    // Appelé ici — c'est-à-dire avant que la réponse ne commence à être
+    // diffusée — `notFound()` permet à Next de fixer un vrai statut 404.
+    // Appelé depuis le composant de page, il n'arrive qu'après le début du
+    // streaming et la réponse part déjà en 200 (soft 404).
+    if (!res.ok) notFound();
 
     const { profile } = await res.json();
     return {
       title: `${profile.firstName} — HASHCODE Profile`,
       description: `${profile.archetype} · ${profile.domain} · ${profile.level}`,
     };
-  } catch {
+  } catch (error) {
+    // Ne pas avaler l'erreur interne levée par `notFound()`.
+    unstable_rethrow(error);
     return { title: "Profil introuvable" };
   }
 }

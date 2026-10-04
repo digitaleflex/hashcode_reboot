@@ -1,85 +1,62 @@
 "use client";
 
-import { SectionHeader } from "./shared";
-import { ScrollReveal } from "./scroll-reveal";
 import { SiteHeader } from "./landing/site-header";
 import { Hero } from "./landing/hero";
+import { Evolves } from "./landing/evolves";
 import { Axes } from "./landing/axes";
-import { Pillars } from "./landing/pillars";
-import { Audience } from "./landing/audience";
-import { Testimonial } from "./landing/testimonial";
-import { Coming } from "./landing/coming";
+import { Method } from "./landing/method";
+import { Engine } from "./landing/engine";
+import { Community } from "./landing/community";
+import { Activity } from "./landing/activity";
+import { Roadmap } from "./landing/roadmap";
 import { FaqSection } from "./landing/faq-section";
 import { FinalCta } from "./landing/final-cta";
 import { SiteFooter } from "./landing/site-footer";
 import { StickyMobileCta } from "./landing/sticky-cta";
-import { useTranslations } from "next-intl";
 
+/**
+ * Orchestrateur de la landing.
+ *
+ * Ordre narratif : on commence par situer le produit (hero), on explique ce
+ * qui change (evolves), on montre les trois axes (axes), la méthode
+ * (method), la mécanique réelle (engine), la communauté (community) et son
+ * activité réelle (activity), puis la suite (roadmap), les questions (faq) et
+ * l'appel à l'action.
+ *
+ * `onJoin` prend désormais un `ref` optionnel qui identifie le CTA
+ * déclenché — les événements analytics gardent leurs noms d'origine.
+ *
+ * Sections retirées :
+ * - `Testimonial` : témoignage fabriqué (« Aïcha · Étudiante »), remplacé par
+ *   la carte de profil réelle et étiquetée en démonstration dans `Engine`.
+ * - `Audience` : replacée dans `Community` (rubrique « À qui ça s'adresse »).
+ * - `Pillars` / `Coming` : remplacées par `Method` / `Roadmap`.
+ */
 export function Landing({
   onJoin,
   onOpenPrivacy,
 }: {
-  onJoin: () => void;
+  onJoin: (ref?: string) => void;
   onOpenPrivacy?: () => void;
 }) {
-  const t = useTranslations("landing.why");
   return (
-    <div className="bg-background min-h-screen flex flex-col">
-      {/* Nav */}
+    <div className="flex min-h-screen flex-col bg-background">
       <SiteHeader onJoin={onJoin} />
 
-      {/* Hero */}
-      <Hero onJoin={onJoin} />
+      {/* Le <main> était absent : aucune landmark de contenu sur la page. */}
+      <main id="contenu" className="flex-1">
+        <Hero onJoin={onJoin} />
+        <Evolves />
+        <Axes onJoin={onJoin} />
+        <Method />
+        <Engine />
+        <Community />
+        <Activity />
+        <Roadmap />
+        <FaqSection onJoin={onJoin} onOpenPrivacy={onOpenPrivacy} />
+        <FinalCta onJoin={onJoin} />
+      </main>
 
-      <div className="divider-grad" />
-
-      {/* Why */}
-      <section className="mx-auto max-w-6xl w-full px-5 sm:px-8 py-12 sm:py-24 cv-auto">
-        <ScrollReveal>
-          <SectionHeader
-            index={t("index")}
-            title={t("title")}
-            intro={t("intro")}
-          />
-        </ScrollReveal>
-      </section>
-
-      <div className="divider-grad" />
-
-      {/* 3 Axes — index list, not 3 identical cards */}
-      <Axes onJoin={onJoin} />
-
-      <div className="divider-grad" />
-
-      {/* What changes — carrousel mobile, grille desktop */}
-      <Pillars />
-
-      <div className="divider-grad" />
-
-      {/* For who */}
-      <Audience onJoin={onJoin} />
-
-      <div className="divider-grad" />
-
-      {/* Témoignage membre — preuve humaine */}
-      <Testimonial />
-
-      <div className="divider-grad" />
-
-      {/* What's coming — timeline avec statuts */}
-      <Coming />
-
-      <div className="divider-grad" />
-
-      {/* FAQ — questions fréquentes */}
-      <FaqSection onJoin={onJoin} onOpenPrivacy={onOpenPrivacy} />
-
-      <div className="divider-grad" />
-
-      {/* Final CTA */}
-      <FinalCta onJoin={onJoin} />
-
-      {/* Sticky footer */}
       <SiteFooter onJoin={onJoin} onOpenPrivacy={onOpenPrivacy} />
       <StickyMobileCta onJoin={onJoin} />
     </div>

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { verifyOtpHash, MAX_OTP_ATTEMPTS } from "@/lib/account-otp";
 import { sendRefuseNotificationEmail } from "@/lib/mail";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 
@@ -26,7 +25,7 @@ const bodySchema = z.object({
  * Anti-bruteforce (le token est un OTP à 6 chiffres) :
  * - 10 essais / IP / 10 min (429 au-delà)
  * - max 3 tentatives par session d'invitation, puis révocation
- *   (même compteur que /api/auth/verify-otp)
+ *   (compteur OTP dédié /api/auth/*)
  * - membre absent, supprimé ou token invalide/expiré → même réponse
  *   (anti-énumération)
  */
@@ -75,56 +74,6 @@ export async function POST(req: NextRequest) {
   });
 
   if (!member || member.deletedAt) {
-    return NextResponse.json(
-      { error: "Lien invalide ou expiré." },
-      { status: 403 },
-    );
-  }
-
-  // Vérifier le token (OTP) — seules les sessions non épuisées et
-  // non expirées sont testées.
-  const sessions = await db.memberSession.findMany({
-    where: {
-      memberId: member.id,
-      otpHash: { not: null },
-      revokedAt: null,
-      expiresAt: { gt: new Date() },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 5,
-  });
-
-  const candidates = sessions.filter(
-    (s) => s.otpHash && s.attempts < MAX_OTP_ATTEMPTS,
-  );
-
-  let matched = false;
-  for (const session of candidates) {
-    if (session.otpHash && (await verifyOtpHash(token, session.otpHash))) {
-      matched = true;
-      break;
-    }
-  }
-
-  if (!matched) {
-    // Chaque échec consomme une tentative sur toutes les candidates ;
-    // les sessions épuisées sont révoquées (forcent une nouvelle demande).
-    if (candidates.length > 0) {
-      const ids = candidates.map((s) => s.id);
-      await db.memberSession.updateMany({
-        where: { id: { in: ids } },
-        data: { attempts: { increment: 1 } },
-      });
-      const exhausted = candidates
-        .filter((s) => s.attempts + 1 >= MAX_OTP_ATTEMPTS)
-        .map((s) => s.id);
-      if (exhausted.length > 0) {
-        await db.memberSession.updateMany({
-          where: { id: { in: exhausted } },
-          data: { revokedAt: new Date() },
-        });
-      }
-    }
     return NextResponse.json(
       { error: "Lien invalide ou expiré." },
       { status: 403 },

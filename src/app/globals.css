@@ -40,6 +40,11 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  /* Alias de marque : Tailwind v4 n'expose QUE les tons numérotés (lime-400, lime-500…).
+     Sans cette ligne, il n'existe aucun `--color-lime` et les utilitaires `text-lime`,
+     `bg-lime`, `border-lime`, `ring-lime`… ne génèrent AUCUN CSS. Alias sur --primary
+     pour que la marque reste HASH LIME (#C5F441) et non le lime par défaut de Tailwind. */
+  --color-lime: var(--primary);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -130,10 +135,12 @@
    HASHCODE utility helpers
    ============================================================ */
 
- /* NOTE: Lime utilities (text-lime, bg-lime, border-lime, hover variants)
-    are now generated automatically by Tailwind 4 via @theme inline (--color-primary).
-    The custom classes below were removed to avoid duplication.
-    Use: text-primary, bg-primary, border-primary, hover:bg-primary, etc. */
+ /* NOTE: Lime utilities (text-lime, bg-lime, border-lime, hover variants) come from
+    the `--color-lime` alias declared in @theme inline above, which points at --primary.
+    This alias is REQUIRED: Tailwind 4 ships only numbered lime tones (lime-400, lime-500…),
+    so without it every `*-lime` utility silently generates no CSS at all.
+    Preferred naming going forward is text-primary / bg-primary / border-primary;
+    `lime` stays supported as an alias of that exact brand value. */
 /* Subtle dotted grid background — engineered, not decorated */
 .bg-grid {
   background-image:
@@ -468,3 +475,262 @@
     grid-template-columns: repeat(3, 1fr);
     gap: 0.75rem;
   }
+
+/* ============================================================
+   HASHCODE REBOOT — Landing composition helpers
+   Structure, pas décoration. Voir src/components/reboot/landing/
+   ============================================================ */
+
+/* Columns éditoriales — max 1320px, aligné sur la grille 12 colonnes.
+   `mx-auto` + largeur fixe : les rails restent au bord du container
+   quelle que soit la taille du viewport. */
+.shell {
+  width: 100%;
+  max-width: 1320px;
+  margin-inline: auto;
+  padding-inline: 20px;
+}
+@media (min-width: 640px) {
+  .shell { padding-inline: 32px; }
+}
+@media (min-width: 1280px) {
+  .shell { padding-inline: 40px; }
+}
+
+/* Rails verticaux : la grille doit être PRESQUE invisible.
+   Opacité ≤ 4%, jamais de motif décoratif. Desktop uniquement. */
+.rails {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: none;
+}
+@media (min-width: 1024px) {
+  .rails { display: grid; grid-template-columns: repeat(4, 1fr); }
+}
+.rails > span {
+  border-left: 1px solid color-mix(in oklab, var(--foreground) 4%, transparent);
+  border-right: 1px solid color-mix(in oklab, var(--foreground) 4%, transparent);
+}
+/* Le premier et le dernier rail ne portent pas de bordure droite/gauche. */
+.rails > span:last-child { border-right: 0; }
+
+/* Section : espacement vertical cohérent sur toute la landing. */
+.section {
+  position: relative;
+  padding-block: 72px;
+}
+@media (min-width: 768px) {
+  .section { padding-block: 112px; }
+}
+@media (min-width: 1280px) {
+  .section { padding-block: 144px; }
+}
+
+/* ------------------------------------------------------------
+   Ecosystem Core — sphere réseau abstraite (Hero)
+   SVG inline + CSS. Aucun raster, aucun canvas, aucun WebGL.
+   ------------------------------------------------------------ */
+.ecosystem-core {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  width: 100%;
+  max-width: 520px;
+  margin-inline: auto;
+}
+
+/* Anneaux concentriques — 1px, opacité basse. */
+.ecosystem-core__rings {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  pointer-events: none;
+}
+.ecosystem-core__ring {
+  position: absolute;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--foreground) 7%, transparent);
+}
+.ecosystem-core__ring--1 { inset: 0; }
+.ecosystem-core__ring--2 { inset: 14%; border-style: dashed; }
+.ecosystem-core__ring--3 { inset: 28%; border-color: color-mix(in oklab, var(--primary) 22%, transparent); }
+
+/* Noyau : le H de la marque. */
+.ecosystem-core__hub {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 34%;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--primary) 45%, transparent);
+  background: color-mix(in oklab, var(--background) 82%, transparent);
+}
+
+/* Orbites : 3 modules (WEB / CYBER / AI) positionnés en CSS pur. */
+.ecosystem-core__orbit {
+  position: absolute;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  gap: 0.5rem;
+  width: 30%;
+  max-width: 150px;
+  text-align: center;
+  padding: 0.875rem 0.5rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: color-mix(in oklab, var(--card) 86%, transparent);
+  transition: border-color 0.24s ease, background-color 0.24s ease;
+}
+.ecosystem-core__orbit:hover {
+  border-color: color-mix(in oklab, var(--primary) 55%, transparent);
+  background: color-mix(in oklab, var(--card) 96%, transparent);
+}
+.ecosystem-core__orbit--web { top: 0; left: 50%; transform: translateX(-50%); }
+.ecosystem-core__orbit--cyber { bottom: 6%; right: 0; }
+.ecosystem-core__orbit--ai { bottom: 6%; left: 0; }
+
+/* Sur mobile les 3 modules passent en rangeau sous la sphère :
+   plus de chevauchement, cibles tactiles comfortables. */
+@media (max-width: 639px) {
+  .ecosystem-core {
+    aspect-ratio: auto;
+    max-width: none;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    align-items: start;
+  }
+  .ecosystem-core__stage {
+    grid-column: 1 / -1;
+    position: relative;
+    width: min(78%, 260px);
+    aspect-ratio: 1;
+    margin-inline: auto;
+    margin-bottom: 0.75rem;
+  }
+  .ecosystem-core__orbit {
+    position: static;
+    width: 100%;
+    transform: none;
+  }
+}
+
+/* Sur desktop la sphère est encapsulée dans .ecosystem-core__stage
+   pour que le passage mobile ↔ desktop reste un simple réordonnancement. */
+.ecosystem-core__stage {
+  position: relative;
+  grid-area: 1 / 1;
+  width: 100%;
+  aspect-ratio: 1;
+  place-items: center;
+}
+
+/* Légende sous la sphère — hors flux pour préserver le carré. */
+.ecosystem-core__legend {
+  position: absolute;
+  bottom: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-family: var(--font-geist-mono);
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--muted-foreground) 70%, transparent);
+}
+@media (max-width: 639px) {
+  .ecosystem-core { padding-bottom: 34px; }
+}
+
+/* ------------------------------------------------------------
+   Method rail — progression APPRENDRE → PRATIQUER → CONSTRUIRE → ÉVOLUER
+   Vertical en mobile, horizontal ≥ md.
+   Le lime ne représente QUE la partie accomplie (remplissage).
+   ------------------------------------------------------------ */
+.method-rail__track {
+  position: absolute;
+  left: 4px;
+  top: 6px;
+  bottom: 6px;
+  width: 1px;
+  background: var(--border);
+  overflow: hidden;
+  pointer-events: none;
+}
+.method-rail__fill {
+  position: absolute;
+  inset: 0;
+  background: var(--primary);
+  /* Vertical : on pousse vers le bas depuis le haut. */
+  transform-origin: top center;
+}
+@media (min-width: 768px) {
+  .method-rail__track {
+    left: 0;
+    right: 0;
+    top: 4px;
+    bottom: auto;
+    width: auto;
+    height: 1px;
+  }
+  .method-rail__fill {
+    /* Horizontal : on pousse vers la droite depuis la gauche. */
+    transform-origin: left center;
+  }
+}
+.method-rail__step {
+  position: relative;
+}
+.method-rail__dot {
+  display: block;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--background);
+  border: 1px solid var(--border);
+  transition: border-color 0.24s ease, background-color 0.24s ease;
+}
+
+/* ------------------------------------------------------------
+   Timeline verticale (section « HASHCODE évolue »)
+   La ligne se dessine au scroll via scaleY piloté par Framer Motion.
+   ------------------------------------------------------------ */
+.timeline {
+  position: relative;
+  padding-left: 28px;
+}
+.timeline__spine {
+  position: absolute;
+  left: 4px;
+  top: 6px;
+  bottom: 6px;
+  width: 1px;
+  background: var(--border);
+  transform-origin: top center;
+  pointer-events: none;
+}
+.timeline__spine--fill {
+  background: var(--primary);
+}
+.timeline__item {
+  position: relative;
+}
+.timeline__node {
+  position: absolute;
+  left: -28px;
+  top: 7px;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--background);
+  border: 1px solid var(--border);
+}
+.timeline__item[data-active="true"] .timeline__node {
+  background: var(--primary);
+  border-color: var(--primary);
+}

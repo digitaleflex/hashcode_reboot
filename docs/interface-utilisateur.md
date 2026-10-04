@@ -1,4 +1,4 @@
-# Interface utilisateur — inventaire exhaustif
+> **REMARQUE (octobre 2026)** : Ce document décrit une version antérieure de l'interface. Le nouvel agencement « reboot » (src/components/reboot/) et l'ordre des sections ont évolué. Il est conservé à titre d'archive historique.\n\n# Interface utilisateur — inventaire exhaustif
 
 > Description détaillée de **toutes les fonctionnalités visibles et actionnables**
 > par un utilisateur final (visiteur, prospect, membre) : écrans, textes, champs,

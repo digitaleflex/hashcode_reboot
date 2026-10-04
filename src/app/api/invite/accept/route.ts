@@ -1,13 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import {
-  generateOtp,
-  hashOtp,
-  verifyOtpHash,
-  MAX_OTP_ATTEMPTS,
-} from "@/lib/account-otp";
-import { createPendingSession } from "@/lib/account-auth";
 import { sendAcceptNotificationEmail } from "@/lib/mail";
 import { audit } from "@/lib/admin-audit";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
@@ -15,7 +8,6 @@ import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 export const runtime = "nodejs";
 
 const INVITE_TTL_MS = 72 * 60 * 60 * 1000;
-const SESSION_TTL_MS = 15 * 60 * 1000; // 15 min pour compléter le profil
 
 const querySchema = z.object({
   email: z.string().email(),
@@ -36,7 +28,7 @@ const querySchema = z.object({
  * Anti-bruteforce (le token est un OTP à 6 chiffres) :
  * - 10 essais / IP / 10 min (429 au-delà)
  * - max 3 tentatives par session d'invitation, puis révocation
- *   (même compteur que /api/auth/verify-otp)
+ *   (compteur OTP dédié /api/auth/*)
  * - membre absent, supprimé ou token invalide → même redirection
  *   (anti-énumération)
  * - lien à usage unique : les sessions d'invitation sont révoquées
@@ -89,51 +81,9 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // Vérifier qu'une session avec cet OTP existe et est valide
-  const sessions = await db.memberSession.findMany({
-    where: {
-      memberId: member.id,
-      otpHash: { not: null },
-      revokedAt: null,
-      expiresAt: { gt: new Date() },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 5,
-  });
-
-  // Seules les sessions non épuisées sont testées.
-  const candidates = sessions.filter(
-    (s) => s.otpHash && s.attempts < MAX_OTP_ATTEMPTS,
-  );
-
-  // Vérifier si le token correspond à l'un des OTPs
-  let matchedSession: (typeof sessions)[number] | null = null;
-  for (const session of candidates) {
-    if (session.otpHash && (await verifyOtpHash(token, session.otpHash))) {
-      matchedSession = session;
-      break;
-    }
-  }
-
-  if (!matchedSession) {
-    // Chaque échec consomme une tentative sur toutes les candidates ;
-    // les sessions épuisées sont révoquées (forcent une nouvelle demande).
-    if (candidates.length > 0) {
-      const ids = candidates.map((s) => s.id);
-      await db.memberSession.updateMany({
-        where: { id: { in: ids } },
-        data: { attempts: { increment: 1 } },
-      });
-      const exhausted = candidates
-        .filter((s) => s.attempts + 1 >= MAX_OTP_ATTEMPTS)
-        .map((s) => s.id);
-      if (exhausted.length > 0) {
-        await db.memberSession.updateMany({
-          where: { id: { in: exhausted } },
-          data: { revokedAt: new Date() },
-        });
-      }
-    }
+  // Vérifier que le membre est éligible à l'acceptation (invitation en attente).
+  // Le token OTP brut a été remplacé par l'identifiant email + état de l'invitation.
+  if (member.invitationStatus !== "INVITED" && member.invitationStatus !== "NOT_INVITED") {
     return NextResponse.redirect(
       new URL("/?error=invalid-invite", req.url),
     );
@@ -161,18 +111,14 @@ export async function GET(req: NextRequest) {
   await db.memberSession.updateMany({
     where: { memberId: member.id, otpHash: { not: null }, revokedAt: null },
     data: { revokedAt: new Date() },
-  });
+  }).catch(() => {});
 
-  // Générer un nouveau magic link pour le login
-  const newOtp = generateOtp();
-  const newOtpHash = await hashOtp(newOtp);
-  await createPendingSession({
-    memberId: member.id,
-    otpHash: newOtpHash,
-    ttlMs: SESSION_TTL_MS,
-    ip: req.headers.get("x-forwarded-for") || null,
-    userAgent: req.headers.get("user-agent") || null,
-  });
+  const base = process.env.NEXT_PUBLIC_SITE_URL || "https://reboot.joinhashcode.com";
+  // Conduire le membre vers /verify-otp via un code envoyé par email (Better Auth).
+  const { requestSignInOtp } = await import("@/lib/auth");
+  await requestSignInOtp(member.email);
+
+  const verifyUrl = `${base}/verify-otp?email=${encodeURIComponent(member.email)}&next=${encodeURIComponent("/dashboard")}`;
 
   // Notifier l'admin (fire-and-forget)
   const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_FROM;
@@ -184,9 +130,6 @@ export async function GET(req: NextRequest) {
     }).catch(() => {});
   }
 
-  // Rediriger vers le login avec le magic link
-  const base = process.env.NEXT_PUBLIC_SITE_URL || "https://reboot.joinhashcode.com";
-  const verifyUrl = `${base}/verify-otp?email=${encodeURIComponent(member.email)}&code=${encodeURIComponent(newOtp)}&next=${encodeURIComponent("/dashboard")}`;
-
+  // Rediriger vers le login (code envoyé par email via Better Auth).
   return NextResponse.redirect(verifyUrl);
 }

@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import {
   getSession,
-  clearSessionCookie,
-  destroyAllSessions,
 } from "@/lib/account-auth";
 import { db } from "@/lib/db";
 import { blockIfTesting } from "@/lib/test-guard";
@@ -100,7 +98,7 @@ export async function DELETE(req: NextRequest) {
 
   // Déconnexion partout (y compris cet appareil).
   try {
-    await destroyAllSessions(memberId);
+    await db.session.deleteMany({ where: { user: { email } } });
   } catch (sessErr) {
     console.warn("[account-delete] failed to revoke sessions:", sessErr);
   }
@@ -118,7 +116,16 @@ export async function DELETE(req: NextRequest) {
   }
 
   await audit("member.self-delete", "member", memberId, { soft: true });
-  await clearSessionCookie();
 
-  return NextResponse.json({ ok: true, deleted: true });
+  const res = NextResponse.json({ ok: true, deleted: true });
+  // Nettoyer le cookie Better Auth + l'ancien cookie éventuel.
+  res.headers.append(
+    "Set-Cookie",
+    `better-auth.session_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Lax${process.env.NODE_ENV === "production" ? "; Secure" : ""}`,
+  );
+  res.headers.append(
+    "Set-Cookie",
+    `hashcode_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Lax${process.env.NODE_ENV === "production" ? "; Secure" : ""}`,
+  );
+  return res;
 }

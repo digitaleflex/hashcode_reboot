@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Loader2, Mail } from "lucide-react";
 import { Logo, HashSymbol } from "@/components/brand/logo";
 import { RebootButton, MonoLabel } from "@/components/reboot/shared";
+import { authClient } from "@/lib/auth/client";
 import { useTranslations } from "next-intl";
 
 const OTP_LENGTH = 6;
@@ -86,27 +87,23 @@ function VerifyOtpForm() {
     setInfo(null);
     setLoading(true);
     try {
-      const res = await fetch("/api/auth/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, otp: codeToSubmit }),
+      const data = await authClient.emailOtp.verifyEmail({
+        email,
+        otp: codeToSubmit,
       });
-      if (res.ok) {
-        // Cookie posé par le serveur, on redirige
+      if (!data?.error) {
         router.push(next);
         router.refresh();
         return;
       }
-      const data = await res.json().catch(() => ({}));
-      if (data.code === "INVALID_CODE" || data.code === "LOCKED") {
-        setError(data.error ?? t("errors.invalidOrExpired"));
-        // Vider les inputs pour que l'user retape
+      const err = data.error as any;
+      const status = err?.status ?? err?.statusCode ?? 0;
+      if (status === 429 || err?.code === "RATE_LIMITED") {
+        setError(err?.message ?? t("errors.tooManyAttempts"));
+      } else {
+        setError(err?.message ?? t("errors.generic"));
         setDigits(Array(OTP_LENGTH).fill(""));
         inputsRef.current[0]?.focus();
-      } else if (data.code === "RATE_LIMITED") {
-        setError(data.error ?? t("errors.tooManyAttempts"));
-      } else {
-        setError(data.error ?? t("errors.generic"));
       }
     } catch {
       setError(t("errors.network"));
@@ -120,7 +117,7 @@ function VerifyOtpForm() {
     if (code.length === OTP_LENGTH) {
       void submit(code);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [code]);
 
   // Lien magique : pré-remplit depuis ?code= et soumet une seule fois.
@@ -140,7 +137,7 @@ function VerifyOtpForm() {
     } catch {
       /* best-effort */
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [linkCode, email]);
 
   async function handleResend() {
@@ -148,20 +145,10 @@ function VerifyOtpForm() {
     setError(null);
     setInfo(null);
     try {
-      const res = await fetch("/api/auth/request-magic-link", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+      await authClient.signIn.emailOtp({
+        email,
+        callbackURL: next,
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        if (res.status === 429) {
-          setError(data.error ?? t("errors.tooManyRequests"));
-        } else {
-          setError(data.error ?? t("errors.resendFailed"));
-        }
-        return;
-      }
       setInfo(t("info.resent"));
       setResendCooldown(RESEND_COOLDOWN_SEC);
       setDigits(Array(OTP_LENGTH).fill(""));

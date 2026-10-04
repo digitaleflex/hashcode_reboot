@@ -96,8 +96,11 @@ export default function Home() {
     }
   }, [phase]);
 
-  function handleJoin() {
-    track({ type: "reboot_cta_clicked" });
+  function handleJoin(ref?: string) {
+    // `ref` identifie le CTA déclenché (hero, header, axes, final…).
+    // Ajout rétrocompatible : les appels sans argument continuent
+    // d'émettre `reboot_cta_clicked` avec `ref: undefined`.
+    track({ type: "reboot_cta_clicked", ref });
     setPhase("profiling");
     if (!profilingStartedRef.current) {
       profilingStartedRef.current = true;

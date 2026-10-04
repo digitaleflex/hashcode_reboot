@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { generateOtp, hashOtp } from "@/lib/account-otp";
-import { createPendingSession } from "@/lib/account-auth";
 import { sendInviteRelanceEmail } from "@/lib/mail";
 import { isAdminAuthed } from "@/lib/admin-auth";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
@@ -102,24 +100,11 @@ export async function POST(req: NextRequest) {
 
   for (const member of targets) {
     try {
-      // Révoquer les anciennes sessions OTP
-      await db.memberSession.updateMany({
-        where: { memberId: member.id, otpHash: { not: null }, revokedAt: null },
-        data: { revokedAt: new Date() },
-      });
+      // Envoyer le code de connexion Better Auth + lien vers /verify-otp.
+      const { requestSignInOtp } = await import("@/lib/auth");
+      await requestSignInOtp(member.email);
 
-      // Nouveau magic link
-      const otp = generateOtp();
-      const otpHash = await hashOtp(otp);
-      await createPendingSession({
-        memberId: member.id,
-        otpHash,
-        ttlMs: INVITE_TTL_MS,
-        ip: null,
-        userAgent: "admin-invite-relance",
-      });
-
-      const url = `${base.replace(/\/$/, "")}/verify-otp?email=${encodeURIComponent(member.email)}&code=${encodeURIComponent(otp)}&next=${encodeURIComponent("/dashboard")}`;
+      const url = `${base.replace(/\/$/, "")}/verify-otp?email=${encodeURIComponent(member.email)}&next=${encodeURIComponent("/dashboard")}`;
 
       const res = await sendInviteRelanceEmail({
         to: member.email,
