@@ -10,7 +10,8 @@ import {
 import { createPendingSession } from "@/lib/account-auth";
 import { sendAcceptNotificationEmail } from "@/lib/mail";
 import { audit } from "@/lib/admin-audit";
-import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
+import { errorToResponse, RateLimitError } from "@/lib/errors";
 
 export const runtime = "nodejs";
 
@@ -43,18 +44,13 @@ const querySchema = z.object({
  *   dès la première acceptation réussie
  */
 export async function GET(req: NextRequest) {
+  try {
   const rl = await rateLimit(`invite-accept:${rateKey(req)}`, {
     capacity: 10,
     windowMs: 10 * 60 * 1000,
   });
   if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de tentatives. Réessaie dans quelques minutes." },
-      {
-        status: 429,
-        headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) },
-      },
-    );
+    throw new RateLimitError(undefined, rl.retryAfterMs);
   }
 
   const { searchParams } = new URL(req.url);
@@ -189,4 +185,7 @@ export async function GET(req: NextRequest) {
   const verifyUrl = `${base}/verify-otp?email=${encodeURIComponent(member.email)}&code=${encodeURIComponent(newOtp)}&next=${encodeURIComponent("/dashboard")}`;
 
   return NextResponse.redirect(verifyUrl);
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

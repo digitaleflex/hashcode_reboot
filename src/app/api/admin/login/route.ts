@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkCSRF } from "@/lib/admin-auth";
-import { rateLimit, rateKey, RATE_LIMITS, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit, rateKey, RATE_LIMITS } from "@/lib/rate-limit";
 import { audit } from "@/lib/admin-audit";
 import { auth } from "@/lib/auth";
+import {
+  errorToResponse,
+  parseJsonBody,
+  AuthError,
+  ForbiddenError,
+  RateLimitError,
+  ValidationError,
+} from "@/lib/errors";
 
 export const runtime = "nodejs";
 
@@ -31,49 +39,32 @@ function auditLogin(ip: string, ref: "success" | "failure") {
 
 /** POST /api/admin/login — sign in with Better Auth email/password (+ Turnstile). */
 export async function POST(req: NextRequest) {
-  if (!checkCSRF(req)) {
-    return NextResponse.json({ error: "CSRF validation failed." }, { status: 403 });
-  }
-  let body: { email?: string; password?: string; captchaToken?: string };
   try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json(
-      { error: "Requête invalide.", code: "INVALID_JSON" },
-      { status: 400 },
-    );
-  }
-  const email = (body.email ?? "").trim().toLowerCase();
-  const password = body.password ?? "";
-  const captchaToken = body.captchaToken;
+    if (!checkCSRF(req)) {
+      throw new ForbiddenError("CSRF validation failed.");
+    }
 
-  const ip = rateKey(req);
-  const rl = await rateLimit(`admin-login:${ip}`, RATE_LIMITS.login);
-  if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de tentatives. Réessaie dans quelques minutes.", code: "RATE_LIMITED" },
-      {
-        status: 429,
-        headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) },
-      },
-    );
-  }
-  if (!email || !password) {
-    return NextResponse.json(
-      { error: "Email et mot de passe requis.", code: "INVALID_PAYLOAD" },
-      { status: 422 },
-    );
-  }
-  try {
+    const rawBody = await parseJsonBody(req);
+    const body = (rawBody ?? {}) as { email?: string; password?: string; captchaToken?: string };
+    const email = (body.email ?? "").trim().toLowerCase();
+    const password = body.password ?? "";
+    const captchaToken = body.captchaToken;
+
+    const ip = rateKey(req);
+    const rl = await rateLimit(`admin-login:${ip}`, RATE_LIMITS.login);
+    if (!rl.ok) {
+      throw new RateLimitError(undefined, rl.retryAfterMs);
+    }
+    if (!email || !password) {
+      throw new ValidationError("Email et mot de passe requis.");
+    }
+
     // Turnstile validation (only if captcha was required by client).
     if (captchaToken) {
       const captchaValid = await verifyTurnstileToken(captchaToken);
       if (!captchaValid) {
         auditLogin(ip, "failure");
-        return NextResponse.json(
-          { error: "Captcha invalide. Réessaie.", code: "CAPTCHA_INVALID" },
-          { status: 401 },
-        );
+        throw new AuthError("Captcha invalide. Réessaie.", "CAPTCHA_INVALID");
       }
     }
 
@@ -88,10 +79,7 @@ export async function POST(req: NextRequest) {
 
     if (!authRes.ok) {
       auditLogin(ip, "failure");
-      return NextResponse.json(
-        { error: "Email ou mot de passe invalide.", code: "UNAUTHORIZED" },
-        { status: 401 },
-      );
+      throw new AuthError("Email ou mot de passe invalide.", "UNAUTHORIZED");
     }
 
     // Ensure the signed-in user is actually an admin (env allow-list).
@@ -102,10 +90,7 @@ export async function POST(req: NextRequest) {
     const isAdmin = adminEmails.length === 0 || adminEmails.includes(email);
     if (!isAdmin) {
       auditLogin(ip, "failure");
-      return NextResponse.json(
-        { error: "Compte non autorisé pour l'espace admin.", code: "FORBIDDEN" },
-        { status: 403 },
-      );
+      throw new ForbiddenError("Compte non autorisé pour l'espace admin.");
     }
 
     auditLogin(ip, "success");
@@ -114,10 +99,7 @@ export async function POST(req: NextRequest) {
       { ok: true },
       { headers: { "Set-Cookie": setCookie } },
     );
-  } catch {
-    return NextResponse.json(
-      { error: "Erreur interne.", code: "INTERNAL_ERROR" },
-      { status: 500 },
-    );
+  } catch (err) {
+    return errorToResponse(err);
   }
 }

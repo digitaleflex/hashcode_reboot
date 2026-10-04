@@ -3,7 +3,14 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { verifyOtpHash, MAX_OTP_ATTEMPTS } from "@/lib/account-otp";
 import { sendRefuseNotificationEmail } from "@/lib/mail";
-import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
+import {
+  errorToResponse,
+  parseJsonBody,
+  ForbiddenError,
+  RateLimitError,
+  ValidationError,
+} from "@/lib/errors";
 
 export const runtime = "nodejs";
 
@@ -31,33 +38,19 @@ const bodySchema = z.object({
  *   (anti-énumération)
  */
 export async function POST(req: NextRequest) {
+  try {
   const rl = await rateLimit(`invite-refuse:${rateKey(req)}`, {
     capacity: 10,
     windowMs: 10 * 60 * 1000,
   });
   if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de tentatives. Réessaie dans quelques minutes." },
-      {
-        status: 429,
-        headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) },
-      },
-    );
+    throw new RateLimitError(undefined, rl.retryAfterMs);
   }
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "JSON invalide" }, { status: 400 });
-  }
-
+  const body = await parseJsonBody(req);
   const parsed = bodySchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Paramètres invalides", details: parsed.error.flatten() },
-      { status: 422 },
-    );
+    throw new ValidationError("Paramètres invalides", parsed.error.flatten());
   }
 
   const { email, token, reason } = parsed.data;
@@ -75,10 +68,7 @@ export async function POST(req: NextRequest) {
   });
 
   if (!member || member.deletedAt) {
-    return NextResponse.json(
-      { error: "Lien invalide ou expiré." },
-      { status: 403 },
-    );
+    throw new ForbiddenError("Lien invalide ou expiré.");
   }
 
   // Vérifier le token (OTP) — seules les sessions non épuisées et
@@ -125,10 +115,7 @@ export async function POST(req: NextRequest) {
         });
       }
     }
-    return NextResponse.json(
-      { error: "Lien invalide ou expiré." },
-      { status: 403 },
-    );
+    throw new ForbiddenError("Lien invalide ou expiré.");
   }
 
   // Mettre à jour le statut
@@ -174,6 +161,9 @@ export async function POST(req: NextRequest) {
     ok: true,
     message: "Invitation refusée. Tu ne recevras plus d'emails d'invitation.",
   });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }
 
 /**

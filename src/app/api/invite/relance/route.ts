@@ -5,8 +5,15 @@ import { generateOtp, hashOtp } from "@/lib/account-otp";
 import { createPendingSession } from "@/lib/account-auth";
 import { sendInviteRelanceEmail } from "@/lib/mail";
 import { isAdminAuthed } from "@/lib/admin-auth";
-import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
+import {
+  errorToResponse,
+  parseJsonBody,
+  AuthError,
+  RateLimitError,
+  ValidationError,
+} from "@/lib/errors";
 import { logMemberEmail, memberIdsWithEmailLog } from "@/lib/member-email-log";
 
 export const runtime = "nodejs";
@@ -27,14 +34,12 @@ const bodySchema = z.object({
  * Admin-only. Génère un nouveau magic link et envoie l'email de relance.
  */
 export async function POST(req: NextRequest) {
+  try {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
 
   if (!(await isAdminAuthed(req))) {
-    return NextResponse.json(
-      { error: "Non autorisé.", code: "UNAUTHORIZED" },
-      { status: 401 },
-    );
+    throw new AuthError("Non autorisé.", "UNAUTHORIZED");
   }
 
   const rl = await rateLimit(`invite-relance:${rateKey(req)}`, {
@@ -42,25 +47,13 @@ export async function POST(req: NextRequest) {
     windowMs: 10 * 60 * 1000,
   });
   if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de demandes.", code: "RATE_LIMITED" },
-      { status: 429, headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) } },
-    );
+    throw new RateLimitError("Trop de demandes.", rl.retryAfterMs);
   }
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "JSON invalide." }, { status: 400 });
-  }
-
+  const body = await parseJsonBody(req);
   const parsed = bodySchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Paramètres invalides.", details: parsed.error.flatten() },
-      { status: 422 },
-    );
+    throw new ValidationError("Paramètres invalides.", parsed.error.flatten());
   }
 
   const { memberIds, confirm } = parsed.data;
@@ -171,4 +164,7 @@ export async function POST(req: NextRequest) {
     total: targets.length,
     skippedRelanced: members.length - targets.length,
   });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }
