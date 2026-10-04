@@ -32,20 +32,10 @@ export async function loginViaMagicLink(page: Page, email: string, locale: Local
   await page.waitForSelector('text=/Code invalide|Invalid or expired code/i', { timeout: 10000 }).catch(() => {});
 }
 
-export async function mockAuthState(page: Page, locale: Locale = 'fr') {
-  // Injecter un token de session mocké dans localStorage/cookies
-  // Pour contourner l'auth réelle en E2E
-  await page.addInitScript(() => {
-    localStorage.setItem('hashcode:mock:auth', 'true');
-    localStorage.setItem('hashcode:mock:user', JSON.stringify({
-      email: 'test-e2e@hashcode.reboot',
-      firstName: 'Test',
-      profileStatus: 'APPROVED',
-      accessLane: 'immediate',
-    }));
-  });
-}
-
+// Helper `mockAuthState` supprimé : il injectait 'hashcode:mock:auth' dans
+// localStorage, mécanisme que plus rien dans src/ ne lit (Better Auth utilise
+// un cookie de session). Il aurait donné une fausse impression de contournement
+// de l'authentification — voir les `test.fixme` des specs concernées.
 // Helpers pour attendre le chargement
 export async function waitForDashboard(page: Page) {
   await page.waitForSelector('text=/Bonjour|Hello/i', { timeout: 15000 });

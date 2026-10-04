@@ -23,13 +23,54 @@ export function ProfileCard({
   variant?: "default" | "compact";
 }) {
   const t = useTranslations("profiling");
+
+  /**
+   * The engine emits `*Label` in French. When the raw enum code travels with
+   * the profile, prefer the translated label for the active locale so the card
+   * never mixes languages; fall back to the engine string when it does not.
+   */
+  function localized(
+    group: "domain" | "level" | "goal" | "availability" | "style" | "mentoring",
+    code: string | undefined,
+    fallback: string,
+  ): string {
+    if (!code) return fallback;
+    try {
+      return t(`profileValues.${group}.${code}` as never);
+    } catch {
+      return fallback;
+    }
+  }
+
   const rows: { label: string; value: string }[] = [
-    { label: t("profileCard.domain"), value: profile.domainLabel },
-    { label: t("profileCard.level"), value: profile.levelLabel },
-    { label: t("profileCard.goal"), value: profile.goalLabel },
-    { label: t("profileCard.availability"), value: profile.availabilityLabel },
-    { label: t("profileCard.style"), value: profile.styleLabel },
-    { label: t("profileCard.mentoring"), value: profile.mentoringLabel },
+    {
+      label: t("profileCard.domain"),
+      value: localized("domain", profile.domain, profile.domainLabel),
+    },
+    {
+      label: t("profileCard.level"),
+      value: localized("level", profile.level, profile.levelLabel),
+    },
+    {
+      label: t("profileCard.goal"),
+      value: localized("goal", profile.goal, profile.goalLabel),
+    },
+    {
+      label: t("profileCard.availability"),
+      value: localized("availability", profile.availability, profile.availabilityLabel),
+    },
+    {
+      label: t("profileCard.style"),
+      value: localized("style", profile.learningStyle, profile.styleLabel),
+    },
+    {
+      label: t("profileCard.mentoring"),
+      value: localized(
+        "mentoring",
+        profile.mentoringInterest,
+        profile.mentoringLabel,
+      ),
+    },
   ];
 
   return (

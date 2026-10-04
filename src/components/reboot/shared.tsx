@@ -48,7 +48,7 @@ export function RebootButton({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-md transition-colors duration-180 focus-lime disabled:opacity-50 disabled:pointer-events-none min-h-[44px] cursor-pointer",
+        "inline-flex items-center justify-center gap-2 rounded-md transition-colors duration-200 focus-lime disabled:opacity-50 disabled:pointer-events-none min-h-[44px] cursor-pointer",
         sizes[size],
         variants[variant],
         className,
@@ -64,7 +64,7 @@ export function CtaArrow({ className }: { className?: string }) {
   return (
     <ArrowRight
       className={cn(
-        "size-4 transition-transform duration-180 group-hover:translate-x-0.5",
+        "size-4 transition-transform duration-200 group-hover:translate-x-0.5",
         className,
       )}
       strokeWidth={2.2}

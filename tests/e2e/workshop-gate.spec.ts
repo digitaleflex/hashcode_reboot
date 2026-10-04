@@ -5,7 +5,7 @@ import { test, expect } from "@playwright/test";
  * Le gate est purement serveur (applyDateGate dans src/lib/workshop-progression.ts) ;
  * cette suite valide deux choses réelles côté navigateur :
  *   1. une séance LOCKED n'expose que son squelette + sa date de disponibilité
- *   2. une séance débloquée expose son lien d'accès et son état
+ *   2. l'API qui pilote le gate calendaire reste réservée au rôle admin
  */
 
 test.describe("workshop session gate dates", () => {
@@ -31,10 +31,12 @@ test.describe("workshop session gate dates", () => {
     }
   });
 
-  test("API admin expose scheduledAt pour piloter le gate", async ({ request }) => {
-    // Le gate calendaire doit être pilotable côté admin sans modifier le contenu pédagogique.
-    // GET /api/admin/workshops/:id reste accessible en lecture (pas de write en E2E).
+  test("API admin refuse la lecture anonyme du gate calendaire", async ({ request }) => {
+    // Le gate calendaire se pilote via l'API admin (champ scheduledAt), mais cette
+    // API est réservée au rôle admin : un appel anonyme doit être refusé (403) avant
+    // même la recherche de l'atelier. On ne peut pas s'authentifier en E2E, donc on
+    // valide le garde-fou plutôt que le contenu de la réponse.
     const response = await request.get("/api/admin/workshops/not-a-real-workshop");
-    expect(response.status()).toBe(404);
+    expect(response.status()).toBe(403);
   });
 });

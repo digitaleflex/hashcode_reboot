@@ -1,3 +1,8 @@
+/* FIXME: partie de suite obsolète (post-migration Better Auth).
+   Les tests qui simulaient l'auth via localStorage.setItem('hashcode:mock:auth', …)
+   sont marqués `fixme` : rien dans src/ ne lit 'hashcode:mock', l'app utilise
+   Better Auth (cookies de session). Les tests restants restent actifs. */
+
 import { test, expect } from '@playwright/test';
 
 /**
@@ -13,7 +18,7 @@ import { test, expect } from '@playwright/test';
  * 7. Status cards affichent bons états
  */
 
-test.describe('Dashboard flows (authenticated)', () => {
+test.describe.fixme('Dashboard flows (authenticated)', () => {
   test.beforeEach(async ({ page }) => {
     // Mock auth state for all tests
     await page.addInitScript(() => {
@@ -175,6 +180,7 @@ test.describe('Dashboard flows (authenticated)', () => {
 
 test.describe('Dashboard responsive', () => {
   test('Mobile viewport - sidebar collapses', async ({ page }) => {
+    test.fixme(true, "Auth simulée via 'hashcode:mock' : migrer vers Better Auth (voir FIXME de fichier).");
     await page.setViewportSize({ width: 375, height: 667 });
     
     await page.addInitScript(() => {
@@ -197,6 +203,7 @@ test.describe('Dashboard responsive', () => {
   });
 
   test('Desktop viewport - sidebar expanded', async ({ page }) => {
+    test.fixme(true, "Auth simulée via 'hashcode:mock' : migrer vers Better Auth (voir FIXME de fichier).");
     await page.setViewportSize({ width: 1280, height: 720 });
     
     await page.addInitScript(() => {

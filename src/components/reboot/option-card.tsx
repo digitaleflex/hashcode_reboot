@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
@@ -38,7 +38,7 @@ export function OptionCard({
       aria-pressed={selected}
       aria-label={selected ? t("optionCard.selected", { label: option.label }) : option.label}
       className={cn(
-        "group relative w-full text-left rounded-md border bg-card transition-colors duration-180 focus-lime",
+        "group relative w-full text-left rounded-md border bg-card transition-colors duration-200 focus-lime",
         "hover:border-lime/60 hover:bg-elevated/50",
         selected
           ? "border-lime bg-lime/5"
@@ -46,11 +46,11 @@ export function OptionCard({
         compact ? "p-3.5" : "p-4 sm:p-5",
       )}
     >
-      {/* Numeric shortcut hint (1-9) — desktop only, subtle */}
+      {/* Numeric shortcut hint (1-9) â€” desktop only, subtle */}
       {typeof index === "number" && index < 9 && (
         <span
           className={cn(
-            "absolute top-2 right-2.5 size-5 rounded-sm flex items-center justify-center text-[11px] font-mono transition-opacity duration-180",
+            "absolute top-2 right-2.5 size-5 rounded-sm flex items-center justify-center text-[11px] font-mono transition-opacity duration-200",
             "border border-border/70 text-muted-foreground",
             "hidden sm:flex",
             selected && "border-lime/60 text-lime",
@@ -65,7 +65,7 @@ export function OptionCard({
         {option.emoji && (
           <span
             className={cn(
-              "shrink-0 text-xl leading-none transition-transform duration-180 group-hover:scale-110",
+              "shrink-0 text-xl leading-none transition-transform duration-200 group-hover:scale-110",
               selected && "scale-110",
             )}
             aria-hidden
@@ -97,7 +97,7 @@ export function OptionCard({
         </div>
         <span
           className={cn(
-            "shrink-0 size-5 rounded-full border-2 transition-colors duration-180",
+            "shrink-0 size-5 rounded-full border-2 transition-colors duration-200",
             selected ? "border-lime bg-lime" : "border-border group-hover:border-lime/50",
           )}
           aria-hidden

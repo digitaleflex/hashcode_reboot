@@ -12,13 +12,29 @@ import { test, expect } from '@playwright/test';
  */
 
 test.describe('Locale routing', () => {
+  /**
+   * Locale de navigateur fixée à `fr-FR`.
+   *
+   * next-intl applique `localeDetection` (true par défaut) : avec
+   * `Accept-Language: en-US`, `/` redirige vers `/en` et `/login` vers
+   * `/en/login`. Playwright envoyait par défaut `en-US`, ce qui faisait échouer
+   * les tests FR pour une raison étrangère à leur intention.
+   *
+   * Ces tests vérifient l'identité « URL → contenu ». On fixe donc la
+   * préférence navigateur pour rendre cette assertion déterministe.
+   */
+  test.use({ locale: 'fr-FR' });
+
   test('FR root (/) loads in French', async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
     
     // Vérifier contenu FR
     await expect(page.locator('text=Bienvenue dans le Reboot')).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('text=Construire mon profil')).toBeVisible();
+    // `.first()` : ce libellé est porté par plusieurs CTA (header, hero, axes,
+    // FAQ, CTA final, footer, sticky mobile). Un locator non qualifié lève une
+    // violation de mode strict dès qu'il y en a plus d'un.
+    await expect(page.locator('text=Construire mon profil').first()).toBeVisible();
   });
 
   test('EN root (/en) loads in English', async ({ page }) => {
@@ -27,7 +43,8 @@ test.describe('Locale routing', () => {
     
     // Vérifier contenu EN
     await expect(page.locator('text=Welcome to the Reboot')).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('text=Build my profile')).toBeVisible();
+    // Cf. test FR : le libellé est partagé par plusieurs CTA.
+    await expect(page.locator('text=Build my profile').first()).toBeVisible();
   });
 
   test('/fr redirects to / (canonical FR)', async ({ page }) => {
@@ -49,8 +66,13 @@ test.describe('Locale routing', () => {
   test('/dashboard redirects to /login (FR auth required)', async ({ page }) => {
     const response = await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     
-    // Doit rediriger vers login FR
-    expect(page.url()).toMatch(/\/login$/);
+    // Doit rediriger vers login FR — et NON vers /en/login.
+    // On teste le pathname : la redirection ajoute `?next=…` pour renvoyer
+    // l'utilisateur vers son tableau de bord après connexion, ce que
+    // `/\/login$/` sur l'URL entière rejetait à tort.
+    const { pathname } = new URL(page.url());
+    expect(pathname).toMatch(/\/login$/);
+    expect(pathname).not.toMatch(/\/en\//);
     expect(response?.status()).toBeLessThan(400);
   });
 
@@ -59,25 +81,26 @@ test.describe('Locale routing', () => {
     await page.waitForLoadState('domcontentloaded');
     
     // Cliquer sur "Événements" (ou lien navigation)
+    // `waitForURL` et non `waitForLoadState`: les liens internes utilisent
+    // `Link` de @/i18n/routing, donc navigation client-side — aucun
+    // changement de document, et `domcontentloaded` résout immédiatement.
     const eventsLink = page.locator('a:has-text("Événements")').first();
-    if (await eventsLink.count() > 0) {
-      await eventsLink.click();
-      await page.waitForLoadState('domcontentloaded');
-      expect(page.url()).toMatch(/^https?:\/\/[^/]+\/evenements/);
-      expect(page.url()).not.toMatch(/\/en\//);
-    }
+    expect(await eventsLink.count()).toBeGreaterThan(0);
+    await eventsLink.click();
+    await page.waitForURL(/^https?:\/\/[^/]+\/evenements/, { timeout: 15000 });
+    expect(page.url()).not.toMatch(/\/en\//);
   });
 
   test('Navigation links preserve locale (EN)', async ({ page }) => {
     await page.goto('/en');
     await page.waitForLoadState('domcontentloaded');
     
+    // Cf. test FR : navigation client-side, on attend l'URL et non le document.
     const eventsLink = page.locator('a:has-text("Events")').first();
-    if (await eventsLink.count() > 0) {
-      await eventsLink.click();
-      await page.waitForLoadState('domcontentloaded');
-      expect(page.url()).toMatch(/\/en\/evenements/);
-    }
+    expect(await eventsLink.count()).toBeGreaterThan(0);
+    await eventsLink.click();
+    await page.waitForURL(/\/en\/evenements/, { timeout: 15000 });
+    expect(page.url()).not.toMatch(/^https?:\/\/[^/]+\/evenements$/);
   });
 
   test('API routes accessible without locale prefix', async ({ page }) => {
@@ -104,6 +127,8 @@ test.describe('Locale routing', () => {
 });
 
 test.describe('SEO meta tags per locale', () => {
+  test.use({ locale: 'fr-FR' });
+
   test('FR page has French meta tags', async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');

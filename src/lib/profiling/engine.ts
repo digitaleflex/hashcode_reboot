@@ -295,6 +295,14 @@ export function generateProfile(a: ProfileAnswers): GeneratedProfile {
       ? MENTORING_LABELS[a.mentoringInterest]
       : "—",
     genderLabel: a.gender ? GENDER_LABELS[a.gender] : undefined,
+    // Codes bruts, pour que les consommateurs puissent traduire leur propre
+    // libellé au lieu de réutiliser une chaîne déjà en français.
+    domain: a.primaryDomain,
+    level: a.level,
+    goal: a.goal,
+    availability: a.availability,
+    learningStyle: a.learningStyle,
+    mentoringInterest: a.mentoringInterest,
     tags: tagsFor(a),
   };
 }

@@ -1,3 +1,9 @@
+/* FIXME: partie de suite obsolète (post-migration Better Auth).
+   Les 3 tests marqués `fixme` simulaient l'auth via localStorage
+   ('hashcode:mock:auth'). Rien dans src/ ne lit cette clé : l'app utilise
+   Better Auth (cookies de session). Les tests de redirection anonyme et de
+   rendu des pages d'auth restent actifs. */
+
 import { test, expect } from '@playwright/test';
 
 /**
@@ -20,9 +26,10 @@ test.describe('Auth redirects preserve locale', () => {
     expect(page.url()).toMatch(/\/login$/);
     expect(page.url()).not.toMatch(/\/en\//);
     
-    // Page login en FR
-    await expect(page.locator('text=Connexion')).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('text=Recevoir mon code')).toBeVisible();
+    // Page login en FR. Locator sur le titre (rôle heading) et non `text=` :
+    // le sous-titre contient aussi « connexion », ce qui rend `text=` ambigu.
+    await expect(page.getByRole('heading', { name: 'Connexion' })).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('button:has-text("Recevoir mon code")')).toBeVisible();
   });
 
   test('EN /en/dashboard → /en/login (EN)', async ({ page }) => {
@@ -31,9 +38,10 @@ test.describe('Auth redirects preserve locale', () => {
     
     expect(page.url()).toMatch(/\/en\/login/);
     
-    // Page login en EN
-    await expect(page.locator('text=Sign in')).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('text=Get my code')).toBeVisible();
+    // Page login en EN. Même precaution qu'en FR : le sous-titre contient
+    // « sign-in code », donc on cible le titre via son rôle.
+    await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('button:has-text("Get my code")')).toBeVisible();
   });
 
   test('FR /account → /login (FR)', async ({ page }) => {
@@ -72,17 +80,19 @@ test.describe('Auth redirects preserve locale', () => {
   test('FR /verify-email accessible directly', async ({ page }) => {
     await page.goto('/verify-email');
     await page.waitForLoadState('domcontentloaded');
-    
-    // Page verify email en FR
-    await expect(page.locator('text=Vérification en cours')).toBeVisible({ timeout: 10000 });
+
+    // Sans `?token=`, la page bascule immédiatement en état d'erreur explicite.
+    await expect(page.locator('text=LIEN INVALIDE')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=Lien manquant')).toBeVisible();
   });
 
   test('EN /en/verify-email accessible directly', async ({ page }) => {
     await page.goto('/en/verify-email');
     await page.waitForLoadState('domcontentloaded');
-    
-    // Page verify email en EN
-    await expect(page.locator('text=Verifying')).toBeVisible({ timeout: 10000 });
+
+    // Sans `?token=`, la page bascule immédiatement en état d'erreur explicite.
+    await expect(page.locator('text=INVALID LINK')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=Missing link')).toBeVisible();
   });
 
   test('Login form submits email (FR)', async ({ page }) => {
@@ -111,6 +121,7 @@ test.describe('Auth redirects preserve locale', () => {
   });
 
   test('Already logged in redirect (FR)', async ({ page }) => {
+    test.fixme(true, "Auth simulée via 'hashcode:mock' : migrer vers Better Auth (voir FIXME de fichier).");
     // Simuler session existante via localStorage
     await page.addInitScript(() => {
       localStorage.setItem('hashcode:mock:auth', 'true');
@@ -129,6 +140,7 @@ test.describe('Auth redirects preserve locale', () => {
   });
 
   test('Logout preserves locale (FR)', async ({ page }) => {
+    test.fixme(true, "Auth simulée via 'hashcode:mock' : migrer vers Better Auth (voir FIXME de fichier).");
     await page.addInitScript(() => {
       localStorage.setItem('hashcode:mock:auth', 'true');
       localStorage.setItem('hashcode:mock:user', JSON.stringify({
@@ -154,6 +166,7 @@ test.describe('Auth redirects preserve locale', () => {
   });
 
   test('Logout preserves locale (EN)', async ({ page }) => {
+    test.fixme(true, "Auth simulée via 'hashcode:mock' : migrer vers Better Auth (voir FIXME de fichier).");
     await page.addInitScript(() => {
       localStorage.setItem('hashcode:mock:auth', 'true');
       localStorage.setItem('hashcode:mock:user', JSON.stringify({

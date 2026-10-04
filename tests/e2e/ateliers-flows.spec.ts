@@ -1,3 +1,10 @@
+/* FIXME: suite obsolète (post-migration Better Auth).
+   Ces tests simulaient l'auth via localStorage.setItem('hashcode:mock:auth', …).
+   Rien dans src/ ne lit 'hashcode:mock' : l'app utilise Better Auth (cookies de
+   session). Les deux describes ci-dessous sont donc marqués `fixme` : ils sont
+   signalés (et non comptés comme échecs) jusqu'à réécriture pour une
+   authentification réelle via l'UI Better Auth avec un compte de test. */
+
 import { test, expect } from '@playwright/test';
 
 /**
@@ -13,7 +20,7 @@ import { test, expect } from '@playwright/test';
  * 7. États verrouillés respectés
  */
 
-test.describe('Ateliers flows (authenticated)', () => {
+test.describe.fixme('Ateliers flows (authenticated)', () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.setItem('hashcode:mock:auth', 'true');
@@ -251,7 +258,7 @@ test.describe('Ateliers flows (authenticated)', () => {
   });
 });
 
-test.describe('Ateliers EN locale', () => {
+test.describe.fixme('Ateliers EN locale', () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.setItem('hashcode:mock:auth', 'true');

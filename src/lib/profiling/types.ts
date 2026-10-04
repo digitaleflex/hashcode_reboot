@@ -131,4 +131,18 @@ export interface GeneratedProfile {
   mentoringLabel: string;
   tags: string[];
   genderLabel?: string;
+  /**
+   * Raw enum codes behind the labels above.
+   *
+   * `*Label` are display strings emitted by the engine in French. Consumers that
+   * render translated copy (the profile card, the account page) resolve their own
+   * label from these codes and only fall back to `*Label` when a code is absent.
+   * Purely additive: every existing consumer keeps working unchanged.
+   */
+  domain?: Domain;
+  level?: Level;
+  goal?: Goal;
+  availability?: Availability;
+  learningStyle?: LearningStyle;
+  mentoringInterest?: MentoringInterest;
 }

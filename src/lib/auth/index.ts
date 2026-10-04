@@ -4,6 +4,21 @@ import { emailOTP } from "better-auth/plugins";
 import { db } from "@/lib/db";
 import { sendMagicLinkEmail } from "@/lib/mail";
 
+export async function requestSignInOtp(email: string): Promise<void> {
+  try {
+    const base = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    await auth.handler(
+      new Request(`${base.replace(/\/$/, "")}/api/auth/sign-in/email-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, type: "email-otp" }),
+      }),
+    );
+  } catch {
+    /* best-effort */
+  }
+}
+
 export const auth = betterAuth({
   database: prismaAdapter(db, {
     provider: "postgresql",

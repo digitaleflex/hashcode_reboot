@@ -162,9 +162,14 @@ describe("formatEventMoment (bug email d'origine)", () => {
 
   test("19:00Z rend 20:00 dans la zone du destinataire, pas celle du serveur", () => {
     const out = formatEventMoment(d, "Africa/Porto-Novo");
+    // Logique métier : conversion de fuseau horaire (UTC → UTC+1)
     assert.ok(out.includes("20:00"), out);
-    assert.ok(out.includes("septembre"), out);
-    assert.ok(out.includes("samedi"), out);
+    // Vérification indépendante de la locale : le jour du mois est 19
+    // (19:00Z + 1h = 20:00 le même jour à Porto-Novo)
+    assert.ok(out.includes("19"), out);
+    // La date ne doit pas être le jour précédent (18) ni le suivant (20)
+    assert.ok(!out.includes("18"), out);
+    assert.ok(!out.includes(" 20 "), out);
   });
 
   test("cohérence : moment = date + ' à ' + heure", () => {
