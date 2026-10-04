@@ -46,16 +46,48 @@ export function adminAllowList(): string[] {
   return [...adminOperators(), ...adminViewers(), ...legacy];
 }
 
-/** Resolve the current Better Auth session and the admin role for it, if admin. */
-async function resolveAdminSession(req: NextRequest) {
+/**
+ * Resolve the current Better Auth session and the admin role for it, if admin.
+ *
+ * Accepte soit un `NextRequest` (routes API), soit un objet `headers` — les
+ * server components n'ont pas de `NextRequest` mais lisent `next/headers`.
+ * Fail-closed : toute erreur ou session absente ⇒ `null` ⇒ pas admin.
+ */
+async function resolveAdminSessionFromHeaders(headers: Record<string, string>) {
   try {
-    const session = await auth.api.getSession({ headers: Object.fromEntries(req.headers) as any });
+    const session = await auth.api.getSession({ headers: headers as any });
     const email = session?.user?.email?.toLowerCase();
     if (!email) return null;
     if (adminOperators().includes(email)) return { email, role: "operator" as const };
     if (adminViewers().includes(email)) return { email, role: "viewer" as const };
     if (adminAllowList().includes(email)) return { email, role: "operator" as const };
     return null;
+  } catch {
+    return null;
+  }
+}
+
+async function resolveAdminSession(req: NextRequest) {
+  return resolveAdminSessionFromHeaders(Object.fromEntries(req.headers));
+}
+
+/**
+ * Rôle admin pour un server component.
+ *
+ * `proxy.ts` tourne en Edge runtime, où la base de données n'est pas
+ * accessible : la liste blanche ne peut donc pas y être évaluée. Cette
+ * fonction comble ce trou côté serveur (runtime Node) pour que `/admin`
+ * refuse un membre authentifié mais non-admin — un cookie Better Auth valide
+ * ne suffit pas à ouvrir l'espace admin.
+ */
+export async function getAdminRoleFromRequestHeaders(): Promise<{
+  email: string;
+  role: "viewer" | "operator";
+} | null> {
+  try {
+    const { headers } = await import("next/headers");
+    const headersObj = Object.fromEntries((await headers()).entries());
+    return resolveAdminSessionFromHeaders(headersObj);
   } catch {
     return null;
   }

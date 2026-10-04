@@ -58,17 +58,23 @@ export function proxy(req: NextRequest) {
   // /account, /dashboard & /admin : redirige si pas de cookie Better Auth.
   // Le préfixe de locale est conservé (/en/dashboard → /en/login).
   //
-  // Aucun paramètre de redirection n'est ajouté : ni `next` ni `?admin=1` n'est
-  // lu quelque part dans l'application (ni la page /login, ni la landing), donc
-  // les conserver produirait des URL mortes.
+  // `next` porte la destination d'origine : les deux pages du parcours de
+  // connexion le lisent et le propagent jusqu'à la redirection finale
+  // (`login/page.tsx` puis `verify-otp/page.tsx`). Sans lui, se connecter
+  // depuis une URL profonde renverrait toujours vers /dashboard.
+  //
+  // L'ancien commentaire affirmait que `next` n'était lu nulle part et
+  // redirigeait `/admin` vers la landing : les deux affirmations étaient
+  // fausses depuis la refonte du parcours OTP.
   if (unprefixed.startsWith("/account") || unprefixed.startsWith("/dashboard") || unprefixed.startsWith("/admin")) {
     const hasCookie = req.cookies.get(BETTER_AUTH_SESSION_COOKIE);
     if (!hasCookie) {
       const url = req.nextUrl.clone();
-      url.pathname = unprefixed.startsWith("/admin")
-        ? `${localePrefix}/`
-        : `${localePrefix}/login`;
-      url.search = "";
+      url.pathname = `${localePrefix}/login`;
+      // `next` est validé côté client : seuls les chemins internes sont
+      // acceptés (les esquemas externes et `//` sont rejetés).
+      const destination = `${localePrefix}${unprefixed}${req.nextUrl.search}`;
+      url.search = `?next=${encodeURIComponent(destination)}`;
       return NextResponse.redirect(url);
     }
   }
