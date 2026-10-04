@@ -5,7 +5,6 @@ import { Logo } from "@/components/brand/logo";
 import { RebootButton, MonoLabel } from "@/components/reboot/shared";
 import { AdminSidebar } from "@/components/reboot/admin/AdminSidebar";
 import { CommandPalette } from "@/components/reboot/admin/CommandPalette";
-import { ChangePasscodeDialog } from "@/components/reboot/admin/ChangePasscodeDialog";
 import { SessionReminder } from "./session-reminder";
 import { adminMono, adminSans } from "./fonts";
 import {
@@ -31,7 +30,6 @@ const SECTION_MAP: Record<string, string> = {
   "/admin/exports": "section-exports",
   "/admin/audit-log": "section-audit-log",
   "/admin/settings": "section-settings",
-  "/admin/keys": "section-keys",
 };
 
 const routeMap: Record<string, string> = {
@@ -45,7 +43,6 @@ const routeMap: Record<string, string> = {
   "section-exports": "/admin/exports",
   "section-audit-log": "/admin/audit-log",
   "section-settings": "/admin/settings",
-  "section-keys": "/admin/keys",
 };
 
 export default function AdminLayout({
@@ -140,10 +137,7 @@ export default function AdminLayout({
               {notificationsCount} {t("header.newCount", { n: notificationsCount })}
             </span>
 
-            <ChangePasscodeDialog
-              onSessionExpired={handleLogout}
-              onChanged={() => toast({ title: t("header.passcodeChanged") })}
-            />
+            
 
             <RebootButton
               variant="ghost"

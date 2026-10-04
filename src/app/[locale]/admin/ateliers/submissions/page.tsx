@@ -156,7 +156,7 @@ async function loadSubmissions(filter: FilterValue): Promise<SubmissionListRespo
         { cache: "no-store" },
       );
       if (res.status === 401 || code === "UNAUTHORIZED") {
-        window.location.href = "/admin/login";
+        window.location.href = "/?admin=1";
         throw new Error("unauthorized");
       }
       if (!res.ok) {
@@ -423,7 +423,7 @@ function ReviewPanel({
         },
       );
       if (res.status === 401 || code === "UNAUTHORIZED") {
-        window.location.href = "/admin/login";
+        window.location.href = "/?admin=1";
         throw new Error("unauthorized");
       }
       if (!res.ok) {
