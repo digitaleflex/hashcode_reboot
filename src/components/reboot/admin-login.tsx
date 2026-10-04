@@ -386,12 +386,12 @@ export function AdminLogin({
               Retour au site
             </button>
             <MonoLabel className="text-muted-foreground">
-              Session 12h
+              Session 30 jours
             </MonoLabel>
           </div>
 
           <p className="mt-8 text-center text-xs text-muted-foreground/80">
-            Accès réservé. Session valable 12h. Toutes les actions sont
+            Accès réservé. Session valable 30 jours. Toutes les actions sont
             journalisées.
           </p>
         </div>
