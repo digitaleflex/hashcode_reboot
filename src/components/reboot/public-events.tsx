@@ -6,8 +6,10 @@ import { track } from "@/lib/analytics";
 import { EventsFilterBar } from "./events/events-filter-bar";
 import { EventTimeline, type EventDateGroup } from "./events/event-timeline";
 import { EmptyEventsState } from "./events/empty-events-state";
+import { LocalTimeNote } from "./events/local-time-note";
 import { DEFAULT_FILTERS, type EventFilters, type PublicEvent } from "./events/types";
 import { groupKey } from "./events/format";
+import { matchesPeriod } from "@/lib/event-period";
 
 /* ── Intérêt anonyme (localStorage) ──────────────────────────────────────── */
 
@@ -34,38 +36,9 @@ function writeInterested(ids: string[]) {
 
 /* ── Filtrage + regroupement ─────────────────────────────────────────────── */
 
-function matchesPeriod(startsAt: string, period: EventFilters["period"]): boolean {
-  if (period === "all") return true;
-  const now = new Date();
-  const start = new Date(startsAt);
-  if (period === "week") {
-    // Semaine calendaire FRANÇAISE : lundi → dimanche.
-    // `getDay()` : 0 = dimanche … 6 = lundi. Décaler de (getDay() + 6) % 7
-    // donne le lundi de la semaine en cours.
-    //
-    // L'ancienne version calculait la fenêtre à partir du jour de la SEMAINE
-    // de l'événement, ce qui produisait une fenêtre glissante de 7 jours
-    // décalée au lieu de la semaine courante.
-    const offsetToMonday = (now.getDay() + 6) % 7;
-    const startOfWeek = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate() - offsetToMonday,
-      0,
-      0,
-      0,
-      0,
-    );
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
-    endOfWeek.setHours(23, 59, 59, 999);
-    return start >= startOfWeek && start <= endOfWeek;
-  }
-  // "month" : mois calendaire en cours.
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-  return start >= startOfMonth && start <= endOfMonth;
-}
+// La logique de période est extraite dans `@/lib/event-period` : c'est de la
+// logique pure (semaine calendaire lundi→dimanche), testable sans React.
+// `matchesPeriod` n'est plus défini ici.
 
 /* ── Composant ───────────────────────────────────────────────────────────── */
 
@@ -315,6 +288,10 @@ export function PublicEvents({
 
         {groups.length > 0 && (
           <>
+            {/* Les horaires sont affichés en heure du navigateur ; la note
+                n'apparaît que si le visiteur n'est pas sur l'heure du groupe. */}
+            <LocalTimeNote startsAt={filtered[0]?.startsAt} />
+
             <EventTimeline
               groups={groups}
               featuredId={featuredId}
