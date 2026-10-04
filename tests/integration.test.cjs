@@ -15,11 +15,19 @@
  *     Only GET/verify/logout tests remain. For write-path testing, use a
  *     dedicated test database (set TESTING_DATABASE_URL in .env.test).
  *
- * Requires: Next.js dev server starts on port 3737 with ADMIN_PASSCODE set.
+ * Requires: Next.js dev server starts on port 3737.
  * Server lifecycle is managed automatically (before/after hooks).
+ *
+ * !! STALE ADMIN BLOCK — the `/api/admin/login` cases below still POST
+ * !! `{ passcode }`, the contract that the Better Auth migration (T17)
+ * !! replaced with `{ email, password }`. They also forge a legacy HMAC
+ * !! token cookie, which no code validates any more. Those assertions are
+ * !! expected to fail until they are rewritten against email+password.
+ * !! See ADMIN_PASSCODE removal: `getAdminPasscode()` no longer exists.
  *
  * Coverage:
  *  - /api/admin/login    — valid / wrong / missing / invalid JSON / rate-limit
+ *                          (STALE: still uses the removed passcode contract)
  *  - /api/admin/verify   — no cookie / invalid / expired / valid
  *  - /api/admin/logout   — clears cookie
  *  - Protected endpoints — require auth, return 401 without cookie
@@ -106,7 +114,7 @@ async function waitForServer() {
 }
 
 function startServer() {
-  const env = { ...process.env, NODE_ENV: "development", ADMIN_PASSCODE: TEST_PASSPHRASE };
+  const env = { ...process.env, NODE_ENV: "development" };
   const nextCli = path.join(process.cwd(), "node_modules", "next", "dist", "bin", "next");
   server = spawn(process.execPath, [nextCli, "dev", "-p", String(PORT), "-H", "127.0.0.1"], {
     env, stdio: ["ignore", "pipe", "pipe"], detached: false,
