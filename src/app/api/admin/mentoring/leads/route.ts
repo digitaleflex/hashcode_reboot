@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /** Budgets qui qualifient un lead mentorat haute valeur (cf. auto-controls). */
-export const HIGH_BUDGET_TIERS = ["20000-30000", ">30000"];
+const HIGH_BUDGET_TIERS = ["20000-30000", ">30000"];
 
 /**
  * GET /api/admin/mentoring/leads — leads mentorat prioritaires.

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { RebootButton, MonoLabel } from "@/components/reboot/shared";
 import { Lock, RefreshCw, AlertTriangle, Check, Copy } from "lucide-react";
 
-export function AdminKeysPage() {
+function AdminKeysPage() {
   const router = useRouter();
   const [status, setStatus] = React.useState<{
     keyAgeDays: number;
