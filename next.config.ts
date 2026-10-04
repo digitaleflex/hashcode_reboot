@@ -50,6 +50,8 @@ const SECURITY_HEADERS = [
 const nextConfig: NextConfig = {
   // Standalone is only needed for Docker/self-hosted builds.
   output: process.env.VERCEL ? undefined : "standalone",
+  experimental: { cpus: 1 },
+  productionBrowserSourceMaps: false,
   typescript: {
     ignoreBuildErrors: false,
   },
