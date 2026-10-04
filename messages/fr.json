@@ -5,6 +5,462 @@
     "back": "Retour",
     "close": "Fermer"
   },
+  "legal": {
+    "mentions": {
+      "metaTitle": "Mentions légales — HASHCODE REBOOT",
+      "metaDescription": "Mentions légales de HASHCODE REBOOT : éditeur, hébergement, propriété intellectuelle, responsabilité, loi applicable.",
+      "title": "Mentions légales",
+      "subtitle": "Informations légales relatives au site HASHCODE REBOOT.",
+      "backHome": "Retour à HASHCODE",
+      "lastUpdated": "Dernière mise à jour : {date}",
+      "navAria": "Navigation mentions légales",
+      "nav": {
+        "privacy": "Politique de confidentialité",
+        "terms": "Conditions générales d'utilisation",
+        "cookies": "Politique des cookies",
+        "mentions": "Mentions légales"
+      },
+      "sections": {
+        "editor": {
+          "title": "Éditeur du site",
+          "label": "Nom",
+          "value": "Association HASHCODE",
+          "address": "Adresse",
+          "addressValue": "Bénin",
+          "email": "Email",
+          "phone": "Téléphone",
+          "phoneValue": "+229 XX XX XX XX",
+          "siret": "SIRET",
+          "siretValue": "En cours d'immatriculation",
+          "rcs": "RCS",
+          "rcsValue": "En cours",
+          "tva": "TVA intracommunautaire",
+          "tvaValue": "Non applicable (association)",
+          "director": "Directeur de la publication",
+          "directorValue": "Équipe HASHCODE"
+        },
+        "hosting": {
+          "title": "Hébergement",
+          "label": "Hébergeur",
+          "value": "Vercel Inc.",
+          "address": "Adresse",
+          "addressValue": "340 S Lemon Ave #4133, Walnut, CA 91789, USA"
+        },
+        "intellectualProperty": {
+          "title": "Propriété intellectuelle",
+          "content1": "L'ensemble du contenu du site HASHCODE REBOOT (textes, images, logos, marques, code, structure, bases de données) est la propriété exclusive de l'Association HASHCODE ou fait l'objet d'une autorisation d'utilisation.",
+          "content2": "Toute reproduction, représentation, modification, publication, adaptation de tout ou partie des éléments du site, quel que soit le moyen ou le procédé utilisé, est interdite sans autorisation écrite préalable.",
+          "content3": "Les marques « HASHCODE » et « REBOOT » sont des marques déposées. Toute utilisation non autorisée est constitutive de contrefaçon."
+        },
+        "limitation": {
+          "title": "Limitation de responsabilité",
+          "content1": "L'Association HASHCODE s'efforce de fournir des informations aussi précises que possible. Toutefois, elle ne saurait être tenue responsable d'éventuelles erreurs, omissions ou indisponibilités des informations.",
+          "content2": "Les liens hypertextes vers des sites tiers sont fournis à titre indicatif. L'Association HASHCODE n'exerce aucun contrôle sur ces sites et décline toute responsabilité quant à leur contenu."
+        },
+        "externalLinks": {
+          "title": "Liens externes",
+          "content": "Le site peut contenir des liens vers des sites tiers. L'Association HASHCODE n'est pas responsable du contenu, de la politique de confidentialité ou des pratiques de ces sites."
+        },
+        "applicableLaw": {
+          "title": "Droit applicable",
+          "content": "Les présentes mentions légales sont régies par le droit béninois. Tout litige relatif à l'interprétation ou à l'exécution de celles-ci sera porté devant les juridictions compétentes du Bénin."
+        },
+        "contact": {
+          "title": "Contact",
+          "content": "Pour toute question relative aux mentions légales, vous pouvez nous contacter :"
+        }
+      }
+    },
+    "privacy": {
+      "metaTitle": "Politique de confidentialité — HASHCODE REBOOT",
+      "metaDescription": "Politique de confidentialité HASHCODE REBOOT : données collectées, finalités, destinataires, droits, sécurité, cookies, contact DPO.",
+      "title": "Politique de confidentialité",
+      "subtitle": "Comment nous collectons, utilisons et protégeons vos données personnelles.",
+      "backHome": "Retour à HASHCODE",
+      "lastUpdated": "Dernière mise à jour : {date}",
+      "navAria": "Navigation politique de confidentialité",
+      "nav": {
+        "mentions": "Mentions légales",
+        "terms": "Conditions générales d'utilisation",
+        "cookies": "Politique des cookies",
+        "privacy": "Politique de confidentialité"
+      },
+      "sections": {
+        "introduction": {
+          "title": "Introduction",
+          "content1": "La protection de vos données personnelles est une priorité pour HASHCODE REBOOT. Cette politique explique quelles données nous collectons, pourquoi nous les collectons, comment nous les utilisons et quels sont vos droits.",
+          "content2": "En utilisant nos services, vous acceptez la collecte et l'utilisation de vos données conformément à cette politique."
+        },
+        "controller": {
+          "title": "Responsable du traitement",
+          "content": "L'Association HASHCODE, dont le siège est au Bénin, est le responsable du traitement de vos données personnelles.",
+          "contact": "Délégué à la protection des données (DPO)"
+        },
+        "dataCollected": {
+          "title": "Données collectées",
+          "profile": {
+            "title": "Données de profil",
+            "items": [
+              "Prénom, nom",
+              "Email",
+              "Numéro de téléphone (WhatsApp)",
+              "Pays, ville",
+              "Genre (optionnel)",
+              "Domaine d'intérêt (Web, Cyber, IA)",
+              "Niveau (Débutant à Avancé)",
+              "Objectif à 3 mois",
+              "Disponibilité hebdomadaire",
+              "Style d'apprentissage",
+              "Intérêt pour le mentorat",
+              "Budget indicatif (optionnel)"
+            ]
+          },
+          "technical": {
+            "title": "Données techniques",
+            "items": [
+              "Adresse IP",
+              "Type et version du navigateur",
+              "Système d'exploitation",
+              "Pages visitées, temps passé",
+              "Événements d'interaction (clics, soumissions)",
+              "Logs d'erreurs"
+            ]
+          },
+          "usage": {
+            "title": "Données d'usage",
+            "items": [
+              "Progression dans les ateliers",
+              "Résultats des quiz",
+              "Livrables soumis",
+              "Participation aux événements (RSVP)",
+              "Historique de mentorat"
+            ]
+          }
+        },
+        "purposes": {
+          "title": "Finalités du traitement",
+          "items": [
+            {
+              "label": "Création et gestion du compte",
+              "desc": "Identifier l'utilisateur, envoyer le code d'accès, gérer le profil"
+            },
+            {
+              "label": "Personnalisation du parcours",
+              "desc": "Proposer l'axe adapté (Web, Cyber, IA), recommander ateliers et mentors"
+            },
+            {
+              "label": "Communication",
+              "desc": "Envoyer notifications, invitations WhatsApp, emails transactionnels, newsletters"
+            },
+            {
+              "label": "Animation de la communauté",
+              "desc": "Gérer les inscriptions aux ateliers, événements, mentorat"
+            },
+            {
+              "label": "Amélioration du service",
+              "desc": "Analyser l'usage, corriger les bugs, mesurer la satisfaction"
+            },
+            {
+              "label": "Obligations légales",
+              "desc": "Répondre aux demandes des autorités, prévenir la fraude"
+            }
+          ]
+        },
+        "legalBasis": {
+          "title": "Bases légales",
+          "items": [
+            {
+              "purpose": "Exécution du contrat (création compte, accès services)",
+              "basis": "Article 6.1.b RGPD"
+            },
+            {
+              "purpose": "Consentement (newsletter, cookies non essentiels)",
+              "basis": "Article 6.1.a RGPD"
+            },
+            {
+              "purpose": "Intérêt légitime (analytics, sécurité, amélioration)",
+              "basis": "Article 6.1.f RGPD"
+            },
+            {
+              "purpose": "Obligation légale (conservation logs, réponse autorités)",
+              "basis": "Article 6.1.c RGPD"
+            }
+          ]
+        },
+        "recipients": {
+          "title": "Destinataires des données",
+          "content1": "Vos données ne sont jamais vendues. Elles sont accessibles uniquement aux personnes habilitées :",
+          "content2": "Nous pouvons partager vos données avec des sous-traitants techniques (hébergement, email, analytics) liés par contrat de sous-traitance RGPD.",
+          "categories": [
+            "Équipe HASHCODE (admins, mentors)",
+            "Sous-traitants : Vercel (hébergement), Resend/Brevo (email), Plausible (analytics)"
+          ]
+        },
+        "transfers": {
+          "title": "Transferts hors UE",
+          "content": "Certains sous-traitants (Vercel, Resend) sont basés aux USA. Les transferts s'appuient sur les clauses contractuelles types de la Commission européenne et/ou la décision d'adéquation UE-USA (Data Privacy Framework)."
+        },
+        "retention": {
+          "title": "Durées de conservation",
+          "items": [
+            {
+              "category": "Données de compte (profil, email, téléphone)",
+              "duration": "Durée de l'inscription + 3 ans d'inactivité"
+            },
+            {
+              "category": "Données de progression (ateliers, quiz, livrables)",
+              "duration": "Durée de l'inscription + 3 ans"
+            },
+            {
+              "category": "Logs techniques (IP, navigation, erreurs)",
+              "duration": "13 mois maximum"
+            },
+            {
+              "category": "Données de mentorat",
+              "duration": "Durée de la relation + 3 ans"
+            },
+            {
+              "category": "Cookies (voir politique cookies)",
+              "duration": "Selon type (session à 13 mois)"
+            }
+          ]
+        },
+        "rights": {
+          "title": "Vos droits",
+          "content": "Conformément au RGPD et à la loi béninoise, vous disposez des droits suivants :",
+          "list": [
+            "Droit d'accès : obtenir une copie de vos données",
+            "Droit de rectification : corriger des données inexactes",
+            "Droit à l'effacement (« droit à l'oubli ») : demander la suppression",
+            "Droit à la limitation : geler l'utilisation de vos données",
+            "Droit d'opposition : refuser le traitement pour motifs légitimes",
+            "Droit à la portabilité : recevoir vos données dans un format structuré",
+            "Droit de retirer votre consentement (pour les traitements basés sur le consentement)",
+            "Droit d'introduire une réclamation auprès de l'autorité de protection des données (Bénin ou UE)"
+          ],
+          "exercise": "Pour exercer vos droits, contactez notre DPO à {email} ou via votre espace membre (section « Mes données »). Nous répondons sous 30 jours."
+        },
+        "security": {
+          "title": "Sécurité",
+          "content": "Nous mettons en œuvre des mesures techniques et organisationnelles appropriées : chiffrement TLS 1.3, authentification forte (magic link + OTP), isolation des données, journalisation des accès, sauvegardes chiffrées, tests de sécurité réguliers."
+        },
+        "cookies": {
+          "title": "Cookies",
+          "content": "Nous utilisons des cookies essentiels (session, sécurité) et, avec votre consentement, des cookies d'analytics (Plausible, respectueux de la vie privée).",
+          "link": "Voir la politique des cookies complète"
+        },
+        "changes": {
+          "title": "Modifications de la politique",
+          "content": "Cette politique peut être mise à jour. Les modifications substantielles vous seront notifiées par email ou via l'application. La version actuelle est toujours accessible sur cette page."
+        },
+        "contact": {
+          "title": "Contact DPO",
+          "content": "Pour toute question relative à la protection de vos données :"
+        }
+      }
+    },
+    "terms": {
+      "metaTitle": "Conditions générales d'utilisation — HASHCODE REBOOT",
+      "metaDescription": "CGU HASHCODE REBOOT : acceptation, description des services, accès, compte, obligations, propriété intellectuelle, suspension, responsabilité, modifications, résiliation, loi applicable.",
+      "title": "Conditions générales d'utilisation",
+      "subtitle": "Règles régissant l'accès et l'utilisation des services HASHCODE REBOOT.",
+      "backHome": "Retour à HASHCODE",
+      "lastUpdated": "Dernière mise à jour : {date}",
+      "navAria": "Navigation CGU",
+      "nav": {
+        "mentions": "Mentions légales",
+        "privacy": "Politique de confidentialité",
+        "cookies": "Politique des cookies",
+        "terms": "Conditions générales d'utilisation"
+      },
+      "sections": {
+        "acceptance": {
+          "title": "Acceptation des conditions",
+          "content1": "En accédant ou en utilisant les services HASHCODE REBOOT (site web, application, ateliers, mentorat, communauté), vous acceptez sans réserve les présentes conditions générales d'utilisation (CGU).",
+          "content2": "Si vous n'acceptez pas ces conditions, merci de ne pas utiliser nos services."
+        },
+        "description": {
+          "title": "Description des services",
+          "content1": "HASHCODE REBOOT est une communauté tech (développement web, cybersécurité, IA appliquée) offrant : profilage guidé, ateliers pratiques, challenges, mentorat, événements, réseau WhatsApp, espace membre.",
+          "content2": "Les services sont gratuits pour les membres. Certaines options futures (mentorat premium, certifications) pourront être payantes, toujours de façon optionnelle et transparente.",
+          "content3": "Nous nous réservons le droit de modifier, suspendre ou arrêter tout ou partie des services à tout moment, avec préavis raisonnable."
+        },
+        "access": {
+          "title": "Accès aux services",
+          "content1": "L'accès nécessite la création d'un profil via le questionnaire de profilage (environ 2 minutes).",
+          "content2": "L'admission est soumise à validation par l'équipe HASHCODE (statuts : Approuvé, En attente, Liste d'attente, Non retenu).",
+          "content3": "Un même utilisateur ne peut avoir qu'un seul compte. Les comptes multiples sont interdits.",
+          "content4": "L'accès au groupe WhatsApp officiel est réservé aux membres approuvés."
+        },
+        "account": {
+          "title": "Compte utilisateur",
+          "content1": "Vous êtes responsable de la confidentialité de votre accès (magic link, code OTP). Ne les partagez pas.",
+          "content2": "Vous devez fournir des informations exactes et les tenir à jour. Toute fausse déclaration peut entraîner la suspension du compte.",
+          "content3": "Vous pouvez supprimer votre compte à tout fois depuis l'espace membre (section « Mes données »). Cette action est irréversible.",
+          "content4": "En cas de compromission de votre compte, contactez-nous immédiatement via WhatsApp."
+        },
+        "userObligations": {
+          "title": "Obligations de l'utilisateur",
+          "content1": "En tant que membre, vous vous engagez à :",
+          "items": [
+            "Respecter les autres membres (bienveillance, pas de harcèlement, pas de discrimination)",
+            "Ne pas diffuser de contenu illégal, haineux, pornographique, spam, ou portant atteinte aux droits de tiers",
+            "Ne pas tenter de contourner les mesures de sécurité, d'extraire des données (scraping), ou de perturber les services",
+            "Utiliser les ressources (ateliers, mentorat) de bonne foi et à des fins d'apprentissage personnel",
+            "Signaler tout comportement inapproprié via les canaux prévus"
+          ]
+        },
+        "content": {
+          "title": "Contenu utilisateur",
+          "content1": "Vous restez propriétaire de vos livrables (code, textes, projets) soumis dans le cadre des ateliers.",
+          "content2": "En soumettant un livrable, vous accordez à HASHCODE une licence non exclusive, mondiale, gratuite, pour la durée de votre inscription, afin de l'évaluer, le corriger, l'afficher dans votre profil public (si vous l'autorisez).",
+          "content3": "Vous garantissez que vos soumissions ne violent pas de droits de propriété intellectuelle tiers.",
+          "content4": "HASHCODE peut refuser, masquer ou supprimer tout contenu non conforme aux CGU, sans préavis."
+        },
+        "intellectualProperty": {
+          "title": "Propriété intellectuelle d'HASHCODE",
+          "content1": "La marque HASHCODE, le logo, le design du site, les contenus pédagogiques (ateliers, quiz, challenges) sont la propriété exclusive de l'Association HASHCODE.",
+          "content2": "Toute reproduction, diffusion, exploitation commerciale sans autorisation écrite est interdite.",
+          "content3": "Les retours (feedback) que vous nous donnez sur le service peuvent être utilisés librement pour l'améliorer."
+        },
+        "suspension": {
+          "title": "Suspension et résiliation",
+          "content1": "Nous pouvons suspendre ou résilier votre accès en cas de violation grave ou répétée des CGU (harcèlement, fraude, scraping, contenu illégal).",
+          "content2": "Vous serez informé par email des motifs. Vous pouvez contester la décision sous 15 jours en contactant l'équipe.",
+          "content3": "En cas de résiliation, vos données seront traitées selon la politique de confidentialité (suppression ou anonymisation)."
+        },
+        "liability": {
+          "title": "Responsabilité",
+          "content1": "HASHCODE fournit les services « en l'état » sans garantie de disponibilité continue, d'absence de bugs, ou d'adéquation à un besoin spécifique.",
+          "content2": "Notre responsabilité ne saurait être engagée pour des dommages indirects (perte de chance, de données, de revenus) sauf faute lourde ou dolosive.",
+          "content3": "En tout état de cause, notre responsabilité totale est limitée au montant que vous avez éventuellement payé (0 € pour l'usage gratuit)."
+        },
+        "modifications": {
+          "title": "Modifications des CGU",
+          "content": "Les CGU peuvent être modifiées. La version à jour est toujours accessible sur cette page. Les modifications substantielles sont notifiées par email 15 jours avant leur entrée en vigueur. Votre utilisation continue vaut acceptation."
+        },
+        "termination": {
+          "title": "Résiliation",
+          "content1": "Vous pouvez quitter HASHCODE à tout moment en supprimant votre compte depuis l'espace membre.",
+          "content2": "Nous pouvons résilier pour motif légitime (inactivité > 1 an, violation CGU) avec préavis de 30 jours."
+        },
+        "law": {
+          "title": "Droit applicable et juridiction",
+          "content": "Les présentes CGU sont régies par le droit béninois. Tout litige sera porté devant les juridictions compétentes du Bénin, après tentative de résolution amiable."
+        },
+        "contact": {
+          "title": "Contact",
+          "content": "Pour toute question relative aux CGU :"
+        }
+      }
+    },
+    "cookies": {
+      "metaTitle": "Politique des cookies — HASHCODE REBOOT",
+      "metaDescription": "Politique des cookies HASHCODE REBOOT : cookies essentiels, analytics, consentement, gestion, tiers, conservation, droits, contact.",
+      "title": "Politique des cookies",
+      "subtitle": "Comment nous utilisons les cookies et technologies similaires.",
+      "backHome": "Retour à HASHCODE",
+      "lastUpdated": "Dernière mise à jour : {date}",
+      "navAria": "Navigation politique cookies",
+      "nav": {
+        "mentions": "Mentions légales",
+        "privacy": "Politique de confidentialité",
+        "terms": "Conditions générales d'utilisation",
+        "cookies": "Politique des cookies"
+      },
+      "sections": {
+        "whatAreCookies": {
+          "title": "Que sont les cookies ?",
+          "content": "Les cookies sont de petits fichiers texte déposés sur votre appareil (ordinateur, téléphone) lors de la visite d'un site. Ils permettent de reconnaître votre navigateur, de mémoriser vos préférences, et d'analyser l'usage du site."
+        },
+        "categories": {
+          "title": "Catégories de cookies utilisés",
+          "list": [
+            {
+              "name": "Essentiels (strictement nécessaires)",
+              "desc": "Indispensables au fonctionnement du site. Ne peuvent pas être désactivés.",
+              "cookies": [
+                "session_id : identification de session (expiration : fermeture navigateur)",
+                "auth_token : token d'authentification magic link/OTP (expiration : 15 min)",
+                "csrf_token : protection CSRF (expiration : session)",
+                "locale : préférence de langue (expiration : 1 an)"
+              ]
+            },
+            {
+              "name": "Analytics (optionnels, avec consentement)",
+              "desc": "Mesurent l'audience de façon respectueuse de la vie privée (Plausible, sans cookies tiers, données anonymisées).",
+              "cookies": [
+                "plausible_session : session analytics (expiration : 30 min)",
+                "plausible_visitor : visiteur unique (expiration : 1 an)"
+              ]
+            },
+            {
+              "name": "Fonctionnels (optionnels)",
+              "desc": "Améliorent l'expérience utilisateur (préférences, interface).",
+              "cookies": [
+                "theme : mode clair/sombre (expiration : 1 an)",
+                "sidebar_state : état sidebar dashboard (expiration : session)"
+              ]
+            }
+          ]
+        },
+        "consent": {
+          "title": "Consentement",
+          "content1": "Les cookies essentiels sont déposés automatiquement (base légale : intérêt légitime / exécution du contrat).",
+          "content2": "Les cookies analytics et fonctionnels ne sont déposés qu'après votre consentement explicite (bannière au premier visite). Vous pouvez retirer votre consentement à tout moment.",
+          "content3": "Le refus des cookies optionnels n'empêche pas l'accès aux services."
+        },
+        "manage": {
+          "title": "Gérer vos préférences",
+          "content1": "Vous pouvez modifier vos choix à tout moment via le lien « Cookies » en bas de page ou les paramètres de votre navigateur.",
+          "content2": "Pour supprimer ou bloquer les cookies :",
+          "browsers": [
+            "Chrome : Paramètres → Confidentialité → Cookies",
+            "Firefox : Options → Vie privée → Cookies",
+            "Safari : Préférences → Confidentialité → Gérer les données",
+            "Edge : Paramètres → Cookies et autorisations de site"
+          ]
+        },
+        "thirdParty": {
+          "title": "Services tiers",
+          "content1": "Certains cookies sont déposés par des services tiers que nous utilisons :",
+          "content2": "Ces services ont leur propre politique de confidentialité. Nous ne contrôlons pas leurs cookies.",
+          "services": [
+            "Vercel (hébergement) : cookies techniques de session",
+            "Resend / Brevo (email) : cookies de tracking d'ouverture/clic (emails transactionnels uniquement)",
+            "Plausible (analytics) : cookies anonymes, pas de données personnelles",
+            "WhatsApp (lien d'invitation) : cookies de WhatsApp/Meta si vous cliquez sur le lien"
+          ]
+        },
+        "retention": {
+          "title": "Durées de conservation",
+          "content": "Les cookies expirent automatiquement selon les durées indiquées ci-dessus. Vous pouvez les supprimer manuellement à tout moment.",
+          "details": "Durées maximales :",
+          "durations": [
+            "Cookies de session : suppression à la fermeture du navigateur",
+            "Cookies d'authentification : 15 minutes (code OTP) à 30 jours (session membre)",
+            "Cookies de préférence (langue, thème) : 1 an",
+            "Cookies analytics (Plausible) : 30 min (session) à 1 an (visiteur)"
+          ]
+        },
+        "yourRights": {
+          "title": "Vos droits",
+          "content": "Conformément au RGPD et à la directive ePrivacy, vous disposez des droits suivants concernant les cookies :",
+          "list": [
+            "Droit d'être informé : cette politique vous informe",
+            "Droit de consentement : pour les cookies non essentiels",
+            "Droit de retrait : retirer votre consentement à tout moment",
+            "Droit d'opposition : refuser les cookies via votre navigateur",
+            "Droit d'accès/rectification/effacement : sur les données personnelles liées aux cookies"
+          ]
+        },
+        "contact": {
+          "title": "Contact",
+          "content": "Pour toute question relative aux cookies :"
+        }
+      }
+    }
+  },
   "notFound": {
     "title": "Page introuvable",
     "backHome": "Retourner à HASHCODE"
@@ -12,7 +468,11 @@
   "landing": {
     "siteHeader": {
       "navAria": "Navigation",
-      "links": ["Axes", "Événements", "FAQ"],
+      "links": [
+        "Axes",
+        "Événements",
+        "FAQ"
+      ],
       "editionBadge": "Reboot · Édition 2026",
       "cta": "Construire mon profil",
       "ctaMobile": "Rejoindre"
@@ -28,9 +488,21 @@
       "reassurance": "Environ 2 min · Gratuit · Sans engagement",
       "stepLabel": "Étape {n}",
       "steps": [
-        { "n": "01", "title": "Réponds par clic", "desc": "Quelques questions simples, environ 2 minutes, sans rédiger." },
-        { "n": "02", "title": "Reçois ton axe", "desc": "Web, Cyber ou IA — selon ton niveau et ton objectif." },
-        { "n": "03", "title": "Rejoins WhatsApp", "desc": "Accès immédiat si compatible. Sinon email, zéro spam." }
+        {
+          "n": "01",
+          "title": "Réponds par clic",
+          "desc": "Quelques questions simples, environ 2 minutes, sans rédiger."
+        },
+        {
+          "n": "02",
+          "title": "Reçois ton axe",
+          "desc": "Web, Cyber ou IA — selon ton niveau et ton objectif."
+        },
+        {
+          "n": "03",
+          "title": "Rejoins WhatsApp",
+          "desc": "Accès immédiat si compatible. Sinon email, zéro spam."
+        }
       ],
       "altNote": "Sinon email, zéro spam, suppression en 1 message.",
       "scrollLabel": "Défiler",
@@ -46,9 +518,21 @@
       "title": "Trois terrains. Une communauté.",
       "intro": "Choisis ton terrain. Tu pourras en croiser d'autres plus tard.",
       "items": [
-        { "id": "01", "title": "Web Development", "desc": "Créer des applications, produits et expériences numériques." },
-        { "id": "02", "title": "Cybersecurity", "desc": "Comprendre, protéger, analyser et expérimenter." },
-        { "id": "03", "title": "Applied AI", "desc": "Construire avec l'IA, l'automatisation et les agents." }
+        {
+          "id": "01",
+          "title": "Web Development",
+          "desc": "Créer des applications, produits et expériences numériques."
+        },
+        {
+          "id": "02",
+          "title": "Cybersecurity",
+          "desc": "Comprendre, protéger, analyser et expérimenter."
+        },
+        {
+          "id": "03",
+          "title": "Applied AI",
+          "desc": "Construire avec l'IA, l'automatisation et les agents."
+        }
       ],
       "cta": "Construire mon profil",
       "mobileCta": "Rejoindre la communauté"
@@ -58,10 +542,26 @@
       "title": "Quatre verbes. Une direction.",
       "intro": "On passe de la consommation à la construction.",
       "items": [
-        { "k": "01", "t": "Apprendre", "d": "Les fondamentaux, clairs et solides." },
-        { "k": "02", "t": "Construire", "d": "De vrais projets, pas des démos." },
-        { "k": "03", "t": "Pratiquer", "d": "Des challenges pour progresser." },
-        { "k": "04", "t": "Collaborer", "d": "Progresser avec d'autres membres." }
+        {
+          "k": "01",
+          "t": "Apprendre",
+          "d": "Les fondamentaux, clairs et solides."
+        },
+        {
+          "k": "02",
+          "t": "Construire",
+          "d": "De vrais projets, pas des démos."
+        },
+        {
+          "k": "03",
+          "t": "Pratiquer",
+          "d": "Des challenges pour progresser."
+        },
+        {
+          "k": "04",
+          "t": "Collaborer",
+          "d": "Progresser avec d'autres membres."
+        }
       ],
       "carouselAria": "Ce qui change : quatre verbes, une direction",
       "trackAria": "Faites défiler horizontalement pour voir les quatre verbes. Flèches gauche et droite disponibles.",
@@ -75,7 +575,16 @@
       "index": "04 · Pour qui c'est fait",
       "title": "Pas besoin d'être expert.",
       "intro": "Si tu es curieux et motivé, tu as ta place. Touche un profil pour commencer.",
-      "items": ["Débutants", "Étudiant·es", "Développeur·euses", "Professionnel·les", "Entrepreneur·es", "Passionné·es de cyber", "Curieux d'IA", "Autodidactes"],
+      "items": [
+        "Débutants",
+        "Étudiant·es",
+        "Développeur·euses",
+        "Professionnel·les",
+        "Entrepreneur·es",
+        "Passionné·es de cyber",
+        "Curieux d'IA",
+        "Autodidactes"
+      ],
       "note": "Débutant ou avancé — on part de là où tu es vraiment."
     },
     "testimonial": {
@@ -89,11 +598,31 @@
       "title": "Le Reboot, c'est maintenant.",
       "intro": "Les premiers membres ouvrent la voie. Voici l'ordre réel.",
       "items": [
-        { "t": "Challenges", "d": "Des problèmes concrets à résoudre, régulièrement. Le premier dès cette semaine.", "status": "Maintenant" },
-        { "t": "Workshops", "d": "Des sessions live pour apprendre ensemble.", "status": "Bientôt" },
-        { "t": "Projects", "d": "Construire en équipe sur des projets réels.", "status": "Bientôt" },
-        { "t": "Mentoring", "d": "De l'accompagnement pour celles et ceux qui en ont besoin.", "status": "Ensuite" },
-        { "t": "HASHCODE Registry", "d": "Le futur centre de gestion des profils et parcours.", "status": "Ensuite" }
+        {
+          "t": "Challenges",
+          "d": "Des problèmes concrets à résoudre, régulièrement. Le premier dès cette semaine.",
+          "status": "Maintenant"
+        },
+        {
+          "t": "Workshops",
+          "d": "Des sessions live pour apprendre ensemble.",
+          "status": "Bientôt"
+        },
+        {
+          "t": "Projects",
+          "d": "Construire en équipe sur des projets réels.",
+          "status": "Bientôt"
+        },
+        {
+          "t": "Mentoring",
+          "d": "De l'accompagnement pour celles et ceux qui en ont besoin.",
+          "status": "Ensuite"
+        },
+        {
+          "t": "HASHCODE Registry",
+          "d": "Le futur centre de gestion des profils et parcours.",
+          "status": "Ensuite"
+        }
       ]
     },
     "faq": {
@@ -101,12 +630,30 @@
       "title": "Tu te demandes peut-être…",
       "intro": "Les réponses aux questions les plus courantes sur le Reboot.",
       "items": [
-        { "q": "C'est quoi le Reboot exactement ?", "a": "Le Reboot est le nouveau point d'entrée de la communauté HASHCODE. Tu construis ton profil en 2 minutes, tu reçois une première orientation, et tu rejoins la communauté officielle. C'est la première étape du nouveau HASHCODE." },
-        { "q": "Combien de temps ça prend ?", "a": "Environ 2 minutes. La majorité des réponses se font par clic. On ne te demande que ce qui est nécessaire pour comprendre ton profil — rien de superflu." },
-        { "q": "Faut-il être expert pour rejoindre ?", "a": "Non. HASHCODE est ouvert aux débutants, aux étudiants, aux développeurs, aux professionnels, aux entrepreneurs et aux autodidactes. On part de là où tu es vraiment." },
-        { "q": "C'est gratuit ?", "a": "Oui. Le Reboot est gratuit : profil + accès communauté. Si un jour une option payante existe, ce sera optionnel et annoncé clairement. Rien n'est prélevé, rien n'est caché." },
-        { "q": "Que se passe-t-il après mon inscription ?", "a": "Tu réponds par clic (~2 min), tu reçois ton axe proposé, puis ton accès WhatsApp si ton profil est compatible. Sinon, on te recontacte par email pour une invitation personnalisée. Zéro spam, suppression en 1 message." },
-        { "q": "Mes données sont protégées ?", "a": "Oui. On collecte le minimum nécessaire, aucune revente, aucune publicité. Tu peux demander la suppression de tes données à tout moment." }
+        {
+          "q": "C'est quoi le Reboot exactement ?",
+          "a": "Le Reboot est le nouveau point d'entrée de la communauté HASHCODE. Tu construis ton profil en 2 minutes, tu reçois une première orientation, et tu rejoins la communauté officielle. C'est la première étape du nouveau HASHCODE."
+        },
+        {
+          "q": "Combien de temps ça prend ?",
+          "a": "Environ 2 minutes. La majorité des réponses se font par clic. On ne te demande que ce qui est nécessaire pour comprendre ton profil — rien de superflu."
+        },
+        {
+          "q": "Faut-il être expert pour rejoindre ?",
+          "a": "Non. HASHCODE est ouvert aux débutants, aux étudiants, aux développeurs, aux professionnels, aux entrepreneurs et aux autodidactes. On part de là où tu es vraiment."
+        },
+        {
+          "q": "C'est gratuit ?",
+          "a": "Oui. Le Reboot est gratuit : profil + accès communauté. Si un jour une option payante existe, ce sera optionnel et annoncé clairement. Rien n'est prélevé, rien n'est caché."
+        },
+        {
+          "q": "Que se passe-t-il après mon inscription ?",
+          "a": "Tu réponds par clic (~2 min), tu reçois ton axe proposé, puis ton accès WhatsApp si ton profil est compatible. Sinon, on te recontacte par email pour une invitation personnalisée. Zéro spam, suppression en 1 message."
+        },
+        {
+          "q": "Mes données sont protégées ?",
+          "a": "Oui. On collecte le minimum nécessaire, aucune revente, aucune publicité. Tu peux demander la suppression de tes données à tout moment."
+        }
       ],
       "privacyLink": "Voir la politique de confidentialité",
       "cta": "Construire mon profil"
@@ -120,16 +667,29 @@
     "footer": {
       "description": "La nouvelle communauté dev, cyber & IA. Ton premier challenge t'attend cette semaine, où que tu sois.",
       "linksTitle": "Liens",
-      "links": ["Construire mon profil", "Voir les 3 axes", "Questions fréquentes"],
+      "links": [
+        "Construire mon profil",
+        "Voir les 3 axes",
+        "Questions fréquentes"
+      ],
       "privacyTitle": "Confidentialité",
       "privacyDesc": "Minimum nécessaire, zéro revente, zéro pub. Suppression en 1 message, à tout moment.",
       "privacyLink": "Lire la politique complète →",
       "copyright": "© 2026 Hashcode · Reboot",
       "tagline": "Née au Bénin · Ouverte à toutes et tous",
       "socialProof": [
-        { "value": "2026", "label": "Première cohorte ouverte" },
-        { "value": "3", "label": "Axes : web, cyber, IA" },
-        { "value": "~2 min", "label": "Profil par clic, sans friction" }
+        {
+          "value": "2026",
+          "label": "Première cohorte ouverte"
+        },
+        {
+          "value": "3",
+          "label": "Axes : web, cyber, IA"
+        },
+        {
+          "value": "~2 min",
+          "label": "Profil par clic, sans friction"
+        }
       ],
       "liveCount": {
         "valueWithCount": "{count}",
@@ -153,11 +713,26 @@
     "shell": {
       "back": "Retour",
       "milestones": [
-        { "key": "profil", "label": "Profil" },
-        { "key": "objectifs", "label": "Objectif" },
-        { "key": "rythme", "label": "Rythme" },
-        { "key": "mentorat", "label": "Mentorat" },
-        { "key": "vision", "label": "Vision" }
+        {
+          "key": "profil",
+          "label": "Profil"
+        },
+        {
+          "key": "objectifs",
+          "label": "Objectif"
+        },
+        {
+          "key": "rythme",
+          "label": "Rythme"
+        },
+        {
+          "key": "mentorat",
+          "label": "Mentorat"
+        },
+        {
+          "key": "vision",
+          "label": "Vision"
+        }
       ],
       "stepCounter": "Question {currentStep} sur {totalSteps}",
       "timeRemaining": "~{minutes} min restantes",
@@ -179,7 +754,11 @@
       "continue": "Continuer",
       "skip": "Passer"
     },
-    "textView": { "optional": "Facultatif", "continue": "Continuer", "skip": "Passer" },
+    "textView": {
+      "optional": "Facultatif",
+      "continue": "Continuer",
+      "skip": "Passer"
+    },
     "longText": {
       "hintRemaining": "Encore {remaining} caractères",
       "hintDefault": "Une phrase suffit.",
@@ -229,18 +808,50 @@
       "countryRequired": "Choisis ton pays."
     },
     "questions": [
-      { "id": "firstName", "label": "Comment devons-nous t'appeler ?", "description": "Ton prénom suffit pour commencer.", "placeholder": "Ex. Eurin", "microcopy": "Parfait. C'est parti." },
-      { "id": "email", "label": "Où t'envoyer ton profil et ton accès ?", "description": "Ton adresse email. On l'utilise pour t'envoyer ton profil et t'inviter à la communauté.", "placeholder": "toi@exemple.com", "microcopy": "On sauvegarde ton profil." },
-      { "id": "country", "label": "Tu vis dans quel pays ?", "description": "Pour comprendre la communauté là où tu es.", "microcopy": "On commence à cerner ton profil." },
+      {
+        "id": "firstName",
+        "label": "Comment devons-nous t'appeler ?",
+        "description": "Ton prénom suffit pour commencer.",
+        "placeholder": "Ex. Eurin",
+        "microcopy": "Parfait. C'est parti."
+      },
+      {
+        "id": "email",
+        "label": "Où t'envoyer ton profil et ton accès ?",
+        "description": "Ton adresse email. On l'utilise pour t'envoyer ton profil et t'inviter à la communauté.",
+        "placeholder": "toi@exemple.com",
+        "microcopy": "On sauvegarde ton profil."
+      },
+      {
+        "id": "country",
+        "label": "Tu vis dans quel pays ?",
+        "description": "Pour comprendre la communauté là où tu es.",
+        "microcopy": "On commence à cerner ton profil."
+      },
       {
         "id": "primaryDomain",
         "label": "Quel domaine t'attire le plus ?",
         "description": "Tu pourras en ajouter d'autres plus tard.",
         "microcopy": "Bien. On sait où tu veux aller.",
         "options": [
-          { "value": "web", "label": "Web Development", "emoji": "🌐", "description": "Créer des applications, produits et expériences numériques." },
-          { "value": "cybersecurity", "label": "Cybersecurity", "emoji": "🛡️", "description": "Comprendre, protéger, analyser et expérimenter." },
-          { "value": "ai", "label": "Applied AI", "emoji": "🤖", "description": "Construire avec l'IA, l'automatisation et les agents." }
+          {
+            "value": "web",
+            "label": "Web Development",
+            "emoji": "🌐",
+            "description": "Créer des applications, produits et expériences numériques."
+          },
+          {
+            "value": "cybersecurity",
+            "label": "Cybersecurity",
+            "emoji": "🛡️",
+            "description": "Comprendre, protéger, analyser et expérimenter."
+          },
+          {
+            "value": "ai",
+            "label": "Applied AI",
+            "emoji": "🤖",
+            "description": "Construire avec l'IA, l'automatisation et les agents."
+          }
         ]
       },
       {
@@ -250,28 +861,100 @@
         "microcopy": "On affine.",
         "optionsByDomain": {
           "cybersecurity": [
-            { "value": "soc", "label": "SOC / Blue Team", "emoji": "🛡️" },
-            { "value": "pentest", "label": "Pentest / Red Team", "emoji": "⚔️" },
-            { "value": "osint", "label": "OSINT", "emoji": "🔍" },
-            { "value": "career", "label": "Carrière cyber", "emoji": "💼" },
-            { "value": "certification", "label": "Certification", "emoji": "📜" },
-            { "value": "project", "label": "Projet cyber", "emoji": "🚧" }
+            {
+              "value": "soc",
+              "label": "SOC / Blue Team",
+              "emoji": "🛡️"
+            },
+            {
+              "value": "pentest",
+              "label": "Pentest / Red Team",
+              "emoji": "⚔️"
+            },
+            {
+              "value": "osint",
+              "label": "OSINT",
+              "emoji": "🔍"
+            },
+            {
+              "value": "career",
+              "label": "Carrière cyber",
+              "emoji": "💼"
+            },
+            {
+              "value": "certification",
+              "label": "Certification",
+              "emoji": "📜"
+            },
+            {
+              "value": "project",
+              "label": "Projet cyber",
+              "emoji": "🚧"
+            }
           ],
           "web": [
-            { "value": "frontend", "label": "Frontend", "emoji": "🎨" },
-            { "value": "backend", "label": "Backend", "emoji": "🔧" },
-            { "value": "architecture", "label": "Architecture", "emoji": "🏛️" },
-            { "value": "project", "label": "Projet web", "emoji": "🚧" },
-            { "value": "freelance", "label": "Freelance", "emoji": "🧳" },
-            { "value": "career", "label": "Carrière web", "emoji": "💼" }
+            {
+              "value": "frontend",
+              "label": "Frontend",
+              "emoji": "🎨"
+            },
+            {
+              "value": "backend",
+              "label": "Backend",
+              "emoji": "🔧"
+            },
+            {
+              "value": "architecture",
+              "label": "Architecture",
+              "emoji": "🏛️"
+            },
+            {
+              "value": "project",
+              "label": "Projet web",
+              "emoji": "🚧"
+            },
+            {
+              "value": "freelance",
+              "label": "Freelance",
+              "emoji": "🧳"
+            },
+            {
+              "value": "career",
+              "label": "Carrière web",
+              "emoji": "💼"
+            }
           ],
           "ai": [
-            { "value": "llm", "label": "LLM", "emoji": "🧠" },
-            { "value": "agents", "label": "Agents", "emoji": "🤖" },
-            { "value": "automation", "label": "Automation", "emoji": "⚙️" },
-            { "value": "ai_engineering", "label": "AI Engineering", "emoji": "🛠️" },
-            { "value": "project", "label": "Projet AI", "emoji": "🚧" },
-            { "value": "business", "label": "Business AI", "emoji": "💼" }
+            {
+              "value": "llm",
+              "label": "LLM",
+              "emoji": "🧠"
+            },
+            {
+              "value": "agents",
+              "label": "Agents",
+              "emoji": "🤖"
+            },
+            {
+              "value": "automation",
+              "label": "Automation",
+              "emoji": "⚙️"
+            },
+            {
+              "value": "ai_engineering",
+              "label": "AI Engineering",
+              "emoji": "🛠️"
+            },
+            {
+              "value": "project",
+              "label": "Projet AI",
+              "emoji": "🚧"
+            },
+            {
+              "value": "business",
+              "label": "Business AI",
+              "emoji": "💼"
+            }
           ]
         }
       },
@@ -281,13 +964,41 @@
         "description": "Pas de bonne réponse. Sois honnête, on s'occupe du reste.",
         "microcopy": "Ton profil prend forme.",
         "options": [
-          { "value": "project", "label": "Construire un projet", "emoji": "🚀" },
-          { "value": "employment", "label": "Trouver un emploi", "emoji": "💼" },
-          { "value": "freelance", "label": "Devenir freelance", "emoji": "🧳" },
-          { "value": "upskill", "label": "Monter en compétences", "emoji": "📈" },
-          { "value": "business", "label": "Développer une activité", "emoji": "🧩" },
-          { "value": "career", "label": "Préparer une carrière", "emoji": "🎯" },
-          { "value": "other", "label": "Autre chose", "emoji": "✦" }
+          {
+            "value": "project",
+            "label": "Construire un projet",
+            "emoji": "🚀"
+          },
+          {
+            "value": "employment",
+            "label": "Trouver un emploi",
+            "emoji": "💼"
+          },
+          {
+            "value": "freelance",
+            "label": "Devenir freelance",
+            "emoji": "🧳"
+          },
+          {
+            "value": "upskill",
+            "label": "Monter en compétences",
+            "emoji": "📈"
+          },
+          {
+            "value": "business",
+            "label": "Développer une activité",
+            "emoji": "🧩"
+          },
+          {
+            "value": "career",
+            "label": "Préparer une carrière",
+            "emoji": "🎯"
+          },
+          {
+            "value": "other",
+            "label": "Autre chose",
+            "emoji": "✦"
+          }
         ]
       },
       {
@@ -295,10 +1006,26 @@
         "label": "Où en es-tu aujourd'hui côté emploi ?",
         "description": "Pour orienter au mieux tes prochaines étapes.",
         "options": [
-          { "value": "student", "label": "Étudiant·e", "emoji": "🎓" },
-          { "value": "searching", "label": "En recherche active", "emoji": "🔎" },
-          { "value": "employed", "label": "En poste, je veux pivoter", "emoji": "🔄" },
-          { "value": "between", "label": "Entre deux choses", "emoji": "🌤️" }
+          {
+            "value": "student",
+            "label": "Étudiant·e",
+            "emoji": "🎓"
+          },
+          {
+            "value": "searching",
+            "label": "En recherche active",
+            "emoji": "🔎"
+          },
+          {
+            "value": "employed",
+            "label": "En poste, je veux pivoter",
+            "emoji": "🔄"
+          },
+          {
+            "value": "between",
+            "label": "Entre deux choses",
+            "emoji": "🌤️"
+          }
         ]
       },
       {
@@ -306,10 +1033,26 @@
         "label": "Où en est ton projet aujourd'hui ?",
         "description": "Pour calibrer le type d'aide le plus utile.",
         "options": [
-          { "value": "idea", "label": "Juste une idée", "emoji": "💡" },
-          { "value": "planning", "label": "En réflexion / planification", "emoji": "🧭" },
-          { "value": "building", "label": "En cours de construction", "emoji": "🚧" },
-          { "value": "launched", "label": "Déjà lancé", "emoji": "🚀" }
+          {
+            "value": "idea",
+            "label": "Juste une idée",
+            "emoji": "💡"
+          },
+          {
+            "value": "planning",
+            "label": "En réflexion / planification",
+            "emoji": "🧭"
+          },
+          {
+            "value": "building",
+            "label": "En cours de construction",
+            "emoji": "🚧"
+          },
+          {
+            "value": "launched",
+            "label": "Déjà lancé",
+            "emoji": "🚀"
+          }
         ]
       },
       {
@@ -318,10 +1061,26 @@
         "description": "Dis-nous où tu en es vraiment, on part de là — sans pression.",
         "microcopy": "Encore quelques choix.",
         "options": [
-          { "value": "beginner", "label": "Je débute", "emoji": "🌱" },
-          { "value": "practicing", "label": "Je pratique déjà", "emoji": "⚙️" },
-          { "value": "autonomous", "label": "Je suis autonome", "emoji": "🧭" },
-          { "value": "advanced", "label": "Je suis avancé", "emoji": "🏆" }
+          {
+            "value": "beginner",
+            "label": "Je débute",
+            "emoji": "🌱"
+          },
+          {
+            "value": "practicing",
+            "label": "Je pratique déjà",
+            "emoji": "⚙️"
+          },
+          {
+            "value": "autonomous",
+            "label": "Je suis autonome",
+            "emoji": "🧭"
+          },
+          {
+            "value": "advanced",
+            "label": "Je suis avancé",
+            "emoji": "🏆"
+          }
         ]
       },
       {
@@ -329,11 +1088,31 @@
         "label": "Combien de temps peux-tu consacrer à ta progression chaque semaine ?",
         "description": "Une estimation honnête, sans pression — on s'adapte à ton rythme.",
         "options": [
-          { "value": "<2h", "label": "Moins de 2 h", "hint": "Rythme léger" },
-          { "value": "2-5h", "label": "2 – 5 h", "hint": "Constant" },
-          { "value": "5-10h", "label": "5 – 10 h", "hint": "Engagé" },
-          { "value": "10-15h", "label": "10 – 15 h", "hint": "Intensif" },
-          { "value": "15h+", "label": "15 h et plus", "hint": "Plein focus" }
+          {
+            "value": "<2h",
+            "label": "Moins de 2 h",
+            "hint": "Rythme léger"
+          },
+          {
+            "value": "2-5h",
+            "label": "2 – 5 h",
+            "hint": "Constant"
+          },
+          {
+            "value": "5-10h",
+            "label": "5 – 10 h",
+            "hint": "Engagé"
+          },
+          {
+            "value": "10-15h",
+            "label": "10 – 15 h",
+            "hint": "Intensif"
+          },
+          {
+            "value": "15h+",
+            "label": "15 h et plus",
+            "hint": "Plein focus"
+          }
         ]
       },
       {
@@ -342,11 +1121,31 @@
         "description": "Ça nous aide à te proposer le bon format.",
         "microcopy": "Presque terminé.",
         "options": [
-          { "value": "practice", "label": "En pratiquant", "emoji": "🧩" },
-          { "value": "path", "label": "Avec un parcours", "emoji": "🧭" },
-          { "value": "group", "label": "Avec un groupe", "emoji": "🤝" },
-          { "value": "mentor", "label": "Avec un mentor", "emoji": "🧑‍🏫" },
-          { "value": "project", "label": "En construisant un projet", "emoji": "🚧" }
+          {
+            "value": "practice",
+            "label": "En pratiquant",
+            "emoji": "🧩"
+          },
+          {
+            "value": "path",
+            "label": "Avec un parcours",
+            "emoji": "🧭"
+          },
+          {
+            "value": "group",
+            "label": "Avec un groupe",
+            "emoji": "🤝"
+          },
+          {
+            "value": "mentor",
+            "label": "Avec un mentor",
+            "emoji": "🧑‍🏫"
+          },
+          {
+            "value": "project",
+            "label": "En construisant un projet",
+            "emoji": "🚧"
+          }
         ]
       },
       {
@@ -354,40 +1153,111 @@
         "label": "As-tu besoin d'un accompagnement personnalisé ?",
         "description": "Réponds librement — on adapte la suite selon toi.",
         "options": [
-          { "value": "no", "label": "Non", "description": "Je préfère avancer seul pour le moment." },
-          { "value": "maybe", "label": "Peut-être", "description": "Je veux comprendre ce que ça peut m'apporter." },
-          { "value": "yes", "label": "Oui", "description": "Un accompagnement m'aiderait à progresser." }
+          {
+            "value": "no",
+            "label": "Non",
+            "description": "Je préfère avancer seul pour le moment."
+          },
+          {
+            "value": "maybe",
+            "label": "Peut-être",
+            "description": "Je veux comprendre ce que ça peut m'apporter."
+          },
+          {
+            "value": "yes",
+            "label": "Oui",
+            "description": "Un accompagnement m'aiderait à progresser."
+          }
         ]
       },
-      { "id": "mentoringMaybeReason", "label": "Qu'est-ce qui pourrait te faire envisager un mentor ?", "description": "Une phrase suffit.", "placeholder": "Ex. Si je me sens bloqué sur un projet concret." },
+      {
+        "id": "mentoringMaybeReason",
+        "label": "Qu'est-ce qui pourrait te faire envisager un mentor ?",
+        "description": "Une phrase suffit.",
+        "placeholder": "Ex. Si je me sens bloqué sur un projet concret."
+      },
       {
         "id": "mentoringTypes",
         "label": "Sur quoi aimerais-tu être accompagné ?",
         "description": "Sélectionne ce qui te serait le plus utile.",
         "optionsByDomain": {
           "cybersecurity": [
-            { "value": "soc", "label": "SOC / Blue Team" },
-            { "value": "pentest", "label": "Pentest / Red Team" },
-            { "value": "osint", "label": "OSINT" },
-            { "value": "career", "label": "Carrière" },
-            { "value": "certification", "label": "Certification" },
-            { "value": "project", "label": "Projet" }
+            {
+              "value": "soc",
+              "label": "SOC / Blue Team"
+            },
+            {
+              "value": "pentest",
+              "label": "Pentest / Red Team"
+            },
+            {
+              "value": "osint",
+              "label": "OSINT"
+            },
+            {
+              "value": "career",
+              "label": "Carrière"
+            },
+            {
+              "value": "certification",
+              "label": "Certification"
+            },
+            {
+              "value": "project",
+              "label": "Projet"
+            }
           ],
           "web": [
-            { "value": "frontend", "label": "Frontend" },
-            { "value": "backend", "label": "Backend" },
-            { "value": "architecture", "label": "Architecture" },
-            { "value": "project", "label": "Projet" },
-            { "value": "freelance", "label": "Freelance" },
-            { "value": "career", "label": "Carrière" }
+            {
+              "value": "frontend",
+              "label": "Frontend"
+            },
+            {
+              "value": "backend",
+              "label": "Backend"
+            },
+            {
+              "value": "architecture",
+              "label": "Architecture"
+            },
+            {
+              "value": "project",
+              "label": "Projet"
+            },
+            {
+              "value": "freelance",
+              "label": "Freelance"
+            },
+            {
+              "value": "career",
+              "label": "Carrière"
+            }
           ],
           "ai": [
-            { "value": "llm", "label": "LLM" },
-            { "value": "agents", "label": "Agents" },
-            { "value": "automation", "label": "Automation" },
-            { "value": "ai_engineering", "label": "AI Engineering" },
-            { "value": "project", "label": "Projet" },
-            { "value": "business", "label": "Business" }
+            {
+              "value": "llm",
+              "label": "LLM"
+            },
+            {
+              "value": "agents",
+              "label": "Agents"
+            },
+            {
+              "value": "automation",
+              "label": "Automation"
+            },
+            {
+              "value": "ai_engineering",
+              "label": "AI Engineering"
+            },
+            {
+              "value": "project",
+              "label": "Projet"
+            },
+            {
+              "value": "business",
+              "label": "Business"
+            }
           ]
         }
       },
@@ -395,10 +1265,22 @@
         "id": "mentoringFrequency",
         "label": "À quelle fréquence aimerais-tu un accompagnement ?",
         "options": [
-          { "value": "weekly", "label": "Hebdomadaire" },
-          { "value": "biweekly", "label": "Toutes les 2 semaines" },
-          { "value": "monthly", "label": "Mensuel" },
-          { "value": "on_demand", "label": "À la demande" }
+          {
+            "value": "weekly",
+            "label": "Hebdomadaire"
+          },
+          {
+            "value": "biweekly",
+            "label": "Toutes les 2 semaines"
+          },
+          {
+            "value": "monthly",
+            "label": "Mensuel"
+          },
+          {
+            "value": "on_demand",
+            "label": "À la demande"
+          }
         ]
       },
       {
@@ -406,24 +1288,83 @@
         "label": "Quel niveau d'investissement mensuel pourrais-tu envisager ?",
         "description": "Aucune réponse n'engage à quoi que ce soit. Ça nous aide à comprendre la communauté.",
         "options": [
-          { "value": "<2500", "label": "Moins de 2 500 FCFA / mois" },
-          { "value": "2500-5000", "label": "2 500 – 5 000 FCFA / mois" },
-          { "value": "5000-10000", "label": "5 000 – 10 000 FCFA / mois" },
-          { "value": "10000-20000", "label": "10 000 – 20 000 FCFA / mois" },
-          { "value": "20000-30000", "label": "20 000 – 30 000 FCFA / mois" },
-          { "value": ">30000", "label": "Plus de 30 000 FCFA / mois" },
-          { "value": "unknown", "label": "Je ne sais pas encore" },
-          { "value": "not_now", "label": "Pas pour le moment" }
+          {
+            "value": "<2500",
+            "label": "Moins de 2 500 FCFA / mois"
+          },
+          {
+            "value": "2500-5000",
+            "label": "2 500 – 5 000 FCFA / mois"
+          },
+          {
+            "value": "5000-10000",
+            "label": "5 000 – 10 000 FCFA / mois"
+          },
+          {
+            "value": "10000-20000",
+            "label": "10 000 – 20 000 FCFA / mois"
+          },
+          {
+            "value": "20000-30000",
+            "label": "20 000 – 30 000 FCFA / mois"
+          },
+          {
+            "value": ">30000",
+            "label": "Plus de 30 000 FCFA / mois"
+          },
+          {
+            "value": "unknown",
+            "label": "Je ne sais pas encore"
+          },
+          {
+            "value": "not_now",
+            "label": "Pas pour le moment"
+          }
         ]
       },
-      { "id": "threeMonthGoal", "label": "Dans 3 mois, qu'aimerais-tu avoir accompli ?", "description": "Même une courte phrase suffit. On veut comprendre ta direction.", "placeholder": "Ex. Décrocher mon premier stage." }
+      {
+        "id": "threeMonthGoal",
+        "label": "Dans 3 mois, qu'aimerais-tu avoir accompli ?",
+        "description": "Même une courte phrase suffit. On veut comprendre ta direction.",
+        "placeholder": "Ex. Décrocher mon premier stage."
+      }
     ],
-    "threeMonthGoalSuggestions": ["Décrocher mon premier stage", "Finir mon portfolio", "Lancer mon premier projet", "Être à l'aise avec les bases"],
+    "threeMonthGoalSuggestions": [
+      "Décrocher mon premier stage",
+      "Finir mon portfolio",
+      "Lancer mon premier projet",
+      "Être à l'aise avec les bases"
+    ],
     "labels": {
-      "domains": { "web": "Web", "cybersecurity": "Cyber", "ai": "AI" },
-      "levels": { "beginner": "Débutant", "practicing": "Pratique", "autonomous": "Autonome", "advanced": "Avancé" },
-      "budgets": { "<2500": "< 2.5k", "2500-5000": "2.5–5k", "5000-10000": "5–10k", "10000-20000": "10–20k", "20000-30000": "20–30k", ">30000": "> 30k", "unknown": "NSP" },
-      "goals": { "project": "Projet", "employment": "Emploi", "freelance": "Freelance", "upskill": "Compétences", "business": "Activité", "career": "Carrière", "other": "Autre" }
+      "domains": {
+        "web": "Web",
+        "cybersecurity": "Cyber",
+        "ai": "AI"
+      },
+      "levels": {
+        "beginner": "Débutant",
+        "practicing": "Pratique",
+        "autonomous": "Autonome",
+        "advanced": "Avancé"
+      },
+      "budgets": {
+        "<2500": "< 2.5k",
+        "2500-5000": "2.5–5k",
+        "5000-10000": "5–10k",
+        "10000-20000": "10–20k",
+        "20000-30000": "20–30k",
+        ">30000": "> 30k",
+        "unknown": "NSP"
+      },
+      "goals": {
+        "project": "Projet",
+        "employment": "Emploi",
+        "freelance": "Freelance",
+        "upskill": "Compétences",
+        "business": "Activité",
+        "career": "Carrière",
+        "other": "Autre"
+      }
     }
   },
   "auth": {
@@ -891,7 +1832,12 @@
   "account": {
     "header": {
       "profileGenerating": "Profil en cours de génération…",
-      "statusBadge": { "approved": "Validé", "pending": "En attente", "waitlist": "Liste d'attente", "rejected": "Non retenu" }
+      "statusBadge": {
+        "approved": "Validé",
+        "pending": "En attente",
+        "waitlist": "Liste d'attente",
+        "rejected": "Non retenu"
+      }
     },
     "status": {
       "approvedTitle": "Tu es validé dans HASHCODE.",
@@ -918,7 +1864,13 @@
       "cityLabel": "Ville",
       "cityPlaceholder": "Ex. Cotonou",
       "genderLabel": "Genre",
-      "genderOptions": { "unspecified": "Ne pas préciser", "male": "Homme", "female": "Femme", "other": "Autre", "preferNotSay": "Préfère ne pas dire" },
+      "genderOptions": {
+        "unspecified": "Ne pas préciser",
+        "male": "Homme",
+        "female": "Femme",
+        "other": "Autre",
+        "preferNotSay": "Préfère ne pas dire"
+      },
       "goalLabel": "Objectif à 3 mois",
       "goalPlaceholder": "Ex. Avoir décroché mon premier poste de dev web.",
       "goalHint": "4 caractères minimum. C'est ce qui t'aide à la validation.",
@@ -971,7 +1923,10 @@
   "admin": {
     "members": {
       "page": {
-        "sections": { "members": "Membres", "inviteFormer": "Inviter d'anciens membres" },
+        "sections": {
+          "members": "Membres",
+          "inviteFormer": "Inviter d'anciens membres"
+        },
         "retry": "Réessayer",
         "bulkErrorBase": "Échec de l'action bulk.",
         "bulkErrorPrefix": "Erreur: {detail}",
@@ -986,7 +1941,13 @@
         "title": "Inviter d'anciens membres (CSV)",
         "subtitle": "— email, prénom, téléphone, pays, niveau",
         "descriptionIntro": "Colle ton CSV ici (un membre par ligne). Le système détecte automatiquement les colonnes :",
-        "descriptionFields": { "email": "email", "name": "nom", "phone": "téléphone", "country": "pays", "level": "niveau" },
+        "descriptionFields": {
+          "email": "email",
+          "name": "nom",
+          "phone": "téléphone",
+          "country": "pays",
+          "level": "niveau"
+        },
         "descriptionSuffix": "Chaque nouveau membre recevra un email avec un lien magique de connexion (valide 72h).",
         "placeholder": "email,Prénom,Téléphone,Pays,Niveau\njean@example.com,Jean,+22505010203,Côte d'Ivoire,Intermédiaire\nfatou@example.com,Fatou,+22399887766,Mali,Débutant",
         "analyze": "Analyser",
@@ -998,28 +1959,77 @@
         "toastCreatedTitle": "{created} membre(s) créé(s)",
         "toastSentDescription": "{emailsSent} email(s) envoyé(s).",
         "dryRunTitle": "Analyse terminée",
-        "dryRunStats": { "csvRows": "Lignes CSV", "validEmails": "Emails valides", "newMembers": "Nouveaux membres", "alreadyExist": "Déjà existants", "toReinvite": "À réinviter" },
+        "dryRunStats": {
+          "csvRows": "Lignes CSV",
+          "validEmails": "Emails valides",
+          "newMembers": "Nouveaux membres",
+          "alreadyExist": "Déjà existants",
+          "toReinvite": "À réinviter"
+        },
         "previewLabel": "Aperçu :",
         "previewMore": "…",
         "resultTitle": "Import terminé",
-        "resultStats": { "created": "Créés", "emailsSent": "Emails envoyés", "resent": "Réenvoyés", "failed": "Échoués", "skipped": "Ignorés (existants)" },
+        "resultStats": {
+          "created": "Créés",
+          "emailsSent": "Emails envoyés",
+          "resent": "Réenvoyés",
+          "failed": "Échoués",
+          "skipped": "Ignorés (existants)"
+        },
         "failedEmails": "Emails échoués : {list}",
         "alreadyExistEmails": "Déjà existants : {list}"
       }
     },
     "invitations": {
-      "header": { "title": "Invitations", "subtitle": "Gestion des invitations, suivi des clics et relances", "relanceAll": "Relancer tout ({count})" },
-      "status": {
-        "notInvited": { "label": "Non invité", "description": "Membres n'ayant jamais reçu d'invitation" },
-        "invited": { "label": "Invité", "description": "Invitation envoyée, en attente de clic" },
-        "accepted": { "label": "Accepté", "description": "A cliqué et rejoint la communauté" },
-        "refused": { "label": "Refusé", "description": "A explicitement refusé l'invitation" },
-        "bounced": { "label": "Bounce", "description": "Email non délivré (adresse invalide)" },
-        "expired": { "label": "Expiré", "description": "Lien d'invitation expiré (72h)" }
+      "header": {
+        "title": "Invitations",
+        "subtitle": "Gestion des invitations, suivi des clics et relances",
+        "relanceAll": "Relancer tout ({count})"
       },
-      "domainLabels": { "web": "Web", "cybersecurity": "Cyber", "ai": "IA" },
-      "levelLabels": { "beginner": "Débutant", "practicing": "Pratiquant", "autonomous": "Autonome", "advanced": "Expert" },
-      "row": { "lastEventOpened": "Ouvert", "lastEventClick": "Clic", "relanceTitle": "Relancer cette invitation", "relance": "Relancer", "engaged": "Engagé" },
+      "status": {
+        "notInvited": {
+          "label": "Non invité",
+          "description": "Membres n'ayant jamais reçu d'invitation"
+        },
+        "invited": {
+          "label": "Invité",
+          "description": "Invitation envoyée, en attente de clic"
+        },
+        "accepted": {
+          "label": "Accepté",
+          "description": "A cliqué et rejoint la communauté"
+        },
+        "refused": {
+          "label": "Refusé",
+          "description": "A explicitement refusé l'invitation"
+        },
+        "bounced": {
+          "label": "Bounce",
+          "description": "Email non délivré (adresse invalide)"
+        },
+        "expired": {
+          "label": "Expiré",
+          "description": "Lien d'invitation expiré (72h)"
+        }
+      },
+      "domainLabels": {
+        "web": "Web",
+        "cybersecurity": "Cyber",
+        "ai": "IA"
+      },
+      "levelLabels": {
+        "beginner": "Débutant",
+        "practicing": "Pratiquant",
+        "autonomous": "Autonome",
+        "advanced": "Expert"
+      },
+      "row": {
+        "lastEventOpened": "Ouvert",
+        "lastEventClick": "Clic",
+        "relanceTitle": "Relancer cette invitation",
+        "relance": "Relancer",
+        "engaged": "Engagé"
+      },
       "relanceDialog": {
         "title": "Relancer {count} invitation{s} ?",
         "description": "Un email de relance sera envoyé aux membres qui n'ont pas encore cliqué sur leur invitation.",
@@ -1029,26 +2039,76 @@
         "send": "Envoyer"
       },
       "emptyState": {
-        "all": { "title": "Aucun membre", "description": "Aucun membre ne correspond à vos critères." },
-        "invited": { "title": "Aucune invitation en cours", "description": "Les invitations envoyées apparaîtront ici." },
-        "accepted": { "title": "Aucun membre accepté", "description": "Les membres ayant rejoint apparaîtront ici." },
-        "refused": { "title": "Aucun refus", "description": "Les refus d'invitation apparaîtront ici." },
-        "bounced": { "title": "Aucun bounce", "description": "Les emails non délivrés apparaîtront ici." },
-        "expired": { "title": "Aucune invitation expirée", "description": "Les invitations expirées apparaîtront ici." },
-        "notInvited": { "title": "Aucun membre non invité", "description": "Tous les membres ont été invités." },
+        "all": {
+          "title": "Aucun membre",
+          "description": "Aucun membre ne correspond à vos critères."
+        },
+        "invited": {
+          "title": "Aucune invitation en cours",
+          "description": "Les invitations envoyées apparaîtront ici."
+        },
+        "accepted": {
+          "title": "Aucun membre accepté",
+          "description": "Les membres ayant rejoint apparaîtront ici."
+        },
+        "refused": {
+          "title": "Aucun refus",
+          "description": "Les refus d'invitation apparaîtront ici."
+        },
+        "bounced": {
+          "title": "Aucun bounce",
+          "description": "Les emails non délivrés apparaîtront ici."
+        },
+        "expired": {
+          "title": "Aucune invitation expirée",
+          "description": "Les invitations expirées apparaîtront ici."
+        },
+        "notInvited": {
+          "title": "Aucun membre non invité",
+          "description": "Tous les membres ont été invités."
+        },
         "seeAll": "Voir tout"
       },
       "stats": {
-        "total": { "label": "Total", "description": "Tous les membres" },
-        "invited": { "label": "Invités", "description": "En attente de clic" },
-        "accepted": { "label": "Acceptés", "description": "Ont rejoint la communauté" },
-        "refused": { "label": "Refusés", "description": "Ont refusé l'invitation" },
-        "bounced": { "label": "Bounces", "description": "Emails non délivrés" },
-        "expired": { "label": "Expirés", "description": "Lien expiré (72h)" },
-        "notInvited": { "label": "Non invités", "description": "Jamais invités" }
+        "total": {
+          "label": "Total",
+          "description": "Tous les membres"
+        },
+        "invited": {
+          "label": "Invités",
+          "description": "En attente de clic"
+        },
+        "accepted": {
+          "label": "Acceptés",
+          "description": "Ont rejoint la communauté"
+        },
+        "refused": {
+          "label": "Refusés",
+          "description": "Ont refusé l'invitation"
+        },
+        "bounced": {
+          "label": "Bounces",
+          "description": "Emails non délivrés"
+        },
+        "expired": {
+          "label": "Expirés",
+          "description": "Lien expiré (72h)"
+        },
+        "notInvited": {
+          "label": "Non invités",
+          "description": "Jamais invités"
+        }
       },
       "searchPlaceholder": "Rechercher par nom, email, téléphone…",
-      "tableHeaders": { "member": "Membre", "status": "Statut", "levelDomain": "Niveau / Domaine", "country": "Pays", "clicks": "Clics", "lastEvent": "Dernier événement", "actions": "Actions" },
+      "tableHeaders": {
+        "member": "Membre",
+        "status": "Statut",
+        "levelDomain": "Niveau / Domaine",
+        "country": "Pays",
+        "clicks": "Clics",
+        "lastEvent": "Dernier événement",
+        "actions": "Actions"
+      },
       "sortBy": "Trier par {label}",
       "loading": "Chargement…",
       "pagination": "{total} résultat(s) · page {page}/{totalPages}",
@@ -1069,8 +2129,21 @@
     "marketing": {
       "title": "Marketing",
       "subtitle": "Pilote emails, campagnes, import et tests depuis un seul espace.",
-      "tabs": { "overview": "Vue d'ensemble", "campaigns": "Campagnes", "history": "Historique", "import": "Import", "test": "Test" },
-      "sectionsAria": { "tablist": "Sections marketing", "overview": "Vue d'ensemble marketing", "campaigns": "Campagnes", "history": "Historique des campagnes", "import": "Import et invitation", "test": "Test email" },
+      "tabs": {
+        "overview": "Vue d'ensemble",
+        "campaigns": "Campagnes",
+        "history": "Historique",
+        "import": "Import",
+        "test": "Test"
+      },
+      "sectionsAria": {
+        "tablist": "Sections marketing",
+        "overview": "Vue d'ensemble marketing",
+        "campaigns": "Campagnes",
+        "history": "Historique des campagnes",
+        "import": "Import et invitation",
+        "test": "Test email"
+      },
       "quickActions": "Actions rapides",
       "cards": {
         "relanceTitle": "Relancer les invitations",
@@ -1093,10 +2166,30 @@
       }
     },
     "emailTemplates": {
-      "categories": { "marketing": "Marketing", "notification": "Notification", "code": "Code / auth" },
-      "badges": { "locked": "Verrouillé", "active": "Actif", "inactive": "Inactif" },
-      "stats": { "templates": "Templates", "marketing": "Marketing", "active": "Actifs", "missing": "Non initialisés" },
-      "errors": { "loadFailed": "Chargement impossible.", "notFound": "Template introuvable.", "refused": "Contenu refusé.", "saveFailed": "Enregistrement impossible.", "actionFailed": "Action impossible.", "createFailed": "Création impossible." },
+      "categories": {
+        "marketing": "Marketing",
+        "notification": "Notification",
+        "code": "Code / auth"
+      },
+      "badges": {
+        "locked": "Verrouillé",
+        "active": "Actif",
+        "inactive": "Inactif"
+      },
+      "stats": {
+        "templates": "Templates",
+        "marketing": "Marketing",
+        "active": "Actifs",
+        "missing": "Non initialisés"
+      },
+      "errors": {
+        "loadFailed": "Chargement impossible.",
+        "notFound": "Template introuvable.",
+        "refused": "Contenu refusé.",
+        "saveFailed": "Enregistrement impossible.",
+        "actionFailed": "Action impossible.",
+        "createFailed": "Création impossible."
+      },
       "notices": {
         "saved": "Template « {name} » enregistré (v{version}).",
         "activated": "Template « {name} » ACTIVÉ : les prochains envois utiliseront ce contenu.",
@@ -1155,16 +2248,45 @@
         "searchAria": "Rechercher un template",
         "clearSearch": "Effacer la recherche"
       },
-      "states": { "loading": "Chargement…", "empty": "Aucun template ne correspond à ces filtres." },
-      "cards": { "state": "État", "version": "Version", "lastModified": "Dernière modification", "missingInDb": "Absent en base — lance le seed.", "open": "Ouvrir" },
-      "tableHeaders": { "template": "Template", "category": "Catégorie", "subject": "Sujet", "state": "État", "modified": "Modifié", "action": "Action" },
+      "states": {
+        "loading": "Chargement…",
+        "empty": "Aucun template ne correspond à ces filtres."
+      },
+      "cards": {
+        "state": "État",
+        "version": "Version",
+        "lastModified": "Dernière modification",
+        "missingInDb": "Absent en base — lance le seed.",
+        "open": "Ouvrir"
+      },
+      "tableHeaders": {
+        "template": "Template",
+        "category": "Catégorie",
+        "subject": "Sujet",
+        "state": "État",
+        "modified": "Modifié",
+        "action": "Action"
+      },
       "missingBadge": "seed requis",
       "footerNote": "Les catégories Notification et Code / auth sont verrouillées en édition : elles transportent des liens et des secrets d'authentification (lien de connexion, code de vérification). Elles restent consultables en aperçu."
     },
     "emailDeliverability": {
-      "statusBadge": { "ok": "OK", "warn": "WARN", "critical": "CRITIQUE", "blocked": "BLOQUÉ" },
-      "header": { "kicker": "HASHCODE · ADMIN", "title": "Suivi délivrabilité email", "subtitle": "Tous les systèmes de livraison des providers actifs : Resend & Brevo", "refresh": "Rafraîchir" },
-      "error": { "loadFailed": "Impossible de charger les métriques : {error}", "unknown": "Erreur inconnue" },
+      "statusBadge": {
+        "ok": "OK",
+        "warn": "WARN",
+        "critical": "CRITIQUE",
+        "blocked": "BLOQUÉ"
+      },
+      "header": {
+        "kicker": "HASHCODE · ADMIN",
+        "title": "Suivi délivrabilité email",
+        "subtitle": "Tous les systèmes de livraison des providers actifs : Resend & Brevo",
+        "refresh": "Rafraîchir"
+      },
+      "error": {
+        "loadFailed": "Impossible de charger les métriques : {error}",
+        "unknown": "Erreur inconnue"
+      },
       "loading": "Chargement des métriques…",
       "realtime": {
         "title": "TEMPS RÉEL",
@@ -1199,7 +2321,10 @@
         "alertWarning": "Attention : un ou plusieurs seuils sont dépassés",
         "noAlert": "Aucune alerte sur cette période"
       },
-      "history": { "title": "HISTORIQUE — {provider}", "lastPoint": "Dernier point : {date}" },
+      "history": {
+        "title": "HISTORIQUE — {provider}",
+        "lastPoint": "Dernier point : {date}"
+      },
       "crons": {
         "title": "SANTÉ DES CRONS",
         "description": "Dernier passage de chaque tâche planifiée. Un cron quotidien en alerte = cron-job.org à vérifier.",
@@ -1219,7 +2344,12 @@
       "exporting": "Export…",
       "csv": "CSV",
       "json": "JSON",
-      "toast": { "errorTitle": "Erreur", "exportFailed": "Échec de l'export.", "exportDoneTitle": "Export {kind} terminé", "downloaded": "Le fichier a été téléchargé." }
+      "toast": {
+        "errorTitle": "Erreur",
+        "exportFailed": "Échec de l'export.",
+        "exportDoneTitle": "Export {kind} terminé",
+        "downloaded": "Le fichier a été téléchargé."
+      }
     },
     "events": {
       "title": "Événements",
@@ -1270,11 +2400,31 @@
         "editUrl": "https://…",
         "editSeats": "Places"
       },
-      "typeOptions": ["Session", "Workshop", "Meetup", "Webinaire", "Autre"],
+      "typeOptions": [
+        "Session",
+        "Workshop",
+        "Meetup",
+        "Webinaire",
+        "Autre"
+      ],
       "domainOptionsAll": "Tous",
-      "domainOptions": ["Web", "Cybersecurity", "AI"],
-      "levelOptions": ["Débutant", "Pratiquant", "Autonome", "Avancé"],
-      "recurrenceOptions": ["One-shot", "Hebdomadaire", "Toutes les 2 semaines", "Mensuel"],
+      "domainOptions": [
+        "Web",
+        "Cybersecurity",
+        "AI"
+      ],
+      "levelOptions": [
+        "Débutant",
+        "Pratiquant",
+        "Autonome",
+        "Avancé"
+      ],
+      "recurrenceOptions": [
+        "One-shot",
+        "Hebdomadaire",
+        "Toutes les 2 semaines",
+        "Mensuel"
+      ],
       "notifyCountActive": "(ciblage actif)",
       "notifyCountSingular": "sera notifié",
       "notifyCountPlural": "seront notifiés",
@@ -1304,8 +2454,17 @@
         "save": "Enregistrer",
         "statusToPrefix": "→ "
       },
-      "statusLabels": { "scheduled": "Planifié", "live": "En direct", "completed": "Terminé", "cancelled": "Annulé" },
-      "reminderBadges": ["J−3", "J−1", "H−1"],
+      "statusLabels": {
+        "scheduled": "Planifié",
+        "live": "En direct",
+        "completed": "Terminé",
+        "cancelled": "Annulé"
+      },
+      "reminderBadges": [
+        "J−3",
+        "J−1",
+        "H−1"
+      ],
       "reminderTitle": "Envoyé le {sentAt} à {sentCount} membre(s)",
       "confirmDelete": "Supprimer \"{title}\" ? Les RSVP seront supprimés aussi.",
       "confirmUnlock": "Déverrouiller \"{title}\" pour tous les membres, même si les séances précédentes ne sont pas complétées ?"
@@ -1314,13 +2473,24 @@
       "title": "Ateliers",
       "subtitle": "Pilotage des ateliers : structure pédagogique, inscriptions, soumissions et quiz.",
       "overview": "Vue d'ensemble",
-      "statCards": { "workshops": "Ateliers", "enrollments": "Inscriptions", "submissions": "Soumissions", "reviews": "Revues", "quizSuccess": "Réussite quiz" },
+      "statCards": {
+        "workshops": "Ateliers",
+        "enrollments": "Inscriptions",
+        "submissions": "Soumissions",
+        "reviews": "Revues",
+        "quizSuccess": "Réussite quiz"
+      },
       "statHints": {
         "enrollments": "{active} actifs · {completed} terminés",
         "submissions": "{pending} en attente · {revision} en correction",
         "quiz": "{passed}/{total} tentatives réussies"
       },
-      "filters": ["Tous", "Brouillons", "Publiés", "Archivés"],
+      "filters": [
+        "Tous",
+        "Brouillons",
+        "Publiés",
+        "Archivés"
+      ],
       "countSingular": "atelier",
       "emptyNone": "Aucun atelier pour le moment.",
       "emptyFilter": "Aucun atelier ne correspond à ce filtre.",
@@ -1331,15 +2501,30 @@
       "awaitingReview": "En attente de revue",
       "noPendingReview": "Aucune soumission en attente de revue.",
       "latestEnrollments": "Dernières inscriptions",
-      "statusLabels": { "draft": "Brouillon", "published": "Publié", "archived": "Archivé" },
-      "enrollmentStatus": { "active": "Actif", "completed": "Terminé", "dropped": "Abandon" },
+      "statusLabels": {
+        "draft": "Brouillon",
+        "published": "Publié",
+        "archived": "Archivé"
+      },
+      "enrollmentStatus": {
+        "active": "Actif",
+        "completed": "Terminé",
+        "dropped": "Abandon"
+      },
       "loadError": "Impossible de charger les ateliers.",
       "statsError": "Impossible de charger les statistiques.",
       "rateLimited": "Trop de requêtes.",
       "reviewQueue": {
         "title": "File de revue",
         "subtitle": "Traite les livrables soumis par les membres : approuver, demander une correction ou rejeter.",
-        "filters": ["En attente", "En revue", "Approuvées", "Corrections", "Rejetées", "Toutes"],
+        "filters": [
+          "En attente",
+          "En revue",
+          "Approuvées",
+          "Corrections",
+          "Rejetées",
+          "Toutes"
+        ],
         "empty": "Aucune soumission dans cette file.",
         "countSingular": "soumission",
         "refresh": "Actualiser",
@@ -1352,8 +2537,16 @@
         "reviewTitle": "Revue de la soumission",
         "reviewCloseAria": "Fermer le panneau de revue",
         "decision": "Décision",
-        "decisions": ["Approuver", "Demander une correction", "Rejeter"],
-        "decisionHints": ["Le livrable est validé.", "Le membre doit corriger et resoumettre.", "Le livrable est refusé."],
+        "decisions": [
+          "Approuver",
+          "Demander une correction",
+          "Rejeter"
+        ],
+        "decisionHints": [
+          "Le livrable est validé.",
+          "Le membre doit corriger et resoumettre.",
+          "Le livrable est refusé."
+        ],
         "feedbackLabel": "Feedback ({min} caractères minimum)",
         "feedbackPlaceholder": "Explique la décision au membre (points forts, corrections attendues…)",
         "feedbackMinError": "Le feedback doit contenir au moins {min} caractères.",
@@ -1364,14 +2557,30 @@
         "loadError": "Impossible de charger les soumissions.",
         "reviewSaveError": "Échec de l'enregistrement de la revue."
       },
-      "statusLabelsSubmissions": { "PENDING": "En attente", "IN_REVIEW": "En revue", "APPROVED": "Approuvée", "REVISION": "Correction", "REJECTED": "Rejetée" },
+      "statusLabelsSubmissions": {
+        "PENDING": "En attente",
+        "IN_REVIEW": "En revue",
+        "APPROVED": "Approuvée",
+        "REVISION": "Correction",
+        "REJECTED": "Rejetée"
+      },
       "detailPage": {
         "back": "Retour aux ateliers",
         "notFound": "Atelier introuvable.",
         "createdAt": "Créé le {date}",
         "updatedAt": "Mis à jour le {date}",
-        "tabs": ["Structure", "Inscriptions", "Soumissions", "Quiz"],
-        "tableHeaders": ["Membre", "Email", "Statut", "Inscrit le"],
+        "tabs": [
+          "Structure",
+          "Inscriptions",
+          "Soumissions",
+          "Quiz"
+        ],
+        "tableHeaders": [
+          "Membre",
+          "Email",
+          "Statut",
+          "Inscrit le"
+        ],
         "emptyWeeks": "Aucune semaine définie pour cet atelier.",
         "emptySessions": "Aucune séance dans cette semaine.",
         "emptyEnrollments": "Aucune inscription pour cet atelier.",
@@ -1383,7 +2592,10 @@
         "quizRequired": "Quiz requis",
         "program": "Programme",
         "activities": "Activités",
-        "activityKinds": { "practice": "Pratique", "resource": "Ressource" },
+        "activityKinds": {
+          "practice": "Pratique",
+          "resource": "Ressource"
+        },
         "open": "Ouvrir",
         "deliverable": "Livrable",
         "quiz": "Quiz",
@@ -1403,7 +2615,15 @@
         "toastDateUpdated": "Date de déblocage mise à jour.",
         "toastDateDeleted": "Date de déblocage supprimée.",
         "toastInvalidDate": "Date invalide.",
-        "deliverableTypes": { "url": "URL", "github_repo": "Dépôt GitHub", "pull_request": "Pull request", "project": "Projet", "deployed_url": "Site déployé", "screenshot": "Capture d'écran", "text": "Texte" },
+        "deliverableTypes": {
+          "url": "URL",
+          "github_repo": "Dépôt GitHub",
+          "pull_request": "Pull request",
+          "project": "Projet",
+          "deployed_url": "Site déployé",
+          "screenshot": "Capture d'écran",
+          "text": "Texte"
+        },
         "threshold": "Seuil {value}%",
         "maxAttempts": "{value} tentatives max",
         "unlimitedAttempts": "Tentatives illimitées",
@@ -1412,7 +2632,11 @@
         "questionSingular": "question",
         "thresholdShort": "seuil",
         "pointSingular": "pt",
-        "questionTypes": { "single": "Choix unique", "multiple": "Choix multiple", "true_false": "Vrai / Faux" },
+        "questionTypes": {
+          "single": "Choix unique",
+          "multiple": "Choix multiple",
+          "true_false": "Vrai / Faux"
+        },
         "reviewHistory": "Historique des revues",
         "attemptShort": "tentative {n}",
         "submittedShort": "soumis le {date}",
@@ -1435,12 +2659,18 @@
       "refresh": "Rafraîchir",
       "retry": "Réessayer",
       "alertPrefix": "Alerte: {section}",
-      "sectionErrors": { "stats": "Statistiques membres", "emailStats": "Email engagement", "emailOps": "Quotas email temps réel" },
+      "sectionErrors": {
+        "stats": "Statistiques membres",
+        "emailStats": "Email engagement",
+        "emailOps": "Quotas email temps réel"
+      },
       "membersOverviewAria": "Vue d'ensemble membres",
       "loadError": "Erreur de chargement du dashboard.",
       "genericLoadError": "Erreur de chargement des données. Vérifie ta connexion puis rafraîchis."
     },
-    "activity": { "aria": "Activité" },
+    "activity": {
+      "aria": "Activité"
+    },
     "auditLog": {
       "title": "Journal d'audit",
       "subtitle": "Historique détaillé de toutes les actions administrateur."
@@ -1498,16 +2728,28 @@
       "title": "Mentorat",
       "headerCount": "{leads} lead{s} prioritaire{s} · {mentors} mentor{s} potentiel{s}",
       "tabsAria": "Vues mentorat",
-      "tabs": ["Leads prioritaires", "Mentors"],
+      "tabs": [
+        "Leads prioritaires",
+        "Mentors"
+      ],
       "leadsSectionAria": "Leads prioritaires",
       "mentorsSectionAria": "Mentors potentiels",
       "loadingAria": "Chargement",
       "retry": "Réessayer",
       "loadError": "Chargement impossible.",
       "budgetFilterAria": "Filtrer par budget",
-      "budgetOptions": ["Tous budgets", "20–30k", ">30k"],
+      "budgetOptions": [
+        "Tous budgets",
+        "20–30k",
+        ">30k"
+      ],
       "domainFilterAria": "Filtrer par domaine",
-      "domainOptions": ["Tous domaines", "Web", "Cyber", "IA"],
+      "domainOptions": [
+        "Tous domaines",
+        "Web",
+        "Cyber",
+        "IA"
+      ],
       "emptyLeads": "Aucun lead prioritaire pour le moment.",
       "emptyMentors": "Aucun mentor potentiel pour le moment.",
       "emptySuggestions": "Aucun mentor disponible.",
@@ -1529,7 +2771,23 @@
     "sidebar": {
       "brand": "HASHCODE",
       "version": "v2.0 · Admin",
-      "items": ["Vue d'ensemble", "Membres", "Ateliers", "Mentorat", "Invitations", "Marketing", "Suivi délivrabilité", "Événements", "Templates email", "Activité", "Exports", "Blacklist", "Audit", "Clés", "Paramètres"],
+      "items": [
+        "Vue d'ensemble",
+        "Membres",
+        "Ateliers",
+        "Mentorat",
+        "Invitations",
+        "Marketing",
+        "Suivi délivrabilité",
+        "Événements",
+        "Templates email",
+        "Activité",
+        "Exports",
+        "Blacklist",
+        "Audit",
+        "Clés",
+        "Paramètres"
+      ],
       "commands": "Commandes",
       "shortcut": "Ctrl K",
       "navAria": "Navigation admin",
@@ -1569,365 +2827,6 @@
         "expiredHint": "Tes brouillons ont été conservés sur cet appareil. Reconnecte-toi pour les retrouver.",
         "savedHere": "Brouillon enregistré sur cet appareil.",
         "nothingToSave": "Rien à enregistrer pour l'instant."
-      }
-    },
-    "legal": {
-      "mentions": {
-        "metaTitle": "Mentions légales — HASHCODE REBOOT",
-        "metaDescription": "Mentions légales de HASHCODE REBOOT : éditeur, hébergement, propriété intellectuelle, responsabilité, loi applicable.",
-        "title": "Mentions légales",
-        "subtitle": "Informations légales relatives au site HASHCODE REBOOT.",
-        "backHome": "Retour à HASHCODE",
-        "lastUpdated": "Dernière mise à jour : {date}",
-        "navAria": "Navigation mentions légales",
-        "nav": {
-          "privacy": "Politique de confidentialité",
-          "terms": "Conditions générales d'utilisation",
-          "cookies": "Politique des cookies",
-          "mentions": "Mentions légales"
-        },
-        "sections": {
-          "editor": {
-            "title": "Éditeur du site",
-            "label": "Nom",
-            "value": "Association HASHCODE",
-            "address": "Adresse",
-            "addressValue": "Bénin",
-            "email": "Email",
-            "phone": "Téléphone",
-            "phoneValue": "+229 XX XX XX XX",
-            "siret": "SIRET",
-            "siretValue": "En cours d'immatriculation",
-            "rcs": "RCS",
-            "rcsValue": "En cours",
-            "tva": "TVA intracommunautaire",
-            "tvaValue": "Non applicable (association)",
-            "director": "Directeur de la publication",
-            "directorValue": "Équipe HASHCODE"
-          },
-          "hosting": {
-            "title": "Hébergement",
-            "label": "Hébergeur",
-            "value": "Vercel Inc.",
-            "address": "Adresse",
-            "addressValue": "340 S Lemon Ave #4133, Walnut, CA 91789, USA"
-          },
-          "intellectualProperty": {
-            "title": "Propriété intellectuelle",
-            "content1": "L'ensemble du contenu du site HASHCODE REBOOT (textes, images, logos, marques, code, structure, bases de données) est la propriété exclusive de l'Association HASHCODE ou fait l'objet d'une autorisation d'utilisation.",
-            "content2": "Toute reproduction, représentation, modification, publication, adaptation de tout ou partie des éléments du site, quel que soit le moyen ou le procédé utilisé, est interdite sans autorisation écrite préalable.",
-            "content3": "Les marques « HASHCODE » et « REBOOT » sont des marques déposées. Toute utilisation non autorisée est constitutive de contrefaçon."
-          },
-          "limitation": {
-            "title": "Limitation de responsabilité",
-            "content1": "L'Association HASHCODE s'efforce de fournir des informations aussi précises que possible. Toutefois, elle ne saurait être tenue responsable d'éventuelles erreurs, omissions ou indisponibilités des informations.",
-            "content2": "Les liens hypertextes vers des sites tiers sont fournis à titre indicatif. L'Association HASHCODE n'exerce aucun contrôle sur ces sites et décline toute responsabilité quant à leur contenu."
-          },
-          "externalLinks": {
-            "title": "Liens externes",
-            "content": "Le site peut contenir des liens vers des sites tiers. L'Association HASHCODE n'est pas responsable du contenu, de la politique de confidentialité ou des pratiques de ces sites."
-          },
-          "applicableLaw": {
-            "title": "Droit applicable",
-            "content": "Les présentes mentions légales sont régies par le droit béninois. Tout litige relatif à l'interprétation ou à l'exécution de celles-ci sera porté devant les juridictions compétentes du Bénin."
-          },
-          "contact": {
-            "title": "Contact",
-            "content": "Pour toute question relative aux mentions légales, vous pouvez nous contacter :"
-          }
-        }
-      },
-      "privacy": {
-        "metaTitle": "Politique de confidentialité — HASHCODE REBOOT",
-        "metaDescription": "Politique de confidentialité HASHCODE REBOOT : données collectées, finalités, destinataires, droits, sécurité, cookies, contact DPO.",
-        "title": "Politique de confidentialité",
-        "subtitle": "Comment nous collectons, utilisons et protégeons vos données personnelles.",
-        "backHome": "Retour à HASHCODE",
-        "lastUpdated": "Dernière mise à jour : {date}",
-        "navAria": "Navigation politique de confidentialité",
-        "nav": {
-          "mentions": "Mentions légales",
-          "terms": "Conditions générales d'utilisation",
-          "cookies": "Politique des cookies",
-          "privacy": "Politique de confidentialité"
-        },
-        "sections": {
-          "introduction": {
-            "title": "Introduction",
-            "content1": "La protection de vos données personnelles est une priorité pour HASHCODE REBOOT. Cette politique explique quelles données nous collectons, pourquoi nous les collectons, comment nous les utilisons et quels sont vos droits.",
-            "content2": "En utilisant nos services, vous acceptez la collecte et l'utilisation de vos données conformément à cette politique."
-          },
-          "controller": {
-            "title": "Responsable du traitement",
-            "content": "L'Association HASHCODE, dont le siège est au Bénin, est le responsable du traitement de vos données personnelles.",
-            "contact": "Délégué à la protection des données (DPO)"
-          },
-          "dataCollected": {
-            "title": "Données collectées",
-            "profile": {
-              "title": "Données de profil",
-              "items": ["Prénom, nom", "Email", "Numéro de téléphone (WhatsApp)", "Pays, ville", "Genre (optionnel)", "Domaine d'intérêt (Web, Cyber, IA)", "Niveau (Débutant à Avancé)", "Objectif à 3 mois", "Disponibilité hebdomadaire", "Style d'apprentissage", "Intérêt pour le mentorat", "Budget indicatif (optionnel)"]
-            },
-            "technical": {
-              "title": "Données techniques",
-              "items": ["Adresse IP", "Type et version du navigateur", "Système d'exploitation", "Pages visitées, temps passé", "Événements d'interaction (clics, soumissions)", "Logs d'erreurs"]
-            },
-            "usage": {
-              "title": "Données d'usage",
-              "items": ["Progression dans les ateliers", "Résultats des quiz", "Livrables soumis", "Participation aux événements (RSVP)", "Historique de mentorat"]
-            }
-          },
-          "purposes": {
-            "title": "Finalités du traitement",
-            "items": [
-              { "label": "Création et gestion du compte", "desc": "Identifier l'utilisateur, envoyer le code d'accès, gérer le profil" },
-              { "label": "Personnalisation du parcours", "desc": "Proposer l'axe adapté (Web, Cyber, IA), recommander ateliers et mentors" },
-              { "label": "Communication", "desc": "Envoyer notifications, invitations WhatsApp, emails transactionnels, newsletters" },
-              { "label": "Animation de la communauté", "desc": "Gérer les inscriptions aux ateliers, événements, mentorat" },
-              { "label": "Amélioration du service", "desc": "Analyser l'usage, corriger les bugs, mesurer la satisfaction" },
-              { "label": "Obligations légales", "desc": "Répondre aux demandes des autorités, prévenir la fraude" }
-            ]
-          },
-          "legalBasis": {
-            "title": "Bases légales",
-            "items": [
-              { "purpose": "Exécution du contrat (création compte, accès services)", "basis": "Article 6.1.b RGPD" },
-              { "purpose": "Consentement (newsletter, cookies non essentiels)", "basis": "Article 6.1.a RGPD" },
-              { "purpose": "Intérêt légitime (analytics, sécurité, amélioration)", "basis": "Article 6.1.f RGPD" },
-              { "purpose": "Obligation légale (conservation logs, réponse autorités)", "basis": "Article 6.1.c RGPD" }
-            ]
-          },
-          "recipients": {
-            "title": "Destinataires des données",
-            "content1": "Vos données ne sont jamais vendues. Elles sont accessibles uniquement aux personnes habilitées :",
-            "content2": "Nous pouvons partager vos données avec des sous-traitants techniques (hébergement, email, analytics) liés par contrat de sous-traitance RGPD.",
-            "categories": ["Équipe HASHCODE (admins, mentors)", "Sous-traitants : Vercel (hébergement), Resend/Brevo (email), Plausible (analytics)"]
-          },
-          "transfers": {
-            "title": "Transferts hors UE",
-            "content": "Certains sous-traitants (Vercel, Resend) sont basés aux USA. Les transferts s'appuient sur les clauses contractuelles types de la Commission européenne et/ou la décision d'adéquation UE-USA (Data Privacy Framework)."
-          },
-          "retention": {
-            "title": "Durées de conservation",
-            "items": [
-              { "category": "Données de compte (profil, email, téléphone)", "duration": "Durée de l'inscription + 3 ans d'inactivité" },
-              { "category": "Données de progression (ateliers, quiz, livrables)", "duration": "Durée de l'inscription + 3 ans" },
-              { "category": "Logs techniques (IP, navigation, erreurs)", "duration": "13 mois maximum" },
-              { "category": "Données de mentorat", "duration": "Durée de la relation + 3 ans" },
-              { "category": "Cookies (voir politique cookies)", "duration": "Selon type (session à 13 mois)" }
-            ]
-          },
-          "rights": {
-            "title": "Vos droits",
-            "content": "Conformément au RGPD et à la loi béninoise, vous disposez des droits suivants :",
-            "list": [
-              "Droit d'accès : obtenir une copie de vos données",
-              "Droit de rectification : corriger des données inexactes",
-              "Droit à l'effacement (« droit à l'oubli ») : demander la suppression",
-              "Droit à la limitation : geler l'utilisation de vos données",
-              "Droit d'opposition : refuser le traitement pour motifs légitimes",
-              "Droit à la portabilité : recevoir vos données dans un format structuré",
-              "Droit de retirer votre consentement (pour les traitements basés sur le consentement)",
-              "Droit d'introduire une réclamation auprès de l'autorité de protection des données (Bénin ou UE)"
-            ],
-            "exercise": "Pour exercer vos droits, contactez notre DPO à {email} ou via votre espace membre (section « Mes données »). Nous répondons sous 30 jours."
-          },
-          "security": {
-            "title": "Sécurité",
-            "content": "Nous mettons en œuvre des mesures techniques et organisationnelles appropriées : chiffrement TLS 1.3, authentification forte (magic link + OTP), isolation des données, journalisation des accès, sauvegardes chiffrées, tests de sécurité réguliers."
-          },
-          "cookies": {
-            "title": "Cookies",
-            "content": "Nous utilisons des cookies essentiels (session, sécurité) et, avec votre consentement, des cookies d'analytics (Plausible, respectueux de la vie privée).",
-            "link": "Voir la politique des cookies complète"
-          },
-          "changes": {
-            "title": "Modifications de la politique",
-            "content": "Cette politique peut être mise à jour. Les modifications substantielles vous seront notifiées par email ou via l'application. La version actuelle est toujours accessible sur cette page."
-          },
-          "contact": {
-            "title": "Contact DPO",
-            "content": "Pour toute question relative à la protection de vos données :"
-          }
-        }
-      },
-      "terms": {
-        "metaTitle": "Conditions générales d'utilisation — HASHCODE REBOOT",
-        "metaDescription": "CGU HASHCODE REBOOT : acceptation, description des services, accès, compte, obligations, propriété intellectuelle, suspension, responsabilité, modifications, résiliation, loi applicable.",
-        "title": "Conditions générales d'utilisation",
-        "subtitle": "Règles régissant l'accès et l'utilisation des services HASHCODE REBOOT.",
-        "backHome": "Retour à HASHCODE",
-        "lastUpdated": "Dernière mise à jour : {date}",
-        "navAria": "Navigation CGU",
-        "nav": {
-          "mentions": "Mentions légales",
-          "privacy": "Politique de confidentialité",
-          "cookies": "Politique des cookies",
-          "terms": "Conditions générales d'utilisation"
-        },
-        "sections": {
-          "acceptance": {
-            "title": "Acceptation des conditions",
-            "content1": "En accédant ou en utilisant les services HASHCODE REBOOT (site web, application, ateliers, mentorat, communauté), vous acceptez sans réserve les présentes conditions générales d'utilisation (CGU).",
-            "content2": "Si vous n'acceptez pas ces conditions, merci de ne pas utiliser nos services."
-          },
-          "description": {
-            "title": "Description des services",
-            "content1": "HASHCODE REBOOT est une communauté tech (développement web, cybersécurité, IA appliquée) offrant : profilage guidé, ateliers pratiques, challenges, mentorat, événements, réseau WhatsApp, espace membre.",
-            "content2": "Les services sont gratuits pour les membres. Certaines options futures (mentorat premium, certifications) pourront être payantes, toujours de façon optionnelle et transparente.",
-            "content3": "Nous nous réservons le droit de modifier, suspendre ou arrêter tout ou partie des services à tout moment, avec préavis raisonnable."
-          },
-          "access": {
-            "title": "Accès aux services",
-            "content1": "L'accès nécessite la création d'un profil via le questionnaire de profilage (environ 2 minutes).",
-            "content2": "L'admission est soumise à validation par l'équipe HASHCODE (statuts : Approuvé, En attente, Liste d'attente, Non retenu).",
-            "content3": "Un même utilisateur ne peut avoir qu'un seul compte. Les comptes multiples sont interdits.",
-            "content4": "L'accès au groupe WhatsApp officiel est réservé aux membres approuvés."
-          },
-          "account": {
-            "title": "Compte utilisateur",
-            "content1": "Vous êtes responsable de la confidentialité de votre accès (magic link, code OTP). Ne les partagez pas.",
-            "content2": "Vous devez fournir des informations exactes et les tenir à jour. Toute fausse déclaration peut entraîner la suspension du compte.",
-            "content3": "Vous pouvez supprimer votre compte à tout fois depuis l'espace membre (section « Mes données »). Cette action est irréversible.",
-            "content4": "En cas de compromission de votre compte, contactez-nous immédiatement via WhatsApp."
-          },
-          "userObligations": {
-            "title": "Obligations de l'utilisateur",
-            "content1": "En tant que membre, vous vous engagez à :",
-            "items": [
-              "Respecter les autres membres (bienveillance, pas de harcèlement, pas de discrimination)",
-              "Ne pas diffuser de contenu illégal, haineux, pornographique, spam, ou portant atteinte aux droits de tiers",
-              "Ne pas tenter de contourner les mesures de sécurité, d'extraire des données (scraping), ou de perturber les services",
-              "Utiliser les ressources (ateliers, mentorat) de bonne foi et à des fins d'apprentissage personnel",
-              "Signaler tout comportement inapproprié via les canaux prévus"
-            ]
-          },
-          "content": {
-            "title": "Contenu utilisateur",
-            "content1": "Vous restez propriétaire de vos livrables (code, textes, projets) soumis dans le cadre des ateliers.",
-            "content2": "En soumettant un livrable, vous accordez à HASHCODE une licence non exclusive, mondiale, gratuite, pour la durée de votre inscription, afin de l'évaluer, le corriger, l'afficher dans votre profil public (si vous l'autorisez).",
-            "content3": "Vous garantissez que vos soumissions ne violent pas de droits de propriété intellectuelle tiers.",
-            "content4": "HASHCODE peut refuser, masquer ou supprimer tout contenu non conforme aux CGU, sans préavis."
-          },
-          "intellectualProperty": {
-            "title": "Propriété intellectuelle d'HASHCODE",
-            "content1": "La marque HASHCODE, le logo, le design du site, les contenus pédagogiques (ateliers, quiz, challenges) sont la propriété exclusive de l'Association HASHCODE.",
-            "content2": "Toute reproduction, diffusion, exploitation commerciale sans autorisation écrite est interdite.",
-            "content3": "Les retours (feedback) que vous nous donnez sur le service peuvent être utilisés librement pour l'améliorer."
-          },
-          "suspension": {
-            "title": "Suspension et résiliation",
-            "content1": "Nous pouvons suspendre ou résilier votre accès en cas de violation grave ou répétée des CGU (harcèlement, fraude, scraping, contenu illégal).",
-            "content2": "Vous serez informé par email des motifs. Vous pouvez contester la décision sous 15 jours en contactant l'équipe.",
-            "content3": "En cas de résiliation, vos données seront traitées selon la politique de confidentialité (suppression ou anonymisation)."
-          },
-          "liability": {
-            "title": "Responsabilité",
-            "content1": "HASHCODE fournit les services « en l'état » sans garantie de disponibilité continue, d'absence de bugs, ou d'adéquation à un besoin spécifique.",
-            "content2": "Notre responsabilité ne saurait être engagée pour des dommages indirects (perte de chance, de données, de revenus) sauf faute lourde ou dolosive.",
-            "content3": "En tout état de cause, notre responsabilité totale est limitée au montant que vous avez éventuellement payé (0 € pour l'usage gratuit)."
-          },
-          "modifications": {
-            "title": "Modifications des CGU",
-            "content": "Les CGU peuvent être modifiées. La version à jour est toujours accessible sur cette page. Les modifications substantielles sont notifiées par email 15 jours avant leur entrée en vigueur. Votre utilisation continue vaut acceptation."
-          },
-          "termination": {
-            "title": "Résiliation",
-            "content1": "Vous pouvez quitter HASHCODE à tout moment en supprimant votre compte depuis l'espace membre.",
-            "content2": "Nous pouvons résilier pour motif légitime (inactivité > 1 an, violation CGU) avec préavis de 30 jours."
-          },
-          "law": {
-            "title": "Droit applicable et juridiction",
-            "content": "Les présentes CGU sont régies par le droit béninois. Tout litige sera porté devant les juridictions compétentes du Bénin, après tentative de résolution amiable."
-          },
-          "contact": {
-            "title": "Contact",
-            "content": "Pour toute question relative aux CGU :"
-          }
-        }
-      },
-      "cookies": {
-        "metaTitle": "Politique des cookies — HASHCODE REBOOT",
-        "metaDescription": "Politique des cookies HASHCODE REBOOT : cookies essentiels, analytics, consentement, gestion, tiers, conservation, droits, contact.",
-        "title": "Politique des cookies",
-        "subtitle": "Comment nous utilisons les cookies et technologies similaires.",
-        "backHome": "Retour à HASHCODE",
-        "lastUpdated": "Dernière mise à jour : {date}",
-        "navAria": "Navigation politique cookies",
-        "nav": {
-          "mentions": "Mentions légales",
-          "privacy": "Politique de confidentialité",
-          "terms": "Conditions générales d'utilisation",
-          "cookies": "Politique des cookies"
-        },
-        "sections": {
-          "whatAreCookies": {
-            "title": "Que sont les cookies ?",
-            "content": "Les cookies sont de petits fichiers texte déposés sur votre appareil (ordinateur, téléphone) lors de la visite d'un site. Ils permettent de reconnaître votre navigateur, de mémoriser vos préférences, et d'analyser l'usage du site."
-          },
-          "categories": {
-            "title": "Catégories de cookies utilisés",
-            "list": [
-              { "name": "Essentiels (strictement nécessaires)", "desc": "Indispensables au fonctionnement du site. Ne peuvent pas être désactivés.", "cookies": ["session_id : identification de session (expiration : fermeture navigateur)", "auth_token : token d'authentification magic link/OTP (expiration : 15 min)", "csrf_token : protection CSRF (expiration : session)", "locale : préférence de langue (expiration : 1 an)"] },
-              { "name": "Analytics (optionnels, avec consentement)", "desc": "Mesurent l'audience de façon respectueuse de la vie privée (Plausible, sans cookies tiers, données anonymisées).", "cookies": ["plausible_session : session analytics (expiration : 30 min)", "plausible_visitor : visiteur unique (expiration : 1 an)"] },
-              { "name": "Fonctionnels (optionnels)", "desc": "Améliorent l'expérience utilisateur (préférences, interface).", "cookies": ["theme : mode clair/sombre (expiration : 1 an)", "sidebar_state : état sidebar dashboard (expiration : session)"] }
-            ]
-          },
-          "consent": {
-            "title": "Consentement",
-            "content1": "Les cookies essentiels sont déposés automatiquement (base légale : intérêt légitime / exécution du contrat).",
-            "content2": "Les cookies analytics et fonctionnels ne sont déposés qu'après votre consentement explicite (bannière au premier visite). Vous pouvez retirer votre consentement à tout moment.",
-            "content3": "Le refus des cookies optionnels n'empêche pas l'accès aux services."
-          },
-          "manage": {
-            "title": "Gérer vos préférences",
-            "content1": "Vous pouvez modifier vos choix à tout moment via le lien « Cookies » en bas de page ou les paramètres de votre navigateur.",
-            "content2": "Pour supprimer ou bloquer les cookies :",
-            "browsers": [
-              "Chrome : Paramètres → Confidentialité → Cookies",
-              "Firefox : Options → Vie privée → Cookies",
-              "Safari : Préférences → Confidentialité → Gérer les données",
-              "Edge : Paramètres → Cookies et autorisations de site"
-            ]
-          },
-          "thirdParty": {
-            "title": "Services tiers",
-            "content1": "Certains cookies sont déposés par des services tiers que nous utilisons :",
-            "content2": "Ces services ont leur propre politique de confidentialité. Nous ne contrôlons pas leurs cookies.",
-            "services": [
-              "Vercel (hébergement) : cookies techniques de session",
-              "Resend / Brevo (email) : cookies de tracking d'ouverture/clic (emails transactionnels uniquement)",
-              "Plausible (analytics) : cookies anonymes, pas de données personnelles",
-              "WhatsApp (lien d'invitation) : cookies de WhatsApp/Meta si vous cliquez sur le lien"
-            ]
-          },
-          "retention": {
-            "title": "Durées de conservation",
-            "content": "Les cookies expirent automatiquement selon les durées indiquées ci-dessus. Vous pouvez les supprimer manuellement à tout moment.",
-            "details": "Durées maximales :",
-            "durations": [
-              "Cookies de session : suppression à la fermeture du navigateur",
-              "Cookies d'authentification : 15 minutes (code OTP) à 30 jours (session membre)",
-              "Cookies de préférence (langue, thème) : 1 an",
-              "Cookies analytics (Plausible) : 30 min (session) à 1 an (visiteur)"
-            ]
-          },
-          "yourRights": {
-            "title": "Vos droits",
-            "content": "Conformément au RGPD et à la directive ePrivacy, vous disposez des droits suivants concernant les cookies :",
-            "list": [
-              "Droit d'être informé : cette politique vous informe",
-              "Droit de consentement : pour les cookies non essentiels",
-              "Droit de retrait : retirer votre consentement à tout moment",
-              "Droit d'opposition : refuser les cookies via votre navigateur",
-              "Droit d'accès/rectification/effacement : sur les données personnelles liées aux cookies"
-            ]
-          },
-          "contact": {
-            "title": "Contact",
-            "content": "Pour toute question relative aux cookies :"
-          }
-        }
       }
     }
   }
