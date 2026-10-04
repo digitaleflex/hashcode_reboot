@@ -35,7 +35,8 @@ Noms lus par le code, dans l'ordre d'importance :
 |---|---|
 | `POSTGRES_PRISMA_URL` | Connexion poolée (runtime, fournie par l'intégration Vercel-Neon) |
 | `POSTGRES_URL_NON_POOLING` | Connexion directe (migrations CLI) |
-| `ADMIN_PASSCODE` | Passcode admin. **Requis en production** (l'app refuse de démarrer sans) |
+| `ADMIN_OPERATORS` | Emails admin (accès complet), séparés par des virgules. **Requis** : liste vide = aucun admin |
+| `ADMIN_VIEWERS` | Emails admin en lecture seule, séparés par des virgules |
 | `NEXT_PUBLIC_WHATSAPP_URL` | Lien communauté WhatsApp côté client (requis, aucune valeur en dur) |
 | `WHATSAPP_URL` | Idem, côté serveur (prioritaire sur la précédente, aucune valeur en dur) |
 | `RESEND_API_KEY` / `EMAIL_FROM` | Envoi + vérification Resend |
@@ -89,10 +90,11 @@ sur 429, exports plafonnés à 2000 lignes (`X-Export-Truncated`).
 
 ## Admin
 
-Passcode (`ADMIN_PASSCODE`, ≥16 caractères requis en prod, fail-closed au boot)
-→ cookie `hashcode-admin` HttpOnly 12h (`Secure` en prod, `SameSite=Lax`).
-Rôles `viewer`/`operator` (operator seul en écriture) + CSRF same-origin sur
-les mutations. Fonctionnalités : stats (+cohorte, funnel, engagement email),
+Connexion **email + mot de passe** (Better Auth) via `/?admin=1`, puis cookie de
+session `better-auth.session_token` HttpOnly. Accès déterminé par les listes
+blanches `ADMIN_OPERATORS` (accès complet) et `ADMIN_VIEWERS` (lecture seule),
+fail-closed : liste vide = aucun admin. Rôles `viewer`/`operator` (operator
+seul en écriture) + CSRF same-origin sur les mutations. Fonctionnalités : stats (+cohorte, funnel, engagement email),
 recherche, filtres cliquables, notes internes, actions groupées
 (valider/inviter/waitlist/rejeter/supprimer), invitation (message copiable),
 import CSV, export CSV/JSON filtré (audité), blacklist (manuelle + auto via
@@ -152,7 +154,7 @@ avec les cold starts (~1 s au réveil).
 ## Déploiement Vercel
 
 1. Lier le projet à l'intégration Neon (injecte `POSTGRES_*` tout seul).
-2. Renseigner `ADMIN_PASSCODE` + `CRON_SECRET` dans les vars du projet.
+2. Renseigner `ADMIN_OPERATORS` + `CRON_SECRET` dans les vars du projet.
 3. Push sur `main` : `vercel-build` migre (`migrate deploy`) puis build.
 4. Créer le job cron-job.org (section précédente).
 

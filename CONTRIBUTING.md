@@ -188,7 +188,7 @@ npm run test:e2e:ui       # UI mode
 | `RESEND_API_KEY` | Emails transactionnels | ✅ |
 | `BREVO_API_KEY` | Emails marketing/deliverability | ✅ |
 | `NEXT_PUBLIC_APP_URL` | URL publique pour liens emails | ✅ |
-| `ADMIN_PASSCODE` | Passcode admin (rotation via UI) | ✅ |
+| `ADMIN_OPERATORS` | Emails admin (accès complet). Fail-closed : vide = aucun admin | ✅ |
 
 ## Scripts utiles
 
