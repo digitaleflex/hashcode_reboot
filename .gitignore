@@ -70,3 +70,13 @@ db/*.db
 
 # outillage local opencode (plugin better-compact + node_modules propres)
 /.opencode/
+
+# ── Dette d'audit 2026-10 (voir docs/ROADMAP-SUR-INGENIERIE-2026.md)
+# Artefacts de build Playwright : ne doivent jamais être committés (D15)
+playwright-report/
+test-results/
+# Progression du tracker de tâches — propre à la machine
+.task-progress.json
+# Outillage d'agents local (non versionné)
+.kilo/
+.mimocode/

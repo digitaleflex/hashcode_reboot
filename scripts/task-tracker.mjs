@@ -15,6 +15,64 @@ const TRACKER_FILE = path.join(process.cwd(), '.task-progress.json');
 
 const TASKS = [
   // ─────────────────────────────────────────────────────────────
+  // AUDIT SUR-INGÉNIERIE 2026-10-05
+  // Détail + raisons : docs/ROADMAP-SUR-INGENIERIE-2026.md
+  // Protocole      : docs/REGLE-EXECUTION.md
+  // ─────────────────────────────────────────────────────────────
+
+  // PHASE 0 — Bugs réels (sécurité + données fausses)
+  { id: 'D01', title: 'disableSignUp — bloque la préemption d\'identité admin', priority: 'P0', deps: [], area: 'securite' },
+  { id: 'D02', title: 'Valider (ou retirer) le token sur invite/accept et invite/refuse', priority: 'P0', deps: [], area: 'securite' },
+  { id: 'D03', title: 'categorizeEmail — le tunnel de relance est vide (chiffres faux)', priority: 'P0', deps: [], area: 'email' },
+  { id: 'D04', title: 'Webhook Resend — memberId manquant sur les 4 emailEvent.create', priority: 'P0', deps: [], area: 'email' },
+  { id: 'D05', title: 'Turnstile fail-closed sur /api/admin/login', priority: 'P1', deps: [], area: 'securite' },
+  { id: 'D06', title: 'Aligner la durée OTP : 300 s réel vs 15 min annoncées', priority: 'P1', deps: [], area: 'auth' },
+  { id: 'D07', title: 'Migrations CREATE TABLE manquantes pour les tables Better Auth', priority: 'P1', deps: [], area: 'db' },
+  { id: 'D08', title: 'ADMIN_EMAIL || EMAIL_FROM — Display Name utilisé comme adresse', priority: 'P1', deps: [], area: 'email' },
+
+  // PHASE 1 — Suppressions sèches (risque nul)
+  { id: 'D09', title: 'Supprimer 35 composants ui/ morts + use-mobile (~4 340 l.)', priority: 'P0', deps: [], area: 'cleanup' },
+  { id: 'D10', title: 'Supprimer ~30 dépendances mortes (~60 Mo de bundle)', priority: 'P0', deps: ['D09'], area: 'deps' },
+  { id: 'D11', title: 'Supprimer lib/prisma-extensions.ts (235 l., 0 consommateur)', priority: 'P0', deps: [], area: 'cleanup' },
+  { id: 'D12', title: 'Supprimer hooks useStats/useActivity + résidu useMembers', priority: 'P0', deps: [], area: 'cleanup' },
+  { id: 'D13', title: 'Supprimer 5 routes API mortes + manifeste ROUTES de health.ts', priority: 'P0', deps: [], area: 'cleanup' },
+  { id: 'D14', title: 'Supprimer 9 validateurs Ateliers morts (445 l., CRUD renoncé)', priority: 'P0', deps: [], area: 'ateliers' },
+  { id: 'D15', title: 'Supprimer 16 scripts orphelins + résidus racine + bun.lock', priority: 'P1', deps: [], area: 'cleanup' },
+  { id: 'D16', title: 'Nettoyer squelettes dupliqués, props mortes, revalidate=0', priority: 'P1', deps: [], area: 'admin' },
+  { id: 'D17', title: 'Supprimer ~34 exports morts (errors, labels, analytics, matching)', priority: 'P2', deps: [], area: 'cleanup' },
+
+  // PHASE 2 — Fiabiliser les tests
+  { id: 'D18', title: 'Basculer les tests sur tsx — supprimer 741 lignes de miroirs', priority: 'P0', deps: ['D14'], area: 'test' },
+  { id: 'D19', title: 'Réécrire magic-link.test.cjs (teste account-otp.ts, supprimé)', priority: 'P0', deps: ['D18'], area: 'test' },
+  { id: 'D20', title: 'Réactiver ou supprimer les 3 suites E2E fixme (sélecteurs périmés)', priority: 'P2', deps: ['D18'], area: 'test' },
+
+  // PHASE 3 — Purge i18n + documentation
+  { id: 'D21', title: 'Trancher legal.* — brancher les 4 pages légales ou supprimer', priority: 'P1', deps: [], area: 'i18n' },
+  { id: 'D22', title: 'Purger ~2 400 clés i18n mortes par locale (~4 800 l.)', priority: 'P2', deps: ['D21'], area: 'i18n' },
+  { id: 'D23', title: 'Corriger README, CONTRIBUTING et docs obsolètes (16 erreurs)', priority: 'P1', deps: ['D02'], area: 'docs' },
+
+  // PHASE 4 — Cohérence serveur
+  { id: 'D24', title: 'requireAdmin() unifié — corrige le 401-vs-403 selon la route', priority: 'P0', deps: [], area: 'api' },
+  { id: 'D25', title: 'adminQuery() — factoriser les blocs 401/429 (29 + 16 occurrences)', priority: 'P1', deps: ['D24'], area: 'admin' },
+  { id: 'D26', title: 'Migrer les 33 routes restantes vers errors.ts', priority: 'P2', deps: ['D24'], area: 'api' },
+  { id: 'D27', title: 'SECTION_MAP incomplet — menu faux sur 4 pages admin', priority: 'P0', deps: [], area: 'admin' },
+  { id: 'D28', title: 'Supprimer la double résolution de session admin (2x getSession)', priority: 'P1', deps: ['D24'], area: 'api' },
+
+  // PHASE 5 — Composition admin (arrêter de copier)
+  { id: 'D29', title: 'Faire composer admin/dashboard par les 6 endpoints existants', priority: 'P1', deps: ['D03', 'D04'], area: 'api' },
+  { id: 'D30', title: 'Extraire 5 primitives UI partagées (StatusBadge x6, RateBar x3...)', priority: 'P2', deps: ['D09'], area: 'admin' },
+  { id: 'D31', title: 'Extraire les helpers dupliqués (formatDate x7, queryError x3)', priority: 'P2', deps: ['D09'], area: 'admin' },
+  { id: 'D32', title: 'Migrer 17 composants manuels vers useQuery (AbortController x11)', priority: 'P2', deps: ['D25'], area: 'admin' },
+
+  // PHASE 6 — Décisions produit (arbitrage requis)
+  { id: 'D33', title: 'Trancher ?admin=1 — supprimer admin-login.tsx (401 l.) ou /admin', priority: 'P1', deps: ['D27'], area: 'auth' },
+  { id: 'D34', title: 'Trancher le magic-link onboarding (570 l. pour un flag jamais lu)', priority: 'P1', deps: ['D02'], area: 'auth' },
+  { id: 'D35', title: 'Réaligner SessionReminder (12 h vs 30 j) ou supprimer 355 l.', priority: 'P1', deps: [], area: 'admin' },
+  { id: 'D36', title: 'Supprimer MemberSession/AdminKey/RateLimit + colonnes mortes', priority: 'P2', deps: ['D07'], area: 'db' },
+  { id: 'D37', title: 'Trancher le ticket phone-fill (132 l. câblées mais inopérantes)', priority: 'P2', deps: [], area: 'auth' },
+  { id: 'D38', title: 'Réactiver des règles ESLint désactivées (no-undef, exhaustive-deps)', priority: 'P2', deps: ['D18'], area: 'config' },
+
+  // ─────────────────────────────────────────────────────────────
   // RESPONSIVE & NEXT.JS BEST PRACTICES (Audit 2026-10-01)
   // ─────────────────────────────────────────────────────────────
 
@@ -155,21 +213,37 @@ function status() {
   console.log('');
 }
 
+function resetTask(id) {
+  const progress = loadProgress();
+  if (!progress[id]) {
+    console.error(`❌ Tâche ${id} non marquée — rien à annuler`);
+    process.exit(1);
+  }
+  delete progress[id];
+  saveProgress(progress);
+  console.log(`↩️  ${id} remise à zéro`);
+}
+
 // CLI
 const cmd = process.argv[2];
 switch (cmd) {
   case 'list': listTasks(); break;
   case 'next': nextTask(); break;
   case 'done': markDone(process.argv[3]); break;
+  case 'reset': resetTask(process.argv[3]); break;
   case 'status': status(); break;
   default:
     console.log(`
 Usage: node scripts/task-tracker.mjs <command>
 
 Commands:
-  list     - Liste toutes les tâches avec statut
-  next     - Affiche la prochaine tâche faisable
-  done T01 - Marque T01 comme terminée
-  status   - Vue d'ensemble par priorité
+  list       - Liste toutes les tâches avec statut
+  next       - Affiche la prochaine tâche faisable
+  done D01   - Marque D01 comme terminée
+  reset D01  - Annule le marquage de D01
+  status     - Vue d'ensemble par priorité
+
+Roadmap sur-ingénierie : docs/ROADMAP-SUR-INGENIERIE-2026.md
+Protocole d'exécution : docs/REGLE-EXECUTION.md
 `);
 }
