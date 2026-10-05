@@ -11,7 +11,11 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import {
+  findMember,
+  recordEmailEvent,
+  blacklistEmail,
+} from "@/lib/webhooks/email-event";
 import { createLogger, serializeError } from "@/lib/logging";
 import { headers } from "next/headers";
 
@@ -139,57 +143,32 @@ async function handleBounce(
     eventId: event.data.email_id,
   });
 
-  // Log to EmailEvent table
-  try {
-    await db.emailEvent.create({
-      data: {
-        email,
-        type: "email.bounced",
-        category: "bounce",
-        metadata: JSON.stringify({
-          bounceType,
-          bounceMessage,
-          emailId: event.data.email_id,
-        }),
-      },
-    });
-  } catch {
-    // Silent - best effort
-  }
+  // D04 — `recordEmailEvent` résout `memberId` lui-même. Avant, ce `create`
+  // n'écrivait pas de memberId : tout le trafic Resend était invisible dans
+  // /api/admin/email-log et /api/admin/member-emails, qui filtrent par memberId.
+  await recordEmailEvent({
+    email,
+    type: "email.bounced",
+    category: "bounce",
+    metadata: {
+      bounceType,
+      bounceMessage,
+      emailId: event.data.email_id,
+    },
+  });
 
   // If permanent bounce, consider suppressing the member
   if (bounceType === "permanent") {
-    try {
-      const member = await db.member.findUnique({
-        where: { email },
-        select: { id: true, email: true },
-      });
-
-      if (member) {
-        // Raison dans l'enum BLACKLIST_REASONS (le détail va dans note).
-        // Upsert : idempotent si le webhook est rejoué.
-        await db.memberBlacklist.upsert({
-          where: { email: member.email },
-          create: {
-            email: member.email,
-            reason: "other",
-            note: `Auto: permanent bounce via Resend (${bounceMessage ?? "no message"})`.slice(0, 500),
-            autoAdded: true,
-          },
-          update: {
-            reason: "other",
-            note: `Auto: permanent bounce via Resend (${bounceMessage ?? "no message"})`.slice(0, 500),
-            autoAdded: true,
-          },
-        });
-
-        logger.info("Member blacklisted due to permanent bounce", {
-          memberId: member.id,
-          email: member.email,
-        });
-      }
-    } catch {
-      // Silent - best effort
+    // Raison dans l'enum BLACKLIST_REASONS (le détail va dans note).
+    // Upsert : idempotent si le webhook est rejoué.
+    await blacklistEmail({
+      email,
+      reason: "other",
+      note: `Auto: permanent bounce via Resend (${bounceMessage ?? "no message"})`,
+    });
+    const member = await findMember(email);
+    if (member) {
+      logger.info("Member blacklisted due to permanent bounce", { memberId: member.id });
     }
   }
 }
@@ -210,53 +189,25 @@ async function handleComplaint(
     eventId: event.data.email_id,
   });
 
-  // Log to EmailEvent table
-  try {
-    await db.emailEvent.create({
-      data: {
-        email,
-        type: "email.complained",
-        category: "complaint",
-        metadata: JSON.stringify({
-          feedbackType,
-          emailId: event.data.email_id,
-        }),
-      },
-    });
-  } catch {
-    // Silent
-  }
+  // D04 — memberId résolu par recordEmailEvent (absent avant : invisible en UI).
+  // Ces helpers ne lèvent jamais (best-effort : un webhook ne doit pas faire
+  // échouer l'appel provider, qui réessaierait), donc pas de try/catch ici.
+  await recordEmailEvent({
+    email,
+    type: "email.complained",
+    category: "complaint",
+    metadata: { feedbackType, emailId: event.data.email_id },
+  });
 
   // Add to blacklist for spam complaints
-  try {
-    const member = await db.member.findUnique({
-      where: { email },
-      select: { id: true, email: true },
-    });
-
-    if (member) {
-      await db.memberBlacklist.upsert({
-        where: { email: member.email },
-        create: {
-          email: member.email,
-          reason: "spammer",
-          note: `Auto: spam complaint via Resend (${feedbackType ?? "no feedback type"})`.slice(0, 500),
-          autoAdded: true,
-        },
-        update: {
-          reason: "spammer",
-          note: `Auto: spam complaint via Resend (${feedbackType ?? "no feedback type"})`.slice(0, 500),
-          autoAdded: true,
-        },
-      });
-
-      logger.info("Member blacklisted due to spam complaint", {
-        memberId: member.id,
-        email: member.email,
-      });
-    }
-  } catch {
-    // Silent
+  await blacklistEmail({
+    email,
+    reason: "spammer",
+    note: `Auto: spam complaint via Resend (${feedbackType ?? "no feedback type"})`,
+  });
+  const member = await findMember(email);
+  if (member) {
+    logger.info("Member blacklisted due to spam complaint", { memberId: member.id });
   }
 }
 
@@ -276,49 +227,20 @@ async function handleSuppression(
     eventId: event.data.email_id,
   });
 
-  // Log to EmailEvent table
-  try {
-    await db.emailEvent.create({
-      data: {
-        email,
-        type: "email.suppressed",
-        category: "suppression",
-        metadata: JSON.stringify({
-          reason,
-          emailId: event.data.email_id,
-        }),
-      },
-    });
-  } catch {
-    // Silent
-  }
+  // D04 — memberId résolu par recordEmailEvent (absent avant : invisible en UI).
+  await recordEmailEvent({
+    email,
+    type: "email.suppressed",
+    category: "suppression",
+    metadata: { reason, emailId: event.data.email_id },
+  });
 
   // Add to blacklist
-  try {
-    const member = await db.member.findUnique({
-      where: { email },
-      select: { id: true, email: true },
-    });
-
-    if (member) {
-      await db.memberBlacklist.upsert({
-        where: { email: member.email },
-        create: {
-          email: member.email,
-          reason: "other",
-          note: `Auto: suppressed via Resend (${reason ?? "unknown"})`.slice(0, 500),
-          autoAdded: true,
-        },
-        update: {
-          reason: "other",
-          note: `Auto: suppressed via Resend (${reason ?? "unknown"})`.slice(0, 500),
-          autoAdded: true,
-        },
-      });
-    }
-  } catch {
-    // Silent
-  }
+  await blacklistEmail({
+    email,
+    reason: "other",
+    note: `Auto: suppressed via Resend (${reason ?? "unknown"})`,
+  });
 }
 
 /** Handle delivery/engagement events for analytics. */
@@ -342,23 +264,23 @@ async function handleEngagement(
 
   const category = categoryMap[event.type] ?? "other";
 
-  try {
-    await db.emailEvent.create({
-      data: {
-        email,
-        type: event.type,
-        category,
-        metadata: JSON.stringify({
-          emailId,
-          subject: event.data.subject,
-          tags: event.data.tags,
-          clickUrl: event.data.click?.url,
-        }),
-      },
-    });
-  } catch {
-    // Silent
-  }
+  // D04 — C'ÉTAIT LE CŒUR DU BUG. Ce bloc enregistre `email.opened` et
+  // `email.clicked` (les deux seules sources des open/click rates) et
+  // n'écrivait AUCUN memberId. Or /api/admin/email-log:119 et
+  // /api/admin/member-emails:54 enrichissent via `where: { memberId: { in: [...] } }`
+  // → tous les opens/clicks Resend étaient invisibles dans l'interface admin.
+  // `recordEmailEvent` résout memberId : l'oubli n'est plus possible.
+  await recordEmailEvent({
+    email,
+    type: event.type,
+    category,
+    metadata: {
+      emailId,
+      subject: event.data.subject,
+      tags: event.data.tags,
+      clickUrl: event.data.click?.url,
+    },
+  });
 }
 
 /** Main webhook handler. */

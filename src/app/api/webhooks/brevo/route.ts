@@ -19,6 +19,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { createLogger, serializeError } from "@/lib/logging";
 import { sendBouncedNotificationEmail } from "@/lib/mail";
+import {
+  findMember,
+  recordEmailEvent,
+  blacklistEmail,
+} from "@/lib/webhooks/email-event";
 
 export const runtime = "nodejs";
 
@@ -62,54 +67,12 @@ function isSecretValid(provided: string | null): boolean {
   return timingSafeEqual(a, b);
 }
 
-async function findMember(email: string) {
-  try {
-    return await db.member.findUnique({
-      where: { email: email.toLowerCase() },
-      select: { id: true, email: true, firstName: true },
-    });
-  } catch {
-    return null;
-  }
-}
-
-async function logEvent(
-  email: string,
-  memberId: string | null,
-  type: string,
-  category: string,
-  metadata: Record<string, unknown>,
-): Promise<void> {
-  try {
-    await db.emailEvent.create({
-      data: {
-        email,
-        memberId,
-        type,
-        category,
-        metadata: JSON.stringify(metadata).slice(0, 2000),
-      },
-    });
-  } catch {
-    // Silent — best effort
-  }
-}
-
-async function blacklist(
-  email: string,
-  reason: string,
-  note: string,
-): Promise<void> {
-  try {
-    await db.memberBlacklist.upsert({
-      where: { email },
-      create: { email, reason, note: note.slice(0, 500), autoAdded: true },
-      update: { reason, note: note.slice(0, 500), autoAdded: true },
-    });
-  } catch {
-    // Silent — best effort
-  }
-}
+// D04 — les helpers sont désormais partagés avec le webhook Resend
+// (`@/lib/webhooks/email-event`), qui les réimplémentait à l'identique mais
+// SANS memberId. Avant : Resend réimplémentait, Brevo avait sa copie — d'où
+// une asymétrie invisible où seul le trafic Brevo remontait dans les vues
+// engagement de l'admin.
+// `findMember` / `blacklist` locaux supprimés ci-dessous.
 
 /** Hard bounce / invalid / blocked → BOUNCED + blacklist + notif admin. */
 async function handleHardBounce(
@@ -126,11 +89,16 @@ async function handleHardBounce(
   });
 
   const member = await findMember(email);
-  await logEvent(email, member?.id ?? null, `brevo.${event.event}`, "bounce", {
-    messageId: event["message-id"],
-    subject: event.subject,
-    tags: event.tags,
-    reason: event.reason,
+  await recordEmailEvent({
+    email,
+    type: `brevo.${event.event}`,
+    category: "bounce",
+    metadata: {
+      messageId: event["message-id"],
+      subject: event.subject,
+      tags: event.tags,
+      reason: event.reason,
+    },
   });
 
   if (member) {
@@ -142,11 +110,11 @@ async function handleHardBounce(
     } catch {
       // Silent
     }
-    await blacklist(
-      member.email,
-      "other",
-      `Auto: ${event.event} via Brevo (${event.reason ?? "no reason"})`,
-    );
+    await blacklistEmail({
+      email: member.email,
+      reason: "other",
+      note: `Auto: ${event.event} via Brevo (${event.reason ?? "no reason"})`,
+    });
     logger.info("Member marked BOUNCED via Brevo", {
       memberId: member.id,
       email: member.email,
@@ -172,18 +140,23 @@ async function handleComplaint(
 
   logger.warn("Brevo spam complaint", { email });
   const member = await findMember(email);
-  await logEvent(email, member?.id ?? null, "brevo.complaint", "complaint", {
-    messageId: event["message-id"],
-    subject: event.subject,
-    tags: event.tags,
+  await recordEmailEvent({
+    email,
+    type: "brevo.complaint",
+    category: "complaint",
+    metadata: {
+      messageId: event["message-id"],
+      subject: event.subject,
+      tags: event.tags,
+    },
   });
 
   if (member) {
-    await blacklist(
-      member.email,
-      "spammer",
-      "Auto: spam complaint via Brevo",
-    );
+    await blacklistEmail({
+      email: member.email,
+      reason: "spammer",
+      note: "Auto: spam complaint via Brevo",
+    });
     logger.info("Member blacklisted (complaint) via Brevo", {
       memberId: member.id,
     });
@@ -206,18 +179,17 @@ async function handleEngagement(
     error: "failed",
   };
   const member = await findMember(email);
-  await logEvent(
+  await recordEmailEvent({
     email,
-    member?.id ?? null,
-    `brevo.${event.event}`,
-    categoryMap[event.event] ?? "other",
-    {
+    type: `brevo.${event.event}`,
+    category: categoryMap[event.event] ?? "other",
+    metadata: {
       messageId: event["message-id"],
       subject: event.subject,
       tags: event.tags,
       clickUrl: event.link,
     },
-  );
+  });
 
   // Clic sur un email d'invitation → compteur dashboard admin.
   if (member && event.event === "clicked") {
@@ -299,19 +271,18 @@ export async function POST(req: NextRequest) {
     if (event.event === "unsubscribed" && event.email) {
       const email = event.email.toLowerCase();
       const member = await findMember(email);
-      await logEvent(
+      await recordEmailEvent({
         email,
-        member?.id ?? null,
-        "brevo.unsubscribed",
-        "suppression",
-        { messageId: event["message-id"], tags: event.tags },
-      );
+        type: "brevo.unsubscribed",
+        category: "suppression",
+        metadata: { messageId: event["message-id"], tags: event.tags },
+      });
       if (member) {
-        await blacklist(
-          member.email,
-          "other",
-          "Auto: unsubscribe via Brevo",
-        );
+        await blacklistEmail({
+      email: member.email,
+      reason: "other",
+      note: "Auto: unsubscribe via Brevo",
+    });
       }
     }
 
