@@ -79,6 +79,18 @@ export const auth = betterAuth({
 
   plugins: [
     emailOTP({
+      // D06 — Better Auth expire l'OTP à 300 s par défaut
+      // (node_modules/better-auth/dist/plugins/email-otp/index.mjs:14), alors
+      // que l'UI annonce 15 minutes à 4 endroits : src/lib/mail.ts:753, :764,
+      // :787, messages/{fr,en}.json (verifyOtp.codeHint, email.body). Un
+      // utilisateur qui saisit son code entre 5 et 15 minutes était refusé
+      // sur un code encore valide, sans explication.
+      //
+      // On aligne Better Auth sur les 15 min annoncées (3 sources sur 4
+      // disent déjà 15) plutôt que l'inverse, pour ne pas réécrire l'UI et les
+      // 2 locales.
+      expiresIn: 900, // 15 minutes, en secondes
+
       sendVerificationOTP: async ({ email, otp, type }) => {
         const member = await db.member.findUnique({ where: { email } });
         if (!member) return;
