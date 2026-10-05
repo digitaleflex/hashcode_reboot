@@ -28,6 +28,21 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: false,
+    // D01 — Ferme POST /api/auth/sign-up/email (route publique montée par
+    // `[...betterAuth]`). Sans cette option, n'importe qui pouvait créer un
+    // compte Better Auth avec l'email d'un opérateur : les lignes `User` sont
+    // créées paresseusement (à la 1re connexion OTP), donc tout admin jamais
+    // connecté était préemptable — et `admin-auth.ts` ne teste que l'email.
+    //
+    // ⚠️ Ne PAS mettre `disableSignUp` dans `emailOTP({...})` : c'est une
+    // option distincte du plugin, qui bloquerait le parcours OTP membre
+    // (`routes.mjs:103` et `:413` lisent celle du plugin).
+    //
+    // Le parcours membre passe par `/sign-in/email-otp` + `/email-otp/*`
+    // (endpoints du plugin), pas par `/sign-up/email` : impact nul.
+    // L'accès admin passe par `auth.api.signInEmail`
+    // (`app/api/admin/login/route.ts`), également indépendant.
+    disableSignUp: true,
   },
 
   session: {
