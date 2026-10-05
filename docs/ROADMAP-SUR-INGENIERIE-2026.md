@@ -116,6 +116,60 @@ réécrire. La documentation de sécurité est donc fausse — à corriger en D2
 
 **Pourquoi c'est P0.** Bypass d'une intention de sécurité documentée, sans authentification.
 
+### ✅ D02 — DÉCISION PRISE ET APPLIQUÉE : **suppression**
+
+Décision validée le 2026-10-05. Investigation complémentaire ayant changé le
+diagnostic initial :
+
+**1. Aucun email ne lie vers ces routes.** Le `acceptUrl` réellement envoyé pointe
+vers `/verify-otp`, pas vers `/api/invite/accept`, et **ne contient aucun token** :
+
+```ts
+// src/app/api/invite/relance/route.ts:100
+const url = `${base}/verify-otp?email=${encodeURIComponent(member.email)}&next=${encodeURIComponent("/dashboard")}`;
+```
+
+Le seul producteur de liens accept/refuse était `sendInvitationWithActions` —
+**0 appelant en production** (uniquement le script de seed et le registre).
+
+**2. Il n'existe plus aucun secret à restaurer.** Chronologie vérifiée :
+
+| Commit | Effet |
+|---|---|
+| `7c91cef` (10 sept) | systèmeInvitation créé **avec** validation OTP (`MemberSession.otpHash`) |
+| `c9df5a2` | *« fix(security): anti-bruteforce (S1, S2) »* — durcit cette validation |
+| `f73099f` | **retire la validation**, en laissant `token` au schéma zod |
+| `bc3e449` (4 oct) | migration Better Auth, suppression de `account-otp.ts` |
+
+`f73099f` est le coupable : il a annulé ce que `c9df5a2` venait de durcir. Restaurer
+une validation n'aurait consisté qu'à **inventer** un mécanisme neuf.
+
+**3. `refuse` était plus grave que décrit.** Il n'a **aucun** contrôle
+d'éligibilité — il écrit `REFUSED` inconditionnellement (l.84-93), là où `accept`
+vérifie `invitationStatus` (l.82). Il pouvait donc écraser le statut d'un membre
+ayant **déjà rejoint** la communauté.
+
+**4. Les routes sont redondantes.** `invite/relance` fait déjà OTP + redirection
+vers `/verify-otp`, sans transition d'état forgeable.
+
+**Contenu de la suppression** :
+- `src/app/api/invite/accept/route.ts` et `src/app/api/invite/refuse/route.ts`
+- `sendInvitationWithActions`, `sendAcceptNotificationEmail`,
+  `sendRefuseNotificationEmail` (+ leurs interfaces) dans `mail.ts` — **158 lignes**
+- entrées de registre `invitation_actions`, `accept_notification`,
+  `refuse_notification` + leurs cas dans `seed-email-templates.ts`
+- `docs/audit-securite-2026-09-18.md` : ajout du §1.1 qui documente l'annulation
+  du correctif S1/S2 et la décision
+
+**Effet de bord assumé** : `invitationStatus: "REFUSED"`, `refusedAt` et
+`refusedReason` restent dans le schéma et l'interface admin, mais plus aucune route
+ne les écrit. Nettoyage prévu en **D36**. Si le refus par email est un besoin réel,
+il faut une feature signée (HMAC de lien, sur le modèle de
+`lib/phone-fill-ticket.ts`), pas une route publique.
+
+**Vérification** : `npm run validate` → 319 tests verts ; `next build` → 103 pages
+générées (105 avant, cohérent avec les 2 routes supprimées).
+
 ---
 
 ## D03 — 🔴 Le tunnel de relance email est silencieusement vide
@@ -875,6 +929,41 @@ bruyants), laisser `exhaustive-deps` pour la fin (coûteux sur un projet React 1
 
 **Point positif.** Le reste du fichier est propre et sans sur-configuration — ne pas
 toucher.
+
+---
+
+# Annexe D — Correctifs trouvés pendant l'exécution
+
+## D39 — 🔴 13 URLs vers le mauvais domaine (trouvé pendant D02)
+
+**Constat.** Deux domaines coexistaient : `https://reboot.joinhashcode.com`
+(correct, utilisé partout) et `https://joinhashcode.com` (sans le sous-domaine).
+
+13 occurrences réparties sur 4 fichiers, dont **2 fallbacks de production** :
+
+```ts
+// src/app/api/events/route.ts:277  et  src/app/api/events/[id]/route.ts:148
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://joinhashcode.com";
+const rsvpUrl = `${siteUrl}/dashboard/agenda`;   // → part dans les emails
+```
+
+**Impact.** Si `NEXT_PUBLIC_SITE_URL` est absent de l'environnement (le cas sur
+beaucoup de déploiements), les emails de notification d'événement pointent vers un
+domaine qui n'est pas celui de l'application. Les liens sont cassés, silencieusement.
+
+Les 11 autres occurrences étaient des valeurs d'aperçu / d'exemple
+(`email-templates/registry.ts`, `seed-email-templates.ts`) : impact limité à la
+lisibilité des aperçus dans l'interface admin, mais elles documentaient la mauvaise
+URL.
+
+**Correctif.** Les 13 occurrences corrigées. Vérifié : `rg 'https://joinhashcode\.com'`
+→ 0 résultat.
+
+**Leçon.** Un défaut de base (`NEXT_PUBLIC_SITE_URL`) est silently compensé par un
+fallback codé en dur — et ce fallback a divergé du reste du code. Les fallbacks
+« de sécurité » qui évitent une erreur d'auth deviennent souvent des fautes
+silencieuses. À traiter en D23 : imposer `NEXT_PUBLIC_SITE_URL` dans `.env.example`
+avec une valeur unique, et éviter les fallbacks codés en dur sur les URLs publiques.
 
 ---
 

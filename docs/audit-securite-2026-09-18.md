@@ -30,8 +30,8 @@ sur `development` (voir §2) ; le reste (rewrite `admin-auth` DB-backed
 
 | # | Gravité | Finding | Statut |
 |---|---|---|---|
-| S1 | CRITICAL | `invite/accept` : brute-force OTP sans rate limit ni compteur → prise de compte (la route recréait un OTP frais dans la redirect) | ✅ corrigé (`c9df5a2`) |
-| S2 | HIGH | `invite/refuse` : même surface + sabotage d'invitation (REFUSED + révocation) | ✅ corrigé (`c9df5a2`) |
+| S1 | CRITICAL | `invite/accept` : brute-force OTP sans rate limit ni compteur → prise de compte (la route recréait un OTP frais dans la redirect) | ✅ routes supprimées (D02) — voir §1.1 |
+| S2 | HIGH | `invite/refuse` : même surface + sabotage d'invitation (REFUSED + révocation) | ✅ routes supprimées (D02) — voir §1.1 |
 | S3 | HIGH | `account/phone` : écriture non authentifiée sur membre arbitraire | ✅ corrigé — ticket HMAC (`5305ece`) |
 | F1 | MAJEUR | `profiling/draft` : `answers: z.unknown()` sans borne, upsert par email, pas de bodyLimit | ✅ corrigé — schéma strict + bodyLimit (`e0cb7ed`) |
 | F2 | MAJEUR | `mail.ts` : `location`/`description` bruts dans l'email de masse | ✅ corrigé — `escapeHtml()` (`e0cb7ed`) |
@@ -48,11 +48,57 @@ sur `development` (voir §2) ; le reste (rewrite `admin-auth` DB-backed
 | F7 | MINEUR | `bodyLimit` basé sur `Content-Length` (contournable en chunked) | ⏳ différé — comptage d'octets |
 | F8/F11-rate | À VÉRIFIER | `rateKey` (1ʳᵉ entrée XFF) — sûr derrière Vercel, à confirmer si auto-hébergé | ⏳ à tester en préprod |
 
+## 1.1 Addendum 2026-10-05 — S1/S2 : le « correctif » avait été annulé
+
+La ligne S1/S2 ci-dessus indique `✅ corrigé (c9df5a2)`. **C'était vrai le
+2026-09-18, plus vrai depuis.** Chronologie vérifiée sur l'historique git :
+
+| Commit | Date | Effet |
+|---|---|---|
+| `7c91cef` | 2026-09-10 | système d'invitation créé **avec** vraie validation OTP (`MemberSession.otpHash`) |
+| `c9df5a2` | — | *« fix(security): anti-bruteforce sur invite accept/refuse (S1, S2) »* — durcit cette validation (rate limit + compteur `attempts`) |
+| `f73099f` | — | **retire la validation** : *« Le token OTP brut a été remplacé par l'identifiant email + état de l'invitation »*, tout en laissant `token` dans le schéma zod |
+| `bc3e449` | 2026-10-04 | migration Better Auth, suppression de `src/lib/account-otp.ts` |
+
+`f73099f` a donc supprimé précisément ce que `c9df5a2` venait de durcir, en
+laissant un paramètre `token` validé par zod puis **jeté** — un paramètre qui
+annonce une protection qui n'existe pas.
+
+**Surface exposée pendant cette fenêtre** : `invite/accept` et `invite/refuse`
+étaient publiques et écrivaient en base sur la seule foi d'un email connu
+(`ACCEPTED`, `ACCEPTED_AT`, `invitationClicks`). `refuse` n'avait même pas le
+contrôle d'éligibilité qu'avait `accept` (pas de vérification
+`invitationStatus`) : il pouvait écraser le statut d'un membre ayant **déjà
+rejoint** la communauté.
+
+**Résolution (D02)** : les deux routes ont été **supprimées**, avec le code de
+production de liens associé (`sendInvitationWithActions`) et les templates
+`invitation_actions` / `accept_notification` / `refuse_notification`.
+
+Justification de la suppression plutôt que du rétablissement d'une validation :
+
+- **aucun email en production ne lie vers ces routes**. Le `acceptUrl` envoyé
+  par `invite/relance/route.ts:100` et `import-invite` pointe vers
+  `/verify-otp`, pas vers `/api/invite/accept`, et ne contient aucun token ;
+- `sendInvitationWithActions`, seul producteur de liens accept/refuse, n'a
+  **aucun appelant en production** ;
+- il n'existe plus aucun secret à réintroduire — le mécanisme OTP maison a été
+  supprimé en `bc3e449`. Rétablir une validation aurait consisté à **inventer**
+  un mécanisme neuf, pas à réparer ;
+- `invite/relance` couvre déjà le besoin (OTP + redirection vers `/verify-otp`).
+
+**Point produit à trancher** : `invitationStatus: "REFUSED"` et les colonnes
+`refusedAt` / `refusedReason` restent dans le schéma et dans l'interface admin
+(`admin/invitations`), mais plus aucune route ne les écrit. Nettoyage prévu en
+**D36**. Si le refus par email est un besoin réel, il faut une feature signée
+(HMAC de lien, sur le modèle de `lib/phone-fill-ticket.ts`), pas une route
+publique.
+
 ## 2. Correctifs appliqués (commits)
 
 | Commit | Contenu | Gate |
 |---|---|---|
-| `c9df5a2` | Lot A — rateLimit 10/IP/10min + compteur `attempts` partagé (`MAX_OTP_ATTEMPTS=3`) + révocation + erreurs uniformes + usage unique sur accept ; `deletedAt` vérifié ; token borné 64 car. | ✅ 205/205 |
+| `c9df5a2` | Lot A — rateLimit 10/IP/10min + compteur `attempts` partagé (`MAX_OTP_ATTEMPTS=3`) + révocation + erreurs uniformes + usage unique sur accept ; `deletedAt` vérifié ; token borné 64 car. | ✅ 205/205 — **annulé par `f73099f`, cf. §1.1** |
 | `5305ece` | Lot B — ticket HMAC `memberId.expiry.signature` (cookie httpOnly 15 min, clé `PHONE_FILL_SECRET` sinon `DATABASE_URL`, fail-closed), posé à la création fraîche uniquement ; capture masquée sur doublons ; `memberId` arbitraire réservé aux admins | ✅ 205/205 |
 | `e0cb7ed` | Lot C — `escapeHtml()` location/description ; draft strict (record ≤60 clés, string≤1000 / string[]≤20 / number / boolean / null, JSON ≤32 Ko) + `bodyLimit` | ✅ 205/205 |
 | `63f6b9f` | Lot D — check-email constante ; `accessLane` retiré (API + type) ; `memberId` analytics = session | ✅ 231/231 |
@@ -77,8 +123,12 @@ Décisions de design notables :
    `prisma` — une par une, avec tests, jamais en aveugle.
 2. **S4** : colonne `tokenHash` (`randomBytes(32)`) pour les sessions
    (migration + double lecture transitoire).
-3. **S5/S6** : uniformiser `request-magic-link` ; appliquer la blacklist
-   dans `getSession` (ou soft-delete + `destroyAllSessions` au blacklistage).
+3. **S5/S6** : ~~uniformiser `request-magic-link`~~ (**fait** — le parcours est
+   désormais sur Better Auth OTP, cf. `bc3e449`) ; appliquer la blacklist
+   dans `getSession` — **déjà fait** : `databaseHooks.session.create.before`
+   (`src/lib/auth/index.ts:53-60`) coupe la création de session, et
+   `src/lib/account-auth.ts:53` re-vérifie à chaque lecture.
+   `destroyAllSessions` n'existe plus (0 appelant) — à supprimer en D17.
 4. **Svix** : le fix `a29d11f` (bien écrit) cible l'ancien webhook de
    ~100 lignes ; le webhook actuel (437+ l.) vérifie déjà une signature
    HMAC en fail-closed — lecture comparée avant toute ré-implémentation.

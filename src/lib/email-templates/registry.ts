@@ -81,7 +81,7 @@ export const TEMPLATE_REGISTRY: readonly TemplateDefinition[] = [
     source: "sendInvitationEmail",
     variables: [
       FIRST_NAME,
-      V("dashboardUrl", "Lien de l'espace membre", `${SEED_BASE}/zzdashboard`, "https://joinhashcode.com/dashboard", "url"),
+      V("dashboardUrl", "Lien de l'espace membre", `${SEED_BASE}/zzdashboard`, "https://reboot.joinhashcode.com/dashboard", "url"),
     ],
   },
   {
@@ -104,7 +104,7 @@ export const TEMPLATE_REGISTRY: readonly TemplateDefinition[] = [
         "joinUrl",
         "Lien communauté",
         `${SEED_BASE}/login?next=%2Fapi%2Fcommunity%2Fjoin`,
-        "https://joinhashcode.com/login?next=%2Fapi%2Fcommunity%2Fjoin",
+        "https://reboot.joinhashcode.com/login?next=%2Fapi%2Fcommunity%2Fjoin",
         "url",
       ),
     ],
@@ -117,7 +117,7 @@ export const TEMPLATE_REGISTRY: readonly TemplateDefinition[] = [
     source: "sendRelanceEmail",
     variables: [
       FIRST_NAME,
-      V("resumeUrl", "Lien de reprise", `${SEED_BASE}/?resume=1`, "https://joinhashcode.com/?resume=1", "url"),
+      V("resumeUrl", "Lien de reprise", `${SEED_BASE}/?resume=1`, "https://reboot.joinhashcode.com/?resume=1", "url"),
     ],
   },
   {
@@ -128,9 +128,9 @@ export const TEMPLATE_REGISTRY: readonly TemplateDefinition[] = [
     source: "sendDashboardInviteEmail",
     variables: [
       FIRST_NAME,
-      V("url", "Lien de l'espace membre", `${SEED_BASE}/zzurl`, "https://joinhashcode.com/dashboard", "url"),
+      V("url", "Lien de l'espace membre", `${SEED_BASE}/zzurl`, "https://reboot.joinhashcode.com/dashboard", "url"),
       // Dérivé de NEXT_PUBLIC_SITE_URL → `${base}/login` (cf. getLoginUrlForEmail).
-      V("loginUrl", "Lien de connexion", `${SEED_BASE}/login`, "https://joinhashcode.com/login", "url"),
+      V("loginUrl", "Lien de connexion", `${SEED_BASE}/login`, "https://reboot.joinhashcode.com/login", "url"),
     ],
   },
   {
@@ -141,19 +141,7 @@ export const TEMPLATE_REGISTRY: readonly TemplateDefinition[] = [
     source: "sendRejoinEmail",
     variables: [
       FIRST_NAME,
-      V("url", "Lien d'action", `${SEED_BASE}/zzurl`, "https://joinhashcode.com/", "url"),
-    ],
-  },
-  {
-    key: "invitation_actions",
-    name: "Invitation avec accepter / refuser",
-    category: "marketing",
-    description: "Invitation portant deux actions : accepter ou refuser.",
-    source: "sendInvitationWithActions",
-    variables: [
-      FIRST_NAME,
-      V("acceptUrl", "Lien accepter", `${SEED_BASE}/zzaccept`, "https://joinhashcode.com/invite/accept?t=8f3c2a", "url"),
-      V("refuseUrl", "Lien refuser", `${SEED_BASE}/zzrefuse`, "https://joinhashcode.com/invite/refuse?t=8f3c2a", "url"),
+      V("url", "Lien d'action", `${SEED_BASE}/zzurl`, "https://reboot.joinhashcode.com/", "url"),
     ],
   },
   {
@@ -164,7 +152,7 @@ export const TEMPLATE_REGISTRY: readonly TemplateDefinition[] = [
     source: "sendInviteRelanceEmail",
     variables: [
       FIRST_NAME,
-      V("acceptUrl", "Lien accepter", `${SEED_BASE}/zzaccept`, "https://joinhashcode.com/invite/accept?t=8f3c2a", "url"),
+      V("acceptUrl", "Lien accepter", `${SEED_BASE}/zzaccept`, "https://reboot.joinhashcode.com/invite/accept?t=8f3c2a", "url"),
     ],
   },
 
@@ -207,22 +195,6 @@ export const TEMPLATE_REGISTRY: readonly TemplateDefinition[] = [
     category: "code",
     description: "Code et lien de connexion. VERROUILLÉ (secret d'authentification).",
     source: "sendMagicLinkEmail",
-    variables: [],
-  },
-  {
-    key: "accept_notification",
-    name: "Notification interne — invitation acceptée",
-    category: "notification",
-    description: "Alerte interne quand un membre accepte son invitation. VERROUILLÉ.",
-    source: "sendAcceptNotificationEmail",
-    variables: [],
-  },
-  {
-    key: "refuse_notification",
-    name: "Notification interne — invitation refusée",
-    category: "notification",
-    description: "Alerte interne quand un membre refuse son invitation. VERROUILLÉ.",
-    source: "sendRefuseNotificationEmail",
     variables: [],
   },
   {

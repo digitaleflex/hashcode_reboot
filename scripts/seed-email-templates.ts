@@ -36,7 +36,7 @@ import { encodeFromSample, renderEmailTemplate } from "@/lib/email-templates/ren
 const FORCE = process.argv.includes("--force");
 const SEED_TO = "zzseed@example.test";
 /** Base réelle utilisée pour les templates verrouillés (aperçu réaliste). */
-const REAL_SITE_URL = "https://joinhashcode.com";
+const REAL_SITE_URL = "https://reboot.joinhashcode.com";
 
 // ── 1) Interception réseau : on capture sans rien envoyer ─────────────────
 interface Capture {
@@ -136,14 +136,6 @@ function buildSampleCall(
         return () => mail.sendDashboardInviteEmail({ to: SEED_TO, firstName: v.firstName, url: v.url });
       case "rejoin":
         return () => mail.sendRejoinEmail({ to: SEED_TO, firstName: v.firstName, url: v.url });
-      case "invitation_actions":
-        return () =>
-          mail.sendInvitationWithActions({
-            to: SEED_TO,
-            firstName: v.firstName,
-            acceptUrl: v.acceptUrl,
-            refuseUrl: v.refuseUrl,
-          });
       case "invite_relance":
         return () => mail.sendInviteRelanceEmail({ to: SEED_TO, firstName: v.firstName, acceptUrl: v.acceptUrl });
       default:
@@ -171,17 +163,13 @@ function buildSampleCall(
     case "status_change_rejected":
       return () => mail.sendStatusChangeEmail({ to: SEED_TO, firstName: name, newStatus: "REJECTED" });
     case "verification_link":
-      return () => mail.sendVerificationLinkEmail({ to: SEED_TO, firstName: name, url: "https://joinhashcode.com/verify?t=8f3c2a" });
+      return () => mail.sendVerificationLinkEmail({ to: SEED_TO, firstName: name, url: "https://reboot.joinhashcode.com/verify?t=8f3c2a" });
     case "magic_link":
-      return () => mail.sendMagicLinkEmail({ to: SEED_TO, firstName: name, code: "135790", url: "https://joinhashcode.com/login?t=8f3c2a" });
-    case "accept_notification":
-      return () => mail.sendAcceptNotificationEmail({ adminEmail: SEED_TO, memberName: name, memberEmail: "awa@example.com" });
-    case "refuse_notification":
-      return () => mail.sendRefuseNotificationEmail({ adminEmail: SEED_TO, memberName: name, memberEmail: "awa@example.com", reason: "Indisponible cette saison" });
+      return () => mail.sendMagicLinkEmail({ to: SEED_TO, firstName: name, code: "135790", url: "https://reboot.joinhashcode.com/login?t=8f3c2a" });
     case "bounced_alert":
       return () => mail.sendBouncedNotificationEmail({ adminEmail: SEED_TO, memberEmail: "awa@example.com" });
     case "event_notification":
-      return () => mail.sendEventNotificationEmail({ to: SEED_TO, firstName: name, event: eventPayload, rsvpUrl: "https://joinhashcode.com/evenements" });
+      return () => mail.sendEventNotificationEmail({ to: SEED_TO, firstName: name, event: eventPayload, rsvpUrl: "https://reboot.joinhashcode.com/evenements" });
     default:
       throw new Error(`Aucun appel d'exemple pour ${key}`);
   }
