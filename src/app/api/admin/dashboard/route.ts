@@ -10,6 +10,10 @@ import {
   type BudgetLevel,
 } from "@/lib/email-budget";
 import { AuthError, ValidationError, errorToResponse } from "@/lib/errors";
+import {
+  EMAIL_SEMANTIC_CATEGORIES,
+  PROFILE_RELANC_CATEGORY,
+} from "@/lib/email-categories";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,7 +40,9 @@ const CRONS = [
   { key: "admin_import_invite", label: "Import invitations (manuel)", expectedEveryH: null },
 ] as const;
 
-const CATEGORIES = ["welcome", "waitlist", "engagement", "relance", "other"] as const;
+// D03 — liste partagée avec les producteurs (`@/lib/email-categories`), pour que
+// producteurs et consommateurs ne puissent plus diverger.
+const CATEGORIES = EMAIL_SEMANTIC_CATEGORIES;
 
 /**
  * Merge les entrées source en double (ex: NULL → "direct" + "direct" stocké).
@@ -211,7 +217,10 @@ async function fetchEmailEngagement() {
       return { drafts, relanceSent, recovered };
     })(),
     db.emailEvent.findMany({
-      where: { type: "email.sent", category: "relance" },
+      // D03 : `profil_abandon` (relance d'un ProfilingDraft), pas "relance" —
+      // aucune constante de ce nom n'était produite par un wrapper, donc ce
+      // filtre ne retournait rien et le tunnel affichait 0 en permanence.
+      where: { type: "email.sent", category: PROFILE_RELANC_CATEGORY },
       select: { email: true },
       take: 10000,
     }),

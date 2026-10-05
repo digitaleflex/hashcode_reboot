@@ -5,6 +5,7 @@ import { MonoLabel } from "../shared";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { Mail, MailOpen, Pointer, UserCheck, ArrowDown } from "lucide-react";
+import { EMAIL_CATEGORY_LABELS } from "@/lib/email-categories";
 
 export interface EmailStatsData {
   summary: { totalSent: number; totalOpened: number; totalClicked: number };
@@ -18,13 +19,10 @@ export interface EmailStatsData {
   };
 }
 
-const CATEGORY_LABEL: Record<string, string> = {
-  welcome: "Bienvenue",
-  waitlist: "Waitlist",
-  engagement: "Engagement",
-  relance: "Relance",
-  other: "Autre",
-};
+// D03 — libellés centralisés dans `@/lib/email-categories` (source unique).
+// L'ancienne entrée `relance` ne correspondait à aucune catégorie réellement
+// produite, et 9 catégories réelles n'avaient pas de libellé.
+const CATEGORY_LABEL = EMAIL_CATEGORY_LABELS;
 
 export function EmailEngagement({
   data,

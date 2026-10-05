@@ -21,6 +21,28 @@ const RESEND_URL = "https://api.resend.com/emails";
 const BREVO_URL = "https://api.brevo.com/v3/smtp/email";
 const SEND_TIMEOUT_MS = 8000;
 
+/**
+ * D03 — Catégorie SÉMANTIQUE d'un email, écrite dans `EmailEvent.category`.
+ *
+ * ⚠️ Distincte de `SendEmailInput.category` ci-dessous, qui ne sert qu'au ROUTAGE
+ * provider (`marketing` | `transactional` | `notification` | `code`). Les deux
+ * partageaient le même nom, ce qui rendait le mélange possible.
+ *
+ * La taxonomie est définie dans `@/lib/email-categories`, importée par les
+ * producteurs (les 14 wrappers ci-dessous) ET par les consommateurs
+ * (`/api/email-stats`, `/api/admin/dashboard`) : une seule source de vérité,
+ * pour que producteurs et consommateurs ne puissent plus diverger.
+ *
+ * Remplace une classification par `includes()` sur le SUJET, qui produisait des
+ * catégories fausses et rendait la branche "relance" INATTEIGNABLE — le tunnel
+ * de relance affichait donc 0 en permanence.
+ *
+ * Chaque wrapper déclare sa sémantique : la catégorie est choisie par le wrapper,
+ * jamais devinée à partir d'une chaîne.
+ */
+export type { EmailSemanticCategory } from "./email-categories";
+import type { EmailSemanticCategory } from "./email-categories";
+
 export interface SendEmailInput {
   to: string;
   subject: string;
@@ -44,6 +66,12 @@ export interface SendEmailInput {
     | "transactional"
     | "notification"
     | "code";
+  /**
+   * D03 — Catégorie sémantique, écrite dans `EmailEvent.category`.
+   * Distincte de `category` ci-dessus (routage provider) : celle-ci alimente
+   * `/api/email-stats` et `/api/admin/dashboard`.
+   */
+  semanticCategory?: EmailSemanticCategory;
 
   /**
    * Forcer un provider spécifique (ex. Brevo pour les lots > 20). Si absent,
@@ -59,25 +87,15 @@ export interface SendEmailResult {
   provider?: "resend" | "brevo";
 }
 
-/** Track email.sent in EmailEvent table (fire-and-forget). */
-function categorizeEmail(subject: string): string {
-  const s = subject.toLowerCase();
-  if (s.includes("bienvenue") || s.includes("invitation")) return "welcome";
-  if (s.includes("inscription") || s.includes("merci")) return "waitlist";
-  if (s.includes("t'attend") || s.includes("rejoins")) return "engagement";
-  if (s.includes("reprend") || s.includes("termin")) return "relance";
-  if (
-    s.includes("validé") ||
-    s.includes("liste d'attente") ||
-    s.includes("non retenu")
-  )
-    return "status_change";
-  return "other";
-}
-
+/**
+ * D03 — Track `email.sent` dans EmailEvent (fire-and-forget).
+ *
+ * La catégorie vient de l'appelant : plus de devinette sur le sujet. Voir
+ * `EmailSemanticCategory` pour la liste des valeurs et le motif du changement.
+ */
 async function trackEmailSent(
   to: string,
-  subject: string,
+  category: EmailSemanticCategory,
   provider: "resend" | "brevo",
 ): Promise<void> {
   try {
@@ -90,7 +108,7 @@ async function trackEmailSent(
         email: to,
         memberId: member?.id ?? null,
         type: "email.sent",
-        category: categorizeEmail(subject),
+        category,
         // Enregistré pour que le garde-fou de quota (email-budget) puisse
         // compter les envois par provider en temps réel.
         provider,
@@ -111,6 +129,7 @@ async function sendViaResend({
   html,
   text,
   tags,
+  semanticCategory = "notification",
 }: SendEmailInput): Promise<SendEmailResult> {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.EMAIL_FROM;
@@ -142,10 +161,10 @@ async function sendViaResend({
     try {
       const payload = (await res.json()) as { id?: unknown };
       const id = typeof payload.id === "string" ? payload.id : undefined;
-      trackEmailSent(to, subject, "resend").catch(() => {});
+      trackEmailSent(to, semanticCategory, "resend").catch(() => {});
       return id ? { ok: true, id, provider: "resend" } : { ok: true, provider: "resend" };
     } catch {
-      trackEmailSent(to, subject, "resend").catch(() => {});
+      trackEmailSent(to, semanticCategory, "resend").catch(() => {});
       return { ok: true, provider: "resend" };
     }
   } catch {
@@ -163,6 +182,7 @@ async function sendViaBrevo({
   html,
   text,
   tags,
+  semanticCategory = "notification",
 }: SendEmailInput): Promise<SendEmailResult> {
   const apiKey = process.env.BREVO_API_KEY;
   const from = process.env.BREVO_EMAIL_FROM;
@@ -197,10 +217,10 @@ async function sendViaBrevo({
     try {
       const payload = (await res.json()) as { messageId?: unknown };
       const id = typeof payload.messageId === "string" ? payload.messageId : undefined;
-      trackEmailSent(to, subject, "brevo").catch(() => {});
+      trackEmailSent(to, semanticCategory, "brevo").catch(() => {});
       return id ? { ok: true, id, provider: "brevo" } : { ok: true, provider: "brevo" };
     } catch {
-      trackEmailSent(to, subject, "brevo").catch(() => {});
+      trackEmailSent(to, semanticCategory, "brevo").catch(() => {});
       return { ok: true, provider: "brevo" };
     }
   } catch {
@@ -374,6 +394,7 @@ export async function sendWelcomeEmail({
     html: active?.html ?? html,
     text: active?.text ?? text,
     category: "marketing",
+    semanticCategory: "welcome",
   });
 }
 
@@ -449,6 +470,7 @@ export async function sendInvitationEmail({
     html: active?.html ?? html,
     text: active?.text ?? text,
     category: "marketing",
+    semanticCategory: "invitation",
   });
 }
 
@@ -512,6 +534,7 @@ export async function sendWaitlistEmail({
     html: active?.html ?? html,
     text: active?.text ?? text,
     category: "marketing",
+    semanticCategory: "waitlist",
   });
 }
 
@@ -572,6 +595,7 @@ export async function sendEngagementEmail({
     html: active?.html ?? html,
     text: active?.text ?? text,
     category: "marketing",
+    semanticCategory: "engagement",
   });
 }
 
@@ -627,7 +651,7 @@ export async function sendVerificationLinkEmail({
     "Vérifie ton email HASHCODE — 1 clic, valide 24 h.",
     inner,
   );
-  return sendEmail({ to, subject, html, text, category: "code" });
+  return sendEmail({ to, subject, html, text, category: "code", semanticCategory: "verification" });
 }
 
 /* ── Relance Email (profil abandonné) ────────────────────────────────────── */
@@ -697,6 +721,7 @@ export async function sendRelanceEmail({
     text: active?.text ?? text,
     category: "marketing",
     forceProvider,
+    semanticCategory: "profil_abandon",
   });
 }
 
@@ -762,7 +787,7 @@ export async function sendMagicLinkEmail({
     "Ton code de connexion HASHCODE — valide 15 minutes.",
     inner,
   );
-  return sendEmail({ to, subject, html, text, category: "code" });
+  return sendEmail({ to, subject, html, text, category: "code", semanticCategory: "code_connexion" });
 }
 
 /* ── Status change notification (PENDING → APPROVED / WAITLIST / REJECTED) ── */
@@ -875,7 +900,14 @@ export async function sendStatusChangeEmail({
     inner = rejectedHtml(safeName);
   }
 
-  return sendEmail({ to, subject, html: emailShell(subject, inner), text, category: "notification" });
+  return sendEmail({
+    to,
+    subject,
+    html: emailShell(subject, inner),
+    text,
+    category: "notification",
+    semanticCategory: "status_change",
+  });
 }function approvedHtml(safeName: string, archetype: string | null | undefined) {
   const joinUrl = escapeHtml(getCommunityJoinUrlForEmail());
   const archLine = archetype
@@ -1004,6 +1036,7 @@ export async function sendDashboardInviteEmail({
     text: active?.text ?? text,
     category: "marketing",
     forceProvider,
+    semanticCategory: "dashboard_invite",
   });
 }
 
@@ -1085,6 +1118,7 @@ export async function sendRejoinEmail({
     text: active?.text ?? text,
     category: "marketing",
     forceProvider,
+    semanticCategory: "rejoin",
   });
 }
 
@@ -1145,6 +1179,7 @@ export async function sendInviteRelanceEmail({
     text: active?.text ?? text,
     tags: ["invitation", "relance"],
     category: "marketing",
+    semanticCategory: "invite_relance",
   });
 }
 
@@ -1180,7 +1215,7 @@ export async function sendBouncedNotificationEmail({
     `</td></tr>`,
   ].join("");
   const html = emailShell(subject, inner);
-  return sendEmail({ to: adminEmail, subject, html, text, category: "notification" });
+  return sendEmail({ to: adminEmail, subject, html, text, category: "notification", semanticCategory: "notification" });
 }
 
 /**
@@ -1288,7 +1323,14 @@ export async function sendEventNotificationEmail({
     `</td></tr>`,
   ].join("");
 
-  return sendEmail({ to, subject, html: emailShell(subject, inner), text, category: "notification" });
+  return sendEmail({
+    to,
+    subject,
+    html: emailShell(subject, inner),
+    text,
+    category: "notification",
+    semanticCategory: "event",
+  });
 }
 
 /* ── Relance automatique d'événement (J−3 / J−1 / H−1) ──────────────────── */
@@ -1384,5 +1426,13 @@ export async function sendEventReminderEmail({
     `</td></tr>`,
   ].filter(Boolean).join("");
 
-  return sendEmail({ to, subject, html: emailShell(subject, inner), text, category: "notification", forceProvider });
+  return sendEmail({
+    to,
+    subject,
+    html: emailShell(subject, inner),
+    text,
+    category: "notification",
+    semanticCategory: "event_rappel",
+    forceProvider,
+  });
 }

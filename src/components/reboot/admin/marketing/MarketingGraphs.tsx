@@ -7,6 +7,7 @@ import { DonutChart, type DonutSegment } from "@/components/reboot/donut-chart";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Mail, MailOpen, Pointer, UserCheck } from "lucide-react";
 import type { EmailStatsData } from "@/components/reboot/admin/EmailEngagement";
+import { EMAIL_CATEGORY_LABELS } from "@/lib/email-categories";
 
 export interface AudienceSplit {
   total: number;
@@ -31,13 +32,10 @@ export interface InviteFunnel {
   incompleteProfiles: number;
 }
 
-const CATEGORY_LABEL: Record<string, string> = {
-  welcome: "Bienvenue",
-  waitlist: "Waitlist",
-  engagement: "Engagement",
-  relance: "Relance",
-  other: "Autre",
-};
+// D03 — libellés centralisés dans `@/lib/email-categories` (source unique).
+// Dérive aussi de EMAIL_CATEGORY_LABELS, qui est donc le seul endroit à mettre à
+// jour quand une catégorie change (D30 : Maps dupliqués).
+const CATEGORY_LABEL = EMAIL_CATEGORY_LABELS;
 
 function pct(n: number, d: number): number {
   return d === 0 ? 0 : Math.round((n / d) * 100);

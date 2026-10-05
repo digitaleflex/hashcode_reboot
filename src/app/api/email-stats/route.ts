@@ -2,12 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { isAdminAuthed } from "@/lib/admin-auth";
 import { AppError, AuthError, errorToResponse } from "@/lib/errors";
+import {
+  EMAIL_SEMANTIC_CATEGORIES,
+  PROFILE_RELANC_CATEGORY,
+} from "@/lib/email-categories";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const CATEGORIES = ["welcome", "waitlist", "engagement", "relance", "other"] as const;
+// D03 — la liste vient de `@/lib/email-categories` (source unique, partagée avec
+// les producteurs de mail.ts) : les consommateurs ne peuvent plus diverger.
+// La valeur locale historique "relance" n'était produite par AUCUN wrapper
+// (elle remplaçait "profil_abandon").
+const CATEGORIES = EMAIL_SEMANTIC_CATEGORIES;
 
 /** GET /api/email-stats — email engagement per category + relance funnel (admin-only). */
 export async function GET(req: NextRequest) {
@@ -26,8 +34,11 @@ export async function GET(req: NextRequest) {
       listCategoryStats(),
       relanceDraftSummary(),
       // emails that received a relance (for per-draft conversion)
+      // D03 : la catégorie est `profil_abandon` (relance d'un ProfilingDraft),
+      // pas "relance" — aucune constante de ce nom n'était produite, donc ce
+      // filtre ne retournait rien et le tunnel affichait 0 en permanence.
       db.emailEvent.findMany({
-        where: { type: "email.sent", category: "relance" },
+        where: { type: "email.sent", category: PROFILE_RELANC_CATEGORY },
         select: { email: true },
         take: 10000,
       }),
