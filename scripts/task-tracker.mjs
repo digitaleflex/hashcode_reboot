@@ -77,6 +77,9 @@ const TASKS = [
   // ─────────────────────────────────────────────────────────────
 
   { id: 'D39', title: 'Domaine dupliqué : 13 URLs en joinhashcode.com au lieu de reboot.', priority: 'P0', deps: [], area: 'email' },
+  { id: 'D40', title: 'Capture UTM morte : getOrCreateSource etait le seul ecrivain de SOURCE_KEY', priority: 'P2', deps: [], area: 'analytics' },
+  { id: 'D41', title: 'primitives.tsx : accents corrompus (mojibake UTF-8) dans les commentaires', priority: 'P3', deps: [], area: 'motion' },
+  { id: 'D42', title: 'Doc contredit la CI sur le package manager (README, interface-utilisateur, copilot)', priority: 'P1', deps: [], area: 'docs' },
 
   // ─────────────────────────────────────────────────────────────
   // RESPONSIVE & NEXT.JS BEST PRACTICES (Audit 2026-10-01)
