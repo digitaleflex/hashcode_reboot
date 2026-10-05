@@ -23,6 +23,7 @@ import {
   findMember,
   recordEmailEvent,
   blacklistEmail,
+  adminNotificationEmail,
 } from "@/lib/webhooks/email-event";
 
 export const runtime = "nodejs";
@@ -120,12 +121,31 @@ async function handleHardBounce(
       email: member.email,
     });
 
-    const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_FROM;
+    // D08 — `ADMIN_EMAIL` est prioritaire ; `EMAIL_FROM` n'est qu'un repli et
+    // contient un display name (« HASHCODE REBOOT <…> »). Utilisé tel quel comme
+    // destinataire, l'envoi échouait silencieusement (`.catch(() => {})` plus
+    // bas) : la notification n'était jamais délivrée et rien ne le signalait.
+    // `adminNotificationEmail()` extrait l'adresse PURE dans les deux cas.
+    const adminEmail = adminNotificationEmail();
     if (adminEmail) {
       sendBouncedNotificationEmail({
         adminEmail,
         memberEmail: member.email,
-      }).catch(() => {});
+      }).catch((error) => {
+        // D08 : l'échec n'est plus avalé en silence. Le geste reste
+        // best-effort (le webhook ne doit pas renvoyer 500 au provider, qui
+        // rejouerait tout l'événement), mais il devient visible dans les logs.
+        logger.error("Bounce notification to admin failed", {
+          memberId: member.id,
+          error: serializeError(error),
+        });
+      });
+    } else {
+      // Aucun destinataire possible : c'est exactement le cas « les
+      // notifications ne partent pas » qu'on veut voir remonter, pas un silence.
+      logger.warn("Bounce notification skipped: no admin recipient configured", {
+        memberId: member.id,
+      });
     }
   }
 }
