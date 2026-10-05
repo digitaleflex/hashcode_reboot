@@ -274,7 +274,7 @@ export async function POST(req: NextRequest) {
 
   // Notification email en masse (fire-and-forget)
   if (notify !== false) {
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://joinhashcode.com";
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://reboot.joinhashcode.com";
     const rsvpUrl = `${siteUrl}/dashboard/agenda`;
 
     // Destinataires ciblés : APPROVED restreints au domaine/niveau

@@ -145,7 +145,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   } | null = null;
   if (body.notify === true) {
     const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL || "https://joinhashcode.com";
+      process.env.NEXT_PUBLIC_SITE_URL || "https://reboot.joinhashcode.com";
     const rsvpUrl = `${siteUrl}/dashboard/agenda`;
     const members = await db.member.findMany({
       where: notifyWhere({ domain: event.domain, level: event.level }),

@@ -73,6 +73,12 @@ const TASKS = [
   { id: 'D38', title: 'Réactiver des règles ESLint désactivées (no-undef, exhaustive-deps)', priority: 'P2', deps: ['D18'], area: 'config' },
 
   // ─────────────────────────────────────────────────────────────
+  // CORRECTIFS D'OPPORTUNE (trouvés pendant l'exécution)
+  // ─────────────────────────────────────────────────────────────
+
+  { id: 'D39', title: 'Domaine dupliqué : 13 URLs en joinhashcode.com au lieu de reboot.', priority: 'P0', deps: [], area: 'email' },
+
+  // ─────────────────────────────────────────────────────────────
   // RESPONSIVE & NEXT.JS BEST PRACTICES (Audit 2026-10-01)
   // ─────────────────────────────────────────────────────────────
 
