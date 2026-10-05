@@ -3,6 +3,11 @@
  *
  * Les membres se connectent via Better Auth (cookie
  * `better-auth.session_token`, tables Session/User/Verification).
+ *
+ * NOTE : le nom du cookie de session est recopié en dur dans 3 fichiers
+ * (`src/proxy.ts`, `src/app/api/account/route.ts`,
+ * `src/app/api/auth/logout/route.ts`). Il n'est volontairement pas importé ici :
+ * `src/proxy.ts` s'exécute en Edge et ne doit pas tirer un module serveur.
  * Ce module expose `getSession()` dans la forme historique attendue par les
  * pages/routes serveurs (`session.member`, `session.memberId`, …).
  */
@@ -12,7 +17,6 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { isEmailBlacklisted } from "@/lib/blacklist";
 
-export const SESSION_COOKIE_NAME = "better-auth.session_token";
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 jours
 
 /**
@@ -67,24 +71,4 @@ export async function getSession(req?: NextRequest) {
     ip: authSession?.session?.ipAddress ?? null,
     userAgent: authSession?.session?.userAgent ?? null,
   };
-}
-
-/** Révoque une session Better Auth (logout). */
-export async function destroySession(sessionId: string): Promise<void> {
-  try {
-    await db.session.delete({ where: { id: sessionId } });
-  } catch {
-    /* ignore : peut déjà être supprimée */
-  }
-}
-
-/** Révoque toutes les sessions Better Auth d'un membre. */
-export async function destroyAllSessions(memberId: string): Promise<number> {
-  const member = await db.member.findUnique({
-    where: { id: memberId },
-    select: { email: true },
-  });
-  if (!member?.email) return 0;
-  const res = await db.session.deleteMany({ where: { user: { email: member.email } } });
-  return res.count;
 }

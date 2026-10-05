@@ -27,7 +27,7 @@ export interface AlertThresholds {
   clickRate?: number;
 }
 
-export const DEFAULT_THRESHOLDS: AlertThresholds = {
+const DEFAULT_THRESHOLDS: AlertThresholds = {
   bounceRate: 0.05,      // 5%
   complaintRate: 0.001,  // 0.1%
   deliveryRate: 0.95,    // 95%
@@ -58,7 +58,7 @@ export interface AlertResult {
  * Check metrics for a specific provider and date against thresholds.
  * Also compares with 7 days ago to detect drops.
  */
-export async function checkMetricsAgainstThresholds(
+async function checkMetricsAgainstThresholds(
   provider: string,
   date: Date,
   thresholds: AlertThresholds = DEFAULT_THRESHOLDS
@@ -157,7 +157,7 @@ export async function checkMetricsAgainstThresholds(
 /**
  * Check all providers for a given date
  */
-export async function checkAllProviders(
+async function checkAllProviders(
   date: Date,
   thresholds: AlertThresholds = DEFAULT_THRESHOLDS
 ): Promise<AlertResult> {
@@ -196,7 +196,7 @@ const DEFAULT_NOTIFICATION_CONFIG: AlertNotificationConfig = {
 /**
  * Send alert notifications via email and/or Slack
  */
-export async function sendAlertNotifications(
+async function sendAlertNotifications(
   result: AlertResult,
   config: AlertNotificationConfig = DEFAULT_NOTIFICATION_CONFIG
 ): Promise<void> {
@@ -206,8 +206,6 @@ export async function sendAlertNotifications(
   
   if (config.criticalOnly && !hasCritical) return;
   
-  const criticalAlerts = alerts.filter(a => a.severity === 'critical');
-  const warningAlerts = alerts.filter(a => a.severity === 'warning');
   
   const subject = hasCritical
     ? `🔴 CRITICAL: Email Deliverability Alerts (${alerts.length})`
@@ -244,8 +242,6 @@ export async function sendAlertNotifications(
 }
 
 function buildAlertEmail(alerts: Alert[], hasCritical: boolean): string {
-  const criticalAlerts = alerts.filter(a => a.severity === 'critical');
-  const warningAlerts = alerts.filter(a => a.severity === 'warning');
   
   const rows = alerts.map(a => `
     <tr style="background: ${a.severity === 'critical' ? '#FEF2F2' : '#FFFBEB'};">
@@ -332,8 +328,6 @@ function buildAlertText(alerts: Alert[], hasCritical: boolean): string {
 }
 
 async function sendSlackAlert(alerts: Alert[], hasCritical: boolean, webhookUrl: string): Promise<void> {
-  const criticalAlerts = alerts.filter(a => a.severity === 'critical');
-  const warningAlerts = alerts.filter(a => a.severity === 'warning');
   
   const fields = alerts.map(a => ({
     title: `${a.provider.toUpperCase()} - ${a.metric}`,

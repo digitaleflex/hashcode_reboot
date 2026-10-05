@@ -7,11 +7,12 @@
  *
  * GARANTIE ANTI-PERTE / ANTI-DOUBLON
  *
- * `markSent` n'est appelé QUE pour un envoi réellement accepté par le provider.
- * Les destinataires reportés faute de budget ne sont donc jamais marqués : le
- * prochain passage les reprend automatiquement. C'est ce qui rend le report
- * sûr — sans cette règle, un report ressemblerait à un envoi et les membres
- * concernés ne recevraient jamais rien.
+ * Les destinataires reportés faute de budget sortent du lot **sans** que
+ * l'appelant les considère comme servis : chaque route n'écrit son
+ * `notifiedAt` (ou équivalent) que si `result.deferred === 0`. Le prochain
+ * passage les reprend donc automatiquement. C'est ce qui rend le report sûr —
+ * sans cette règle, un report ressemblerait à un envoi et les membres concernés
+ * ne recevraient jamais rien.
  */
 
 import {
@@ -53,13 +54,6 @@ export async function sendPacedBatch<T extends BatchRecipient>(opts: {
   recipients: T[];
   /** Envoi unitaire. Doit retourner { ok } (cf. SendEmailResult). */
   send: (recipient: T) => Promise<{ ok: boolean }>;
-  /**
-   * Marque l'envoi (ex. logMemberEmail). Appelé uniquement si `ok === true`.
-   * Une erreur ici ne remet pas en cause l'envoi : elle est avalée.
-   */
-  markSent?: (recipient: T) => Promise<void>;
-  /** Appelé après chaque destinataire traité (progression). */
-  onProgress?: (done: number, total: number) => void;
 }): Promise<BatchResult> {
   const plan = await planBatch({
     category: opts.category,
@@ -85,19 +79,11 @@ export async function sendPacedBatch<T extends BatchRecipient>(opts: {
         const recipient = chunk[j];
         if (r.status === "fulfilled" && r.value.ok) {
           sent.push(recipient);
-          if (opts.markSent) {
-            try {
-              await opts.markSent(recipient);
-            } catch {
-              /* le marquage est best-effort : l'email est déjà parti */
-            }
-          }
         } else {
           failed.push(recipient);
         }
       }
 
-      opts.onProgress?.(sent.length + failed.length, queue.length);
       // Pas de pause après le dernier paquet.
       if (i + plan.batchSize < queue.length) await sleep(plan.delayMs);
     }
@@ -109,22 +95,4 @@ export async function sendPacedBatch<T extends BatchRecipient>(opts: {
     deferred,
     plan,
   };
-}
-
-/**
- * Message lisible quand des destinataires ont été reportés — destiné à
- * l'admin, jamais silencieux.
- */
-export function deferredNotice(result: BatchResult): string | null {
-  if (result.deferred === 0) return null;
-  const level = result.plan.level;
-  const reason =
-    level === "blocked"
-      ? `quota ${result.plan.provider} épuisé pour aujourd'hui`
-      : `quota ${result.plan.provider} presque épuisé (${level})`;
-  return (
-    `${result.deferred} destinataire(s) reporté(s) : ${reason}. ` +
-    `Ils ne sont pas marqués comme servis et seront repris automatiquement ` +
-    `au prochain passage (le quota se réinitialise à 00:00 UTC).`
-  );
 }

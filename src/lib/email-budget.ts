@@ -81,14 +81,14 @@ export interface BatchPlan {
 }
 
 /** Début de la journée UTC — granularité des quotas provider. */
-export function startOfUtcDay(now = new Date()): Date {
+function startOfUtcDay(now = new Date()): Date {
   const d = new Date(now);
   d.setUTCHours(0, 0, 0, 0);
   return d;
 }
 
 /** Prochain minuit UTC. */
-export function nextUtcMidnight(now = new Date()): Date {
+function nextUtcMidnight(now = new Date()): Date {
   const d = startOfUtcDay(now);
   d.setUTCDate(d.getUTCDate() + 1);
   return d;
@@ -98,7 +98,7 @@ export function nextUtcMidnight(now = new Date()): Date {
  * Quota journalier d'un provider.
  * Surchargeable par env pour suivre l'évolution du plan sans redéployer le code.
  */
-export function capFor(provider: EmailProvider): number {
+function capFor(provider: EmailProvider): number {
   const raw =
     provider === "brevo"
       ? process.env.BREVO_DAILY_CAP
@@ -108,7 +108,7 @@ export function capFor(provider: EmailProvider): number {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
 }
 
-export function levelFor(used: number, cap: number): BudgetLevel {
+function levelFor(used: number, cap: number): BudgetLevel {
   if (cap <= 0) return "blocked";
   const ratio = used / cap;
   if (ratio >= 1) return "blocked";
@@ -126,7 +126,7 @@ const PACING: Record<BudgetLevel, { batchSize: number; delayMs: number }> = {
 };
 
 /** Envois du jour sans provider identifié (lignes antérieures à la colonne). */
-export async function countUnattributed(now = new Date()): Promise<number> {
+async function countUnattributed(now = new Date()): Promise<number> {
   try {
     return await db.emailEvent.count({
       where: {
@@ -205,7 +205,7 @@ export async function getAllBudgets(now = new Date()): Promise<{
  * par Brevo (quota 300/jour vs 100/jour pour Resend), quelle que soit la
  * catégorie. Resend est réservé aux envois ponctuels et transactionnels.
  */
-export function providerForBatch(
+function providerForBatch(
   category: EmailCategory,
   requested: number,
 ): EmailProvider {

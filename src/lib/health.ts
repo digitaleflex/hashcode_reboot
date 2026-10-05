@@ -3,29 +3,6 @@
 
 import { db } from "@/lib/db";
 
-/** Manifeste statique des routes utilisateur/API (pages + route.ts sous src/app). */
-export const ROUTES: string[] = [
-  "/",
-  "/api",
-  "/api/health",
-  "/api/cron/keepalive",
-  "/api/members",
-  "/api/members/[id]",
-  "/api/members/[id]/invite",
-  "/api/members/[id]/share",
-  "/api/members/bulk",
-  "/api/stats",
-  "/api/analytics",
-  "/api/export",
-  "/api/export/json",
-  "/api/check-email",
-  "/api/community/count",
-  "/api/admin/login",
-  "/api/admin/logout",
-  "/api/admin/verify",
-  "/api/admin/activity",
-];
-
 /** Sonde Neon : SELECT 1 avec garde-fou 8000ms (couvre les cold starts ~3.5s). Ne lève jamais. */
 export async function checkDb(): Promise<{ ok: boolean; latencyMs: number }> {
   const started = Date.now();
@@ -103,54 +80,5 @@ export async function checkMail(): Promise<{
     const value = { status: "invalid" as const, detail: "unreachable" };
     mailCache = { at: Date.now(), value };
     return value;
-  }
-}
-
-/** Bannière de démarrage senior : encadré lisible, statuts alignés, jamais de secret. */
-export async function runStartupBanner(): Promise<void> {
-  try {
-    const [dbCheck, mail] = await Promise.all([checkDb(), checkMail()]);
-    const port = process.env.PORT ?? "3000";
-    const base = `http://localhost:${port}`;
-    const bar = "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━";
-    // CAPTCHA non implémenté (clés Cloudflare absentes) : simple avertissement,
-    // jamais de secret — noms d'env uniquement.
-    const turnstileConfigured =
-      !!process.env.TURNSTILE_SECRET_KEY ||
-      !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
-    const dbLine = dbCheck.ok
-      ? `Neon · connectée (${dbCheck.latencyMs}ms)`
-      : "HORS LIGNE";
-    const mailLine =
-      mail.status === "valid"
-        ? "Resend · opérationnel"
-        : mail.status === "limited"
-          ? "Resend · envoi-seul (test d'envoi requis)"
-          : mail.status === "unconfigured"
-            ? "non configuré (RESEND_API_KEY absente)"
-            : mail.status === "rate-limited"
-              ? "Resend · limite atteinte (429)"
-              : "Resend · clé refusée (invalide)";
-    console.log(
-      [
-        bar,
-        `  HASHCODE REBOOT · ${process.env.NODE_ENV ?? "unknown"}`,
-        bar,
-        `  ▸ Server    ${base}`,
-        `  ▸ Admin     ${base}/admin`,
-        `  ▸ Health    ${base}/api/health`,
-        `  ${dbCheck.ok ? "●" : "○"} Database  ${dbLine}`,
-        `  ${mail.status === "valid" ? "●" : "○"} Mail      ${mailLine}`,
-        ...(turnstileConfigured
-          ? [`  ● Captcha   Turnstile · configuré`]
-          : [
-              `  ○ Captcha   Turnstile non configuré (TURNSTILE_SECRET_KEY absente — anti-bot à prévoir)`,
-            ]),
-        `  ▸ Routes    ${ROUTES.length} déclarées`,
-        bar,
-      ].join("\n"),
-    );
-  } catch {
-    /* jamais bloquant */
   }
 }

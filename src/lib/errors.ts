@@ -22,8 +22,11 @@ export type ErrorCode =
   | "NOT_FOUND"
   | "RATE_LIMITED"
   | "CONFLICT"
+  // `LOCKED` et `PAYLOAD_TOO_LARGE` ne sont plus portés par aucune classe de ce
+  // module, mais restent émis en JSON brut par body-limit.ts (413) et par la
+  // route admin email-templates (403 « gabarit verrouillé »). On les garde donc
+  // dans le vocabulaire du corps de réponse.
   | "LOCKED"
-  | "INVALID_CODE"
   | "PAYLOAD_TOO_LARGE"
   | "INTERNAL";
 
@@ -72,26 +75,6 @@ export class AuthError extends AppError {
   }
 }
 
-/** 401 — wrong/expired OTP code (anti-enumeration safe). */
-export class InvalidCodeError extends AppError {
-  readonly remaining?: number;
-  constructor(message = "Code invalide ou expiré.", remaining?: number) {
-    super(message, {
-      status: 401,
-      code: "INVALID_CODE",
-      details: remaining !== undefined ? { remaining } : undefined,
-    });
-    this.remaining = remaining;
-  }
-}
-
-/** 401 — too many failed attempts, session revoked. */
-export class LockedError extends AppError {
-  constructor(message = "Trop de tentatives. Demande un nouveau code.") {
-    super(message, { status: 401, code: "LOCKED" });
-  }
-}
-
 /** 403 — authenticated but not allowed. */
 export class ForbiddenError extends AppError {
   constructor(message = "Accès refusé.") {
@@ -113,13 +96,6 @@ export class ConflictError extends AppError {
   }
 }
 
-/** 413. */
-export class PayloadTooLargeError extends AppError {
-  constructor(message = "Requête trop volumineuse.") {
-    super(message, { status: 413, code: "PAYLOAD_TOO_LARGE" });
-  }
-}
-
 /** 429. */
 export class RateLimitError extends AppError {
   readonly retryAfterMs?: number;
@@ -127,11 +103,6 @@ export class RateLimitError extends AppError {
     super(message, { status: 429, code: "RATE_LIMITED" });
     this.retryAfterMs = retryAfterMs;
   }
-}
-
-/** Type guard. */
-export function isAppError(err: unknown): err is AppError {
-  return err instanceof AppError;
 }
 
 /**

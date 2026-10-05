@@ -84,7 +84,7 @@
 - **API** : `src/app/api/**` — convention `route.ts` avec `export const runtime = "nodejs"` quand accès DB. Deux familles : membre (`/api/account/*`, `/api/events*`) et admin (`/api/admin/*`), plus des routes publiques (`/api/public/events`, `/api/health`, `/api/community/count`).
 - **Middleware** (`src/middleware.ts`) : Edge, vérifie **uniquement la présence du cookie** `hashcode_session` sur `/account/*`, `/dashboard/*`, `/api/account/*` → redirect `/login` ou 401. La vraie validation (`getSession`) se fait dans les layouts/route handlers [FACT].
 - **Composants transverses** : `src/components/reboot/shared.tsx` (`RebootButton`, `MonoLabel`), `src/components/reboot/mobile-bottom-nav.tsx` (nav mobile membre **et** admin), `src/components/brand/logo.tsx`.
-- **DB singleton** : `src/lib/db.ts` (PrismaClient, log opt-in). Extensions d'erreurs/retry : `src/lib/prisma-extensions.ts`. Soft-delete géré par convention `where: { deletedAt: null }`, pas par extension [FACT].
+- **DB singleton** : `src/lib/db.ts` (PrismaClient, log opt-in). Pas d'extension d'erreurs/retry : `src/lib/prisma-extensions.ts` (code mort non branché) a été supprimé, le retry passe par `@/lib/errors.ts` (`AppError` + `errorToResponse`). Soft-delete géré par convention `where: { deletedAt: null }`, pas par extension [FACT].
 - **Documentation interne** : `docs/interface-utilisateur.md` (inventaire UI exhaustif + §14 anomalies), `docs/espace-membre.md`, `docs/plan-invitation.md`.
 
 ---

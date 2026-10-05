@@ -246,9 +246,4 @@ export function sampleValues(def: TemplateDefinition): Record<string, string> {
   return out;
 }
 
-/** Valeurs lisibles — aperçu admin. */
-export function previewValues(def: TemplateDefinition): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const v of def.variables) out[v.key] = v.preview;
-  return out;
-}
+

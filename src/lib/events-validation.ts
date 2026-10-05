@@ -18,8 +18,8 @@ import type { Prisma } from "@prisma/client";
 export const EVENT_TYPES = ["session", "workshop", "meetup", "webinar", "other"] as const;
 export const EVENT_DOMAINS = ["web", "cybersecurity", "ai"] as const;
 export const EVENT_LEVELS = ["beginner", "practicing", "autonomous", "advanced"] as const;
-export const EVENT_STATUSES = ["scheduled", "live", "completed", "cancelled"] as const;
-export const EVENT_RECURRENCES = ["weekly", "biweekly", "monthly"] as const;
+const EVENT_STATUSES = ["scheduled", "live", "completed", "cancelled"] as const;
+const EVENT_RECURRENCES = ["weekly", "biweekly", "monthly"] as const;
 
 export interface EventCreateData {
   title: string;

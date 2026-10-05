@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { fetchJson, withRetryAfter } from "../lib/fetchJson";
 
 export interface MemberRow {
@@ -137,8 +137,6 @@ export function useMembers({
   const [pageSize, setPageSizeState] = React.useState(initial.pageSize);
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
 
-  const queryClient = useQueryClient();
-
   // Debounce recherche 300ms avec cleanup (conservé Phase 2).
   React.useEffect(() => {
     const t = setTimeout(() => setDebouncedSearchQuery(searchQuery), 300);
@@ -249,19 +247,6 @@ export function useMembers({
     });
   }, [members]);
 
-  // Mutation pour rafraîchir les données (similaire à l'ancien refreshMembers).
-  const refreshMembersMutation = useMutation({
-    mutationFn: async () => {
-      await refetch();
-    },
-    onSuccess: () => {
-      // Requête déjà rafraîchie par refetch.
-    },
-    onError: () => {
-      // Erreur déjà capturée par useQuery.
-    },
-  });
-
   function setFilter(key: string, value: string) {
     setFilters((prev) => {
       const next = { ...prev };
@@ -311,7 +296,7 @@ export function useMembers({
   }
 
   async function refreshMembers() {
-    await refreshMembersMutation.mutateAsync();
+    await refetch();
   }
 
   return {
@@ -340,8 +325,6 @@ export function useMembers({
     toggleSelectAll,
     loading: isLoading,
     loadError: isError ? (error?.message ?? "Erreur de chargement des données.") : null,
-    setLoadError: () => {}, // Remplacé par la gestion d'erreur TanStack
-    loadMembers: refetch,
     refreshMembers,
     recentMembers,
     serverSorted,
