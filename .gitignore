@@ -45,7 +45,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-local-*
+# Ancré à la racine : sans `/`, ce motif ignorait TOUT fichier `local-*` du
+# dépôt, y compris src/components/reboot/events/local-time-note.tsx, qui n'a
+# donc jamais été commité alors que public-events.tsx l'importe.
+/local-*
 .claude
 .z-ai-config
 *.log
