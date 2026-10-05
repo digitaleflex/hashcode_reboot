@@ -74,7 +74,7 @@ Noms lus par le code, dans l'ordre d'importance :
   `members/[id]` (GET/PATCH/DELETE), `members/[id]/invite`, `members/[id]/share`
   (public, lien par id non devinable), `members/bulk`, `members/import` (CSV),
   `stats`, `stats/cohort`, `analytics`, `email-stats`,
-  `export` (CSV), `export/json`, `check-email`, `community/count`,
+  `export` (CSV), `export/json`, `community/count`,
   `verify-email` (lien magique 1-clic), `auth/request-magic-link|verify-otp|logout`,
   `account/me`, `account/profile`, `events` (GET mixte / POST operator),
   `events/[id]` (GET/PATCH/DELETE), `events/[id]/rsvp` (POST/DELETE membre),
@@ -209,8 +209,8 @@ src/lib/            db, admin-auth (+roles/CSRF), admin-audit, account-auth/otp/
                     events-validation (validateEventCreate/Patch + notifyWhere),
                     test-guard (blockIfTesting pour routes d'écriture)
 prisma/             schema.prisma (Postgres Neon) + migrations/
-scripts/            copy-standalone.mjs, test-email-services.mjs,
-                    import-blacklist-from-soft-deleted.mjs
+scripts/            copy-standalone.mjs, task-tracker.mjs, check-messages.mjs,
+                    seed-*.ts, collect-email-metrics.ts
 tests/              unit.test.cjs (86), magic-link.test.cjs (17),
                     event-validation.test.cjs (17),
                     integration.test.cjs (29, read-only, safe for prod DB)
