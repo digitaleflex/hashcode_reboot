@@ -1,20 +1,30 @@
 /**
- * Unit tests — event validation + notify targeting + source merge.
+ * Unit tests — event validation + notify targeting + RSVP.
  * No server required, runs in < 1 second.
  *
- * Run:  node --test tests/event-validation.test.cjs
+ * Run:  node --import tsx --test tests/event-validation.test.cjs
  *
- * Mirrors (re-implemented pure logic — .cjs can't import TS):
- *  - validateEventCreate / validateEventPatch / notifyWhere / parseNotify /
- *    decideRsvp from src/lib/events-validation.ts
- *  - mergeBySource from src/app/api/stats/route.ts
- * If the sources change, update the mirrors below accordingly.
+ * Ce test importe le VRAI module `src/lib/events-validation.ts` — pas de
+ * miroir. `tsx` est chargé par le runner (`npm run test:unit`), donc un
+ * `.test.cjs` peut.require()r du TypeScript : `node --test` seul ne le peut pas,
+ * d'où l'argument « .cjs can't import TS » (qui n'était donc pas une contrainte).
+ *
+ * `EVENT_STATUSES` / `EVENT_RECURRENCES` ne sont PAS exportés (usage interne) :
+ * les statuts attendus sont donc listés explicitement ci-dessous, ce qui a
+ * l'avantage de figer le contrat public.
+ *
+ * Seule exception : `mergeBySource` (fin de fichier). Elle vit dans une route
+ * Next.js (`src/app/api/stats/route.ts`) qui ne l'exporte pas — l'importer
+ * depuis une route n'est pas possible sans démarrer le runtime Next. Le miroir
+ * est donc conservé, mais un test de dérive vérifie que les DEUX copies
+ * vivantes dans `src/` (stats + admin/dashboard) sont restées identiques.
  *
  * Coverage:
  *  - create: happy path, title bounds, enums, url, capacity, endsAt>startsAt
- *  - patch: partial updates, cross-check with existing bounds, empty patch
+ *  - patch: partial updates, cross-check with existing bounds, empty patch,
+ *    champs optionnels (description/location/domain/level/recurrence)
  *  - notifyWhere: APPROVED filter + domain/level targeting
- *  - mergeBySource: NULL→"direct" collision, trim, desc sort
+ *  - mergeBySource: NULL→"direct" collision, trim, desc sort + dérive src/
  *  - parseNotify: optional boolean, strict rejection of "no"/0/"true"/null
  *  - decideRsvp: invalid status, missing/completed/past event, capacity
  *    (new going rejected when full; already-going member never blocked)
@@ -24,162 +34,11 @@
 
 const { test, describe } = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 
-// ── Mirror of src/lib/events-validation.ts ──
-
-const EVENT_TYPES = ["session", "workshop", "meetup", "webinar", "other"];
-const EVENT_DOMAINS = ["web", "cybersecurity", "ai"];
-const EVENT_LEVELS = ["beginner", "practicing", "autonomous", "advanced"];
-const EVENT_STATUSES = ["scheduled", "live", "completed", "cancelled"];
-const EVENT_RECURRENCES = ["weekly", "biweekly", "monthly"];
-
-function optStr(v) {
-  if (v === null || v === undefined || v === "") return null;
-  const s = String(v).trim();
-  return s || null;
-}
-
-function parseHttpUrl(v) {
-  const s = optStr(v);
-  if (s === null) return null;
-  try {
-    const u = new URL(s);
-    if (u.protocol !== "http:" && u.protocol !== "https:") return false;
-    return u.toString();
-  } catch {
-    return false;
-  }
-}
-
-function parseCapacity(v) {
-  if (v === null || v === undefined || v === "") return null;
-  const n = Number(v);
-  if (!Number.isInteger(n) || n < 1 || n > 9999) return false;
-  return n;
-}
-
-function parseDate(v) {
-  if (v === null || v === undefined || v === "") return null;
-  const d = new Date(String(v));
-  return isNaN(d.getTime()) ? null : d;
-}
-
-function validateEventCreate(body) {
-  const title = typeof body.title === "string" ? body.title.trim() : "";
-  if (title.length < 3) return { ok: false, error: "Titre requis (min 3 caractères)." };
-  if (title.length > 200) return { ok: false, error: "Titre trop long (max 200 caractères)." };
-  const description = optStr(body.description);
-  if (description && description.length > 2000) {
-    return { ok: false, error: "Description trop longue (max 2000 caractères)." };
-  }
-  if (body.startsAt === undefined || body.startsAt === null || body.startsAt === "") {
-    return { ok: false, error: "Date de début requise." };
-  }
-  const startsAt = parseDate(body.startsAt);
-  if (!startsAt) return { ok: false, error: "Date de début invalide." };
-  let endsAt = null;
-  if (body.endsAt !== undefined && body.endsAt !== null && body.endsAt !== "") {
-    endsAt = parseDate(body.endsAt);
-    if (!endsAt) return { ok: false, error: "Date de fin invalide." };
-    if (endsAt <= startsAt) {
-      return { ok: false, error: "La fin doit être après le début." };
-    }
-  }
-  const type = String(body.type || "session");
-  if (!EVENT_TYPES.includes(type)) return { ok: false, error: "Type invalide." };
-  const domain = optStr(body.domain);
-  if (domain && !EVENT_DOMAINS.includes(domain)) return { ok: false, error: "Domaine invalide." };
-  const level = optStr(body.level);
-  if (level && !EVENT_LEVELS.includes(level)) return { ok: false, error: "Niveau invalide." };
-  const recurrence = optStr(body.recurrence);
-  if (recurrence && !EVENT_RECURRENCES.includes(recurrence)) {
-    return { ok: false, error: "Récurrence invalide." };
-  }
-  const url = parseHttpUrl(body.url);
-  if (url === false) return { ok: false, error: "Lien externe invalide (http(s) requis)." };
-  const maxAttendees = parseCapacity(body.maxAttendees);
-  if (maxAttendees === false) {
-    return { ok: false, error: "Capacité invalide (entier 1-9999)." };
-  }
-  return {
-    ok: true,
-    data: {
-      title, description, startsAt, endsAt,
-      location: optStr(body.location), url, type, domain, level,
-      recurrence, recurrenceId: optStr(body.recurrenceId), maxAttendees,
-    },
-  };
-}
-
-function validateEventPatch(body, current) {
-  const data = {};
-  if (body.title !== undefined) {
-    const t = typeof body.title === "string" ? body.title.trim() : "";
-    if (t.length < 3) return { ok: false, error: "Titre requis (min 3 caractères)." };
-    if (t.length > 200) return { ok: false, error: "Titre trop long (max 200 caractères)." };
-    data.title = t;
-  }
-  if (body.startsAt !== undefined) {
-    const s = parseDate(body.startsAt);
-    if (!s) return { ok: false, error: "Date de début invalide." };
-    data.startsAt = s;
-  }
-  if (body.endsAt !== undefined) {
-    if (body.endsAt === null || body.endsAt === "") {
-      data.endsAt = null;
-    } else {
-      const e = parseDate(body.endsAt);
-      if (!e) return { ok: false, error: "Date de fin invalide." };
-      data.endsAt = e;
-    }
-  }
-  const effStart = data.startsAt ?? current.startsAt;
-  const effEnd = ("endsAt" in data ? data.endsAt : current.endsAt) ?? null;
-  if (effEnd && effEnd <= effStart) {
-    return { ok: false, error: "La fin doit être après le début." };
-  }
-  if (body.url !== undefined) {
-    const u = parseHttpUrl(body.url);
-    if (u === false) return { ok: false, error: "Lien externe invalide (http(s) requis)." };
-    data.url = u;
-  }
-  if (body.type !== undefined) {
-    if (!EVENT_TYPES.includes(String(body.type))) return { ok: false, error: "Type invalide." };
-    data.type = String(body.type);
-  }
-  if (body.status !== undefined) {
-    if (!EVENT_STATUSES.includes(String(body.status))) return { ok: false, error: "Statut invalide." };
-    data.status = String(body.status);
-  }
-  if (body.maxAttendees !== undefined) {
-    const n = parseCapacity(body.maxAttendees);
-    if (n === false) return { ok: false, error: "Capacité invalide (entier 1-9999)." };
-    data.maxAttendees = n;
-  }
-  return { ok: true, data };
-}
-
-function notifyWhere(event) {
-  return {
-    profileStatus: "APPROVED",
-    deletedAt: null,
-    ...(event.domain ? { primaryDomain: event.domain } : {}),
-    ...(event.level ? { level: event.level } : {}),
-  };
-}
-
-// ── Mirror of mergeBySource (src/app/api/stats/route.ts) ──
-
-function mergeBySource(entries) {
-  const merged = new Map();
-  for (const { source, count } of entries) {
-    const key = (source ?? "").trim() || "direct";
-    merged.set(key, (merged.get(key) ?? 0) + count);
-  }
-  return [...merged.entries()]
-    .map(([source, count]) => ({ source, count }))
-    .sort((a, b) => b.count - a.count);
-}
+const { validateEventCreate, validateEventPatch, notifyWhere, decideRsvp, parseNotify } =
+  require("../src/lib/events-validation.ts");
 
 // ══════════════════════════════════════════════════════════════
 
@@ -200,6 +59,9 @@ describe("validateEventCreate", () => {
     assert.equal(r.ok, true);
     assert.equal(r.data.title, "Session pratique Web");
     assert.equal(r.data.maxAttendees, 50);
+    assert.equal(r.data.url, "https://meet.example.com/x");
+    assert.deepEqual(r.data.startsAt, new Date("2026-10-01T14:00:00.000Z"));
+    assert.deepEqual(r.data.endsAt, new Date("2026-10-01T16:00:00.000Z"));
   });
 
   test("accepts a minimal payload (defaults/nulls)", () => {
@@ -209,11 +71,40 @@ describe("validateEventCreate", () => {
     assert.equal(r.data.domain, null);
     assert.equal(r.data.endsAt, null);
     assert.equal(r.data.maxAttendees, null);
+    assert.equal(r.data.recurrence, null);
+    assert.equal(r.data.recurrenceId, null);
+    assert.equal(r.data.location, null);
+  });
+
+  test("normalise les chaînes (trim) et vide → null", () => {
+    const r = validateEventCreate({ ...VALID_CREATE, location: "  Cotonou  ", description: "  " });
+    assert.equal(r.ok, true);
+    assert.equal(r.data.location, "Cotonou");
+    assert.equal(r.data.description, null);
   });
 
   test("rejects short / long titles", () => {
     assert.equal(validateEventCreate({ ...VALID_CREATE, title: "ab" }).ok, false);
     assert.equal(validateEventCreate({ ...VALID_CREATE, title: "x".repeat(201) }).ok, false);
+    // 3 et 200 sont acceptés (bornes incluses).
+    assert.equal(validateEventCreate({ ...VALID_CREATE, title: "abc" }).ok, true);
+    assert.equal(validateEventCreate({ ...VALID_CREATE, title: "x".repeat(200) }).ok, true);
+  });
+
+  test("rejects a missing title / a non-string title", () => {
+    assert.equal(validateEventCreate({ ...VALID_CREATE, title: undefined }).ok, false);
+    assert.equal(validateEventCreate({ ...VALID_CREATE, title: 42 }).ok, false);
+  });
+
+  test("rejects a description over 2000 characters", () => {
+    assert.equal(validateEventCreate({ ...VALID_CREATE, description: "x".repeat(2001) }).ok, false);
+    assert.equal(validateEventCreate({ ...VALID_CREATE, description: "x".repeat(2000) }).ok, true);
+  });
+
+  test("rejects a missing / invalid startsAt", () => {
+    assert.equal(validateEventCreate({ ...VALID_CREATE, startsAt: undefined }).ok, false);
+    assert.equal(validateEventCreate({ ...VALID_CREATE, startsAt: "" }).ok, false);
+    assert.equal(validateEventCreate({ ...VALID_CREATE, startsAt: "pas une date" }).ok, false);
   });
 
   test("rejects unknown enums", () => {
@@ -223,9 +114,25 @@ describe("validateEventCreate", () => {
     assert.equal(validateEventCreate({ ...VALID_CREATE, recurrence: "yearly" }).ok, false);
   });
 
+  test("accepts every declared enum value", () => {
+    for (const type of ["session", "workshop", "meetup", "webinar", "other"]) {
+      assert.equal(validateEventCreate({ ...VALID_CREATE, type }).ok, true, type);
+    }
+    for (const domain of ["web", "cybersecurity", "ai"]) {
+      assert.equal(validateEventCreate({ ...VALID_CREATE, domain }).ok, true, domain);
+    }
+    for (const level of ["beginner", "practicing", "autonomous", "advanced"]) {
+      assert.equal(validateEventCreate({ ...VALID_CREATE, level }).ok, true, level);
+    }
+    for (const recurrence of ["weekly", "biweekly", "monthly"]) {
+      assert.equal(validateEventCreate({ ...VALID_CREATE, recurrence }).ok, true, recurrence);
+    }
+  });
+
   test("rejects non-http urls", () => {
     assert.equal(validateEventCreate({ ...VALID_CREATE, url: "ftp://x.test" }).ok, false);
     assert.equal(validateEventCreate({ ...VALID_CREATE, url: "not a url" }).ok, false);
+    assert.equal(validateEventCreate({ ...VALID_CREATE, url: "javascript:alert(1)" }).ok, false);
   });
 
   test("rejects bad capacities", () => {
@@ -238,6 +145,11 @@ describe("validateEventCreate", () => {
     }
   });
 
+  test("accepts the capacity bounds 1 and 9999", () => {
+    assert.equal(validateEventCreate({ ...VALID_CREATE, maxAttendees: 1 }).data.maxAttendees, 1);
+    assert.equal(validateEventCreate({ ...VALID_CREATE, maxAttendees: 9999 }).data.maxAttendees, 9999);
+  });
+
   test("rejects endsAt before/equals startsAt", () => {
     assert.equal(
       validateEventCreate({ ...VALID_CREATE, endsAt: "2026-10-01T14:00:00.000Z" }).ok,
@@ -247,6 +159,7 @@ describe("validateEventCreate", () => {
       validateEventCreate({ ...VALID_CREATE, endsAt: "2026-09-01T14:00:00.000Z" }).ok,
       false,
     );
+    assert.equal(validateEventCreate({ ...VALID_CREATE, endsAt: "n'importe quoi" }).ok, false);
   });
 });
 
@@ -268,10 +181,46 @@ describe("validateEventPatch", () => {
     assert.equal(r.data.status, "live");
   });
 
+  test("accepts exactly the four EVENT_STATUSES", () => {
+    for (const status of ["scheduled", "live", "completed", "cancelled"]) {
+      const r = validateEventPatch({ status }, current);
+      assert.equal(r.ok, true, status);
+      assert.equal(r.data.status, status);
+    }
+  });
+
   test("rejects invalid status / type / url", () => {
     assert.equal(validateEventPatch({ status: "draft" }, current).ok, false);
     assert.equal(validateEventPatch({ type: "party" }, current).ok, false);
     assert.equal(validateEventPatch({ url: "javascript:alert(1)" }, current).ok, false);
+  });
+
+  test("validates the optional fields the PATCH route accepts", () => {
+    assert.equal(validateEventPatch({ description: "x".repeat(2001) }, current).ok, false);
+    assert.equal(validateEventPatch({ domain: "design" }, current).ok, false);
+    assert.equal(validateEventPatch({ level: "expert" }, current).ok, false);
+    assert.equal(validateEventPatch({ recurrence: "yearly" }, current).ok, false);
+    assert.equal(validateEventPatch({ maxAttendees: 0 }, current).ok, false);
+    assert.equal(validateEventPatch({ startsAt: "n'importe quoi" }, current).ok, false);
+    assert.equal(validateEventPatch({ endsAt: "n'importe quoi" }, current).ok, false);
+  });
+
+  test("normalises the optional fields (trim, vide → null)", () => {
+    const r = validateEventPatch(
+      { location: "  Cotonou ", domain: " ai ", level: "", recurrenceId: "  ", title: "  Nouveau titre  " },
+      current,
+    );
+    assert.equal(r.ok, true);
+    assert.equal(r.data.title, "Nouveau titre");
+    assert.equal(r.data.location, "Cotonou");
+    assert.equal(r.data.domain, "ai");
+    assert.equal(r.data.level, null);
+    assert.equal(r.data.recurrenceId, null);
+  });
+
+  test("rejects short / long titles", () => {
+    assert.equal(validateEventPatch({ title: "ab" }, current).ok, false);
+    assert.equal(validateEventPatch({ title: "x".repeat(201) }, current).ok, false);
   });
 
   test("cross-checks new endsAt against existing startsAt", () => {
@@ -293,6 +242,30 @@ describe("validateEventPatch", () => {
     assert.equal(r.ok, true);
     assert.equal(r.data.endsAt, null);
   });
+
+  test("effacer endsAt retire la contrainte croisée sur startsAt", () => {
+    // endsAt absent de `data` → la borne effacée (null) est utilisée : plus rien
+    // à contrer, même en déplaçant startsAt au-delà de l'ancienne fin.
+    const r = validateEventPatch({ endsAt: null, startsAt: "2026-10-01T18:00:00.000Z" }, current);
+    assert.equal(r.ok, true);
+    assert.deepEqual(r.data, {
+      startsAt: new Date("2026-10-01T18:00:00.000Z"),
+      endsAt: null,
+    });
+  });
+
+  test("décaler startsAt AVANT endsAt raccourcit l'event et reste accepté", () => {
+    // La règle est `endsAt > startsAt` : avancer la fin de l'event (14h → 15h)
+    // est un raccourcissement légitime, pas une incohérence. Seul un startsAt
+    // postérieur à endsAt est refusé (cf. test précédent).
+    const r = validateEventPatch({ startsAt: "2026-10-01T15:00:00.000Z" }, current);
+    assert.equal(r.ok, true);
+    assert.deepEqual(r.data, { startsAt: new Date("2026-10-01T15:00:00.000Z") });
+    // startsAt == endsAt : frontière refusée.
+    const eq = validateEventPatch({ startsAt: "2026-10-01T16:00:00.000Z" }, current);
+    assert.equal(eq.ok, false);
+    assert.equal(eq.error, "La fin doit être après le début.");
+  });
 });
 
 describe("notifyWhere", () => {
@@ -311,67 +284,15 @@ describe("notifyWhere", () => {
       level: "advanced",
     });
   });
-});
 
-describe("mergeBySource", () => {
-  test("merges NULL and 'direct' into one row", () => {
-    const out = mergeBySource([
-      { source: "direct", count: 3 },
-      { source: null, count: 2 },
-      { source: "whatsapp", count: 5 },
-    ]);
-    assert.deepEqual(out, [
-      { source: "direct", count: 5 },
-      { source: "whatsapp", count: 5 },
-    ]);
-  });
-
-  test("trims and sorts desc", () => {
-    const out = mergeBySource([
-      { source: "  whatsapp ", count: 1 },
-      { source: "whatsapp", count: 2 },
-      { source: "", count: 4 },
-    ]);
-    assert.deepEqual(out, [
-      { source: "direct", count: 4 },
-      { source: "whatsapp", count: 3 },
-    ]);
+  test("domain alone filters primaryDomain only", () => {
+    assert.deepEqual(notifyWhere({ domain: "web", level: null }), {
+      profileStatus: "APPROVED",
+      deletedAt: null,
+      primaryDomain: "web",
+    });
   });
 });
-
-// ── Mirror of decideRsvp from src/lib/events-validation.ts ──
-
-const RSVP_STATUSES = ["going", "maybe", "cancelled"];
-
-function decideRsvp(input) {
-  if (!RSVP_STATUSES.includes(input.requestedStatus)) {
-    return {
-      ok: false,
-      code: "INVALID_STATUS",
-      error: "Status invalide. Use: going | maybe | cancelled.",
-    };
-  }
-  if (!input.eventExists || input.eventStatus !== "scheduled") {
-    return { ok: false, code: "NOT_FOUND", error: "Événement introuvable ou terminé." };
-  }
-  if (input.startsAt && input.startsAt.getTime() < input.now.getTime()) {
-    return {
-      ok: false,
-      code: "PAST_EVENT",
-      error: "Impossible de s'inscrire à un événement passé.",
-    };
-  }
-  const isNewGoing =
-    input.requestedStatus === "going" && input.currentStatus !== "going";
-  if (
-    input.maxAttendees !== null &&
-    isNewGoing &&
-    input.goingCount >= input.maxAttendees
-  ) {
-    return { ok: false, code: "FULL", error: "L'événement est complet." };
-  }
-  return { ok: true };
-}
 
 describe("decideRsvp (décision RSVP)", () => {
   const now = new Date("2026-09-18T12:00:00.000Z");
@@ -408,10 +329,15 @@ describe("decideRsvp (décision RSVP)", () => {
   test("rejette un event terminé ou annulé (404)", () => {
     assert.equal(decideRsvp({ ...base, eventStatus: "completed" }).code, "NOT_FOUND");
     assert.equal(decideRsvp({ ...base, eventStatus: "cancelled" }).code, "NOT_FOUND");
+    assert.equal(decideRsvp({ ...base, eventStatus: "live" }).code, "NOT_FOUND");
   });
 
   test("rejette un event passé (400)", () => {
     assert.equal(decideRsvp({ ...base, startsAt: past }).code, "PAST_EVENT");
+  });
+
+  test("un event sans date de début n'est jamais « passé »", () => {
+    assert.equal(decideRsvp({ ...base, startsAt: null }).ok, true);
   });
 
   test("rejette une NOUVELLE inscription going sur un event complet (409)", () => {
@@ -455,15 +381,20 @@ describe("decideRsvp (décision RSVP)", () => {
       true,
     );
   });
+
+  test("l'ordre des contrôles est statut → introuvable → passé → complet", () => {
+    // Statut invalide ET event inexistant : c'est le statut qui gagne (422).
+    const d = decideRsvp({
+      ...base,
+      eventExists: false,
+      startsAt: past,
+      maxAttendees: 1,
+      goingCount: 1,
+      requestedStatus: "yes",
+    });
+    assert.equal(d.code, "INVALID_STATUS");
+  });
 });
-
-// ── Mirror of parseNotify from src/lib/events-validation.ts ──
-
-function parseNotify(value) {
-  if (value === undefined) return { ok: true };
-  if (typeof value === "boolean") return { ok: true, notify: value };
-  return { ok: false, error: "notify doit être un booléen (true | false)." };
-}
 
 describe("parseNotify (option notify booléen strict)", () => {
   test("undefined → ok, comportement par défaut (notification envoyée)", () => {
@@ -489,5 +420,91 @@ describe("parseNotify (option notify booléen strict)", () => {
     assert.deepEqual(parseNotify(0), expected);
     assert.deepEqual(parseNotify("true"), expected);
     assert.deepEqual(parseNotify(null), expected);
+  });
+
+  test("« false » (string) est rejeté — piège classique d'un formulaire HTML", () => {
+    assert.deepEqual(parseNotify("false"), {
+      ok: false,
+      error: "notify doit être un booléen (true | false).",
+    });
+  });
+});
+
+// ── Miroir INÉVITABLE : mergeBySource (non exportée par une route Next) ──
+//
+// `mergeBySource` existe en double dans `src/app/api/stats/route.ts` et
+// `src/app/api/admin/dashboard/route.ts`, en `function` NON exportée. Il est donc
+// impossible de l'importer (une route Next s'importe avec son runtime). Le
+// comportement est exercé sur le miroir ci-dessous ; le test suivant vérifie que
+// les deux copies de `src/` n'ont pas divergé, et le miroir devra être remis à
+// jour à la main le jour où la source change.
+
+function mergeBySource(entries) {
+  const merged = new Map();
+  for (const { source, count } of entries) {
+    const key = (source ?? "").trim() || "direct";
+    merged.set(key, (merged.get(key) ?? 0) + count);
+  }
+  return [...merged.entries()]
+    .map(([source, count]) => ({ source, count }))
+    .sort((a, b) => b.count - a.count);
+}
+
+describe("mergeBySource", () => {
+  test("merges NULL and 'direct' into one row", () => {
+    const out = mergeBySource([
+      { source: "direct", count: 3 },
+      { source: null, count: 2 },
+      { source: "whatsapp", count: 5 },
+    ]);
+    assert.deepEqual(out, [
+      { source: "direct", count: 5 },
+      { source: "whatsapp", count: 5 },
+    ]);
+  });
+
+  test("trims and sorts desc", () => {
+    const out = mergeBySource([
+      { source: "  whatsapp ", count: 1 },
+      { source: "whatsapp", count: 2 },
+      { source: "", count: 4 },
+    ]);
+    assert.deepEqual(out, [
+      { source: "direct", count: 4 },
+      { source: "whatsapp", count: 3 },
+    ]);
+  });
+
+  test("dérive : les deux copies de mergeBySource dans src/ sont identiques", () => {
+    const read = (p) => fs.readFileSync(path.join(__dirname, "..", p), "utf8");
+    // On compare le NOYAU de la fonction, pas sa signature : les annotations de
+    // type TypeScript ne sont pas compilables telles quelles et n'ont aucun
+    // bearing sur le comportement. Repères stables : la Map et l'appel à sort.
+    const START = "const merged = new Map";
+    const END = ".sort((a, b) => b.count - a.count);";
+    const core = (src) => {
+      const i = src.indexOf(START);
+      const j = src.indexOf(END, i);
+      assert.notEqual(i, -1, `« ${START} » introuvable : mergeBySource a changé, miroir à mettre à jour`);
+      assert.notEqual(j, -1, `« ${END} » introuvable : mergeBySource a changé, miroir à mettre à jour`);
+      return src
+        .slice(i, j + END.length)
+        .replace(/\s+/g, "")
+        // `new Map<string, number>()` vs `new Map()` : on retire les arguments
+        // de type, qui sont effacés à la compilation et n'ont aucun effet.
+        .replace(/<[^<>]*>\(/g, "(");
+    };
+    const a = core(read("src/app/api/stats/route.ts"));
+    const b = core(read("src/app/api/admin/dashboard/route.ts"));
+    assert.equal(
+      a,
+      b,
+      "les deux mergeBySource de src/ ont divergé : extraire la fonction dans src/lib et réécrire ce test",
+    );
+    assert.equal(
+      core(mergeBySource.toString()),
+      a,
+      "le miroir de mergeBySource n'est plus aligné sur src/ (les tests ci-dessus ne testent plus la production)",
+    );
   });
 });

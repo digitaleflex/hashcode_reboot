@@ -9,30 +9,58 @@ import type { Domain, ProfileAnswers } from "./types";
  * The default export profileSchema uses French messages (backwards compatible).
  */
 
-const domainSchema = z.enum(["web", "cybersecurity", "ai"]);
-const levelSchema = z.enum(["beginner", "practicing", "autonomous", "advanced"]);
-const goalSchema = z.enum([
-  "project",
-  "employment",
-  "freelance",
-  "upskill",
-  "business",
-  "career",
-  "other",
-]);
-const availabilitySchema = z.enum(["<2h", "2-5h", "5-10h", "10-15h", "15h+"]);
-const learningSchema = z.enum(["practice", "path", "group", "mentor", "project"]);
-const mentoringSchema = z.enum(["no", "maybe", "yes"]);
-const budgetRangeSchema = z.enum([
-  "<2500",
-  "2500-5000",
-  "5000-10000",
-  "10000-20000",
-  "20000-30000",
-  ">30000",
-  "unknown",
-  "not_now",
-]);
+/*
+ * D18 — Les factorys d'enum prennent le message d'erreur en paramètre.
+ *
+ * BUG CORRIGÉ : ces 7 schémas étaient des constantes construites SANS message.
+ * Les messages correspondants (`primaryDomainRequired`, `levelRequired`,
+ * `goalRequired`, `availabilityRequired`, `learningStyleRequired`,
+ * `mentoringInterestRequired`, `budgetRangeInvalid`) étaient bien déclarés,
+ * traduits, et utilisés dans le ternaire par défaut — mais JAMAIS passés à
+ * `z.enum()`. Conséquence vérifiée : une valeur d'enum invalide renvoyait le
+ * message par DÉFAUT de zod, en anglais :
+ *   "Invalid option: expected one of \"web\"|\"cybersecurity\"|\"ai\""
+ * sur un formulaire d'inscription 100 % francophone
+ * (POST /api/members, POST /api/account/complete-profile).
+ *
+ * Aucun des 300+ tests ne l'avait vu : ils testaient des miroirs de fonctions
+ * pures, jamais le schéma assemblé.
+ */
+const domainSchema = (m?: string) => z.enum(["web", "cybersecurity", "ai"], m);
+const levelSchema = (m?: string) =>
+  z.enum(["beginner", "practicing", "autonomous", "advanced"], m);
+const goalSchema = (m?: string) =>
+  z.enum(
+    [
+      "project",
+      "employment",
+      "freelance",
+      "upskill",
+      "business",
+      "career",
+      "other",
+    ],
+    m,
+  );
+const availabilitySchema = (m?: string) =>
+  z.enum(["<2h", "2-5h", "5-10h", "10-15h", "15h+"], m);
+const learningSchema = (m?: string) =>
+  z.enum(["practice", "path", "group", "mentor", "project"], m);
+const mentoringSchema = (m?: string) => z.enum(["no", "maybe", "yes"], m);
+const budgetRangeSchema = (m?: string) =>
+  z.enum(
+    [
+      "<2500",
+      "2500-5000",
+      "5000-10000",
+      "10000-20000",
+      "20000-30000",
+      ">30000",
+      "unknown",
+      "not_now",
+    ],
+    m,
+  );
 const genderSchema = z
   .enum(["male", "female", "other", "prefer_not_say"])
   .optional();
@@ -167,27 +195,30 @@ export function createProfileSchema(t?: ValidationTFunction) {
       city: z.string().trim().max(80, msg.cityMax()).optional().default(""),
       gender: genderSchema,
 
-      primaryDomain: domainSchema,
-      secondaryDomains: z.array(domainSchema).max(3, msg.secondaryDomainsMax()).optional(),
+      primaryDomain: domainSchema(msg.primaryDomainRequired()),
+      secondaryDomains: z
+        .array(domainSchema())
+        .max(3, msg.secondaryDomainsMax())
+        .optional(),
       domainSpecialty: z.array(z.string().max(40)).max(6, msg.domainSpecialtyMax()).optional(),
-      level: levelSchema,
+      level: levelSchema(msg.levelRequired()),
 
-      goal: goalSchema,
+      goal: goalSchema(msg.goalRequired()),
       goalProjectStage: z.string().trim().max(40, msg.goalProjectStageMax()).optional(),
       goalSituation: z.string().trim().max(40, msg.goalSituationMax()).optional(),
 
-      availability: availabilitySchema,
+      availability: availabilitySchema(msg.availabilityRequired()),
       availabilityTimes: z.string().trim().max(80, msg.availabilityTimesMax()).optional(),
 
-      learningStyle: learningSchema,
+      learningStyle: learningSchema(msg.learningStyleRequired()),
 
-      mentoringInterest: mentoringSchema,
+      mentoringInterest: mentoringSchema(msg.mentoringInterestRequired()),
       mentoringMaybeReason: z.string().trim().max(280, msg.mentoringMaybeReasonMax()).optional(),
       mentoringTypes: z.array(z.string().max(40)).max(6, msg.mentoringTypesMax()).optional(),
       mentoringFrequency: z.string().trim().max(40, msg.mentoringFrequencyMax()).optional(),
       mentoringDomain: z.string().trim().max(60, msg.mentoringDomainMax()).optional(),
 
-      budgetRange: budgetRangeSchema.optional(),
+      budgetRange: budgetRangeSchema(msg.budgetRangeInvalid()).optional(),
 
       threeMonthGoal: z
         .string()

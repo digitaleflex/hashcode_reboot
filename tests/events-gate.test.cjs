@@ -2,114 +2,100 @@
  * Unit tests — gate Event #79 : fuseaux horaires + filtres publics.
  * No server required, runs in < 1 second.
  *
- * Run:  node --test tests/events-gate.test.cjs
+ * Run:  node --import tsx --test tests/events-gate.test.cjs
  *
- * Mirrors (re-implemented pure logic — .cjs can't import TS):
- *  - REFERENCE_TIME_ZONE / REFERENCE_LABEL / zoneForCountry /
- *    isValidTimeZone / safeTimeZone / formatEventDate / formatClock /
- *    formatEventMoment / localTimeNote from src/lib/events-timezone.ts
- *    (table COUNTRY_TIME_ZONE copiée à l'identique ; Intl fait le reste)
- *  - normalizeEventFilters from src/lib/public-events.ts
- * If the sources change, update the mirrors below accordingly.
+ * Ce test importe les VRAIS modules — pas de miroir :
+ *  - src/lib/events-timezone.ts (zoneForCountry, safeTimeZone, format*,
+ *    localTimeNote)
+ *  - src/lib/event-period.ts (matchesPeriod)
+ *  - src/lib/public-events.ts (normalizeEventFilters)
+ *
+ * L'argument « .cjs can't import TS » était faux : c'est le runner qui charge
+ * `tsx` (`npm run test:unit` → `node --import tsx --test`), pas l'extension du
+ * fichier de test.
+ *
+ * Deux précautions :
+ *
+ *  1. `normalizeEventFilters` vit dans `public-events.ts`, qui importe
+ *     `@/lib/db` → le test doit disposer d'un client Prisma généré
+ *     (`npm ci` le fait via postinstall, `ci.yml` fait `npx prisma generate`
+ *     explicitement). Aucune connexion n'est ouverte : seul l'import a lieu.
+ *
+ *  2. `Intl` rend les chaînes selon les données CLDR de la version d'ICU :
+ *     le séparateur des heures peut être une espace normale (U+0020) ou une
+ *     espace fine insécable (U+202F). On normalise donc ces espaces avant
+ *     comparaison — sans quoi le test passerait en local et échouerait en CI.
+ *     Ce n'est PAS une tolérance sur l'heure affichée : « 20:00 » reste exigé
+ *     au caractère près.
+ *
+ * `COUNTRY_TIME_ZONE` n'est pas exporté (usage interne) : la table réelle est
+ * donc relue depuis le texte de la source, comme le fait déjà
+ * `tests/email-categories.test.cjs`.
  *
  * Coverage:
  *  - zoneForCountry : Bénin→référence, casse/espaces, TG=Togo (Lomé),
  *    TD=Tchad (Ndjamena) — non-régression du bug pays TG/TD —, inconnu→repli
+ *    + avertissement, un seul avertissement par pays
+ *  - table réelle : 111 pays, toutes les zones valides pour Intl, chaque pays
+ *    renvoie bien sa zone
  *  - safeTimeZone / isValidTimeZone : invalide→référence, jamais d'exception
  *  - formatEventMoment : 19:00Z → 20:00 à Porto-Novo (le bug email d'origine),
  *    cohérence date + " à " + heure
  *  - localTimeNote : null quand même horloge que la référence (BJ, CM),
  *    note mentionnant UTC+1 quand décalage réel (US)
  *  - normalizeEventFilters : défauts, bornes 1..50, enums invalides écartées
+ *  - matchesPeriod : semaine lundi→dimanche, bornes incluses, mois courant
  */
 
 "use strict";
 
 const { test, describe } = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 
-// ── Mirrors of src/lib/events-timezone.ts ──
+const {
+  REFERENCE_TIME_ZONE,
+  REFERENCE_LABEL,
+  zoneForCountry,
+  isValidTimeZone,
+  safeTimeZone,
+  formatEventDate,
+  formatClock,
+  formatEventMoment,
+  localTimeNote,
+} = require("../src/lib/events-timezone.ts");
+const { matchesPeriod } = require("../src/lib/event-period.ts");
+const { normalizeEventFilters } = require("../src/lib/public-events.ts");
 
-const REFERENCE_TIME_ZONE = "Africa/Porto-Novo";
-const REFERENCE_LABEL = "UTC+1";
+/** Espaces exotiques d'Intl (U+00A0, U+202F, U+2009) → espace normale. */
+const nbsp = (s) => s.replace(/[\u00A0\u202F\u2009]/g, " ");
 
-const COUNTRY_TIME_ZONE = {
-  BF: "Africa/Ouagadougou", CI: "Africa/Abidjan", GH: "Africa/Accra",
-  GM: "Africa/Banjul", GN: "Africa/Conakry", GW: "Africa/Bissau",
-  LR: "Africa/Monrovia", ML: "Africa/Bamako", MR: "Africa/Nouakchott",
-  SH: "Atlantic/St_Helena", SL: "Africa/Freetown", SN: "Africa/Dakar",
-  ST: "Africa/Sao_Tome", TG: "Africa/Lome",
-  AO: "Africa/Luanda", BJ: "Africa/Porto-Novo", CD: "Africa/Kinshasa",
-  CF: "Africa/Bangui", CG: "Africa/Brazzaville", CM: "Africa/Douala",
-  DZ: "Africa/Algiers", GA: "Africa/Libreville", GQ: "Africa/Malabo",
-  MA: "Africa/Casablanca", NE: "Africa/Niamey", NG: "Africa/Lagos",
-  TD: "Africa/Ndjamena", TN: "Africa/Tunis",
-  FR: "Europe/Paris", DE: "Europe/Berlin", US: "America/New_York",
-  CA: "America/Toronto", GB: undefined, // absent volontairement : repli
-};
+/** Table COUNTRY_TIME_ZONE relue dans la source (non exportée). */
+const TZ_SOURCE = fs.readFileSync(
+  path.join(__dirname, "..", "src/lib/events-timezone.ts"),
+  "utf8",
+);
+const TZ_TABLE_BLOCK = TZ_SOURCE.slice(
+  TZ_SOURCE.indexOf("const COUNTRY_TIME_ZONE"),
+  TZ_SOURCE.indexOf("const warnedCountries"),
+);
+const COUNTRY_TIME_ZONE = [...TZ_TABLE_BLOCK.matchAll(/([A-Z]{2}):\s*"([^"]+)"/g)].map((m) => ({
+  country: m[1],
+  zone: m[2],
+}));
 
-function zoneForCountry(country) {
-  const code = country?.trim().toUpperCase();
-  if (!code) return REFERENCE_TIME_ZONE;
-  return COUNTRY_TIME_ZONE[code] || REFERENCE_TIME_ZONE;
-}
-
-function isValidTimeZone(zone) {
+/** Capture les console.warn le temps de l'appel (la fonction en émet). */
+function captureWarnings(fn) {
+  const warnings = [];
+  const real = console.warn;
+  console.warn = (...args) => warnings.push(args.join(" "));
   try {
-    new Intl.DateTimeFormat("fr-FR", { timeZone: zone });
-    return true;
-  } catch {
-    return false;
+    fn();
+  } finally {
+    console.warn = real;
   }
-}
-
-function safeTimeZone(zone) {
-  if (!zone) return REFERENCE_TIME_ZONE;
-  return isValidTimeZone(zone) ? zone : REFERENCE_TIME_ZONE;
-}
-
-function formatEventDate(date, zone) {
-  return new Intl.DateTimeFormat("fr-FR", {
-    weekday: "long", day: "numeric", month: "long", timeZone: safeTimeZone(zone),
-  }).format(date);
-}
-
-function formatClock(date, zone) {
-  return new Intl.DateTimeFormat("fr-FR", {
-    hour: "2-digit", minute: "2-digit", timeZone: safeTimeZone(zone),
-  }).format(date);
-}
-
-function formatEventMoment(date, zone) {
-  const z = safeTimeZone(zone);
-  return `${formatEventDate(date, z)} à ${formatClock(date, z)}`;
-}
-
-function localTimeNote(date, zone) {
-  const z = safeTimeZone(zone);
-  if (formatClock(date, z) === formatClock(date, REFERENCE_TIME_ZONE)) return null;
-  return (
-    `Heure affichée dans ton fuseau local. ` +
-    `Le groupe annonce les horaires en ${REFERENCE_LABEL}.`
-  );
-}
-
-// ── Mirror of normalizeEventFilters (src/lib/public-events.ts) ──
-
-const EVENT_TYPES = ["session", "workshop", "meetup", "webinar", "other"];
-const DOMAINS = ["web", "cybersecurity", "ai"];
-const PUBLIC_EVENTS_MAX = 50;
-
-function normalizeEventFilters(args) {
-  const rawLimit = Number(args.limit ?? 20);
-  const limit = Number.isFinite(rawLimit)
-    ? Math.min(Math.max(Math.trunc(rawLimit), 1), PUBLIC_EVENTS_MAX)
-    : 20;
-  return {
-    type: args.type && EVENT_TYPES.includes(args.type) ? args.type : undefined,
-    domain: args.domain && DOMAINS.includes(args.domain) ? args.domain : undefined,
-    limit,
-  };
+  return warnings;
 }
 
 // ── Tests ──
@@ -117,6 +103,8 @@ function normalizeEventFilters(args) {
 describe("zoneForCountry", () => {
   test("Bénin → zone de référence", () => {
     assert.equal(zoneForCountry("BJ"), "Africa/Porto-Novo");
+    assert.equal(REFERENCE_TIME_ZONE, "Africa/Porto-Novo");
+    assert.equal(REFERENCE_LABEL, "UTC+1");
   });
 
   test("insensible à la casse et aux espaces", () => {
@@ -130,12 +118,69 @@ describe("zoneForCountry", () => {
     assert.notEqual(zoneForCountry("TG"), zoneForCountry("TD"));
   });
 
-  test("vide/inconnu → repli référence sans exception", () => {
-    assert.equal(zoneForCountry(null), REFERENCE_TIME_ZONE);
-    assert.equal(zoneForCountry(undefined), REFERENCE_TIME_ZONE);
-    assert.equal(zoneForCountry(""), REFERENCE_TIME_ZONE);
-    assert.equal(zoneForCountry("XX"), REFERENCE_TIME_ZONE);
-    assert.equal(zoneForCountry("GB"), REFERENCE_TIME_ZONE);
+  test("vide → repli référence, sans exception ni avertissement", () => {
+    // Un membre sans pays renseigné ne doit pas produire de log : le repli est
+    // silencieux, seuls les pays INCONNUS sont signalés.
+    const warnings = captureWarnings(() => {
+      assert.equal(zoneForCountry(null), REFERENCE_TIME_ZONE);
+      assert.equal(zoneForCountry(undefined), REFERENCE_TIME_ZONE);
+      assert.equal(zoneForCountry(""), REFERENCE_TIME_ZONE);
+      assert.equal(zoneForCountry("   "), REFERENCE_TIME_ZONE);
+    });
+    assert.equal(warnings.length, 0, warnings.join(" | "));
+  });
+
+  test("inconnu → repli référence + avertissement nommant le pays", () => {
+    // GB est volontairement absent de la table (voir le test de table plus bas).
+    const warnings = captureWarnings(() => {
+      assert.equal(zoneForCountry("XX"), REFERENCE_TIME_ZONE);
+      assert.equal(zoneForCountry("GB"), REFERENCE_TIME_ZONE);
+    });
+    assert.equal(warnings.length, 2, warnings.join(" | "));
+    assert.ok(warnings[0].includes("XX"), warnings[0]);
+    assert.ok(warnings[0].includes(REFERENCE_TIME_ZONE), warnings[0]);
+    assert.ok(warnings[1].includes("GB"), warnings[1]);
+  });
+
+  test("un seul avertissement par pays (pas de log flood)", () => {
+    const warnings = captureWarnings(() => {
+      assert.equal(zoneForCountry("ZZ"), REFERENCE_TIME_ZONE);
+      assert.equal(zoneForCountry("ZZ"), REFERENCE_TIME_ZONE);
+      assert.equal(zoneForCountry("ZZ"), REFERENCE_TIME_ZONE);
+    });
+    assert.equal(warnings.length, 1, `attendu 1 avertissement, reçu ${warnings.length}`);
+  });
+});
+
+describe("table COUNTRY_TIME_ZONE (source relue, non exportée)", () => {
+  test("elle couvre bien la communauté (garde-fou anti-troncature)", () => {
+    assert.ok(
+      COUNTRY_TIME_ZONE.length >= 100,
+      `table trop courte : ${COUNTRY_TIME_ZONE.length} pays (111 attendus)`,
+    );
+    const codes = COUNTRY_TIME_ZONE.map((e) => e.country);
+    assert.equal(new Set(codes).size, codes.length, "code pays dupliqué dans la table");
+  });
+
+  test("toutes les zones de la VRAIE table sont valides pour Intl", () => {
+    // Le miroir ne couvrait que 33 pays sur 111 : une zone fausse passée in
+    //aperçue décalait silencieusement les notifications (cf. JSDoc du module).
+    for (const { country, zone } of COUNTRY_TIME_ZONE) {
+      assert.ok(isValidTimeZone(zone), `${country} → ${zone} invalide pour Intl`);
+    }
+  });
+
+  test("chaque pays mappé renvoie bien la zone de la table", () => {
+    for (const { country, zone } of COUNTRY_TIME_ZONE) {
+      assert.equal(zoneForCountry(country), zone, country);
+    }
+  });
+
+  test("GB est absent de la table (repli assumé sur la référence)", () => {
+    assert.equal(
+      COUNTRY_TIME_ZONE.some((e) => e.country === "GB"),
+      false,
+    );
   });
 });
 
@@ -146,13 +191,15 @@ describe("safeTimeZone / isValidTimeZone", () => {
     assert.equal(safeTimeZone("Europe/Paris"), "Europe/Paris");
     assert.equal(safeTimeZone("Mars/Olympus"), REFERENCE_TIME_ZONE);
     assert.equal(safeTimeZone(null), REFERENCE_TIME_ZONE);
+    assert.equal(safeTimeZone(""), REFERENCE_TIME_ZONE);
   });
 
-  test("toutes les zones mappées du mirror sont valides pour Intl", () => {
-    for (const [code, zone] of Object.entries(COUNTRY_TIME_ZONE)) {
-      if (!zone) continue;
-      assert.ok(isValidTimeZone(zone), `${code} → ${zone} invalide`);
-    }
+  test("les formateurs sont mémoïsés par zone mais rendent la même chose", () => {
+    const d = new Date("2026-09-19T19:00:00.000Z");
+    // Deux appels successifs (caché Map) + une zone qui passe par le repli.
+    assert.equal(formatEventDate(d, "Africa/Douala"), formatEventDate(d, "Africa/Douala"));
+    assert.equal(formatEventDate(d, "Mars/Olympus"), formatEventDate(d, REFERENCE_TIME_ZONE));
+    assert.equal(formatClock(d, "Mars/Olympus"), formatClock(d, REFERENCE_TIME_ZONE));
   });
 });
 
@@ -161,24 +208,33 @@ describe("formatEventMoment (bug email d'origine)", () => {
   const d = new Date("2026-09-19T19:00:00.000Z");
 
   test("19:00Z rend 20:00 dans la zone du destinataire, pas celle du serveur", () => {
-    const out = formatEventMoment(d, "Africa/Porto-Novo");
-    // Logique métier : conversion de fuseau horaire (UTC → UTC+1)
-    assert.ok(out.includes("20:00"), out);
-    // Vérification indépendante de la locale : le jour du mois est 19
-    // (19:00Z + 1h = 20:00 le même jour à Porto-Novo)
-    assert.ok(out.includes("19"), out);
-    // La date ne doit pas être le jour précédent (18) ni le suivant (20)
-    assert.ok(!out.includes("18"), out);
-    assert.ok(!out.includes(" 20 "), out);
+    // Logique métier : conversion de fuseau horaire (UTC → UTC+1), jour inchangé.
+    assert.equal(
+      nbsp(formatEventMoment(d, REFERENCE_TIME_ZONE)),
+      "samedi 19 septembre à 20:00",
+    );
+    // Le jour ne doit pas être le précédent (18) ni le suivant (20).
+    assert.ok(!nbsp(formatEventMoment(d, REFERENCE_TIME_ZONE)).includes("18"));
+    assert.ok(!nbsp(formatEventMoment(d, REFERENCE_TIME_ZONE)).includes(" 20 "));
+  });
+
+  test("un fuseau d'été donne bien une heure d'été (Europe/Paris, CEST = UTC+2)", () => {
+    assert.equal(nbsp(formatClock(d, "Europe/Paris")), "21:00");
   });
 
   test("cohérence : moment = date + ' à ' + heure", () => {
     const z = "Africa/Douala";
-    assert.equal(formatEventMoment(d, z), `${formatEventDate(d, z)} à ${formatClock(d, z)}`);
+    assert.equal(
+      formatEventMoment(d, z),
+      `${formatEventDate(d, z)} à ${formatClock(d, z)}`,
+    );
   });
 
   test("zone invalide → repli référence, jamais d'exception", () => {
-    assert.equal(formatEventMoment(d, "Mars/Olympus"), formatEventMoment(d, REFERENCE_TIME_ZONE));
+    assert.equal(
+      formatEventMoment(d, "Mars/Olympus"),
+      formatEventMoment(d, REFERENCE_TIME_ZONE),
+    );
   });
 });
 
@@ -192,7 +248,17 @@ describe("localTimeNote", () => {
 
   test("note mentionnant UTC+1 quand décalage réel (New York)", () => {
     const note = localTimeNote(d, "America/New_York");
-    assert.ok(typeof note === "string" && note.includes("UTC+1"), note);
+    assert.equal(
+      note,
+      "Heure affichée dans ton fuseau local. Le groupe annonce les horaires en UTC+1.",
+    );
+    // La note n'apparaît que parce que les horloges diffèrent vraiment.
+    assert.notEqual(formatClock(d, "America/New_York"), formatClock(d, REFERENCE_TIME_ZONE));
+    assert.equal(nbsp(formatClock(d, "America/New_York")), "15:00");
+  });
+
+  test("zone invalide → repli sur la référence → pas de note", () => {
+    assert.equal(localTimeNote(d, "Mars/Olympus"), null);
   });
 });
 
@@ -206,6 +272,7 @@ describe("normalizeEventFilters", () => {
     assert.equal(normalizeEventFilters({ limit: 999 }).limit, 50);
     assert.equal(normalizeEventFilters({ limit: NaN }).limit, 20);
     assert.equal(normalizeEventFilters({ limit: 7.9 }).limit, 7);
+    assert.equal(normalizeEventFilters({ limit: null }).limit, 20);
   });
 
   test("enums : valeurs valides gardées, invalides écartées", () => {
@@ -218,32 +285,11 @@ describe("normalizeEventFilters", () => {
   });
 });
 
-// ── Mirror of matchesPeriod (src/lib/event-period.ts) ──
-
-function matchesPeriod(startsAt, period, now = new Date()) {
-  if (period === "all") return true;
-  const start = new Date(startsAt);
-
-  if (period === "week") {
-    const offsetToMonday = (now.getDay() + 6) % 7;
-    const startOfWeek = new Date(
-      now.getFullYear(), now.getMonth(), now.getDate() - offsetToMonday,
-      0, 0, 0, 0,
-    );
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
-    endOfWeek.setHours(23, 59, 59, 999);
-    return start >= startOfWeek && start <= endOfWeek;
-  }
-
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-  return start >= startOfMonth && start <= endOfMonth;
-}
-
 describe("matchesPeriod", () => {
   // Lundi 5 octobre 2026, 10:00 (heure locale). 4 oct 2026 = dimanche,
   // 5 = lundi, 11 = dimanche, 12 = lundi.
+  // Toutes les dates sont construites en heure locale des deux côtés (bornes
+  // et événement) : le verdict ne dépend donc pas du fuseau du processus.
   const now = new Date(2026, 9, 5, 10, 0, 0, 0);
   const at = (d, h, m = 0, s = 0, ms = 0) => new Date(2026, 9, d, h, m, s, ms);
 

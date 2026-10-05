@@ -2,19 +2,20 @@
  * Unit tests — moteur de progression ATELIERS (fonctions pures).
  * No server required, runs in < 1 second.
  *
- * Run:  node --test tests/workshop-progression.test.cjs
+ * Run:  node --import tsx --test tests/workshop-progression.test.cjs
  *
- * Mirrors (re-implemented pure logic — .cjs can't import TS):
- *  - computeSessionState / applyUnlockChain / applyDateGate /
- *    summarizeWorkshop / pickLatestSubmission / deriveQuizState
- *    from src/lib/workshop-progression.ts
- * If the sources change, update the mirrors below accordingly.
+ * Ce fichier IMPORTE la vraie source src/lib/workshop-progression.ts (plus
+ * aucun miroir réimplémenté) : les assertions portent sur le code exécuté
+ * en production, donc un bug dans workshop-progression.ts fait échouer ce
+ * test au lieu de passer au vert.
  *
  * Coverage:
  *  - session state: no-ghost-conditions (no deliverable/quiz → COMPLETED),
  *    submission lifecycle (PENDING/IN_REVIEW/REVISION/REJECTED/APPROVED),
  *    review-overrides-status, quiz-only sessions, approved+quiz pending
  *  - unlock chain: sequential (N unlocked iff N-1 COMPLETED), lock prime
+ *  - unlock override: ne fabrique jamais un COMPLETED
+ *  - date gate: futur verrouillé, précision à la milliseconde
  *  - summary: percent, next index, isComplete
  *  - helpers: pickLatestSubmission (attempt max), deriveQuizState
  */
@@ -24,92 +25,18 @@
 const { test, describe } = require("node:test");
 const assert = require("node:assert/strict");
 
-// ── Mirrors of src/lib/workshop-progression.ts ──
+// ── Vraie source (require TypeScript via tsx) ───────────────────────────────
 
-function computeSessionState(input) {
-  const deliverableEffective = input.hasDeliverable && input.deliverableRequired;
-  const quizEffective = input.hasQuiz && input.quizRequired;
-
-  if (!deliverableEffective && !quizEffective) return "COMPLETED";
-
-  const deliverableStatus =
-    input.latestReviewDecision ?? input.latestSubmissionStatus ?? null;
-
-  if (deliverableEffective) {
-    switch (deliverableStatus) {
-      case "APPROVED":
-        return quizEffective && input.quizState !== "PASSED" ? "IN_PROGRESS" : "COMPLETED";
-      case "IN_REVIEW":
-        return "IN_REVIEW";
-      case "REVISION":
-        return "REVISION";
-      case "REJECTED":
-        return "REJECTED";
-      case "PENDING":
-        return "SUBMITTED";
-      default:
-        if (quizEffective && input.quizState === "PASSED") return "IN_PROGRESS";
-        if (quizEffective && input.quizState === "FAILED") return "IN_PROGRESS";
-        return "NOT_STARTED";
-    }
-  }
-
-  if (quizEffective) {
-    if (input.quizState === "PASSED") return "COMPLETED";
-    if (input.quizState === "FAILED") return "IN_PROGRESS";
-    return "NOT_STARTED";
-  }
-
-  return "COMPLETED";
-}
-
-function applyUnlockChain(states) {
-  const out = [];
-  for (let i = 0; i < states.length; i++) {
-    const previousCompleted = i === 0 || out[i - 1] === "COMPLETED";
-    out.push(previousCompleted ? states[i] : "LOCKED");
-  }
-  return out;
-}
-
-function applyUnlockOverride(states, overrides) {
-  return states.map((state, i) =>
-    overrides[i] && state === "LOCKED" ? "NOT_STARTED" : state,
-  );
-}
-
-function applyDateGate(states, availableAt, now = new Date()) {
-  const nowMs = now.getTime();
-  return states.map((state, i) => {
-    if (state === "LOCKED") return state;
-    const at = availableAt[i] ?? null;
-    if (at !== null && at.getTime() > nowMs) return "LOCKED";
-    return state;
-  });
-}
-
-function summarizeWorkshop(states) {
-  const total = states.length;
-  const completed = states.filter((s) => s === "COMPLETED").length;
-  const nextSessionIndex = states.findIndex((s) => s !== "COMPLETED" && s !== "LOCKED");
-  return {
-    total,
-    completed,
-    percent: total === 0 ? 0 : Math.floor((completed / total) * 100),
-    nextSessionIndex: nextSessionIndex === -1 ? null : nextSessionIndex,
-    isComplete: total > 0 && completed === total,
-  };
-}
-
-function pickLatestSubmission(submissions) {
-  if (submissions.length === 0) return null;
-  return submissions.reduce((a, b) => (b.attempt > a.attempt ? b : a));
-}
-
-function deriveQuizState(attempts) {
-  if (attempts.length === 0) return "NOT_STARTED";
-  return attempts.some((a) => a.passed) ? "PASSED" : "FAILED";
-}
+const {
+  SESSION_STATES,
+  applyDateGate,
+  applyUnlockChain,
+  applyUnlockOverride,
+  computeSessionState,
+  deriveQuizState,
+  pickLatestSubmission,
+  summarizeWorkshop,
+} = require("../src/lib/workshop-progression.ts");
 
 // ── Factories ──
 
@@ -128,6 +55,26 @@ function deliverableSession(overrides = {}) {
 }
 
 // ── Tests ──
+
+describe("SESSION_STATES — contrat fermé", () => {
+  test("les 8 états pédagogiques déclarés", () => {
+    // La liste est la source de vérité du client et de la sérialisation :
+    // une dérive ici se propagerait à toute l'UI.
+    assert.deepEqual(
+      [...SESSION_STATES],
+      [
+        "LOCKED",
+        "NOT_STARTED",
+        "IN_PROGRESS",
+        "SUBMITTED",
+        "IN_REVIEW",
+        "REVISION",
+        "REJECTED",
+        "COMPLETED",
+      ],
+    );
+  });
+});
 
 describe("computeSessionState — condition fantôme interdite", () => {
   test("sans livrable ni quiz effectif → COMPLETED dès le déblocage", () => {
@@ -224,6 +171,16 @@ describe("computeSessionState — cycle de soumission", () => {
     assert.equal(s, "REVISION");
   });
 
+  test("review APPROVED prime sur une soumission PENDING → COMPLETED", () => {
+    const s = computeSessionState(
+      deliverableSession({
+        latestSubmissionStatus: "PENDING",
+        latestReviewDecision: "APPROVED",
+      }),
+    );
+    assert.equal(s, "COMPLETED");
+  });
+
   test("resoumission (nouvelle PENDING après REVISION) → SUBMITTED", () => {
     // Nouvelle soumission : latestSubmissionStatus repasse à PENDING,
     // la review REVISION est attachée à l'ancienne soumission → null ici.
@@ -245,6 +202,30 @@ describe("computeSessionState — cycle de soumission", () => {
       }),
     );
     assert.equal(s, "IN_PROGRESS");
+  });
+
+  test("jamais LOCKED : le verrou est l'affaire de applyUnlockChain", () => {
+    // Contrat documenté : une séance ne peut pas se verrouiller elle-même.
+    const statuses = [null, "PENDING", "IN_REVIEW", "REVISION", "REJECTED", "APPROVED"];
+    const quizStates = ["NOT_STARTED", "PASSED", "FAILED"];
+    for (const status of statuses) {
+      for (const decision of statuses) {
+        for (const quizState of quizStates) {
+          for (const hasQuiz of [true, false]) {
+            const s = computeSessionState(
+              deliverableSession({
+                latestSubmissionStatus: status,
+                latestReviewDecision: decision,
+                quizState,
+                hasQuiz,
+              }),
+            );
+            assert.notEqual(s, "LOCKED", `LOCKED retourné pour ${status}/${decision}`);
+            assert.ok(SESSION_STATES.includes(s), `état hors union : ${s}`);
+          }
+        }
+      }
+    }
   });
 });
 
@@ -269,6 +250,17 @@ describe("computeSessionState — quiz seul", () => {
   test("quiz passé → COMPLETED", () => {
     assert.equal(computeSessionState({ ...quizOnly, quizState: "PASSED" }), "COMPLETED");
   });
+
+  test("la review d'un livrable inexistant est ignorée", () => {
+    // hasDeliverable=false : pas de livrable effectif, donc pas de statut de
+    // soumission à considérer — le quiz seul décide.
+    const s = computeSessionState({
+      ...quizOnly,
+      latestReviewDecision: "REJECTED",
+      quizState: "PASSED",
+    });
+    assert.equal(s, "COMPLETED");
+  });
 });
 
 describe("applyUnlockChain", () => {
@@ -292,6 +284,10 @@ describe("applyUnlockChain", () => {
     // pas complétée : le verrou serveur prime.
     const out = applyUnlockChain(["SUBMITTED", "SUBMITTED"]);
     assert.deepEqual(out, ["SUBMITTED", "LOCKED"]);
+  });
+
+  test("liste vide → liste vide", () => {
+    assert.deepEqual(applyUnlockChain([]), []);
   });
 });
 
@@ -319,6 +315,11 @@ describe("applyUnlockOverride (déblocage admin)", () => {
     assert.deepEqual(chained, ["NOT_STARTED", "LOCKED"]);
     const out = applyUnlockOverride(chained, [false, true]);
     assert.deepEqual(out, ["NOT_STARTED", "NOT_STARTED"]);
+  });
+
+  test("override plus court que la liste → pas de crash", () => {
+    const out = applyUnlockOverride(["LOCKED", "LOCKED", "LOCKED"], [true]);
+    assert.deepEqual(out, ["NOT_STARTED", "LOCKED", "LOCKED"]);
   });
 
   test("override prime aussi sur le gate calendaire", () => {
@@ -401,6 +402,18 @@ describe("summarizeWorkshop", () => {
     assert.equal(s.percent, 0);
     assert.equal(s.isComplete, false);
   });
+
+  test("nextSessionIndex saute une séance LOCKED après une complétée", () => {
+    // La progression ne doit jamais pointer une séance encore verrouillée.
+    const s = summarizeWorkshop(["COMPLETED", "LOCKED", "NOT_STARTED"]);
+    assert.equal(s.nextSessionIndex, 2);
+    assert.equal(s.isComplete, false);
+  });
+
+  test("percent arrondi à l'entier inférieur", () => {
+    const s = summarizeWorkshop(["COMPLETED", "COMPLETED", "NOT_STARTED"]);
+    assert.equal(s.percent, 66);
+  });
 });
 
 describe("pickLatestSubmission / deriveQuizState", () => {
@@ -416,6 +429,11 @@ describe("pickLatestSubmission / deriveQuizState", () => {
 
   test("pickLatestSubmission : vide → null", () => {
     assert.equal(pickLatestSubmission([]), null);
+  });
+
+  test("pickLatestSubmission : une seule soumission → elle-même", () => {
+    const only = { attempt: 1, status: "PENDING" };
+    assert.equal(pickLatestSubmission([only]), only);
   });
 
   test("deriveQuizState : PASSED dès qu'une tentative passe", () => {

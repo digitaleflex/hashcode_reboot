@@ -4,7 +4,14 @@
  * Même philosophie que events-validation.ts : fonctions pures, unions
  * fermées en union TS, retours { ok, data } | { ok, error }, utilisées
  * par les routes API membre et admin pour garantir les mêmes règles
- * des deux côtés. Testée en miroir CJS (tests/workshop-validation.test.cjs).
+ * des deux côtés. Testée par import direct de cette source
+ * (tests/workshop-validation.test.cjs, via `node --import tsx`).
+ *
+ * ⚠️ Il n'y a AUCUN validateur de structure pédagogique (semaines, séances,
+ * activités, livrables, quiz, questions) : la structure est créée et modifiée
+ * via le seed idempotent. Voir la décision D2 de docs/ateliers/adr-001-decisions.md.
+ * Il en existait 9 ici jusqu'à D18, jamais appelés depuis l'abandon du CRUD
+ * admin — ils donnaient l'illusion d'une validation qui n'existait pas.
  *
  * Couvert :
  * - Workshop : status draft|published|archived (filtres des listes admin)
@@ -79,8 +86,6 @@ function parseHttpUrl(v: unknown): string | null | false {
     return false;
   }
 }
-
-/** Map helpers dupliqués côté miroir CJS — à synchroniser. */
 
 // ── Submission ──────────────────────────────────────────────────────────────
 

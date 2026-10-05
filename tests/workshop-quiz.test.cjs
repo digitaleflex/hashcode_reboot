@@ -2,12 +2,12 @@
  * Unit tests — scoring serveur des quiz ATELIERS (fonctions pures).
  * No server required, runs in < 1 second.
  *
- * Run:  node --test tests/workshop-quiz.test.cjs
+ * Run:  node --import tsx --test tests/workshop-quiz.test.cjs
  *
- * Mirrors (re-implemented pure logic — .cjs can't import TS):
- *  - publicQuestions / scoreAttempt / canAttempt
- *    from src/lib/workshop-quiz.ts
- * If the sources change, update the mirrors below accordingly.
+ * Ce fichier IMPORTE la vraie source src/lib/workshop-quiz.ts (plus aucun
+ * miroir réimplémenté) : les assertions portent sur le code exécuté en
+ * production, donc un bug dans workshop-quiz.ts fait échouer ce test au
+ * lieu de passer au vert.
  *
  * Coverage:
  *  - NON-FUITE : publicQuestions() n'expose JAMAIS correctJson (test
@@ -16,7 +16,8 @@
  *    choix partiel = faux), true_false
  *  - barème : points, total, percent floor, seuil atteint pile → passed
  *  - garde-fous : longueur désalignée → null, seuil invalide → null,
- *    correctJson corrompu → null, quiz sans question → null
+ *    correctJson corrompu ou de mauvaise forme → null, quiz sans question
+ *    → null
  *  - canAttempt : null = illimité, borne stricte
  */
 
@@ -25,108 +26,9 @@
 const { test, describe } = require("node:test");
 const assert = require("node:assert/strict");
 
-// ── Mirrors of src/lib/workshop-quiz.ts ──
+// ── Vraie source (require TypeScript via tsx) ───────────────────────────────
 
-function publicQuestions(questions) {
-  return questions
-    .slice()
-    .sort((a, b) => a.order - b.order)
-    .map((q) => {
-      let options = [];
-      try {
-        const parsed = JSON.parse(q.optionsJson);
-        if (Array.isArray(parsed)) options = parsed.map((o) => String(o));
-      } catch {
-        options = [];
-      }
-      return {
-        id: q.id,
-        order: q.order,
-        type: q.type,
-        prompt: q.prompt,
-        options,
-        points: q.points,
-      };
-    });
-}
-
-function parseCorrect(type, correctJson) {
-  try {
-    const parsed = JSON.parse(correctJson);
-    if (type === "multiple") {
-      if (Array.isArray(parsed) && parsed.length > 0 && parsed.every((c) => Number.isInteger(c) && c >= 0)) {
-        return [...parsed].sort((a, b) => a - b);
-      }
-      return null;
-    }
-    if (Number.isInteger(parsed) && parsed >= 0) return parsed;
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-function answerToSet(answer) {
-  if (typeof answer === "number") {
-    if (!Number.isInteger(answer) || answer < 0) return null;
-    return [answer];
-  }
-  if (Array.isArray(answer)) {
-    const idx = answer.map((c) => Number(c));
-    if (idx.some((c) => !Number.isInteger(c) || c < 0)) return null;
-    return [...idx].sort((a, b) => a - b);
-  }
-  return null;
-}
-
-function sameSet(a, b) {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) return false;
-  }
-  return true;
-}
-
-function scoreAttempt(questions, answers, passThreshold) {
-  if (questions.length === 0) return null;
-  if (!Array.isArray(answers) || answers.length !== questions.length) return null;
-  if (!Number.isInteger(passThreshold) || passThreshold < 0 || passThreshold > 100) return null;
-
-  const ordered = questions.slice().sort((a, b) => a.order - b.order);
-
-  const perQuestion = [];
-  let score = 0;
-  let total = 0;
-
-  for (let i = 0; i < ordered.length; i++) {
-    const q = ordered[i];
-    const correctIndices = parseCorrect(q.type, q.correctJson);
-    if (correctIndices === null) return null;
-    total += q.points;
-
-    const correctSet = answerToSet(correctIndices);
-    const userSet = answerToSet(answers[i]);
-    if (userSet === null) return null;
-
-    const correct = correctSet !== null && sameSet(correctSet, userSet);
-
-    perQuestion.push({
-      questionId: q.id,
-      type: q.type,
-      correct,
-      pointsEarned: correct ? q.points : 0,
-    });
-    if (correct) score += q.points;
-  }
-
-  const percent = total > 0 ? Math.floor((score / total) * 100) : 0;
-  return { score, total, percent, passed: percent >= passThreshold, perQuestion };
-}
-
-function canAttempt(maxAttempts, attemptsCount) {
-  if (maxAttempts === null) return true;
-  return attemptsCount < maxAttempts;
-}
+const { canAttempt, publicQuestions, scoreAttempt } = require("../src/lib/workshop-quiz.ts");
 
 // ── Fixtures ──
 
@@ -173,6 +75,13 @@ describe("publicQuestions — non-fuite des réponses", () => {
     assert.deepEqual(pub[0].options, ["Enregistre localement", "Pousse vers GitHub"]);
   });
 
+  test("la sortie ne contient aucune valeur de correctJson (anti-fuite en profondeur)", () => {
+    // Au-delà de la simple absence de clé : aucune chaîne de la réponse
+    // correcte ne doit apparaître dans la projection sérialisée.
+    const pub = publicQuestions([{ ...Q1, correctJson: '"SECRET_ANSWER"' }]);
+    assert.equal(JSON.stringify(pub).includes("SECRET_ANSWER"), false);
+  });
+
   test("questions triées par order", () => {
     const pub = publicQuestions([Q2, Q1]);
     assert.equal(pub[0].id, "q1");
@@ -182,6 +91,16 @@ describe("publicQuestions — non-fuite des réponses", () => {
   test("optionsJson corrompu → options vides (jamais de crash)", () => {
     const pub = publicQuestions([{ ...Q1, optionsJson: "not-json" }]);
     assert.deepEqual(pub[0].options, []);
+  });
+
+  test("optionsJson non-tableau (objet JSON) → options vides", () => {
+    const pub = publicQuestions([{ ...Q1, optionsJson: '{"0":"a"}' }]);
+    assert.deepEqual(pub[0].options, []);
+  });
+
+  test("les options sont normalisées en chaînes", () => {
+    const pub = publicQuestions([{ ...Q1, optionsJson: "[1, true, null]" }]);
+    assert.deepEqual(pub[0].options, ["1", "true", "null"]);
   });
 });
 
@@ -208,6 +127,12 @@ describe("scoreAttempt — barème", () => {
     assert.equal(r.perQuestion[0].correct, false);
   });
 
+  test("trop de choix multiple = faux (ensemble non identique)", () => {
+    const r = scoreAttempt([Q3], [[0, 1, 2]], 70);
+    assert.equal(r.score, 0);
+    assert.equal(r.passed, false);
+  });
+
   test("exactement au seuil → passed", () => {
     // Q1 seule : 2 points, 2/2 = 100 ≥ 100
     const r = scoreAttempt([Q1], [0], 100);
@@ -232,6 +157,34 @@ describe("scoreAttempt — barème", () => {
     assert.equal(r.perQuestion.find((p) => p.questionId === "q1").correct, true);
     assert.equal(r.perQuestion.find((p) => p.questionId === "q2").correct, false);
   });
+
+  test("perQuestion suit l'ordre des questions triées, pas l'ordre d'entrée", () => {
+    const r = scoreAttempt([Q2, Q1], [0, 0], 70);
+    assert.deepEqual(r.perQuestion.map((p) => p.questionId), ["q1", "q2"]);
+  });
+
+  test("perQuestion : pointsEarned = points si correct, 0 sinon", () => {
+    const r = scoreAttempt([Q1, Q2], [0, 0], 70);
+    assert.deepEqual(
+      r.perQuestion.map((p) => p.pointsEarned),
+      [2, 0],
+    );
+    assert.deepEqual(r.perQuestion.map((p) => p.type), ["single", "true_false"]);
+  });
+
+  test("un quiz à 0 point ne vaut pas 100% (percent 0, pas de division par zéro)", () => {
+    const r = scoreAttempt([{ ...Q1, points: 0 }], [0], 100);
+    assert.equal(r.total, 0);
+    assert.equal(r.percent, 0);
+    assert.equal(r.passed, false);
+  });
+
+  test("indice de réponse hors options → compté faux, pas de crash", () => {
+    // Une réponse forgée n'y gagne rien : l'ensemble ne correspond pas.
+    const r = scoreAttempt([Q1], [99], 70);
+    assert.equal(r.score, 0);
+    assert.equal(r.perQuestion[0].correct, false);
+  });
 });
 
 describe("scoreAttempt — garde-fous", () => {
@@ -245,6 +198,15 @@ describe("scoreAttempt — garde-fous", () => {
     assert.equal(scoreAttempt([Q1], [0], -1), null);
   });
 
+  test("seuil non entier → null", () => {
+    assert.equal(scoreAttempt([Q1], [0], 50.5), null);
+  });
+
+  test("seuil 0 et 100 acceptés aux bornes", () => {
+    assert.notEqual(scoreAttempt([Q1], [0], 0), null);
+    assert.notEqual(scoreAttempt([Q1], [0], 100), null);
+  });
+
   test("quiz sans question → null", () => {
     assert.equal(scoreAttempt([], [], 70), null);
   });
@@ -252,6 +214,16 @@ describe("scoreAttempt — garde-fous", () => {
   test("correctJson corrompu → null (pas de crash, pas de score)", () => {
     assert.equal(scoreAttempt([{ ...Q1, correctJson: "corrompu" }], [0], 70), null);
     assert.equal(scoreAttempt([{ ...Q3, correctJson: "[]" }], [[0]], 70), null);
+  });
+
+  test("correctJson de mauvaise forme → null (tableau sur single, négatif, null)", () => {
+    assert.equal(scoreAttempt([{ ...Q1, correctJson: "[0]" }], [0], 70), null);
+    assert.equal(scoreAttempt([{ ...Q1, correctJson: "-1" }], [0], 70), null);
+    assert.equal(scoreAttempt([{ ...Q1, correctJson: "null" }], [0], 70), null);
+  });
+
+  test("une question corrompée annule TOUT le quiz (pas de score partiel)", () => {
+    assert.equal(scoreAttempt([Q1, { ...Q2, correctJson: "nope" }], [0, 1], 70), null);
   });
 
   test("réponse hors forme → null", () => {

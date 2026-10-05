@@ -1,19 +1,19 @@
 /**
  * Unit tests — matching mentorat #61 (fonctions pures).
- * No server required, runs in < 1 second.
  *
- * Run:  node --test tests/matching.test.cjs
+ * Run:  node --import tsx --test tests/matching.test.cjs
  *
- * Mirrors (re-implemented pure logic — .cjs can't import TS):
- *  - parseSpecialties / scoreMatch / suggestMentors from src/lib/matching.ts
- * If the sources change, update the mirrors below accordingly.
+ * Ce test importe la VRAIE source `src/lib/matching.ts` (D18) — il ne
+ * réimplémente rien. Les trois fonctions testées (`parseSpecialties`,
+ * `scoreMatch`, `suggestMentors`) sont bien des exports publics du module,
+ * donc le contrat est vérifié directement.
  *
  * Coverage:
  *  - barème : +30 domaine, +20 spécialités, +20 fréquence, +10 pays,
  *    +20 budget concret, plafond 100
  *  - parse : tableau, JSON string, JSON corrompu, null
  *  - tri : score desc, puis charge asc, puis niveau
- *  - top 5 par défaut
+ *  - top 5 par défaut, `limit` explicite
  */
 
 "use strict";
@@ -21,61 +21,13 @@
 const { test, describe } = require("node:test");
 const assert = require("node:assert/strict");
 
-// ── Mirrors of src/lib/matching.ts ──
+const {
+  parseSpecialties,
+  scoreMatch,
+  suggestMentors,
+} = require("../src/lib/matching.ts");
 
-function parseSpecialties(value) {
-  if (!value) return [];
-  if (Array.isArray(value)) return value.map(String);
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed.map(String) : [];
-  } catch {
-    return [];
-  }
-}
-
-const CONCRETE_BUDGETS = new Set([
-  "<2500", "2500-5000", "5000-10000", "10000-20000", "20000-30000", ">30000",
-]);
-
-function scoreMatch(mentee, mentor) {
-  let score = 0;
-  const reasons = [];
-  if (mentee.primaryDomain && mentor.primaryDomain && mentee.primaryDomain === mentor.primaryDomain) {
-    score += 30; reasons.push("same-domain");
-  }
-  const menteeSpecs = new Set(parseSpecialties(mentee.domainSpecialty));
-  const overlap = parseSpecialties(mentor.domainSpecialty).filter((s) => menteeSpecs.has(s));
-  if (overlap.length > 0) { score += 20; reasons.push("specialty-overlap"); }
-  if (mentee.mentoringFrequency && mentor.mentoringFrequency && mentee.mentoringFrequency === mentor.mentoringFrequency) {
-    score += 20; reasons.push("same-frequency");
-  }
-  if (mentee.country && mentor.country && mentee.country === mentor.country) {
-    score += 10; reasons.push("same-country");
-  }
-  if (mentee.budgetRange && CONCRETE_BUDGETS.has(mentee.budgetRange)) {
-    score += 20; reasons.push("concrete-budget");
-  }
-  return { mentorId: mentor.id, score: Math.min(100, score), reasons };
-}
-
-const LEVEL_RANK = { advanced: 0, autonomous: 1, practicing: 2, beginner: 3 };
-
-function suggestMentors(mentee, mentors, limit = 5) {
-  return mentors
-    .map((m) => ({ result: scoreMatch(mentee, m), mentor: m }))
-    .sort((a, b) => {
-      if (b.result.score !== a.result.score) return b.result.score - a.result.score;
-      if (a.mentor.activeMentees !== b.mentor.activeMentees) return a.mentor.activeMentees - b.mentor.activeMentees;
-      const ra = LEVEL_RANK[a.mentor.level ?? ""] ?? 99;
-      const rb = LEVEL_RANK[b.mentor.level ?? ""] ?? 99;
-      return ra - rb;
-    })
-    .slice(0, Math.max(1, limit))
-    .map((x) => x.result);
-}
-
-// ── Tests ──
+// ── Fixtures ──
 
 const MENTEE = {
   primaryDomain: "cybersecurity",
@@ -86,9 +38,16 @@ const MENTEE = {
 };
 
 const PERFECT_MENTOR = {
-  id: "m1", primaryDomain: "cybersecurity", domainSpecialty: ["pentest", "soc"],
-  mentoringFrequency: "weekly", country: "BJ", level: "advanced", activeMentees: 0,
+  id: "m1",
+  primaryDomain: "cybersecurity",
+  domainSpecialty: ["pentest", "soc"],
+  mentoringFrequency: "weekly",
+  country: "BJ",
+  level: "advanced",
+  activeMentees: 0,
 };
+
+// ── Tests ──
 
 describe("parseSpecialties", () => {
   test("tableau, JSON string, corrompu, null", () => {
@@ -99,22 +58,50 @@ describe("parseSpecialties", () => {
     assert.deepEqual(parseSpecialties(undefined), []);
     assert.deepEqual(parseSpecialties('{"a":1}'), []);
   });
+
+  test("JSON scalar ou objet non-tableau → []", () => {
+    assert.deepEqual(parseSpecialties("42"), []);
+    assert.deepEqual(parseSpecialties("null"), []);
+    assert.deepEqual(parseSpecialties(""), []);
+  });
 });
 
 describe("scoreMatch (barème spec)", () => {
   test("match parfait = 100 (30+20+20+10+20)", () => {
     const r = scoreMatch(MENTEE, PERFECT_MENTOR);
     assert.equal(r.score, 100);
-    assert.deepEqual(r.reasons, ["same-domain", "specialty-overlap", "same-frequency", "same-country", "concrete-budget"]);
+    assert.deepEqual(r.reasons, [
+      "same-domain",
+      "specialty-overlap",
+      "same-frequency",
+      "same-country",
+      "concrete-budget",
+    ]);
+    assert.equal(r.mentorId, "m1");
   });
 
   test("aucun point commun sauf budget concret = 20", () => {
     const r = scoreMatch(MENTEE, {
-      id: "m2", primaryDomain: "web", domainSpecialty: ["react"],
-      mentoringFrequency: "monthly", country: "FR", level: "beginner", activeMentees: 0,
+      id: "m2",
+      primaryDomain: "web",
+      domainSpecialty: ["react"],
+      mentoringFrequency: "monthly",
+      country: "FR",
+      level: "beginner",
+      activeMentees: 0,
     });
     assert.equal(r.score, 20);
     assert.deepEqual(r.reasons, ["concrete-budget"]);
+  });
+
+  test("spécialités mentor en JSON string sont parsées", () => {
+    const r = scoreMatch(MENTEE, {
+      ...PERFECT_MENTOR,
+      id: "m4",
+      domainSpecialty: '["osint"]',
+    });
+    assert.ok(r.reasons.includes("specialty-overlap"));
+    assert.equal(r.score, 100);
   });
 
   test("budget non renseigné (unknown/not_now/null) = pas de +20", () => {
@@ -127,19 +114,39 @@ describe("scoreMatch (barème spec)", () => {
 
   test("champs null côté mentor = pas de crash, pas de points", () => {
     const r = scoreMatch(MENTEE, {
-      id: "m3", primaryDomain: null, domainSpecialty: null,
-      mentoringFrequency: null, country: null, level: null, activeMentees: 0,
+      id: "m3",
+      primaryDomain: null,
+      domainSpecialty: null,
+      mentoringFrequency: null,
+      country: null,
+      level: null,
+      activeMentees: 0,
     });
     assert.equal(r.score, 20); // seul le budget du mentoré compte
+    assert.deepEqual(r.reasons, ["concrete-budget"]);
+  });
+
+  test("spécialités du mentoré non vides mais disjointes = pas de +20", () => {
+    const r = scoreMatch(MENTEE, {
+      ...PERFECT_MENTOR,
+      id: "m5",
+      domainSpecialty: ["frontend", "backend"],
+    });
+    assert.ok(!r.reasons.includes("specialty-overlap"));
+    assert.equal(r.score, 80);
   });
 });
 
 describe("suggestMentors", () => {
   test("tri score desc, top 5 par défaut", () => {
     const mentors = Array.from({ length: 7 }, (_, i) => ({
-      id: `m${i}`, primaryDomain: i < 3 ? "cybersecurity" : "web",
-      domainSpecialty: [], mentoringFrequency: null, country: null,
-      level: "advanced", activeMentees: 0,
+      id: `m${i}`,
+      primaryDomain: i < 3 ? "cybersecurity" : "web",
+      domainSpecialty: [],
+      mentoringFrequency: null,
+      country: null,
+      level: "advanced",
+      activeMentees: 0,
     }));
     const out = suggestMentors(MENTEE, mentors);
     assert.equal(out.length, 5);
@@ -151,6 +158,37 @@ describe("suggestMentors", () => {
     const b = { ...PERFECT_MENTOR, id: "b", activeMentees: 0 };
     const c = { ...PERFECT_MENTOR, id: "c", activeMentees: 0, level: "beginner" };
     const out = suggestMentors(MENTEE, [a, b, c]);
-    assert.deepEqual(out.map((r) => r.mentorId), ["b", "c", "a"]);
+    assert.deepEqual(
+      out.map((r) => r.mentorId),
+      ["b", "c", "a"],
+    );
+  });
+
+  test("score décroissant en tête de liste", () => {
+    const out = suggestMentors(MENTEE, [
+      PERFECT_MENTOR,
+      {
+        ...PERFECT_MENTOR,
+        id: "weak",
+        primaryDomain: "web",
+        domainSpecialty: [],
+        mentoringFrequency: null,
+        country: "FR",
+      },
+    ]);
+    assert.deepEqual(
+      out.map((r) => r.score),
+      [100, 20],
+    );
+  });
+
+  test("limit explicite respecté ; limit <= 0 → au moins 1", () => {
+    const mentors = [1, 2, 3, 4].map((i) => ({ ...PERFECT_MENTOR, id: `m${i}` }));
+    assert.equal(suggestMentors(MENTEE, mentors, 2).length, 2);
+    assert.equal(suggestMentors(MENTEE, mentors, 0).length, 1);
+  });
+
+  test("liste de mentors vide → []", () => {
+    assert.deepEqual(suggestMentors(MENTEE, []), []);
   });
 });

@@ -83,7 +83,16 @@ if (typeof setInterval !== "undefined") {
 /**
  * In-memory sliding-window rate limiter (fallback).
  */
-function memoryRateLimit(key: string, config: RateLimitConfig): RateLimitResult {
+/**
+ * Seau à jetons en mémoire — fallback utilisé quand Redis est indisponible.
+ *
+ * Exposé depuis D18 pour être testé directement : la fonction est PURE (aucun
+ * effet de bord hors son propre seau, aucun accès réseau), et sa_arithmétique
+ * de recharge était auparavant couverte par un miroir dans le test, donc
+ * jamais vérifiée contre cette implémentation. Testée via import réel dans
+ * `tests/unit.test.cjs`.
+ */
+export function memoryRateLimit(key: string, config: RateLimitConfig): RateLimitResult {
   const now = Date.now();
   let b = memoryBuckets.get(key);
   if (!b) {
