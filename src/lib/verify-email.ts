@@ -60,10 +60,24 @@ export function buildVerifyUrl(token: string): string {
 
 export async function requestEmailLink(
   email: string,
-): Promise<{ ok: boolean; token: string; cooldownSec?: number }> {
+): Promise<{ ok: boolean; token: string; cooldownSec?: number; alreadyVerified?: boolean }> {
   const norm = email.trim().toLowerCase();
   const redis = getRedis();
   const now = Date.now();
+
+  // D34 — court-circuit si l'email est DÉJÀ vérifié.
+  //
+  // `isEmailVerified` existait sans aucun appelant : le flag était écrit par
+  // `confirmEmailLink` puis jamais relu. Ici, il évite d'émettre un lien de
+  // vérification vers une adresse dont la possession a déjà été prouvée —
+  // l'utilisateur reçoit alors un mail qui ne peut plus lui apporter
+  // information, et le cooldown de 60 s le bloque pour rien s'il insiste.
+  //
+  // On ne renvoie PAS de token dans ce cas : émettre un lien pour une adresse
+  // déjà vérifiée rouvrirait la surface d'un envoi inutile.
+  if (await isEmailVerified(norm)) {
+    return { ok: false, token: "", alreadyVerified: true };
+  }
 
   if (redis) {
     try {

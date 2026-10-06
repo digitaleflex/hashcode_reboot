@@ -42,6 +42,16 @@ export async function POST(req: NextRequest) {
     const { email, firstName } = parsed.data;
 
     const requested = await requestEmailLink(email);
+    if (requested.alreadyVerified) {
+      // D34 — l'email est déjà vérifié. Répondre 200 et non 429 : un
+      // rate-limit ferait réessayer l'utilisateur pendant 60 s alors que
+      // l'utilisateur est déjà validé et qu'aucun envoi n'a eu lieu.
+      return NextResponse.json({
+        ok: true,
+        verified: true,
+        message: "Email déjà vérifié.",
+      });
+    }
     if (!requested.ok) {
       throw new AppError(
         `Lien déjà envoyé. Réessaie dans ${requested.cooldownSec ?? 60} secondes.`,

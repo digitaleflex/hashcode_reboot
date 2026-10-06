@@ -188,6 +188,12 @@ export async function POST(req: NextRequest) {
           url: buildVerifyUrl(link.token),
         });
       }
+      // D34 — l'adresse est déjà vérifiée : pas de lien à renvoyer.
+      // `requestEmailLink` le signale désormais au lieu d'émettre un token
+      // que l'utilisateur ne pourra rien valider de neuf.
+      else if (link.alreadyVerified) {
+        console.warn(`[signup] Verification link skipped (already verified, id=${created.id})`);
+      }
     } catch {
       /* email must never break the flow */
     }
