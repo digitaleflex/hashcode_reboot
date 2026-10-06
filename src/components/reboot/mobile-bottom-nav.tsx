@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { usePathname } from "next/navigation";
+import { usePathname } from "@/i18n/routing";
 import {
   LayoutDashboard,
   Calendar,
@@ -39,6 +39,10 @@ const ADMIN_ITEMS: NavItem[] = [
 ];
 
 export function MobileBottomNav() {
+  // `usePathname` de `@/i18n/routing`, pas de `next/navigation` : ce dernier
+  // renvoie `/en/admin/members`, et les comparaisons ci-dessous indexent
+  // `/admin/...` — la barre affichait donc le menu MEMBRE dans l'espace admin
+  // sur `/en` (D27).
   const pathname = usePathname();
 
   const isAdmin = pathname.startsWith("/admin");

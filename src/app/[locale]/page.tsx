@@ -4,7 +4,6 @@ import * as React from "react";
 import dynamic from "next/dynamic";
 import { Landing } from "@/components/reboot/landing";
 import { Welcome, type WelcomeResult } from "@/components/reboot/welcome";
-import { AdminLogin } from "@/components/reboot/admin-login";
 import { HashSymbol, Logo } from "@/components/brand/logo";
 import { MonoLabel, RebootButton } from "@/components/reboot/shared";
 import { PrivacyModal } from "@/components/reboot/privacy-modal";
@@ -36,7 +35,7 @@ const ProfilingFlow = dynamic(
   },
 );
 
-type Phase = "landing" | "profiling" | "submitting" | "result" | "admin-login" | "admin";
+type Phase = "landing" | "profiling" | "submitting" | "result" | "admin";
 
 interface SubmitResponse {
   ok: boolean;
@@ -62,19 +61,20 @@ export default function Home() {
   const [sharedMemberId, setSharedMemberId] = React.useState<string | null>(null);
   const profilingStartedRef = React.useRef(false);
 
-  // Allow `?admin=1` to reveal the in-page admin dashboard (gated by auth).
+  // Allow `?admin=1` to reach the real admin route (which carries the access
+  // guard on the server).
   // Allow `?share=<id>` to show a public shared profile.
   // Allow `?resume=1` (relance email) to auto-open the profiling flow.
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("admin") === "1") {
-      // Check auth status; if authed go straight to admin, else show login.
-      fetch("/api/admin/verify", { cache: "no-store" })
-        .then((r) => r.json())
-        .then((d) => {
-          setPhase(d.authed ? "admin" : "admin-login");
-        })
-        .catch(() => setPhase("admin-login"));
+      // D33 — la phase `admin-login` et le composant `admin-login.tsx`
+      // (402 l.) ont été supprimés. `?admin=1` n'est plus qu'un alias vers
+      // `/admin`, qui est une vraie route : `admin/layout.tsx` y porte la garde
+      // d'accès et renvoie vers `/login?next=%2Fadmin` si la session n'est pas
+      // admin. L'aller-retour `?admin=1` -> `/api/admin/verify` -> formulaire
+      // -> `/admin` portait la même garde, en plus faible et en plus long.
+      setPhase("admin");
     } else if (params.get("share")) {
       setSharedMemberId(params.get("share"));
       track({ type: "reboot_page_view", ref: "shared-profile" });
@@ -90,6 +90,8 @@ export default function Home() {
     }
   }, []);
 
+  // `?admin=1` n'est qu'un alias vers `/admin` (D33) : la redirection se fait
+  // en navigation complète pour que la garde serveur du layout admin tranche.
   React.useEffect(() => {
     if (phase === "admin" && window.location.pathname !== "/admin") {
       window.location.assign("/admin");
@@ -244,14 +246,6 @@ export default function Home() {
       window.history.replaceState({}, "", "/");
     }
   }
-
-  if (phase === "admin-login")
-    return (
-      <AdminLogin
-        onAuthed={() => setPhase("admin")}
-        onExit={reset}
-      />
-    );
 
   if (phase === "admin") {
     // Redirect is performed in an effect so render stays pure.

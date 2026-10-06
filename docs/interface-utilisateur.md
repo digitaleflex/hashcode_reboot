@@ -40,14 +40,18 @@
 
 ## 1. Parcours visiteur — page d'accueil `/`
 
-`src/app/page.tsx` est une **machine à 6 phases** (`page.tsx:38`) :
-`landing | profiling | submitting | result | admin-login | admin`.
+`src/app/page.tsx` est une **machine à 5 phases** (`page.tsx:38`) :
+`landing | profiling | submitting | result | admin`.
 
-### 1.1 Entrées par paramètre d'URL (au montage, `page.tsx:66-89`)
+> **D33** — la phase `admin-login` et `src/components/reboot/admin-login.tsx`
+> (402 l.) ont été supprimés. `?admin=1` est désormais un simple alias vers
+> `/admin`, vraie route gardée côté serveur.
+
+### 1.1 Entrées par paramètre d'URL (au montage, `page.tsx:66-91`)
 
 | Paramètre | Effet | Priorité |
 |---|---|---|
-| `?admin=1` | `GET /api/admin/verify` → phase `admin` (redirect `/admin`) ou `admin-login` | 1 |
+| `?admin=1` | phase `admin` → `window.location.assign("/admin")` (garde serveur `admin/layout.tsx`) | 1 |
 | `?share=<id>` | `SharedProfileView` + `track reboot_page_view {ref:"shared-profile"}` | 2 |
 | `?resume=1` | phase `profiling` directe + `track profiling_resumed` | 3 |
 | — | landing + `track reboot_page_view` | 4 |
