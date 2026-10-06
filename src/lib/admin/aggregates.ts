@@ -15,8 +15,8 @@
  * CE QUE CE MODULE NE FAIT PAS (a lire avant de re-factoriser)
  * ------------------------------------------------------------
  *  - Il ne compose PAS via HTTP. Un dashboard qui appellerait 7 URLs ferait 7
- *    allers-retours et rejouerait 7 fois les memes requetes DB. Ici, un seul point
- *    d'entree appelle des FONCTIONS partagees : le nombre de requetes DB est
+ *    allers-retours et rejouerait 7 fois les mêmes requêtes DB. Ici, un seul point
+ *    d'entrée appelle des FONCTIONS partagées : le nombre de requêtes DB est
  *    inchange (41 avant, 41 apres - verifie par `tests/dashboard-aggregates.test.cjs`).
  *  - Il n'a pas supprime la duplication cote endpoints. Les 6 endpoints
  *    ci-dessus etaient hors perimetre D29 (deux autres agents travaillaient en
@@ -51,15 +51,15 @@ const CATEGORIES = EMAIL_SEMANTIC_CATEGORIES;
  */
 export const CRONS = [
   { key: "cron_relance", label: "Relance profils (J+7)", expectedEveryH: 24 },
-  { key: "cron_email_alerts", label: "Alertes delivrabilite", expectedEveryH: 24 },
-  { key: "cron_collect_metrics", label: "Collecte metriques", expectedEveryH: 24 },
+  { key: "cron_email_alerts", label: "Alertes délivrabilité", expectedEveryH: 24 },
+  { key: "cron_collect_metrics", label: "Collecte métriques", expectedEveryH: 24 },
   { key: "cron_event_reminders", label: "Relances evenements (J-3/J-1/H-1)", expectedEveryH: 1 },
   { key: "admin_announce_dashboard", label: "Annonce espace (manuel)", expectedEveryH: null },
   { key: "admin_invite_relance", label: "Relance invitations (manuel)", expectedEveryH: null },
   { key: "admin_import_invite", label: "Import invitations (manuel)", expectedEveryH: null },
 ] as const;
 
-/** Providers dont la delivrabilite est suivie (fenetre de 30 jours par defaut). */
+/** Providers dont la délivrabilité est suivie (fenetre de 30 jours par defaut). */
 export const DELIVERABILITY_PROVIDERS = ["resend", "brevo"] as const;
 
 // -- Fonctions pures (testables sans base) ------------------------------------
@@ -85,7 +85,7 @@ export function mergeBySource(
 export type CronStatus = "ok" | "stale" | "never" | "manual";
 
 /**
- * Statut deduit du DERNIER passage et de la frequence attendue. Un cron manuel
+ * Statut déduit du DERNIER passage et de la fréquence attendue. Un cron manuel
  * (`expectedEveryH === null`) n'est jamais "stale" : il ne se declenche pas tout
  * seul, donc son age ne prouve rien.
  *
@@ -259,10 +259,10 @@ const EMPTY_TOTALS: ProviderTotals = {
 };
 
 /**
- * Fenetre d'analyse de la delivrabilite : `days` jours glissants, bornes au
+ * Fenêtre d'analyse de la délivrabilité : `days` jours glissants, bornes au
  * jour UTC. `end` est le jour courant a 23:59:59.999, `start` le jour a
  * minuit. Sans ces deux `setUTCHours`, la fenetreGLISSait d'une requete a
- * l'autre sur une serie de jours.
+ * l'autre sur une série de jours.
  */
 export function deliverabilityWindow(
   days: number,
@@ -351,7 +351,7 @@ export function summarizeProvider(
   };
 }
 
-/** Series temporelles du graphique de delivrabilite (une entree par jour). */
+/** Séries temporelles du graphique de délivrabilité (une entrée par jour). */
 export function providerChart(provider: string, metrics: ProviderMetricRow[]) {
   return {
     provider,
@@ -428,7 +428,7 @@ export function buildOpsAlerts(
         level: "critical",
         provider: b.provider,
         message:
-          `Quota ${b.provider} epuise : ${b.used}/${b.cap} envois aujourd'hui. ` +
+          `Quota ${b.provider} épuisé : ${b.used}/${b.cap} envois aujourd'hui. ` +
           `Les envois sont suspendus jusqu'a 00:00 UTC ; les destinataires non ` +
           `servis seront repris automatiquement.`,
       });
@@ -437,8 +437,8 @@ export function buildOpsAlerts(
         level: "critical",
         provider: b.provider,
         message:
-          `Quota ${b.provider} presque epuise : ${b.used}/${b.cap} ` +
-          `(${Math.round(b.ratio * 100)} %). Les lots sont reduits a 1 envoi ` +
+          `Quota ${b.provider} presque épuisé : ${b.used}/${b.cap} ` +
+          `(${Math.round(b.ratio * 100)} %). Les lots sont réduits à 1 envoi ` +
           `avec une pause d'1 s.`,
       });
     } else if (b.level === "warn") {
@@ -723,8 +723,8 @@ export interface DashboardAggregate<T> {
 }
 
 /**
- * Isole chaque bloc : une source en echec ne doit pas eteindre les six autres.
- * La forme est celle attendue par `page.tsx` : `null` + une entree dans
+ * Isole chaque bloc : une source en échec ne doit pas éteindre les six autres.
+ * La forme est celle attendue par `page.tsx` : `null` + une entrée dans
  * `errors`, jamais une exception globale.
  */
 export async function settle<T>(run: () => Promise<T>): Promise<DashboardAggregate<T>> {
