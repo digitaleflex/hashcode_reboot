@@ -94,8 +94,8 @@ export const CRON_JOBS: readonly CronJob[] = [
   },
   {
     slug: "keepalive",
-    label: "Ping anti-veille Neon",
-    // Ping anti-veille NEON (base serverless qui s'endort). Sur VPS la base
+    label: "Ping de santé",
+    // Ping de santé. base
     // est un conteneur `postgres` local (cf. compose.yml) : ce job devient
     // alors inutile — on le garde planifié en attendant une décision explicite
     // de suppression, car il est inoffensif (simple SELECT 1).

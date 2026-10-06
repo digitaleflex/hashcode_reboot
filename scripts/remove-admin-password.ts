@@ -27,7 +27,7 @@ async function main() {
   try {
     before = await prisma.account.count({ where });
   } catch (err) {
-    // Base sans les tables Better Auth (ex. branche Neon partielle) : rien
+    // Base sans les tables Better Auth (ex. branche vides) : rien
     // à supprimer, on sort proprement au lieu de casser le déploiement.
     const code = typeof err === "object" && err !== null && "code" in err ? String((err as { code: unknown }).code) : "";
     const detail = code === "P2021" ? "table Account absente" : err instanceof Error ? err.name : String(err).slice(0, 80);

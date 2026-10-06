@@ -5,7 +5,7 @@ import { checkDb } from "@/lib/health";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-/** GET /api/cron/keepalive — ping externe anti-veille Neon (cron-job.org). */
+/** GET /api/cron/keepalive — ping interne de santé. */
 export async function GET(req: NextRequest) {
   if (!process.env.CRON_SECRET) {
     return NextResponse.json(

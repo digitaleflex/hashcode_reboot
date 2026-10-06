@@ -3,12 +3,12 @@
 Plateforme d'onboarding communautaire HASHCODE : landing → profiling guidé →
 carte de profil générée → branchement (accès WhatsApp immédiat ou invitation
 manuelle) → dashboard admin. Construit pour être déployé sur **Vercel** avec
-**Neon Postgres**.
+**PostgreSQL natif (docker)**.
 
 ## Stack
 
 - **Next.js 16** (App Router) + TypeScript + Tailwind CSS 4 + shadcn/ui
-- **Prisma 6** + **Neon Postgres** (URL poolée + directe)
+- **Prisma 6** + **PostgreSQL**
 - **Resend** (emails transactionnels, API HTTP directe, sans SDK)
 - Zustand, TanStack Query/Table, Zod
 - **nextjs-toploader** (barre de progression lime)
@@ -16,7 +16,7 @@ manuelle) → dashboard admin. Construit pour être déployé sur **Vercel** ave
 
 ## Démarrage rapide
 
-Prérequis : Bun 1.x (ou Node 20+), un projet Neon (branche `dev`
+Prérequis : Bun 1.x (ou Node 20+), une base PostgreSQL (branche `dev`
 recommandée pour le local).
 
 ```bash
@@ -33,7 +33,7 @@ Noms lus par le code, dans l'ordre d'importance :
 
 | Variable | Usage |
 |---|---|
-| `POSTGRES_PRISMA_URL` | Connexion poolée (runtime, fournie par l'intégration Vercel-Neon) |
+| `POSTGRES_PRISMA_URL` | Connexion poolée (runtime, fournie par la stack Docker) |
 | `POSTGRES_URL_NON_POOLING` | Connexion directe (migrations CLI) |
 | `Member.adminRole` (en base) | Rôle admin : `operator` (accès complet), `viewer` (lecture seule), `null` = pas admin. **Fail-closed** : `null` = aucun accès. Posé via `scripts/ensure-admin.ts` |
 | `NEXT_PUBLIC_WHATSAPP_URL` | Lien communauté WhatsApp côté client (requis, aucune valeur en dur) |
@@ -59,7 +59,7 @@ Noms lus par le code, dans l'ordre d'importance :
 | `bun run typecheck` | `tsc --noEmit` (0 erreur attendue) |
 | `bun run db:generate` | Régénère le client Prisma |
 | `bun run db:migrate` | `prisma migrate dev` (jamais en prod) |
-| `bun run db:push` / `db:reset` | **Local uniquement** — destructeurs face à Neon |
+| `bun run db:push` / `db:reset` | **Local uniquement** — destructeurs — dev |
 
 ## Routes
 
@@ -68,7 +68,7 @@ Noms lus par le code, dans l'ordre d'importance :
 - `/admin` — dashboard admin (connexion OTP via `/login?next=/admin`, même garde serveur que `?admin=1`).
 - `/api/health` — public : `{ status: ok|degraded|down, checks: {db, mail,
   routes} }`, 200 sauf DB down → 503.
-- `/api/cron/keepalive` — `SELECT 1` Neon, protégé par `CRON_SECRET`.
+- `/api/cron/keepalive` — `SELECT 1`, protégé par `CRON_SECRET`.
 - API métier : `members` (GET liste admin / POST inscription),
   `members/[id]` (GET/PATCH/DELETE), `members/[id]/invite`, `members/[id]/share`
   (public, lien par id non devinable), `members/bulk`, `members/import` (CSV),
@@ -82,7 +82,7 @@ Noms lus par le code, dans l'ordre d'importance :
   `profiling/draft` (brouillons anti-abandon),
   `admin/login|logout|verify|activity|audit-log|keys|blacklist|test-email|announce-dashboard`,
   `webhooks/resend` (bounced/complained/suppressed → blacklist, engagement → analytics),
-  `cron/relance` (drafts >24h, lot 50), `cron/keepalive` (`SELECT 1` Neon).
+  `cron/relance` (drafts >24h, lot 50), `cron/keepalive` (`SELECT 1`).
 
 Conventions : erreurs FR (`{ error }`), 400/401/404/422/429/503, `Retry-After`
 sur 429, exports plafonnés à 2000 lignes (`X-Export-Truncated`).
@@ -134,9 +134,9 @@ lourde (pas de Prisma/DB dans le bundle Edge). Validation réelle via
 `getSession()` dans les API routes. Guard `TESTING=1` sur toutes les routes
 d'écriture (`src/lib/test-guard.ts`) — empêche les writes en test/integration.
 
-## Santé & keepalive Neon
+## Santé & keepalive
 
-Neon (offre gratuite) suspend le compute après 5 min d'inactivité — n'importe
+le keepalive ne s'applique qu'aux hébergeurs qui suspendent le compute (Vercel/Neon) — sur VPS natif, il est sans objet
 quelle requête le réveille. Le plan **Hobby Vercel interdit les crons < 1/jour**,
 donc le keepalive passe par un cron **externe** :
 
@@ -153,7 +153,7 @@ avec les cold starts (~1 s au réveil).
 
 ## Déploiement Vercel
 
-1. Lier le projet à l'intégration Neon (injecte `POSTGRES_*` tout seul).
+1. Lier le projet à la config fournie (variables `POSTGRES_*` tout seul).
 2. Poser le rôle admin en base (`Member.adminRole = "operator"`, voir `scripts/ensure-admin.ts`) + renseigner `CRON_SECRET` dans les vars du projet.
 3. Push sur `main` : `vercel-build` migre (`migrate deploy`) puis build.
 4. Créer le job cron-job.org (section précédente).
@@ -209,7 +209,7 @@ src/lib/            db, admin-auth (+roles/CSRF), admin-audit, account-auth/otp/
                     verify-email, analytics, health, logging, profiling/,
                     events-validation (validateEventCreate/Patch + notifyWhere),
                     test-guard (blockIfTesting pour routes d'écriture)
-prisma/             schema.prisma (Postgres Neon) + migrations/
+prisma/             schema.prisma (Postgres) + migrations/
 scripts/            copy-standalone.mjs, test-email-services.mjs,
                     import-blacklist-from-soft-deleted.mjs
 tests/              unit.test.cjs (86), magic-link.test.cjs (17),

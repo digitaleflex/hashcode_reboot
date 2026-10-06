@@ -25,7 +25,7 @@ export const ROUTES: string[] = [
   "/api/admin/activity",
 ];
 
-/** Sonde Neon : SELECT 1 avec garde-fou 8000ms (couvre les cold starts ~3.5s). Ne lève jamais. */
+/** Sonde base : SELECT 1 avec garde-fou 8000ms (couvre les cold starts ~3.5s). Ne lève jamais. */
 export async function checkDb(): Promise<{ ok: boolean; latencyMs: number }> {
   const started = Date.now();
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -118,7 +118,7 @@ export async function runStartupBanner(): Promise<void> {
       !!process.env.TURNSTILE_SECRET_KEY ||
       !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
     const dbLine = dbCheck.ok
-      ? `Neon · connectée (${dbCheck.latencyMs}ms)`
+      ? `OK · connectée (${dbCheck.latencyMs}ms)`
       : "HORS LIGNE";
     const mailLine =
       mail.status === "valid"
