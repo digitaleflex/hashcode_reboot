@@ -70,9 +70,11 @@ model Member {
   communityStatus String @default("NOT_INVITED") // NOT_INVITED | INVITED | JOINED
   accessLane      String @default("immediate") // immediate | pending (result of auto-controls)
 
-  // --- Admin ---
+  // --- Administration ---
   adminNote String?
   deletedAt DateTime? // null = active, set = soft-deleted
+  /// Rôle dans l'espace admin : "operator" (accès complet) | "viewer" (lecture seule) | null (membre ordinaire).
+  adminRole String?
 
   // --- Mentorat (#61) ---
   mentorContactedAt DateTime? // l'admin a contacté ce lead mentorat
