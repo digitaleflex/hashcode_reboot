@@ -23,14 +23,23 @@ type LinkAction =
 type FooterColumn = { title: string; links: Array<{ t: string; a: string }> };
 
 /**
- * Pages légales : /cgu, /mentions-legales, /cookies et /confidentialite
- * ont bien une route, mais leur namespace i18n `legal.*` est absent de
- * messages/{fr,en}.json — elles échouent au rendu et font échouer
- * `next build`. Elles ne sont donc pas encore liées depuis le footer : on
- * préfère zéro lien mort à trois liens cassés. À réactiver dès que le
- * contenu juridique réel est fourni (ici : `legal.privacy`).
+ * Pages légales — état réel au 2026-10-06 (D21).
+ *
+ * Le commentaire précédent affirmait que « le namespace i18n `legal.*` est
+ * absent de messages/{fr,en}.json ». C'était FAUX : le namespace existe, et
+ * `check:i18n` compte 2 494 chaînes par locale. Les 4 pages rendaient
+ * `PendingLegalDocument`, jamais un échec de rendu ni de build.
+ *
+ * `LEGAL_HREF` était donc du code mort — un objet vide qu'aucune clé ne pouvait
+ * atteindre — et il est supprimé.
+ *
+ * Les 4 pages légales sont désormais rendues (`legal.terms`, `legal.privacy`,
+ * `legal.mentions`, `legal.cookies`) mais restent NON LIÉES depuis le footer :
+ * `landing.footer.columns` ne déclare aucune entrée légale, dans aucune locale.
+ * Les y ajouter est une décision de navigation, pas un correctif — et une
+ * politique de confidentialité introuvable est un problèmeRGPD à part entière :
+ * à trancher.
  */
-const LEGAL_HREF: Record<string, string> = {};
 
 /** ancres de la landing (cf. ids structurels dans les sections). */
 const ANCHOR: Record<string, string> = {
@@ -107,14 +116,9 @@ export function SiteFooter({
         </button>
       );
     }
-    if (LEGAL_HREF[action]) {
-      return (
-        <I18nLink href={LEGAL_HREF[action]} className={LINK_CLS}>
-          {label}
-        </I18nLink>
-      );
-    }
-    // "events" et tout cas inconnu.
+    // Aucun cas lien légal ici : la branche LEGAL_HREF a été retirée avec la
+    // constante, elle était inatteignable (voir le commentaire de tête de
+    // fichier). Reste le cas par défaut : "events" et tout cas inconnu.
     return (
       <I18nLink href="/evenements" className={LINK_CLS}>
         {label}
