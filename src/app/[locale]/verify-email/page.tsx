@@ -46,7 +46,7 @@ function VerifyEmailContent() {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, t]);
 
   return (
     <div className="w-full max-w-md text-center">

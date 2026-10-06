@@ -147,7 +147,7 @@ export default function AgendaPage() {
       }
     })();
     return () => { cancelled = true; };
-  }, [filterType, filterDomain]);
+  }, [filterType, filterDomain, t]);
 
   const handleRsvp = async (eventId: string, status: "going" | "maybe") => {
     const current = rsvpStates[eventId];

@@ -72,7 +72,11 @@ export function OtpForm({
     return () => clearTimeout(timer);
   }, [cooldown]);
 
-  function messageFor(kind: AuthErrorKind): string {
+  // `messageFor` est encapsulé dans un useCallback pour que `submit` — lui-même
+  // un useCallback, mémorisé dans `submitRef` — ne change pas d'identité quand
+  // seul `t` change. Sans cela, le handler stocké dans le ref serait remplacé à
+  // chaque frappe.
+  const messageFor = React.useCallback((kind: AuthErrorKind): string => {
     switch (kind) {
       case "expired":
         return t("errors.codeExpired");
@@ -91,7 +95,7 @@ export function OtpForm({
       default:
         return t("errors.generic");
     }
-  }
+  }, [t]);
 
   const clearCode = React.useCallback((focusFirst = true) => {
     setDigits(emptyDigits());
@@ -132,7 +136,7 @@ export function OtpForm({
         setLoading(false);
       }
     },
-    [clearCode, email, loading, next, router],
+    [clearCode, email, loading, next, router, messageFor],
   );
 
   const submitRef = React.useRef(submit);
@@ -163,7 +167,7 @@ export function OtpForm({
     } catch {
       /* best-effort */
     }
-  }, [linkCode]);
+  }, [linkCode, t]);
 
   async function handleResend() {
     if (cooldown > 0 || resending) return;

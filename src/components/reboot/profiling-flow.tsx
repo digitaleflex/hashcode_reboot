@@ -211,7 +211,11 @@ export function ProfilingFlow({
 
   // --- Submit once all required visible questions are answered ---
   // Plus de blocage OTP : on soumet direct, le lien magique part à la fin (POST /api/members).
-  function maybeFinish() {
+  // Mémorisé car l'effet d'auto-finition en dépend : sans identité stable, il se
+  // relancerait à chaque rendu. `visible` et `answeredSet` sont déjà des
+  // useMemo sur des valeurs d’état, donc l’identité ne change qu’aux changements
+  // de réponse — ce qui est le seul moment où la fin doit être réévaluée.
+  const maybeFinish = React.useCallback(() => {
     const allRequiredAnswered = visible.every(
       (q) => !q.required || answeredSet.has(q.id),
     );
@@ -230,7 +234,7 @@ export function ProfilingFlow({
         setStep(idx);
       }
     }
-  }
+  }, [visible, answeredSet, answers, onComplete, setStep]);
 
   // Auto-finish if the last answer completed the flow.
   React.useEffect(() => {
@@ -239,7 +243,7 @@ export function ProfilingFlow({
     if (!current) {
       maybeFinish();
     }
-  }, [current, phase, hydrated, showResumePrompt]);
+  }, [current, phase, hydrated, showResumePrompt, maybeFinish]);
 
   // --- Resume prompt (first interaction) ---
   if (hydrated && showResumePrompt) {

@@ -222,7 +222,9 @@ export default function AdminAteliersPage() {
     queryFn: loadStats,
   });
 
-  const workshops = workshopsQuery.data?.workshops ?? [];
+  // `?? []` crée un nouveau tableau à chaque rendu : sans useMemo, `visible`
+  // serait recalculé en boucle car sa dépendance change d'identité à chaque fois.
+  const workshops = React.useMemo(() => workshopsQuery.data?.workshops ?? [], [workshopsQuery.data]);
   const stats = statsQuery.data;
 
   const visible = React.useMemo(

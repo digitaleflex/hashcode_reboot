@@ -87,7 +87,7 @@ export default function AdminMembersPage() {
         setBulkAction(null);
       }
     },
-    [selectedIds, confirmBulkDelete, handleSessionExpired, refreshMembers, toast, t],
+    [selectedIds, confirmBulkDelete, handleSessionExpired, refreshMembers, toast, t, setSelectedIds],
   );
 
   const deleteMember = React.useCallback(

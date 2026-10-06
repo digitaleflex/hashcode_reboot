@@ -76,6 +76,9 @@ export default function AdminStatsPage() {
   // pas de flash skeleton sur les refreshs silencieux.
   React.useEffect(() => {
     let mounted = true;
+    // Capture de l'AbortController courant : lit dans la cleanup, `ctrlRef.current`
+    // aura pu changer (un polling suivant) entre-temps et on annulerait le mauvais.
+    const ctrl = ctrlRef.current;
     const schedule = () => {
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = window.setTimeout(() => { if (mounted) { void loadData(undefined, true); schedule(); } }, POLL_MS);
@@ -89,7 +92,7 @@ export default function AdminStatsPage() {
     return () => {
       mounted = false;
       if (timerRef.current) clearTimeout(timerRef.current);
-      ctrlRef.current?.abort();
+      ctrl?.abort();
       document.removeEventListener("visibilitychange", onVis);
     };
   }, [loadData]);

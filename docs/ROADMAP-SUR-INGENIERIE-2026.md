@@ -946,6 +946,46 @@ reproductibilité. **D07 d'abord.**
 **Note.** `admin.settings.keys` (30 clés i18n FR + 30 EN) et `README.md:84,101`
 référencent encore la rotation de clés supprimée → à purger en D22 et D23.
 
+### ⚠️ Analyse vérifiée le 2026-10-06 — la suppression seule casserait deux choses
+
+Contrôle direct de l'écriture applicative (create|upsert|update sur memberSession) :
+
+| Modèle | Écriture | Lecteurs | Verdict |
+|---|---|---|---|
+| `AdminKey` | 0 | 0 | mort, suppression sûre |
+| `RateLimit` | 0 | 0 | mort — Better Auth n'a **aucune** config `rateLimit` (`auth/index.ts`) ; le rate limiting applicatif est Redis (`rate-limit.ts`) |
+| `MemberSession` | **0** | **2** | **doublon residuel de l'ere pre-Better Auth** |
+
+`MemberSession` n'a plus aucun créateur applicatif : `scripts/import-direct.mjs:369`
+était le seul. `account-auth.ts:4-5` documente que les sessions vivent désormais
+dans les tables Better Auth `Session` / `User` / `Verification`, et `Session`
+porte bien `ipAddress`, `userAgent`, `userId`, `createdAt` — c'est le vrai
+magasin, et il est **peuplé**.
+
+Conséquence : ses 2 lecteurs renvoient des valeurs vides, silencieusement.
+
+1. `admin/activity-logins:47` — `db.memberSession.groupBy({ by: ["memberId"],
+   where: { lastSeenAt: { gte: 30 jours } } })` → **le DAU admin vaut toujours 0**,
+   sans le moindre signe. Le tableau de bord affiche des zéros comme si c'était un
+   vrai chiffre : c'est une donnée fausse, pas absente.
+
+2. `account/export:79` — `db.memberSession.findMany({ select: { …ip, userAgent… } })`
+   → `sessions: []` systématique. **L'export RGPD est incomplet** : le membre
+   demande ses données, le système répond qu'il n'a aucune session, alors que la
+   table `Session` en contient.
+
+Ce n'est donc **pas** une suppression. L'ordre correct est :
+
+1. Basculer `activity-logins` sur `db.session` — le DAU redevient un vrai chiffre
+   (à vérifier : `Session` n'a pas de `lastSeenAt`, il faut `updatedAt`).
+2. Basculer `account/export` sur `db.session` — l'export RGPD devient complet.
+3. Ne **seulement ensuite** supprimer `MemberSession`, `AdminKey`, `RateLimit`.
+
+Supprimer les trois tables d'un bloc donnerait au dashboard un 0 *voulu* et
+légitimement à l'export une absence de sessions : deux résultats faux au lieu de
+deux résultats faux. Le problème n'est pas la table, c'est qu'on lisait la
+mauvaise.
+
 ## D37 — Trancher le ticket phone-fill (~132 l.)
 
 **Constat.** `src/lib/phone-fill-ticket.ts` (87 l.) + `api/account/phone/route.ts`

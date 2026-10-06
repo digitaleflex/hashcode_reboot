@@ -181,7 +181,9 @@ export default function AdminInvitationsPage() {
   );
 
   const stats = data?.stats;
-  const members = data?.members || [];
+  // `|| []` crée un nouveau tableau à chaque rendu : sans useMemo, `filtered` et
+  // `sorted` seraient recalculés en boucle car leur dépendance change d’identité.
+  const members = React.useMemo(() => data?.members || [], [data]);
   const pagination = data?.pagination;
 
   // Filtrage côté client pour la recherche

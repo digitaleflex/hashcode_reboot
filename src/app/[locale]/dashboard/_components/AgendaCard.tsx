@@ -125,7 +125,7 @@ export function AgendaCard() {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [t]);
 
   const handleRsvp = async (eventId: string, status: "going" | "maybe") => {
     const current = rsvpStates[eventId];
