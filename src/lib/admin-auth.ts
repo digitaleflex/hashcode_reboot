@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
 
 /** Check if the request origin matches the host (CSRF protection). */
 export function checkCSRF(req: NextRequest): boolean {
@@ -14,53 +15,37 @@ export function checkCSRF(req: NextRequest): boolean {
   }
 }
 
-/** Admin email allow-lists (comma-separated env vars). */
-function adminOperators(): string[] {
-  return (process.env.ADMIN_OPERATORS || "")
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-}
-function adminViewers(): string[] {
-  return (process.env.ADMIN_VIEWERS || "")
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-}
-
-/**
- * Every email allowed into the admin space, whatever its role.
- *
- * Single source of truth, shared by `resolveAdminSession` (authorization) and
- * `POST /api/admin/login` (gate) so the two can never disagree.
- *
- * Fail-closed by construction: an empty list means NOBODY is an admin. Never
- * reintroduce an `allowList.length === 0 -> allow everyone` shortcut — it turns
- * one missing env var into a full admin bypass.
- */
-export function adminAllowList(): string[] {
-  const legacy = (process.env.ADMIN_EMAILS || "")
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-  return [...adminOperators(), ...adminViewers(), ...legacy];
-}
-
 /**
  * Resolve the current Better Auth session and the admin role for it, if admin.
  *
  * Accepte soit un `NextRequest` (routes API), soit un objet `headers` — les
  * server components n'ont pas de `NextRequest` mais lisent `next/headers`.
- * Fail-closed : toute erreur ou session absente ⇒ `null` ⇒ pas admin.
+ *
+ * La colonne `Member.adminRole` est la seule source de vérité : seuls les
+ * rôles exacts `"operator"` et `"viewer"` (après normalisation
+ * casse/espaces) ouvrent l'espace admin. Tout le reste — rôle `null`,
+ * membre introuvable, valeur inconnue, erreur DB, session absente — vaut
+ * `null` ⇒ pas admin (fail-closed, jamais de défaut vers operator).
  */
 async function resolveAdminSessionFromHeaders(headers: Record<string, string>) {
   try {
     const session = await auth.api.getSession({ headers: headers as any });
     const email = session?.user?.email?.toLowerCase();
     if (!email) return null;
-    if (adminOperators().includes(email)) return { email, role: "operator" as const };
-    if (adminViewers().includes(email)) return { email, role: "viewer" as const };
-    if (adminAllowList().includes(email)) return { email, role: "operator" as const };
+    let member: { adminRole: string | null } | null;
+    try {
+      member = await db.member.findUnique({
+        where: { email },
+        select: { adminRole: true },
+      });
+    } catch {
+      return null;
+    }
+    const role = String(member?.adminRole ?? "")
+      .trim()
+      .toLowerCase();
+    if (role === "operator") return { email, role: "operator" as const };
+    if (role === "viewer") return { email, role: "viewer" as const };
     return null;
   } catch {
     return null;
@@ -75,7 +60,7 @@ async function resolveAdminSession(req: NextRequest) {
  * Rôle admin pour un server component.
  *
  * `proxy.ts` tourne en Edge runtime, où la base de données n'est pas
- * accessible : la liste blanche ne peut donc pas y être évaluée. Cette
+ * accessible : le rôle ne peut donc pas y être évalué. Cette
  * fonction comble ce trou côté serveur (runtime Node) pour que `/admin`
  * refuse un membre authentifié mais non-admin — un cookie Better Auth valide
  * ne suffit pas à ouvrir l'espace admin.
@@ -120,4 +105,3 @@ export async function requireAdminRole(
   if (!ctx) return false;
   return ctx.role === "operator" || ctx.role === allowedRole;
 }
-
