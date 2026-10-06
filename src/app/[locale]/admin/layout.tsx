@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
-import AdminShell from "@/components/reboot/admin/AdminShell";
 import { getAdminRoleFromRequestHeaders } from "@/lib/admin-auth";
+import AdminShell from "@/components/reboot/admin/AdminShell";
 
 /**
  * Layout de l'espace admin — **server component** : porte la garde d'accès.
@@ -14,6 +14,11 @@ import { getAdminRoleFromRequestHeaders } from "@/lib/admin-auth";
  * disponible. Fail-closed : session illisible, en erreur, ou email absent de
  * `ADMIN_OPERATORS` / `ADMIN_VIEWERS` ⇒ redirection vers le parcours de
  * connexion, jamais un rendu de l'espace admin.
+ *
+ * ⚠️ Cette garde est la porte d'accès côté page. Ne la remplace pas par
+ * `proxy.ts` : le proxy ne peut pas lire la base. Elle est distincte des
+ * gardes de routes API (`requireAdmin` dans `src/lib/admin-auth.ts`, D24),
+ * qui répondent 401 ou 403 et ne redirigent pas.
  */
 export default async function AdminLayout({
   children,

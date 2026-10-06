@@ -383,9 +383,13 @@ describe("GET /api/admin/audit-log — auth + format", () => {
     if (!serverReady) { startServer(); await waitForServer(); serverReady = true; }
   });
 
-  test("→ 403 without cookie (requireAdminRole returns false)", async () => {
+  test("→ 401 without cookie (D24 : pas de session admin = 401, plus 403)", async () => {
+    // D24 — ce test verrouillait 403 pour un appel ANONYME : c'était le bug.
+    // « pas de session admin » est une question d'identité (401) ; le 403 est
+    // réservé à « session admin valide, rôle insuffisant ».
     const res = await httpRequest("GET", "/api/admin/audit-log");
-    assert.equal(res.status, 403);
+    assert.equal(res.status, 401);
+    assert.equal(res.json?.code, "AUTH_REQUIRED");
   });
 
   test("→ 200 with auth, returns logs array", async () => {
@@ -415,9 +419,11 @@ describe("GET /api/admin/activity — auth + format", () => {
     if (!serverReady) { startServer(); await waitForServer(); serverReady = true; }
   });
 
-  test("→ 403 without cookie (requireAdminRole returns false)", async () => {
+  test("→ 401 without cookie (D24 : pas de session admin = 401, plus 403)", async () => {
+    // D24 — idem `audit-log` : l'403 ci-dessus était appliqué à un appel anonyme.
     const res = await httpRequest("GET", "/api/admin/activity");
-    assert.equal(res.status, 403);
+    assert.equal(res.status, 401);
+    assert.equal(res.json?.code, "AUTH_REQUIRED");
   });
 
   test("→ 200 with auth, returns events array", async () => {

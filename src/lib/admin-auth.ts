@@ -1,5 +1,6 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { AppError, AuthError, ForbiddenError, ErrorBody, errorToResponse } from "@/lib/errors";
 
 /** Check if the request origin matches the host (CSRF protection). */
 export function checkCSRF(req: NextRequest): boolean {
@@ -71,6 +72,14 @@ async function resolveAdminSession(req: NextRequest) {
   return resolveAdminSessionFromHeaders(Object.fromEntries(req.headers));
 }
 
+export type AdminRole = "viewer" | "operator";
+
+/** Session admin résolue, ou absence de session admin. */
+export interface AdminSession {
+  email: string;
+  role: AdminRole;
+}
+
 /**
  * Rôle admin pour un server component.
  *
@@ -80,10 +89,7 @@ async function resolveAdminSession(req: NextRequest) {
  * refuse un membre authentifié mais non-admin — un cookie Better Auth valide
  * ne suffit pas à ouvrir l'espace admin.
  */
-export async function getAdminRoleFromRequestHeaders(): Promise<{
-  email: string;
-  role: "viewer" | "operator";
-} | null> {
+export async function getAdminRoleFromRequestHeaders(): Promise<AdminSession | null> {
   try {
     const { headers } = await import("next/headers");
     const headersObj = Object.fromEntries((await headers()).entries());
@@ -93,13 +99,30 @@ export async function getAdminRoleFromRequestHeaders(): Promise<{
   }
 }
 
+/**
+ * Verdict discriminant du garde admin.
+ *
+ * La distinction porte sur DEUX questions qui étaient confondues jusqu'ici :
+ *   - `unauthenticated`  : « qui es-tu ? » → 401, le client doit re-logguer.
+ *   - `insufficient_role`: « as-tu le droit ? » → 403, la session est valide,
+ *                           re-logguer ne sert à rien.
+ *
+ * Un booléen ne permettait pas de brancher les deux : les 28 routes
+ * `requireAdminRole()` renvoyaient 401 « pas admin » ET 401 « viewer sur une
+ * route operator », ce qui faisait croire à une session expirée et faisait
+ * boucler les clients qui réessaient sur 401.
+ */
+export type AdminGuard =
+  | { ok: true; role: AdminRole; email: string }
+  | { ok: false; reason: "unauthenticated" | "insufficient_role" };
+
 /** Check if the current request is from an authenticated admin (any role). */
 export async function isAdminAuthed(req: NextRequest): Promise<boolean> {
   return (await resolveAdminSession(req)) !== null;
 }
 
 /** Get the admin role for this request, or null if not an admin. */
-export async function getAdminRole(req: NextRequest): Promise<"viewer" | "operator" | null> {
+export async function getAdminRole(req: NextRequest): Promise<AdminRole | null> {
   return (await resolveAdminSession(req))?.role ?? null;
 }
 
@@ -109,15 +132,68 @@ export async function getAdminIdentity(req: NextRequest): Promise<string> {
 }
 
 /**
- * Require admin authentication with a specific role.
- * operator can access everything; viewer only viewer-level resources.
+ * Garde admin unique : une seule résolution de session, deux verdicts distincts.
+ *
+ * `operator` passe partout ; `viewer` ne passe que sur les routes `viewer`.
+ * Remplace `requireAdminRole()`, qui ne renvoyait qu'un booléen et interdisait
+ * donc à l'appelant de distinguer 401 de 403 (cf. `AdminGuard`).
  */
-export async function requireAdminRole(
+export async function requireAdmin(
   req: NextRequest,
-  allowedRole: "viewer" | "operator" = "operator",
-): Promise<boolean> {
+  allowedRole: AdminRole = "operator",
+): Promise<AdminGuard> {
   const ctx = await resolveAdminSession(req);
-  if (!ctx) return false;
-  return ctx.role === "operator" || ctx.role === allowedRole;
+  if (!ctx) return { ok: false, reason: "unauthenticated" };
+  if (ctx.role === "operator" || ctx.role === allowedRole) {
+    return { ok: true, role: ctx.role, email: ctx.email };
+  }
+  return { ok: false, reason: "insufficient_role" };
+}
+
+/**
+ * Traduit le verdict du garde en `AppError`, via `errors.ts`.
+ *
+ * On réutilise `AuthError` (401) et `ForbiddenError` (403) : aucune hiérarchie
+ * d'erreur parallèle n'est introduite, le vocabulaire de `errors.ts` reste
+ * l'unique source de vérité.
+ *
+ *   - `unauthenticated`   → 401 `AUTH_REQUIRED`  (« pas de session admin »)
+ *   - `insufficient_role` → 403 `FORBIDDEN`      (« session valide, droits insuffisants »)
+ *
+ * Le message ne varie plus selon la route : c'est le statut et le `code` qui
+ * portent le sens. Les 6 variantes de message pour un même refus disparaissent.
+ */
+export function adminGuardError(guard: Extract<AdminGuard, { ok: false }>): AppError {
+  if (guard.reason === "unauthenticated") {
+    return new AuthError("Authentification requise.");
+  }
+  return new ForbiddenError("Accès refusé.");
+}
+
+/**
+ * Même chose, déjà convertie en `NextResponse` par `errorToResponse`.
+ *
+ * Pour les routes qui `return` au lieu de lever (et n'ont pas de `try/catch`).
+ */
+export function adminGuardResponse(
+  guard: Extract<AdminGuard, { ok: false }>,
+): NextResponse<ErrorBody> {
+  return errorToResponse(adminGuardError(guard));
+}
+
+/**
+ * Variante « throw » du garde, pour les routes déjà encadrées par
+ * `try { … } catch { errorToResponse(err) }` : même verdict, levé en AppError.
+ *
+ * Retourne la session admin résolue (email + rôle) : évite la seconde
+ * résolution de session quand la route a aussi besoin de l'identité (cf. D28).
+ */
+export async function requireAdminOrThrow(
+  req: NextRequest,
+  allowedRole: AdminRole = "operator",
+): Promise<AdminSession> {
+  const guard = await requireAdmin(req, allowedRole);
+  if (!guard.ok) throw adminGuardError(guard);
+  return { email: guard.email, role: guard.role };
 }
 

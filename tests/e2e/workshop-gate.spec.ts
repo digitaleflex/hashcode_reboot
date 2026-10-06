@@ -33,10 +33,15 @@ test.describe("workshop session gate dates", () => {
 
   test("API admin refuse la lecture anonyme du gate calendaire", async ({ request }) => {
     // Le gate calendaire se pilote via l'API admin (champ scheduledAt), mais cette
-    // API est réservée au rôle admin : un appel anonyme doit être refusé (403) avant
-    // même la recherche de l'atelier. On ne peut pas s'authentifier en E2E, donc on
+    // API est réservée au rôle admin : un appel anonyme doit être refusé avant même
+    // la recherche de l'atelier. On ne peut pas s'authentifier en E2E, donc on
     // valide le garde-fou plutôt que le contenu de la réponse.
+    //
+    // D24 : 401 et non 403. Aucun cookie admin = « qui es-tu ? » → 401
+    // (`AUTH_REQUIRED`). Le 403 est réservé au cas « session admin valide mais
+    // rôle insuffisant », que l'E2E ne peut pas produire sans second compte.
     const response = await request.get("/api/admin/workshops/not-a-real-workshop");
-    expect(response.status()).toBe(403);
+    expect(response.status()).toBe(401);
+    expect((await response.json()).code).toBe("AUTH_REQUIRED");
   });
 });
