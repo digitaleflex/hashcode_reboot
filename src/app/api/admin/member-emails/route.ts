@@ -6,7 +6,7 @@ import { AuthError, errorToResponse, ValidationError } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
+// D16 — `revalidate = 0` retiré : redondant, `force-dynamic` l'implique déjà.
 
 const querySchema = z.object({
   memberId: z.string().min(1).max(40),

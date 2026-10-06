@@ -6,7 +6,7 @@ import { AppError, AuthError, ValidationError, errorToResponse } from "@/lib/err
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
+// D16 — `revalidate = 0` retiré : redondant, `force-dynamic` l'implique déjà.
 
 /** Nature d'un envoi par lot (cf. MemberEmailLog.kind). */
 const KINDS = ["invite", "relance", "annonce", "rejoin", "engagement"] as const;

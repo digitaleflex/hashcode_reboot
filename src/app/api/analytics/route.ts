@@ -8,10 +8,11 @@ import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { subDays } from "date-fns";
 import { blockIfTesting } from "@/lib/test-guard";
 import { bodyLimit } from "@/lib/body-limit";
+import { AuthError, errorToResponse } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
+// D16 — `revalidate = 0` retiré : redondant, `force-dynamic` l'implique déjà.
 
 const eventSchema = z.object({
   type: z.enum(EVENT_TYPES),
@@ -222,10 +223,17 @@ function computeChange(current: FunnelData, previous: FunnelData) {
   };
 }
 
-/** GET /api/analytics — funnel summary (admin-only). */
+/** GET /api/analytics — funnel summary (admin-only).
+ *
+ * D26 : seul le GET est migré. Le POST garde volontairement son contrat
+ * `{ ok: false }`, y compris un 200 sur erreur DB (« Don't fail the client
+ * on DB error ») : impossible à passer par `errorToResponse` sans changer le
+ * statut de cette réponse.
+ */
 export async function GET(req: NextRequest) {
+  try {
   if (!(await isAdminAuthed(req))) {
-    return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+    throw new AuthError("Non autorisé.");
   }
 
   const { searchParams } = new URL(req.url);
@@ -304,4 +312,7 @@ export async function GET(req: NextRequest) {
     previous,
     change,
   });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

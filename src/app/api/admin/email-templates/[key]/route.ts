@@ -13,7 +13,7 @@ import { invalidateActiveTemplates } from "@/lib/email-templates/active";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
+// D16 — `revalidate = 0` retiré : redondant, `force-dynamic` l'implique déjà.
 
 const MAX_BODY_HTML = 60_000;
 

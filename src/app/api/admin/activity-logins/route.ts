@@ -5,7 +5,7 @@ import { AuthError, errorToResponse } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
+// D16 — `revalidate = 0` retiré : redondant, `force-dynamic` l'implique déjà.
 
 /**
  * GET /api/admin/activity-logins — activité des connexions membres (admin-only).

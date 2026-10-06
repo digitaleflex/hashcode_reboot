@@ -6,7 +6,7 @@ import { EMAIL_SEMANTIC_CATEGORIES, PROFILE_RELANC_CATEGORY } from "@/lib/email-
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
+// D16 — `revalidate = 0` retiré : redondant, `force-dynamic` l'implique déjà.
 
 // D03 — la liste vient de `@/lib/email-categories` (source unique, partagée avec
 // les producteurs de mail.ts) : les consommateurs ne peuvent plus diverger.

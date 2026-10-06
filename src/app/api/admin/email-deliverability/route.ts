@@ -4,10 +4,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { isAdminAuthed } from "@/lib/admin-auth";
+import { AuthError, ValidationError, errorToResponse } from "@/lib/errors";
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+// D16 — `revalidate = 0` retiré : redondant, `force-dynamic` l'implique déjà.
 
 const querySchema = z.object({
   provider: z.enum(['resend', 'brevo', 'all']).optional().default('all'),
@@ -23,11 +24,10 @@ const querySchema = z.object({
  * Admin-only.
  */
 export async function GET(req: NextRequest) {
+  try {
   if (!(await isAdminAuthed(req))) {
-    return NextResponse.json(
-      { error: 'Non autorisé.', code: 'UNAUTHORIZED' },
-      { status: 401 },
-    );
+    // D26 — 401 + code `UNAUTHORIZED` conservés à l'identique.
+    throw new AuthError('Non autorisé.', 'UNAUTHORIZED');
   }
 
   const { searchParams } = new URL(req.url);
@@ -39,10 +39,8 @@ export async function GET(req: NextRequest) {
   });
 
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: 'Paramètres invalides.', details: parsed.error.flatten() },
-      { status: 422 },
-    );
+    // D26 — 422 + `details` identiques ; seul le `code` est ajouté.
+    throw new ValidationError('Paramètres invalides.', parsed.error.flatten());
   }
 
   const { provider, days, startDate, endDate } = parsed.data;
@@ -160,4 +158,7 @@ export async function GET(req: NextRequest) {
     summary,
     chartData,
   });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

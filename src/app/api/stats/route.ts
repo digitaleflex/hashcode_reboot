@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { isAdminAuthed } from "@/lib/admin-auth";
 import { startOfWeek, startOfMonth, subDays, subWeeks, subMonths } from "date-fns";
+import { AuthError, errorToResponse } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
+// D16 — `revalidate = 0` retiré : redondant, `force-dynamic` l'implique déjà.
 
 /** Fusionne les entrées source en double (ex: NULL → "direct" + "direct" stocké).
  *  Cause racine du `duplicate key: direct` côté Breakdown. */
@@ -156,8 +157,10 @@ function computeChange(current: StatsAggregate, previous: StatsAggregate) {
 
 /** GET /api/stats — dashboard aggregates (admin-only). */
 export async function GET(req: NextRequest) {
+  try {
   if (!(await isAdminAuthed(req))) {
-    return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+    // D26 — 401 inchangé, `code` ajouté (vocabulaire commun).
+    throw new AuthError("Non autorisé.");
   }
 
   const { searchParams } = new URL(req.url);
@@ -267,4 +270,7 @@ byArchetype: byArchetype.flatMap((a) =>
     previous,
     change,
   });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

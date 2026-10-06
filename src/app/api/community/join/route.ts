@@ -6,7 +6,7 @@ import { audit } from "@/lib/admin-audit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
+// D16 — `revalidate = 0` retiré : redondant, `force-dynamic` l'implique déjà.
 
 /**
  * GET /api/community/join — point d'entrée unique et tracé vers WhatsApp.

@@ -5,7 +5,7 @@ import { AppError, RateLimitError, errorToResponse } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
+// D16 — `revalidate = 0` retiré : redondant, `force-dynamic` l'implique déjà.
 
 /**
  * GET /api/public/events — événements à venir de HASHCODE REBOOT (PUBLIC).
