@@ -3,25 +3,21 @@ import { db } from "@/lib/db";
 import { isAdminAuthed } from "@/lib/admin-auth";
 import { startOfWeek, startOfMonth, subDays, subWeeks, subMonths } from "date-fns";
 import { AuthError, errorToResponse } from "@/lib/errors";
+import { fetchStats, mergeBySource } from "@/lib/admin/aggregates";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 // D16 — `revalidate = 0` retiré : redondant, `force-dynamic` l'implique déjà.
 
-/** Fusionne les entrées source en double (ex: NULL → "direct" + "direct" stocké).
- *  Cause racine du `duplicate key: direct` côté Breakdown. */
-function mergeBySource(
-  entries: { source: string; count: number }[],
-): { source: string; count: number }[] {
-  const merged = new Map<string, number>();
-  for (const { source, count } of entries) {
-    const key = (source ?? "").trim() || "direct";
-    merged.set(key, (merged.get(key) ?? 0) + count);
-  }
-  return [...merged.entries()]
-    .map(([source, count]) => ({ source, count }))
-    .sort((a, b) => b.count - a.count);
-}
+/* `mergeBySource` est importé de `@/lib/admin/aggregates` (D29).
+ *
+ * Fusionne les entrées source en double (ex: NULL → "direct" + "direct"
+ * stocké). Cause racine du `duplicate key: direct` côté Breakdown.
+ *
+ * Elle était redéclarée ici pendant que la branche « compare » ci-dessous était
+ * bornée dans le temps. `mergeBySource` n'a aucune fenêtre — elle ne dépendait
+ * que de l'histoire du déport, pas de `fetchStats`. Déportée.
+ */
 
 interface StatsAggregate {
   totals: {
@@ -168,84 +164,11 @@ export async function GET(req: NextRequest) {
   const period = (searchParams.get("period") ?? "month") as "week" | "month";
 
   if (!compare) {
-    // Original behavior: all-time stats
-    const [
-      total,
-      approved,
-      pending,
-      waitlist,
-      rejected,
-      registered,
-      invited,
-      web,
-      cyber,
-      ai,
-      mentoring,
-      byCountry,
-      byLevel,
-      byAvailability,
-      byBudget,
-      byArchetype,
-      bySource,
-      emailSent,
-      emailOpened,
-      emailClicked,
-    ] = await Promise.all([
-      db.member.count({ where: { deletedAt: null } }),
-      db.member.count({ where: { deletedAt: null, profileStatus: "APPROVED" } }),
-      db.member.count({ where: { deletedAt: null, profileStatus: "PENDING" } }),
-      db.member.count({ where: { deletedAt: null, profileStatus: "WAITLIST" } }),
-      db.member.count({ where: { deletedAt: null, profileStatus: "REJECTED" } }),
-      db.member.count({ where: { deletedAt: null, invitationStatus: "NOT_INVITED" } }),
-      db.member.count({ where: { deletedAt: null, invitationStatus: { not: "NOT_INVITED" } } }),
-      db.member.count({ where: { deletedAt: null, primaryDomain: "web" } }),
-      db.member.count({ where: { deletedAt: null, primaryDomain: "cybersecurity" } }),
-      db.member.count({ where: { deletedAt: null, primaryDomain: "ai" } }),
-      db.member.count({ where: { deletedAt: null, mentoringInterest: "yes" } }),
-      db.member.groupBy({ by: ["country"], _count: true, orderBy: { _count: { country: "desc" } }, take: 12, where: { deletedAt: null } }),
-      db.member.groupBy({ by: ["level"], _count: true, where: { deletedAt: null } }),
-      db.member.groupBy({ by: ["availability"], _count: true, where: { deletedAt: null } }),
-      db.member.groupBy({ by: ["budgetRange"], _count: true, where: { deletedAt: null } }),
-      db.member.groupBy({ by: ["profileArchetype"], _count: true, orderBy: { _count: { profileArchetype: "desc" } }, where: { deletedAt: null } }),
-      db.member.groupBy({ by: ["source"], _count: true, orderBy: { _count: { source: "desc" } }, take: 10, where: { deletedAt: null } }),
-      db.emailEvent.count({ where: { type: "email.sent" } }),
-      db.emailEvent.count({ where: { type: "email.opened" } }),
-      db.emailEvent.count({ where: { type: "email.clicked" } }),
-    ]);
-
-    const emailSentN = emailSent;
-    const emailOpenedN = emailOpened;
-    const emailClickedN = emailClicked;
-
-    return NextResponse.json({
-      totals: { total, approved, pending, waitlist, rejected },
-      invitations: { registered, invited },
-      domains: { web, cyber, ai },
-      mentoring,
-      byCountry: byCountry.map((c) => ({ country: c.country, count: c._count })),
-      byLevel: byLevel.map((l) => ({ level: l.level, count: l._count })),
-      byAvailability: byAvailability.map((a) => ({ availability: a.availability, count: a._count })),
-      byBudget: byBudget.map((b) => ({ budget: b.budgetRange, count: b._count })),
-byArchetype: byArchetype.flatMap((a) =>
-      a.profileArchetype
-        ? [{ archetype: String(a.profileArchetype), count: a._count }]
-        : [],
-    ),
-      bySource: mergeBySource(
-        bySource.flatMap((s) =>
-          s.source
-            ? [{ source: String(s.source), count: s._count }]
-            : [{ source: "direct", count: s._count }],
-        ),
-      ),
-      email: {
-        sent: emailSentN,
-        opened: emailOpenedN,
-        clicked: emailClickedN,
-        openRate: emailSentN === 0 ? 0 : Math.round((emailOpenedN / emailSentN) * 100),
-        clickRate: emailSentN === 0 ? 0 : Math.round((emailClickedN / emailSentN) * 100),
-      },
-    });
+    // Original behavior: all-time stats.
+    // D29 : c'est `fetchStats()` — memes `count` / `groupBy`, meme fenetre
+    // (aucune borne de date), dans `@/lib/admin/aggregates`. La forme de la
+    // reponse est celle d'avant, a la cle pres.
+    return NextResponse.json(await fetchStats());
   }
 
   // Compare mode: compute current and previous period stats

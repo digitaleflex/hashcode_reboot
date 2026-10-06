@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { isAdminAuthed } from "@/lib/admin-auth";
-import { type EmailBudget, getAllBudgets, recentThroughput, remainingBatches } from "@/lib/email-budget";
 import { AuthError, ValidationError, errorToResponse } from "@/lib/errors";
+import { fetchEmailOps } from "@/lib/admin/aggregates";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,11 +15,13 @@ const querySchema = z.object({
   minutes: z.coerce.number().int().min(5).max(1440).optional().default(60),
 });
 
-export interface EmailOpsAlert {
-  level: "warn" | "critical";
-  provider?: string;
-  message: string;
-}
+/**
+ * Forme d'une alerte de quota. D29 : elle n'est plus écrite deux fois — celle
+ * d'ici est un simple renvoi vers le module d'agrégats, qui fait autorité.
+ * Le nom historique `EmailOpsAlert` est conservé parce que c'est le contrat
+ * public de cette route.
+ */
+export type { OpsAlert as EmailOpsAlert } from "@/lib/admin/aggregates";
 
 /**
  * GET /api/admin/email-ops — supervision des envois en TEMPS RÉEL (admin-only).
@@ -28,85 +30,30 @@ export interface EmailOpsAlert {
  * JOURNALIERS collectés par cron (jusqu'à 24 h de retard) : ici, on lit les
  * envois réellement acceptés depuis 00:00 UTC, pour pouvoir agir avant de
  * dépasser un quota.
+ *
+ * D29 : la lecture des quotas, le débit et la traduction des niveaux en
+ * messages (`buildOpsAlerts`) sont dans `@/lib/admin/aggregates`. La route
+ * n'ajoute plus que son propre contrat : le `ok: true` historique.
  */
 export async function GET(req: NextRequest) {
   try {
-  if (!(await isAdminAuthed(req))) {
-    throw new AuthError("Non autorisé.", "UNAUTHORIZED");
-  }
-
-  const { searchParams } = new URL(req.url);
-  const parsed = querySchema.safeParse({
-    batchSize: searchParams.get("batchSize") ?? undefined,
-    minutes: searchParams.get("minutes") ?? undefined,
-  });
-  if (!parsed.success) {
-    throw new ValidationError("Paramètres invalides.", parsed.error.flatten());
-  }
-  const { batchSize, minutes } = parsed.data;
-
-  const { budgets, unattributed } = await getAllBudgets();
-
-  const enriched = await Promise.all(
-    budgets.map(async (b: EmailBudget) => ({
-      ...b,
-      // Combien de lots complets restent possibles aujourd'hui.
-      remainingBatches: await remainingBatches(b.provider, batchSize),
-    })),
-  );
-
-  const throughput = await recentThroughput(minutes);
-
-  // Alertes lisibles : l'admin doit voir le problème sans interpréter un graphe.
-  const alerts: EmailOpsAlert[] = [];
-  for (const b of enriched) {
-    if (b.level === "blocked") {
-      alerts.push({
-        level: "critical",
-        provider: b.provider,
-        message:
-          `Quota ${b.provider} épuisé : ${b.used}/${b.cap} envois aujourd'hui. ` +
-          `Les envois sont suspendus jusqu'à 00:00 UTC ; les destinataires non ` +
-          `servis seront repris automatiquement.`,
-      });
-    } else if (b.level === "critical") {
-      alerts.push({
-        level: "critical",
-        provider: b.provider,
-        message:
-          `Quota ${b.provider} presque épuisé : ${b.used}/${b.cap} ` +
-          `(${Math.round(b.ratio * 100)} %). Les lots sont réduits à 1 envoi ` +
-          `avec une pause d'1 s.`,
-      });
-    } else if (b.level === "warn") {
-      alerts.push({
-        level: "warn",
-        provider: b.provider,
-        message:
-          `Quota ${b.provider} à ${Math.round(b.ratio * 100)} % ` +
-          `(${b.used}/${b.cap}). Taille de lot réduite à 5 avec pause de 200 ms.`,
-      });
+    if (!(await isAdminAuthed(req))) {
+      throw new AuthError("Non autorisé.", "UNAUTHORIZED");
     }
-  }
-  if (unattributed > 0) {
-    alerts.push({
-      level: "warn",
-      message:
-        `${unattributed} envoi(s) aujourd'hui sans provider identifié ` +
-        `(lignes antérieures à l'ajout de la colonne). Ils ne sont pas comptés ` +
-        `dans les quotas ci-dessus.`,
-    });
-  }
 
-  return NextResponse.json({
-    ok: true,
-    generatedAt: new Date().toISOString(),
-    providers: enriched,
-    throughput: { minutes, sent: throughput },
-    capacityBatchSize: batchSize,
-    unattributed,
-    alerts,
-  });
+    const { searchParams } = new URL(req.url);
+    const parsed = querySchema.safeParse({
+      batchSize: searchParams.get("batchSize") ?? undefined,
+      minutes: searchParams.get("minutes") ?? undefined,
+    });
+    if (!parsed.success) {
+      throw new ValidationError("Paramètres invalides.", parsed.error.flatten());
+    }
+    const { batchSize, minutes } = parsed.data;
+
+    const ops = await fetchEmailOps(batchSize, minutes);
+
+    return NextResponse.json({ ok: true, ...ops });
   } catch (err) {
     return errorToResponse(err);
   }

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { isAdminAuthed } from "@/lib/admin-auth";
 import { AppError, AuthError, ValidationError, errorToResponse } from "@/lib/errors";
+import { fetchEmailAudience } from "@/lib/admin/aggregates";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -100,7 +101,11 @@ export async function GET(req: NextRequest) {
       }),
       db.memberEmailLog.groupBy({ by: ["kind"], _count: true }),
       db.memberEmailLog.groupBy({ by: ["provider"], _count: true }),
-      getAudience(),
+      // D29 : la photo de l'audience (anti-doublon des annonces) est calculée
+      // par `fetchEmailAudience()`, dans `@/lib/admin/aggregates` — c'était la
+      // meme formule, ecrite deux fois, avec le meme predicat « qui n'a pas
+      // recu l'annonce ».
+      fetchEmailAudience(),
     ]);
 
     // Engagement par destinataire (une seule requête pour toute la page).
@@ -193,31 +198,4 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     return errorToResponse(err);
   }
-}
-
-/**
- * Photo de l'audience pour piloter l'anti-doublon :
- * - total / blacklistés (actifs) / en bounce
- * - annonce : déjà informés vs restants à informer
- */
-async function getAudience() {
-  const now = new Date();
-  const [total, blacklisted, bounced, annonceSent, annonceRemaining] =
-    await Promise.all([
-      db.member.count({ where: { deletedAt: null } }),
-      db.memberBlacklist.count({
-        where: { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
-      }),
-      db.member.count({ where: { deletedAt: null, invitationStatus: "BOUNCED" } }),
-      db.memberEmailLog.count({ where: { kind: "annonce" } }),
-      db.member.count({
-        where: {
-          deletedAt: null,
-          profileStatus: "APPROVED",
-          NOT: { emailLogs: { some: { kind: "annonce" } } },
-        },
-      }),
-    ]);
-
-  return { total, blacklisted, bounced, annonceSent, annonceRemaining };
 }

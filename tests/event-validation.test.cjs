@@ -35,6 +35,7 @@
 const { test, describe } = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
+const { execFileSync } = require("node:child_process");
 const path = require("node:path");
 
 const { validateEventCreate, validateEventPatch, notifyWhere, decideRsvp, parseNotify } =
@@ -494,26 +495,41 @@ describe("mergeBySource", () => {
         // de type, qui sont effacés à la compilation et n'ont aucun effet.
         .replace(/<[^<>]*>\(/g, "(");
     };
-    // D29 : la copie du dashboard a rejoint `src/lib/admin/aggregates.ts`. Il
-    // reste celle de `/api/stats`, qui n'a pas été déportée (hors périmètre D29).
-    // Le test garde son rôle : comparer TOUTES les copies entre elles, pour que
-    // la prochaine extraction n'en laisse pas une diverger en silence.
-    const copies = [
-      "src/lib/admin/aggregates.ts",
-      "src/app/api/stats/route.ts",
-    ];
-    const cores = copies.map((f) => core(read(f)));
-    for (const [i, c] of cores.entries()) {
-      assert.equal(
-        c,
-        cores[0],
-        `les mergeBySource de ${copies.join(" / ")} ont divergé (${copies[i]} ne colle plus) : ` +
-          `importer ` + "`mergeBySource`" + ` de @/lib/admin/aggregates`,
-      );
-    }
+    // D29 : il n'y a plus qu'UN SEUL `mergeBySource`, dans
+    // `src/lib/admin/aggregates.ts`. La copie de `/api/stats` a été déportée.
+    //
+    // Ce test garde son rôle de garde-fou : il vérifie qu'aucun fichier ne
+    // REDÉCLARE la formule. Une réimplémentation échouerait ici au lieu de
+    // diverger en silence.
+    const CANONICAL = "src/lib/admin/aggregates.ts";
+    // `rg` renvoie des chemins au séparateur de la plateforme : sous Windows
+    // `src\lib\admin\aggregates.ts`, ce qui ne serait jamais égal à CANONICAL
+    // et ferait crier ce test alors que la déport est faite.
+    const norm = (p) => p.trim().replace(/\\/g, "/");
+    const redeclarations = execFileSync(
+      "rg",
+      ["-l", "function mergeBySource", "src"],
+      { encoding: "utf8" },
+    )
+      .split("\n")
+      .map(norm)
+      .filter(Boolean)
+      .filter((f) => f !== CANONICAL);
+
+    assert.deepEqual(
+      redeclarations,
+      [],
+      `mergeBySource est redeclare dans ${redeclarations.join(", ")} : ` +
+        `importer la version canonique de @/lib/admin/aggregates`,
+    );
+    assert.ok(
+      core(read(CANONICAL)).length > 0,
+      "le corps canonique de mergeBySource est vide",
+    );
+
     assert.equal(
       core(mergeBySource.toString()),
-      cores[0],
+      core(read(CANONICAL)),
       "le miroir de mergeBySource n'est plus aligné sur src/ (les tests ci-dessus ne testent plus la production)",
     );
   });

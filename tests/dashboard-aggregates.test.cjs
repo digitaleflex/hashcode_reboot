@@ -28,12 +28,16 @@
  * Limite assumee, et elle est VOLONTAIRE
  * --------------------------------------
  * D29 avait un perimetre de 2 fichiers : la route dashboard et sa page. Les
- * endpoints qui portent encore une copie de la formuleetaient hors perimetre
- * (deux autres agents travaillaient sur `src/app/api/admin/**` en parallele).
- * `KNOWN_DUPLICATE_SITES` les declare un par un. Ce n'est pas un_detail : tant
- * qu'une ligne y figure, la formule vit a deux endroits, et ce test est la
- * liste de travail de la tache qui fermera le dossier. Un TROISIEME site, lui,
- * n'est declare nulle part : le test echoue.
+ * endpoints qui portaient une copie de la formule etaient hors perimetre (deux
+ * autres agents travaillaient sur `src/app/api/admin/**` en parallele). La
+ * tache de reliquat a etendu le perimetre a `src/app/api/**` : 4 des 8 entrees
+ * ont disparu de l'inventaire.
+ *
+ * Les 4 restantes ne sont pas une liste de travail deguisee en ardoise : ce
+ * sont des copies REELLES, chacune avec une raison ecrite de ne pas pouvoir la
+ * detourner (le plus souvent : la fonction partagee ne prend pas le parametre
+ * dont l'endpoint a besoin). Un CINQUIEME site, lui, n'est declare nulle part :
+ * le test echoue.
  *
  * Le meme raisonnement pour le nombre de requetes DB : le decompte est fige
  * (41 avant, 41 apres). Un agregat "compose" qui rejouerait des requetes, ou
@@ -202,7 +206,7 @@ function oldBuildOpsAlerts(providers, unattributed) {
         level: "critical",
         provider: b.provider,
         message:
-          `Quota ${b.provider} epuise : ${b.used}/${b.cap} envois aujourd'hui. ` +
+          `Quota ${b.provider} épuisé : ${b.used}/${b.cap} envois aujourd'hui. ` +
           `Les envois sont suspendus jusqu'a 00:00 UTC ; les destinataires non ` +
           `servis seront repris automatiquement.`,
       });
@@ -211,8 +215,8 @@ function oldBuildOpsAlerts(providers, unattributed) {
         level: "critical",
         provider: b.provider,
         message:
-          `Quota ${b.provider} presque epuise : ${b.used}/${b.cap} ` +
-          `(${Math.round(b.ratio * 100)} %). Les lots sont reduits a 1 envoi ` +
+          `Quota ${b.provider} presque épuisé : ${b.used}/${b.cap} ` +
+          `(${Math.round(b.ratio * 100)} %). Les lots sont réduits à 1 envoi ` +
           `avec une pause d'1 s.`,
       });
     } else if (b.level === "warn") {
@@ -558,26 +562,25 @@ function sitesOf(pattern) {
 const AGGREGATES = "src/lib/admin/aggregates.ts";
 
 /**
- * Copies CONNUES, hors perimetre D29.
+ * Copies CONNUES, non detournees.
  *
  * Chaque entree est un doublon REEL : la formule est ecrite deux fois, et elle
- * peut mentir deux fois. Les detourner demande de modifier des endpoints
- * `src/app/api/admin/**` (hors perimetre D29, deux agents en parallele) ou
- * `src/app/api/{stats,analytics,email-stats}`. C'est la liste de travail de la
- * tache suivante - pas une excuse.
+ * peut mentir deux fois. Apres la tache de reliquat, il en reste quatre, et
+ * aucune n'est un oubli : `detourner` dit pour chacune pourquoi la fonction
+ * partagee ne peut pas la servir. Une cinquieme venue ailleurs, elle, n'est
+ * declaree nulle part : le test echoue.
  */
 const KNOWN_DUPLICATE_SITES = [
-  {
-    formula: "fusion des sources (NULL et vide -> \"direct\")",
-    signature: /merged\.set\(key, \(merged\.get\(key\) \?\? 0\) \+ count\)/,
-    sites: ["src/app/api/stats/route.ts"],
-    detourner: "importer `mergeBySource` de @/lib/admin/aggregates",
-  },
   {
     formula: "compteurs membres / ventilations / engagement email",
     signature: /db\.member\.groupBy\(\{ by: \["budgetRange"\]/,
     sites: ["src/app/api/stats/route.ts"],
-    detourner: "importer `fetchStats` (branche all-time) de @/lib/admin/aggregates",
+    detourner:
+      "La branche 'tout l'historique' ne duplique plus rien : elle appelle " +
+      "`fetchStats()`. Ce qui reste est `computeStats(startDate, endDate)`, la " +
+      "branche `compare=true`, qui borne `createdAt`. `fetchStats()` ne prend " +
+      "aucun parametre de fenetre : le detourner exigerait de lui en ajouter un, " +
+      "donc de modifier `@/lib/admin/aggregates`.",
   },
   {
     formula: "entonnoir de profiling, abandons, timings",
@@ -585,42 +588,26 @@ const KNOWN_DUPLICATE_SITES = [
     // cible le predicat commun, pas sa mise en forme.
     signature: /"profiling_abandoned", ref: \{ not: null \}/,
     sites: ["src/app/api/analytics/route.ts"],
-    detourner: "importer `fetchFunnel` de @/lib/admin/aggregates",
-  },
-  {
-    formula: "engagement email par categorie + tunnel de relance",
-    signature: /relanceSentAt: \{ not: null \}/,
-    sites: ["src/app/api/email-stats/route.ts"],
-    detourner: "importer `fetchEmailEngagement` de @/lib/admin/aggregates",
-  },
-  {
-    formula: "delivrabilite par provider (totaux, taux, 7 j / 7 j)",
-    signature: /sumPrev7\.delivered > 0 && sumLast7\.delivered > 0/,
-    sites: ["src/app/api/admin/email-deliverability/route.ts"],
-    detourner: "importer `summarizeProvider` / `fetchEmailDeliverability`",
-  },
-  {
-    formula: "quotas temps reel + debit + alertes",
-    // La copie d'origine est accentuee ("presque épuisé") et la notre ne l'est
-    // pas. On cible donc le squelette ASCII du message, `.` couvrant les
-    // caracteres accentues : le motif reste lisible en pur ASCII.
-    signature: /presque .puis./,
-    sites: ["src/app/api/admin/email-ops/route.ts"],
-    detourner: "importer `buildOpsAlerts` / `fetchEmailOps`",
-  },
-  {
-    formula: "statut de sante des crons",
-    signature: /expectedEveryH \* 2 \* 3600 \* 1000/,
-    sites: ["src/app/api/admin/cron-health/route.ts"],
-    detourner: "importer `CRONS` / `fetchCronHealth` de @/lib/admin/aggregates",
+    detourner:
+      "La branche 'tout l'historique' appelle `fetchFunnel()`, et `buildDropoff` " +
+      "/ `buildTiming` sont importes au lieu d'etre reecrits. Ce qui reste est " +
+      "`computeFunnel(startDate, endDate)`, branche `compare=true`, meme raison " +
+      "que pour `/api/stats` : il faut une fenetre que la fonction partagee ignore.",
   },
   {
     formula: "photo de l'audience (anti-doublon des annonces)",
     // `/api/admin/announce-dashboard` porte le meme predicat : c'est le meme
-    // "qui n'a pas recu l'annonce", ecrit une troisieme fois.
+    // "qui n'a pas recu l'annonce". `/api/admin/email-log` est, lui, detourne
+    // (il appelle `fetchEmailAudience()`).
     signature: /NOT: \{ emailLogs: \{ some: \{ kind: "annonce" \} \} \}/,
-    sites: ["src/app/api/admin/email-log/route.ts", "src/app/api/admin/announce-dashboard/route.ts"],
-    detourner: "importer `fetchEmailAudience` de @/lib/admin/aggregates",
+    sites: ["src/app/api/admin/announce-dashboard/route.ts"],
+    detourner:
+      "`fetchEmailAudience()` ne renvoie que des COMPTEURS. Cette route a besoin " +
+      "du `where` lui-meme pour un `findMany` (les membres a contacter), pas d'un " +
+      "total : l'y substituer lui ferait payer 4 requetes pour 1 `count`. Le " +
+      "detournement propre consiste a exporter le predicat (ex. " +
+      "`ANNOUNCE_AUDIENCE_WHERE`) depuis `@/lib/admin/aggregates` et a l'importer " +
+      "ici : ce qui sort du perimetre de cette tache.",
   },
 ];
 

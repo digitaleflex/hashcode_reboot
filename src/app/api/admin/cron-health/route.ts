@@ -1,60 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
 import { isAdminAuthed } from "@/lib/admin-auth";
 import { AuthError, errorToResponse } from "@/lib/errors";
+import { fetchCronHealth } from "@/lib/admin/aggregates";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 // D16 — `revalidate = 0` retiré : redondant, `force-dynamic` l'implique déjà.
 
-const CRONS = [
-  { key: "cron_relance", label: "Relance profils (J+7)", expectedEveryH: 24 },
-  { key: "cron_email_alerts", label: "Alertes délivrabilité", expectedEveryH: 24 },
-  { key: "cron_collect_metrics", label: "Collecte métriques", expectedEveryH: 24 },
-  { key: "cron_event_reminders", label: "Relances événements (J-3/J-1/H-1)", expectedEveryH: 1 },
-  { key: "admin_announce_dashboard", label: "Annonce espace (manuel)", expectedEveryH: null },
-  { key: "admin_invite_relance", label: "Relance invitations (manuel)", expectedEveryH: null },
-  { key: "admin_import_invite", label: "Import invitations (manuel)", expectedEveryH: null },
-] as const;
-
 /**
  * GET /api/admin/cron-health — dernier passage de chaque cron/lot (admin-only).
  * Si un cron quotidien ne tourne plus, le dashboard l'affiche en alerte.
+ *
+ * D29 : la liste des crons surveillés ET la règle de santé (« dans les temps »
+ * tant que l'âge ne dépasse pas 2 x la fréquence attendue ; un cron manuel
+ * n'est jamais périmé) vivent dans `@/lib/admin/aggregates`. `fetchCronHealth`
+ * prend le « maintenant » en paramètre pour rester testable : la route le
+ * passe explicitement, elle ne le contourne pas.
  */
 export async function GET(req: NextRequest) {
   try {
-  if (!(await isAdminAuthed(req))) {
-    throw new AuthError("Non autorisé.", "UNAUTHORIZED");
-  }
+    if (!(await isAdminAuthed(req))) {
+      throw new AuthError("Non autorisé.", "UNAUTHORIZED");
+    }
 
-  const now = Date.now();
-  const crons = await Promise.all(
-    CRONS.map(async (c) => {
-      const last = await db.analyticsEvent.findFirst({
-        where: { type: c.key },
-        orderBy: { createdAt: "desc" },
-        select: { createdAt: true, ref: true },
-      });
-      const ageMs = last ? now - last.createdAt.getTime() : null;
-      const status = !last
-        ? "never"
-        : c.expectedEveryH === null
-          ? "manual"
-          : ageMs !== null && ageMs <= c.expectedEveryH * 2 * 3600 * 1000
-            ? "ok"
-            : "stale";
-      return {
-        key: c.key,
-        label: c.label,
-        expectedEveryH: c.expectedEveryH,
-        lastRun: last?.createdAt ?? null,
-        summary: last?.ref ?? null,
-        status,
-      };
-    }),
-  );
+    const crons = await fetchCronHealth(Date.now());
 
-  return NextResponse.json({ ok: true, crons });
+    return NextResponse.json({ ok: true, crons });
   } catch (err) {
     return errorToResponse(err);
   }

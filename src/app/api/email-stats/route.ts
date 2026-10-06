@@ -1,104 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
 import { isAdminAuthed } from "@/lib/admin-auth";
 import { AppError, AuthError, errorToResponse } from "@/lib/errors";
-import { EMAIL_SEMANTIC_CATEGORIES, PROFILE_RELANC_CATEGORY } from "@/lib/email-categories";
+import { fetchEmailEngagement } from "@/lib/admin/aggregates";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 // D16 — `revalidate = 0` retiré : redondant, `force-dynamic` l'implique déjà.
 
-// D03 — la liste vient de `@/lib/email-categories` (source unique, partagée avec
-// les producteurs de mail.ts) : les consommateurs ne peuvent plus diverger.
-// La valeur locale historique "relance" n'était produite par AUCUN wrapper
-// (elle remplaçait "profil_abandon").
-const CATEGORIES = EMAIL_SEMANTIC_CATEGORIES;
-
-/** GET /api/email-stats — email engagement per category + relance funnel (admin-only). */
+/**
+ * GET /api/email-stats — email engagement per category + relance funnel (admin-only).
+ *
+ * D29 : l'agrégat entier (ventilation par catégorie sémantique, tunnel de
+ * relance) est calculé par `fetchEmailEngagement()`, dans
+ * `@/lib/admin/aggregates` — un seul endroit où la formule existe. Cette route
+ * n'en garde que son CONTRAT HTTP : elle ne renvoie pas le bloc `categories`
+ * que l'agrégat produit pour le dashboard, parce qu'elle ne l'a jamais exposé.
+ * Factoriser la formule ne doit pas changer la réponse publique d'un endpoint.
+ */
 export async function GET(req: NextRequest) {
   try {
-  if (!(await isAdminAuthed(req))) {
-    throw new AuthError("Non autorisé.", "UNAUTHORIZED");
-  }
+    if (!(await isAdminAuthed(req))) {
+      throw new AuthError("Non autorisé.", "UNAUTHORIZED");
+    }
 
-  try {
-    const [allEvents, byCategory, draftStats, relanceDraftIds] = await Promise.all([
-      db.emailEvent.findMany({
-        select: { email: true, type: true, category: true, createdAt: true },
-        orderBy: { createdAt: "asc" },
-        take: 20000,
-      }),
-      listCategoryStats(),
-      relanceDraftSummary(),
-      // emails that received a relance (for per-draft conversion)
-      // D03 : la catégorie est `profil_abandon` (relance d'un ProfilingDraft),
-      // pas "relance" — aucune constante de ce nom n'était produite, donc ce
-      // filtre ne retournait rien et le tunnel affichait 0 en permanence.
-      db.emailEvent.findMany({
-        where: { type: "email.sent", category: PROFILE_RELANC_CATEGORY },
-        select: { email: true },
-        take: 10000,
-      }),
-    ]);
+    try {
+      const { summary, byCategory, relance } = await fetchEmailEngagement();
 
-    const relanceEmails = new Set(relanceDraftIds.map((r) => r.email.toLowerCase()));
-
-    return NextResponse.json({
-      summary: {
-        totalSent: allEvents.filter((e) => e.type === "email.sent").length,
-        totalOpened: allEvents.filter((e) => e.type === "email.opened").length,
-        totalClicked: allEvents.filter((e) => e.type === "email.clicked").length,
-      },
-      byCategory,
-      relance: {
-        drafts: draftStats.drafts,
-        relanceSent: draftStats.relanceSent,
-        relanceOpened: countByTypeAndEmails(allEvents, "email.opened", relanceEmails),
-        relanceClicked: countByTypeAndEmails(allEvents, "email.clicked", relanceEmails),
-        recovered: draftStats.recovered,
-      },
-    });
-  } catch (err) {
-    throw new AppError("Erreur interne.", { status: 500, code: "INTERNAL_ERROR" });
-  }
+      return NextResponse.json({ summary, byCategory, relance });
+    } catch {
+      throw new AppError("Erreur interne.", { status: 500, code: "INTERNAL_ERROR" });
+    }
   } catch (err) {
     return errorToResponse(err);
   }
-}
-
-async function listCategoryStats() {
-  const rows = await db.emailEvent.groupBy({
-    by: ["category", "type"],
-    _count: true,
-  });
-
-  const result: Record<string, { sent: number; opened: number; clicked: number }> = {};
-  for (const cat of CATEGORIES) {
-    result[cat] = { sent: 0, opened: 0, clicked: 0 };
-  }
-  for (const r of rows) {
-    const cat = (r.category ?? "other") as string;
-    if (!result[cat]) result[cat] = { sent: 0, opened: 0, clicked: 0 };
-    if (r.type === "email.sent") result[cat].sent = r._count;
-    else if (r.type === "email.opened") result[cat].opened = r._count;
-    else if (r.type === "email.clicked") result[cat].clicked = r._count;
-  }
-  return result;
-}
-
-async function relanceDraftSummary() {
-  const [drafts, relanceSent, recovered] = await Promise.all([
-    db.profilingDraft.count(),
-    db.profilingDraft.count({ where: { relanceSentAt: { not: null } } }),
-    db.profilingDraft.count({ where: { completedAt: { not: null } } }),
-  ]);
-  return { drafts, relanceSent, recovered };
-}
-
-function countByTypeAndEmails(
-  events: { email: string; type: string }[],
-  type: string,
-  emails: Set<string>,
-): number {
-  return events.filter((e) => e.type === type && emails.has(e.email.toLowerCase())).length;
 }

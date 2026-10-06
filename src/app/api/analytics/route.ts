@@ -9,6 +9,7 @@ import { subDays } from "date-fns";
 import { blockIfTesting } from "@/lib/test-guard";
 import { bodyLimit } from "@/lib/body-limit";
 import { AuthError, errorToResponse } from "@/lib/errors";
+import { buildDropoff, buildTiming, fetchFunnel } from "@/lib/admin/aggregates";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -95,6 +96,15 @@ interface FunnelData {
   timing: { questionId: string; samples: number; avgMs: number; p50Ms: number; p95Ms: number }[];
 }
 
+/**
+ * Entonnoir borne a une fenetre (mode `compare=true`).
+ *
+ * D29 : les deux formules pures de cet agregat — taux d'abandon par question
+ * (`buildDropoff`) et temps de reponse p50/p95 (`buildTiming`) — sont importees
+ * de `@/lib/admin/aggregates` au lieu d'etre reecrites ici. Elles ne dependent
+ * que des lignes, pas de la fenetre : c'est exactement ce qui les rend
+ * reutilisables par les deux branches.
+ */
 async function computeFunnel(startDate: Date, endDate: Date): Promise<FunnelData> {
   const where = {
     createdAt: {
@@ -154,61 +164,6 @@ async function computeFunnel(startDate: Date, endDate: Date): Promise<FunnelData
   };
 }
 
-function buildTiming(
-  rows: { ref: string | null; value: number | null }[],
-): { questionId: string; samples: number; avgMs: number; p50Ms: number; p95Ms: number }[] {
-  const byQuestion = new Map<string, number[]>();
-  for (const r of rows) {
-    if (r.ref && r.value !== null && r.value > 0) {
-      const arr = byQuestion.get(r.ref) ?? [];
-      arr.push(r.value);
-      byQuestion.set(r.ref, arr);
-    }
-  }
-  const result: { questionId: string; samples: number; avgMs: number; p50Ms: number; p95Ms: number }[] = [];
-  for (const [id, vals] of byQuestion) {
-    const sorted = [...vals].sort((a, b) => a - b);
-    const avg = Math.round(sorted.reduce((s, v) => s + v, 0) / sorted.length);
-    const p50 = sorted[Math.floor(sorted.length * 0.5)] ?? 0;
-    const p95 = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))] ?? 0;
-    result.push({ questionId: id, samples: sorted.length, avgMs: avg, p50Ms: p50, p95Ms: p95 });
-  }
-  // Worst average first — shows friction points.
-  result.sort((a, b) => b.avgMs - a.avgMs);
-  return result;
-}
-
-function buildDropoff(
-  answeredRows: { ref: string | null; _count: number }[],
-  abandonedRows: { ref: string | null; _count: number }[],
-) {
-  const answeredMap = new Map<string, number>();
-  for (const r of answeredRows) {
-    if (r.ref) answeredMap.set(r.ref, r._count);
-  }
-  const abandonedMap = new Map<string, number>();
-  for (const r of abandonedRows) {
-    if (r.ref) abandonedMap.set(r.ref, r._count);
-  }
-  // Merge all question ids from both maps
-  const allIds = new Set([...answeredMap.keys(), ...abandonedMap.keys()]);
-  const result: { questionId: string; answered: number; abandoned: number; dropRate: number }[] = [];
-  for (const id of allIds) {
-    const answered = answeredMap.get(id) ?? 0;
-    const abandoned = abandonedMap.get(id) ?? 0;
-    const total = answered + abandoned;
-    result.push({
-      questionId: id,
-      answered,
-      abandoned,
-      dropRate: total === 0 ? 0 : Math.round((abandoned / total) * 100),
-    });
-  }
-  // Sort by drop rate descending (worst first)
-  result.sort((a, b) => b.dropRate - a.dropRate);
-  return result;
-}
-
 function computeChange(current: FunnelData, previous: FunnelData) {
   const pct = (curr: number, prev: number) => {
     if (prev === 0) return curr > 0 ? 100 : 0;
@@ -241,55 +196,11 @@ export async function GET(req: NextRequest) {
   const period = (searchParams.get("period") ?? "month") as "week" | "month";
 
   if (!compare) {
-    // Original behavior: all-time funnel
-    const [rows, total, startedSessions, completedSessions, whatsappClicks, answeredRows, abandonedRows, timedRows] = await Promise.all([
-      db.analyticsEvent.groupBy({
-        by: ["type"],
-        _count: true,
-        orderBy: { _count: { type: "desc" } },
-      }),
-      db.analyticsEvent.count(),
-      db.analyticsEvent.groupBy({
-        by: ["sessionId"],
-        where: { type: "profiling_started" },
-      }),
-      db.analyticsEvent.groupBy({
-        by: ["sessionId"],
-        where: { type: "profiling_completed" },
-      }),
-      db.analyticsEvent.count({ where: { type: "whatsapp_join_clicked" } }),
-      db.analyticsEvent.groupBy({
-        by: ["ref"],
-        _count: true,
-        where: { type: "profiling_question_answered", ref: { not: null } },
-      }),
-      db.analyticsEvent.groupBy({
-        by: ["ref"],
-        _count: true,
-        where: { type: "profiling_abandoned", ref: { not: null } },
-      }),
-      db.analyticsEvent.findMany({
-        where: { type: "profiling_question_timed", ref: { not: null }, value: { not: null } },
-        select: { ref: true, value: true },
-        take: 5000,
-      }),
-    ]);
-
-    const dropoff = buildDropoff(answeredRows, abandonedRows);
-    const timing = buildTiming(timedRows);
-
-    return NextResponse.json({
-      total,
-      events: rows.map((r) => ({ type: r.type, count: r._count })),
-      funnel: {
-        sessionsStarted: startedSessions.length,
-        sessionsCompleted: completedSessions.length,
-        whatsappClicks,
-        completionRate: startedSessions.length === 0 ? 0 : Math.round((completedSessions.length / startedSessions.length) * 100),
-      },
-      dropoff,
-      timing,
-    });
+    // Original behavior: all-time funnel.
+    // D29 : c'est `fetchFunnel()` — memes requetes, memes predicats, meme
+    // fenetre (aucune borne de date), dans `@/lib/admin/aggregates`. La forme
+    // de la reponse est celle d'avant, a la cle pres.
+    return NextResponse.json(await fetchFunnel());
   }
 
   // Compare mode: compute current and previous period funnel

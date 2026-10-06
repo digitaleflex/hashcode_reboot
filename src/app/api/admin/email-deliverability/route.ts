@@ -5,6 +5,12 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { isAdminAuthed } from "@/lib/admin-auth";
 import { AuthError, ValidationError, errorToResponse } from "@/lib/errors";
+import {
+  DELIVERABILITY_PROVIDERS,
+  providerChart,
+  summarizeProvider,
+  type ProviderMetricRow,
+} from "@/lib/admin/aggregates";
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -22,6 +28,18 @@ const querySchema = z.object({
  * 
  * Returns aggregated email deliverability metrics for dashboard.
  * Admin-only.
+ *
+ * D29 : les totaux, les taux et la comparaison 7 j / 7 j sont calculés par
+ * `summarizeProvider()`, et la série du graphique par `providerChart()` — un
+ * seul endroit pour ces formules. `summarizeProvider` reçoit `now` en
+ * parametre (c'est ce qui la rend testable) : la route le fournit
+ * explicitement, une fois pour toute la reponse, au lieu de laisser chaque
+ * provider refaire son propre `new Date()`.
+ *
+ * Ce qui reste local et NON duplique : la surcharge `startDate` / `endDate`.
+ * Elle impose une plage bornee, ce que `deliverabilityWindow(days, now)` ne
+ * modelise pas (elle ne connait qu'une duree en jours) ; la fenetre par
+ * defaut, elle, reste celle de la route.
  */
 export async function GET(req: NextRequest) {
   try {
@@ -45,19 +63,23 @@ export async function GET(req: NextRequest) {
 
   const { provider, days, startDate, endDate } = parsed.data;
 
+  // Un seul « maintenant » pour la reponse entiere : il sert a la fois a la
+  // fenetre et a la comparaison 7 j / 7 j de `summarizeProvider`.
+  const now = new Date();
+
   // Build date range
-  const end = endDate ? new Date(endDate + 'T23:59:59.999Z') : new Date();
+  const end = endDate ? new Date(endDate + 'T23:59:59.999Z') : new Date(now);
   end.setUTCHours(23, 59, 59, 999);
   
   const start = startDate 
     ? new Date(startDate + 'T00:00:00.000Z') 
-    : new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    : new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
   start.setUTCHours(0, 0, 0, 0);
 
-  const providers = provider === 'all' ? ['resend', 'brevo'] : [provider];
+  const providers = provider === 'all' ? [...DELIVERABILITY_PROVIDERS] : [provider];
 
   // Fetch metrics for each provider
-  const metricsByProvider: Record<string, any[]> = {};
+  const metricsByProvider: Record<string, ProviderMetricRow[]> = {};
   
   for (const p of providers) {
     const metrics = await db.emailProviderMetric.findMany({
@@ -73,84 +95,11 @@ export async function GET(req: NextRequest) {
     metricsByProvider[p] = metrics;
   }
 
-  // Compute summary stats for the period
-  const summary = providers.map(p => {
-    const metrics = metricsByProvider[p] || [];
-    const totals = metrics.reduce((acc, m) => ({
-      sent: acc.sent + m.sent,
-      delivered: acc.delivered + m.delivered,
-      bounced: acc.bounced + m.bounced,
-      complained: acc.complained + m.complained,
-      unsubscribed: acc.unsubscribed + m.unsubscribed,
-      opened: acc.opened + m.opened,
-      clicked: acc.clicked + m.clicked,
-      uniqueOpened: acc.uniqueOpened + m.uniqueOpened,
-      uniqueClicked: acc.uniqueClicked + m.uniqueClicked,
-    }), {
-      sent: 0, delivered: 0, bounced: 0, complained: 0,
-      unsubscribed: 0, opened: 0, clicked: 0,
-      uniqueOpened: 0, uniqueClicked: 0,
-    });
+  // Compute summary stats for the period (formule partagee).
+  const summary = providers.map(p => summarizeProvider(p, metricsByProvider[p] || [], now));
 
-    const deliveryRate = totals.sent > 0 ? totals.delivered / totals.sent : 0;
-    const openRate = totals.delivered > 0 ? totals.uniqueOpened / totals.delivered : 0;
-    const clickRate = totals.delivered > 0 ? totals.uniqueClicked / totals.delivered : 0;
-    const bounceRate = totals.sent > 0 ? totals.bounced / totals.sent : 0;
-    const complaintRate = totals.delivered > 0 ? totals.complained / totals.delivered : 0;
-
-    // Last 7 days vs previous 7 days comparison
-    const now = new Date();
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
-
-    const last7 = metrics.filter(m => m.date >= sevenDaysAgo);
-    const prev7 = metrics.filter(m => m.date >= fourteenDaysAgo && m.date < sevenDaysAgo);
-
-    const sumLast7 = last7.reduce((a, m) => ({ sent: a.sent + m.sent, delivered: a.delivered + m.delivered }), { sent: 0, delivered: 0 });
-    const sumPrev7 = prev7.reduce((a, m) => ({ sent: a.sent + m.sent, delivered: a.delivered + m.delivered }), { sent: 0, delivered: 0 });
-
-    const volumeChange = sumPrev7.sent > 0 ? (sumLast7.sent - sumPrev7.sent) / sumPrev7.sent : 0;
-    const deliveryChange = sumPrev7.delivered > 0 && sumLast7.delivered > 0 
-      ? (sumLast7.delivered / sumLast7.sent) - (sumPrev7.delivered / sumPrev7.sent)
-      : 0;
-
-    return {
-      provider: p,
-      totals,
-      rates: {
-        deliveryRate,
-        openRate,
-        clickRate,
-        bounceRate,
-        complaintRate,
-      },
-      comparison: {
-        volumeChange,
-        deliveryChange,
-      },
-      daysWithData: metrics.length,
-    };
-  });
-
-  // Format chart data
-  const chartData = providers.map(p => ({
-    provider: p,
-    data: metricsByProvider[p]?.map(m => ({
-      date: m.date.toISOString().split('T')[0],
-      sent: m.sent,
-      delivered: m.delivered,
-      bounced: m.bounced,
-      opened: m.opened,
-      clicked: m.clicked,
-      uniqueOpened: m.uniqueOpened,
-      uniqueClicked: m.uniqueClicked,
-      deliveryRate: m.deliveryRate,
-      openRate: m.openRate,
-      clickRate: m.clickRate,
-      bounceRate: m.bounceRate,
-      complaintRate: m.complaintRate,
-    })) || [],
-  }));
+  // Format chart data (serie temporelle partagee).
+  const chartData = providers.map(p => providerChart(p, metricsByProvider[p] || []));
 
   return NextResponse.json({
     ok: true,
