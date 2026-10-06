@@ -5,7 +5,7 @@ import { AdminStats, type Stats, type FunnelData } from "@/components/reboot/adm
 import { EmailEngagement, type EmailStatsData } from "@/components/reboot/admin/EmailEngagement";
 import { AdminStatsSkeleton } from "@/components/reboot/admin/skeletons";
 import { PendingApprovalsBanner } from "@/components/reboot/admin/PendingApprovalsBanner";
-import { fetchJson, isAbortError, withRetryAfter } from "@/components/reboot/admin/lib/fetchJson";
+import { adminErrorMessage, adminRequest, useAdminQuery } from "@/components/reboot/admin/lib/adminQuery";
 import { AlertCircle, Clock } from "lucide-react";
 import { CohortRetention } from "@/components/reboot/admin/CohortRetention";
 import { LoginActivity } from "@/components/reboot/admin/LoginActivity";
@@ -15,87 +15,65 @@ const POLL_MS = 30_000;
 
 export default function AdminStatsPage() {
   const router = useRouter();
-  const [stats, setStats] = React.useState<Stats | null>(null);
-  const [funnel, setFunnel] = React.useState<FunnelData | null>(null);
-  const [emailStats, setEmailStats] = React.useState<EmailStatsData | null>(null);
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
-  const [lastRefresh, setLastRefresh] = React.useState<number | null>(null);
 
-  const ctrlRef = React.useRef<AbortController | null>(null);
-  const timerRef = React.useRef<number | null>(null);
-  const runningRef = React.useRef(false);
-
-  const loadData = React.useCallback(async (signal?: AbortSignal, silent?: boolean) => {
-    if (runningRef.current) return;
-    runningRef.current = true;
-    if (!silent) setLoading(true);
-    setError(null);
-    try {
-      const [statsResult, funnelResult, emailResult] = await Promise.all([
-        fetchJson("/api/stats", { cache: "no-store", signal }),
-        fetchJson("/api/analytics", { cache: "no-store", signal }).catch(() => null),
-        fetchJson("/api/email-stats", { cache: "no-store", signal }).catch(() => null),
+  /**
+   * D25 + D32 : le `useEffect` de polling, ses DEUX timers, le
+   * `visibilitychange`, la garde `runningRef`, le `AbortController` et les 5
+   * `useState` disparaissent au profit de `refetchInterval` +
+   * `refetchOnWindowFocus`, qui sont exactement ces deux comportements.
+   *
+   * Les 3 fetch sont conservés en UNE query, pas en trois : `/api/stats` est la
+   * requêteCritique (son échec faisait échouer tout l'écran), les deux autres
+   * étaient en `.catch(() => null)` — best-effort. `Promise.allSettled` rend
+   * cette hiérarchie explicite, et la garde `runningRef` devient inutile car
+   * React Query n'envoie jamais deux requêtes concurrentes sur la même clé.
+   *
+   * `retry: false` : sur 401 la redirection est déjà partie. Réessayer 3 fois
+   * ne ferait que multiplier les requêtes avant que l'écran ne se vide.
+   */
+  const query = useAdminQuery<{
+    stats: Stats | null;
+    funnel: FunnelData | null;
+    emailStats: EmailStatsData | null;
+  }>({
+    queryKey: ["admin", "stats"],
+    retry: false,
+    refetchInterval: POLL_MS,
+    refetchOnWindowFocus: true,
+    queryFn: async ({ signal }) => {
+      const [statsR, funnelR, emailR] = await Promise.allSettled([
+        adminRequest<Stats>("/api/stats", { cache: "no-store", signal }, {
+          fallbackMessage: "Erreur de chargement des stats.",
+        }),
+        adminRequest<FunnelData>("/api/analytics", { cache: "no-store", signal }),
+        adminRequest<EmailStatsData>("/api/email-stats", { cache: "no-store", signal }),
       ]);
+      // Le critique : son rejet fait échouer la query entière, comme avant.
+      if (statsR.status === "rejected") throw statsR.reason;
+      const unwrap = <T,>(r: PromiseSettledResult<T>): T | null =>
+        r.status === "fulfilled" ? r.value : null;
+      return {
+        stats: statsR.value ?? null,
+        funnel: unwrap(funnelR),
+        emailStats: unwrap(emailR),
+      };
+    },
+  });
 
-      if (signal?.aborted) return;
-
-      if (statsResult.res.status === 401 || statsResult.code === "UNAUTHORIZED") {
-        window.location.href = "/?admin=1";
-        return;
-      }
-
-      if (!statsResult.res.ok) {
-        const msg = statsResult.error ?? "Erreur de chargement des stats.";
-        throw new Error(
-          statsResult.res.status === 429 || statsResult.code === "RATE_LIMITED"
-            ? withRetryAfter(msg, statsResult.retryAfterSec)
-            : msg,
-        );
-      }
-
-      setStats(statsResult.data);
-      if (funnelResult?.res?.ok) setFunnel(funnelResult.data);
-      if (emailResult?.res?.ok) setEmailStats(emailResult.data);
-      setLastRefresh(Date.now());
-    } catch (e) {
-      if (isAbortError(e)) return;
-      if (e instanceof Error && e.message === "unauthorized") return;
-      setError(
-        e instanceof Error
-          ? e.message
-          : "Erreur de chargement des données. Vérifie ta connexion puis rafraîchis.",
-      );
-    } finally {
-      setLoading(false);
-      runningRef.current = false;
-    }
-  }, []);
-
-  // Polling — un seul timer à la fois (clear avant re-planif),
-  // pas de flash skeleton sur les refreshs silencieux.
-  React.useEffect(() => {
-    let mounted = true;
-    // Capture de l'AbortController courant : lit dans la cleanup, `ctrlRef.current`
-    // aura pu changer (un polling suivant) entre-temps et on annulerait le mauvais.
-    const ctrl = ctrlRef.current;
-    const schedule = () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = window.setTimeout(() => { if (mounted) { void loadData(undefined, true); schedule(); } }, POLL_MS);
-    };
-    void loadData();
-    schedule();
-
-    const onVis = () => { if (!document.hidden) { void loadData(undefined, true); schedule(); } };
-    document.addEventListener("visibilitychange", onVis);
-
-    return () => {
-      mounted = false;
-      if (timerRef.current) clearTimeout(timerRef.current);
-      ctrl?.abort();
-      document.removeEventListener("visibilitychange", onVis);
-    };
-  }, [loadData]);
+  const stats = query.data?.stats ?? null;
+  const funnel = query.data?.funnel ?? null;
+  const emailStats = query.data?.emailStats ?? null;
+  const loading = query.isPending;
+  const error = query.error
+    ? adminErrorMessage(
+        query.error,
+        "Erreur de chargement des données. Vérifie ta connexion puis rafraîchis.",
+      )
+    : null;
+  const lastRefresh = query.dataUpdatedAt || null;
+  const loadData = React.useCallback(async () => {
+    await query.refetch();
+  }, [query]);
 
   return (
     <div className="space-y-8">

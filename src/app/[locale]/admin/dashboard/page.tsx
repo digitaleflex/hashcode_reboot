@@ -21,7 +21,7 @@ import {
 import type { CronHealthItem } from "@/components/reboot/admin/dashboard/CronHealthSection";
 import type { EmailOpsData } from "@/components/reboot/admin/dashboard/EmailOpsSection";
 import type { DeliverabilityProviderSummary } from "@/components/reboot/admin/dashboard/EmailDeliverabilitySummary";
-import { fetchJson, isAbortError, withRetryAfter } from "@/components/reboot/admin/lib/fetchJson";
+import { adminErrorMessage, useAdminQuery } from "@/components/reboot/admin/lib/adminQuery";
 import { AlertCircle, Clock, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -89,103 +89,48 @@ function SectionError({ title, error, onRetry }: SectionErrorProps) {
 export default function AdminDashboardPage() {
   const router = useRouter();
 
-  // Unified data
-  const [data, setData] = React.useState<DashboardApiResponse | null>(null);
+  /**
+   * D25 + D32 — le fichier qui PORTAIT le bug D24.
+   *
+   * Il testait `res.status === 401 || code === "UNAUTHORIZED"` puis redirigeait
+   * vers `/?admin=1`. Après D24, une route refusée à un viewer répond 403 : ce
+   * dashboard le traitait comme une session expirée et renvoyait l'admin
+   * légitime vers la page de connexion. `adminRequest` sépare désormais les deux.
+   *
+   * Le `useEffect` de polling, ses deux timers, le `visibilitychange`, la garde
+   * `runningRef` et l'`AbortController` sont remplacés par `refetchInterval` +
+   * `refetchOnWindowFocus`. `runningRef` devient inutile : React Query n'envoie
+   * jamais deux requêtes concurrentes sur la même clé.
+   *
+   * `retry: false` : le 401 a déjà redirigé, réessayer ne fait que multiplier
+   * les requêtes avant que l'écran ne se vide.
+   */
+  const query = useAdminQuery<DashboardApiResponse>({
+    queryKey: ["admin", "dashboard"],
+    url: "/api/admin/dashboard",
+    init: { cache: "no-store" },
+    fallbackMessage: "Erreur de chargement du dashboard.",
+    retry: false,
+    refetchInterval: POLL_MS,
+    refetchOnWindowFocus: true,
+  });
 
-  // Per-section loading/error states
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
-  const [lastRefresh, setLastRefresh] = React.useState<number | null>(null);
+  const data = query.data ?? null;
+  const loading = query.isPending;
+  const error = query.error
+    ? adminErrorMessage(
+        query.error,
+        "Erreur de chargement des données. Vérifie ta connexion puis rafraîchis.",
+      )
+    : null;
+  const lastRefresh = query.dataUpdatedAt || null;
+  // Alertes par section, fournies par le serveur : ce ne sont pas des erreurs de
+  // requête, elles restent donc hors du canal `error` de React Query.
+  const sectionErrors = data?.errors ?? {};
 
-  // Per-section error tracking for granular recovery
-  const [sectionErrors, setSectionErrors] = React.useState<Record<string, string>>({});
-
-  // Polling refs
-  const ctrlRef = React.useRef<AbortController | null>(null);
-  const timerRef = React.useRef<number | null>(null);
-  const runningRef = React.useRef(false);
-
-  const loadData = React.useCallback(
-    async (signal?: AbortSignal, silent?: boolean) => {
-      if (runningRef.current) return;
-      runningRef.current = true;
-      if (!silent) setLoading(true);
-      setError(null);
-      ctrlRef.current = new AbortController();
-      const currentSignal = signal ?? ctrlRef.current.signal;
-
-      try {
-        const { res, data: result, code, error: errMsg, retryAfterSec } = await fetchJson(
-          "/api/admin/dashboard",
-          { cache: "no-store", signal: currentSignal },
-        );
-
-        if (currentSignal?.aborted) return;
-
-        if (res.status === 401 || code === "UNAUTHORIZED") {
-          window.location.href = "/?admin=1";
-          return;
-        }
-
-        if (!res.ok) {
-          const msg = errMsg ?? "Erreur de chargement du dashboard.";
-          throw new Error(
-            res.status === 429 || code === "RATE_LIMITED"
-              ? withRetryAfter(msg, retryAfterSec)
-              : msg,
-          );
-        }
-
-        const errors = (result as DashboardApiResponse).errors ?? {};
-        setSectionErrors(errors);
-        setData(result as DashboardApiResponse);
-        setLastRefresh(Date.now());
-      } catch (e) {
-        if (isAbortError(e)) return;
-        if (e instanceof Error && e.message === "unauthorized") return;
-        setError(
-          e instanceof Error
-            ? e.message
-            : "Erreur de chargement des données. Vérifie ta connexion puis rafraîchis.",
-        );
-      } finally {
-        if (!currentSignal?.aborted) setLoading(false);
-        runningRef.current = false;
-      }
-    },
-    [],
-  );
-
-  // Polling — un timer à la fois, refresh silencieux
-  React.useEffect(() => {
-    let mounted = true;
-    const schedule = () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = window.setTimeout(() => {
-        if (mounted) {
-          void loadData(undefined, true);
-          schedule();
-        }
-      }, POLL_MS);
-    };
-    void loadData();
-    schedule();
-
-    const onVis = () => {
-      if (!document.hidden) {
-        void loadData(undefined, true);
-        schedule();
-      }
-    };
-    document.addEventListener("visibilitychange", onVis);
-
-    return () => {
-      mounted = false;
-      if (timerRef.current) clearTimeout(timerRef.current);
-      ctrlRef.current?.abort();
-      document.removeEventListener("visibilitychange", onVis);
-    };
-  }, [loadData]);
+  const loadData = React.useCallback(async () => {
+    await query.refetch();
+  }, [query]);
 
   // Extract deliverability summary for the condensed section
   const deliverabilitySummary = data?.emailDeliverability?.summary ?? null;

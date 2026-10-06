@@ -4,6 +4,7 @@ import * as React from "react";
 import { MonoLabel } from "@/components/reboot/shared";
 import { RebootButton } from "@/components/reboot/shared";
 import { ImportCsvDialog } from "@/components/reboot/admin/ImportCsvDialog";
+import { useAdminQuery } from "@/components/reboot/admin/lib/adminQuery";
 import { ExportDialog } from "@/components/reboot/admin/ExportDialog";
 import { Download, FileJson } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -11,22 +12,25 @@ import { useToast } from "@/hooks/use-toast";
 export default function AdminExportsPage() {
   const [exporting, setExporting] = React.useState<"csv" | "json" | null>(null);
   const [exportDialogOpen, setExportDialogOpen] = React.useState(false);
-  const [totalMembers, setTotalMembers] = React.useState<number | null>(null);
   const { toast } = useToast();
 
-  // Total connu pour prévenir la troncature à 2000 lignes avant export.
-  React.useEffect(() => {
-    const ctrl = new AbortController();
-    fetch("/api/members?pageSize=1&page=1", { cache: "no-store", signal: ctrl.signal })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data && typeof data.total === "number") setTotalMembers(data.total);
-      })
-      .catch(() => {
-        /* silencieux — le warning est un bonus, pas un blocage */
-      });
-    return () => ctrl.abort();
-  }, []);
+  /**
+   * Total connu pour prévenir la troncature à 2000 lignes avant export.
+   *
+   * D25 + D32 : `useEffect` + `AbortController` + `fetch` nu -> une query.
+   * Le `fetch` brut ne verifiait aucun statut : une 401 ou un 403 passaient
+   * pour un simple « pas de total ». `useAdminQuery` leve et laisse `total` a
+   * `null`, le warning restant absent — meme rendu, mais le 401 redirige
+   * enfin au lieu de disparaitre.
+   */
+  const total = useAdminQuery<{ total?: number } | null>({
+    queryKey: ["admin", "members", "count"],
+    url: "/api/members?pageSize=1&page=1",
+    init: { cache: "no-store" },
+    selectData: (raw) => raw as { total?: number } | null,
+  });
+
+  const totalMembers = typeof total.data?.total === "number" ? total.data.total : null;
 
   async function handleExport(kind: "csv" | "json", columns?: string[]) {
     if (exporting) return;

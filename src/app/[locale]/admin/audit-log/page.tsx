@@ -1,16 +1,13 @@
 "use client";
 
-import * as React from "react";
-import { useRouter } from "next/navigation";
 import { AuditLogViewer } from "@/components/reboot/admin/AuditLogViewer";
 
+/**
+ * D25 : ce `handleSessionExpired` et son `useRouter` sont supprimes. La
+ * redirection 401 est desormais portee par `adminRequest`, et le 403 (role
+ * insuffisant) s'affiche sans navigation.
+ */
 export default function AdminAuditLogPage() {
-  const router = useRouter();
-
-  const handleSessionExpired = React.useCallback(() => {
-    router.push("/?admin=1");
-  }, [router]);
-
   return (
     <div className="space-y-8">
       <div>
@@ -20,7 +17,7 @@ export default function AdminAuditLogPage() {
         </p>
       </div>
 
-      <AuditLogViewer onSessionExpired={handleSessionExpired} />
+      <AuditLogViewer />
     </div>
   );
 }

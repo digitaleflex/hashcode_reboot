@@ -15,7 +15,7 @@ import {
   type InviteStatusStats,
   type InviteFunnel,
 } from "@/components/reboot/admin/marketing/MarketingGraphs";
-import { fetchJson } from "@/components/reboot/admin/lib/fetchJson";
+import { useAdminQuery } from "@/components/reboot/admin/lib/adminQuery";
 import { cn } from "@/lib/utils";
 import { Send, Megaphone, Upload, FlaskConical } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -38,17 +38,62 @@ function readTab(): TabId {
 
 export default function AdminMarketingPage() {
   const t = useTranslations("admin.marketing");
+  // D25 : `router` ne sert plus qu'aux boutons de navigation entre pages admin.
+  // La redirection 401 est portée par `adminRequest`, plus par un callback.
   const router = useRouter();
   const [tab, setTab] = React.useState<TabId>("overview");
-  const [emailStats, setEmailStats] = React.useState<EmailStatsData | null>(null);
-  const [audience, setAudience] = React.useState<AudienceSplit | null>(null);
-  const [inviteStats, setInviteStats] = React.useState<InviteStatusStats | null>(null);
-  const [funnel, setFunnel] = React.useState<InviteFunnel | null>(null);
-  const [loadingStats, setLoadingStats] = React.useState(true);
 
-  const handleSessionExpired = React.useCallback(() => {
-    router.push("/?admin=1");
-  }, [router]);
+  /**
+   * D25 + D32 : les 3 `fetchJson` parallèles deviennent 3 `useQuery`.
+   *
+   * Le `Promise.all` d'origine était **tout-ou-rien** : une seule erreur
+   * annulait les trois sections. Chaque `useQuery` est indépendant, donc une
+   * section en panne n'en efface plus les deux autres — c'est le seul écart,
+   * et il va dans le sens du `.catch(...)` muet d'origine, qui laissait
+   * deja les sections vides en cas d'echec.
+   *
+   * `retry: false` : ces trois lectures ne sont interrogées qu'au montage.
+   * Sans cela, un 401 serait réessayé 3 fois avant que la redirection ne parte.
+   */
+  const emails = useAdminQuery<EmailStatsData>({
+    queryKey: ["admin", "marketing", "email-stats"],
+    url: "/api/email-stats",
+    init: { cache: "no-store" },
+    retry: false,
+  });
+  const stats = useAdminQuery<{
+    totals?: { total?: number };
+    invitations?: { registered?: number; invited?: number };
+  }>({
+    queryKey: ["admin", "marketing", "stats"],
+    url: "/api/stats",
+    init: { cache: "no-store" },
+    retry: false,
+  });
+  const invites = useAdminQuery<{
+    ok?: boolean;
+    stats?: InviteStatusStats;
+    funnel?: InviteFunnel;
+  }>({
+    queryKey: ["admin", "marketing", "invites"],
+    url: "/api/admin/invitations?page=1&pageSize=1",
+    init: { cache: "no-store" },
+    retry: false,
+  });
+
+  const emailStats = emails.data ?? null;
+  const audience = React.useMemo<AudienceSplit | null>(() => {
+    const s = stats.data;
+    if (!s?.totals || !s?.invitations) return null;
+    return {
+      total: s.totals.total as number,
+      registered: s.invitations.registered as number,
+      invited: s.invitations.invited as number,
+    };
+  }, [stats.data]);
+  const inviteStats = invites.data?.ok ? (invites.data.stats ?? null) : null;
+  const funnel = invites.data?.ok ? (invites.data.funnel ?? null) : null;
+  const loadingStats = emails.isLoading || stats.isLoading || invites.isLoading;
 
   React.useEffect(() => {
     setTab(readTab());
@@ -64,48 +109,6 @@ export default function AdminMarketingPage() {
       /* ignore */
     }
   }, []);
-
-  React.useEffect(() => {
-    const ctrl = new AbortController();
-    setLoadingStats(true);
-    Promise.all([
-      fetchJson("/api/email-stats", { cache: "no-store", signal: ctrl.signal }),
-      fetchJson("/api/stats", { cache: "no-store", signal: ctrl.signal }),
-      fetchJson("/api/admin/invitations?page=1&pageSize=1", { cache: "no-store", signal: ctrl.signal }),
-    ])
-      .then(([emails, stats, invites]) => {
-        if (
-          emails.res.status === 401 ||
-          emails.code === "UNAUTHORIZED" ||
-          stats.res.status === 401 ||
-          stats.code === "UNAUTHORIZED" ||
-          invites.res.status === 401 ||
-          invites.code === "UNAUTHORIZED"
-        ) {
-          handleSessionExpired();
-          return;
-        }
-        if (emails.res.ok) setEmailStats(emails.data as EmailStatsData);
-        if (stats.res.ok && stats.data?.totals && stats.data?.invitations) {
-          setAudience({
-            total: stats.data.totals.total as number,
-            registered: stats.data.invitations.registered as number,
-            invited: stats.data.invitations.invited as number,
-          });
-        }
-        if (invites.res.ok && invites.data?.ok && invites.data?.stats) {
-          setInviteStats(invites.data.stats as InviteStatusStats);
-        }
-        if (invites.res.ok && invites.data?.ok && invites.data?.funnel) {
-          setFunnel(invites.data.funnel as InviteFunnel);
-        }
-      })
-      .catch(() => {
-        /* silencieux — les sections gèrent l'absence de données */
-      })
-      .finally(() => setLoadingStats(false));
-    return () => ctrl.abort();
-  }, [handleSessionExpired]);
 
   return (
     <div className="space-y-8">
@@ -214,26 +217,26 @@ export default function AdminMarketingPage() {
 
       {tab === "campagnes" && (
         <section aria-label={t("sectionsAria.campaigns")} className="space-y-4">
-          <AnnouncePanel onSessionExpired={handleSessionExpired} />
-          <RelancePanel onSessionExpired={handleSessionExpired} />
+          <AnnouncePanel />
+          <RelancePanel />
         </section>
       )}
 
       {tab === "historique" && (
         <section aria-label={t("sectionsAria.history")}>
-          <CampaignLogPanel onSessionExpired={handleSessionExpired} />
+          <CampaignLogPanel />
         </section>
       )}
 
       {tab === "import" && (
         <section aria-label={t("sectionsAria.import")}>
-          <ImportInvitePanel onSessionExpired={handleSessionExpired} />
+          <ImportInvitePanel />
         </section>
       )}
 
       {tab === "test" && (
         <section aria-label={t("sectionsAria.test")}>
-          <TestEmailPanel onSessionExpired={handleSessionExpired} />
+          <TestEmailPanel />
         </section>
       )}
     </div>

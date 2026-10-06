@@ -3,7 +3,7 @@
 import * as React from "react";
 import { MonoLabel } from "../shared";
 import { Skeleton } from "@/components/ui/skeleton";
-import { fetchJson } from "./lib/fetchJson";
+import { useAdminQuery } from "./lib/adminQuery";
 import { cn } from "@/lib/utils";
 
 interface LoginActivityData {
@@ -13,26 +13,23 @@ interface LoginActivityData {
 }
 
 export function LoginActivity() {
-  const [data, setData] = React.useState<LoginActivityData | null>(null);
-  const [loading, setLoading] = React.useState(true);
+  /**
+   * D32 : `useEffect` + `AbortController` + 2 `useState` -> une `useQuery`.
+   * Le `catch` muet d'origine est conservé : `data` reste `null` sur échec et le
+   * composant rend `null`. Même rendu, sans l'anneau `mounted`.
+   */
+  const query = useAdminQuery<LoginActivityData | null>({
+    queryKey: ["admin", "activity-logins"],
+    url: "/api/admin/activity-logins",
+    init: { cache: "no-store" },
+    selectData: (raw) => {
+      const d = raw as (LoginActivityData & { ok?: boolean }) | null;
+      return d?.ok ? d : null;
+    },
+  });
 
-  React.useEffect(() => {
-    const ctrl = new AbortController();
-    (async () => {
-      try {
-        const { res, data } = await fetchJson("/api/admin/activity-logins", {
-          cache: "no-store",
-          signal: ctrl.signal,
-        });
-        if (res.ok && data?.ok) setData(data as LoginActivityData);
-      } catch {
-        /* silencieux */
-      } finally {
-        setLoading(false);
-      }
-    })();
-    return () => ctrl.abort();
-  }, []);
+  const data = query.data ?? null;
+  const loading = query.isPending;
 
   if (loading && !data) {
     return (

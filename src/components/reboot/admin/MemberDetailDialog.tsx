@@ -13,7 +13,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { countryFlag, countryName } from "@/lib/profiling/countries";
 import { Check, Copy, Trash2, ExternalLink, Loader2 } from "lucide-react";
-import { fetchJson, isAbortError, withRetryAfter } from "./lib/fetchJson";
+import { adminErrorMessage, adminRequest, useAdminQuery } from "./lib/adminQuery";
+import { isAbortError } from "./lib/fetchJson";
 
 const DOMAIN_LABEL: Record<string, string> = {
   web: "Web",
@@ -54,111 +55,67 @@ export function MemberDetailDialog({
   onClose,
   onChanged,
   onDelete,
-  onSessionExpired,
 }: {
   id: string | null;
   onClose: () => void;
   onChanged: () => void;
   onDelete: (id: string) => Promise<void>;
-  onSessionExpired?: () => void;
 }) {
-  const [member, setMember] = React.useState<Record<string, unknown> | null>(
-    null,
-  );
-  const [loading, setLoading] = React.useState(false);
-  const [dialogError, setDialogError] = React.useState<string | null>(null);
+  /**
+   * D25 + D32 : le `useEffect` + `AbortController` + `setMember` disparaissent.
+   * La lecture du membre devient une `useQuery` :
+   *   - `url: null` quand aucun membre n'est ouvert reproduit exactement le
+   *     garde `if (!id) return` de l'ancien effet (rien ne part) ;
+   *   - le `signal` de la query annule le `fetch` au changement de membre : il
+   *     remplace `ctrl.abort()` ET la garde `mounted` ;
+   *   - la clé porte `id`, donc ouvrir un autre membre re-fetch comme avant.
+   */
+  const detail = useAdminQuery<Record<string, unknown> | null>({
+    queryKey: ["member-detail", id],
+    url: id ? `/api/members/${id}` : null,
+    init: { cache: "no-store" },
+    fallbackMessage: "Erreur de chargement du membre.",
+    selectData: (data) =>
+      (data as { member?: Record<string, unknown> | null } | null)?.member ??
+      null,
+  });
 
-  React.useEffect(() => {
-    if (!id) {
-      setMember(null);
-      setDialogError(null);
-      return;
-    }
-    const ctrl = new AbortController();
-    let mounted = true;
-    setLoading(true);
-    setDialogError(null);
-    (async () => {
-      try {
-        const { res, data, error, code, retryAfterSec } = await fetchJson(
-          `/api/members/${id}`,
-          {
-            cache: "no-store",
-            signal: ctrl.signal,
-          },
-        );
-        if (ctrl.signal.aborted) return;
-        if (res.status === 401 || code === "UNAUTHORIZED") {
-          if (onSessionExpired) onSessionExpired();
-          return;
-        }
-        if (!res.ok) {
-          const base = error ?? "Membre introuvable.";
-          throw new Error(
-            res.status === 429 || code === "RATE_LIMITED"
-              ? withRetryAfter(base, retryAfterSec)
-              : base,
-          );
-        }
-        if (mounted)
-          setMember((data?.member ?? null) as Record<string, unknown> | null);
-      } catch (e) {
-        if (isAbortError(e)) return;
-        if (mounted) {
-          setMember(null);
-          setDialogError(
-            e instanceof Error ? e.message : "Erreur de chargement du membre.",
-          );
-        }
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-      ctrl.abort();
-    };
-  }, [id, onSessionExpired]);
+  // Erreur d'écriture (PATCH / invite) : distincte de l'erreur de lecture, qui
+  // vit dans la query. L'ancien code les fusionnait dans un seul `dialogError`.
+  const [writeError, setWriteError] = React.useState<string | null>(null);
+
+  const member = detail.data ?? null;
+  const loading = !!id && detail.isLoading;
+  const readError = detail.error
+    ? adminErrorMessage(detail.error, "Erreur de chargement du membre.")
+    : null;
+  const dialogError = writeError ?? readError;
+
+  // D32 : le rafraîchissement post-écriture passait par un `fetchJson` manuel
+  // dans chacun des deux gestionnaires. Un seul `refetch`, même effet.
+  const refreshDetail = detail.refetch;
 
   async function patch(body: Record<string, unknown>): Promise<boolean> {
     if (!id) return false;
-    setDialogError(null);
+    setWriteError(null);
     try {
-      const { res, error, code, retryAfterSec } = await fetchJson(
+      await adminRequest(
         `/api/members/${id}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         },
+        { fallbackMessage: "Échec de la mise à jour." },
       );
-      if (res.status === 401 || code === "UNAUTHORIZED") {
-        if (onSessionExpired) onSessionExpired();
-        setDialogError("Session expirée. Reconnecte-toi.");
-        return false;
-      }
-      if (!res.ok) {
-        const base = error ?? "Échec de la mise à jour.";
-        setDialogError(
-          res.status === 429 || code === "RATE_LIMITED"
-            ? withRetryAfter(base, retryAfterSec)
-            : base,
-        );
-        return false;
-      }
-      // Refresh detail + table.
-      const refreshed = await fetchJson(`/api/members/${id}`, {
-        cache: "no-store",
-      });
-      if (refreshed.res.ok && refreshed.data?.member) {
-        setMember(refreshed.data.member as Record<string, unknown>);
-      }
+      await refreshDetail();
       onChanged();
       return true;
     } catch (e) {
       if (isAbortError(e)) return false;
-      const msg = e instanceof Error ? e.message : "Échec de la mise à jour.";
-      setDialogError(msg);
+      // D25 : un 403 arrive ici avec le message du serveur (« Accès refusé. »)
+      // SANS avoir redirigé. Un 401 a, lui, déjà redirigé.
+      setWriteError(adminErrorMessage(e, "Échec de la mise à jour."));
       return false;
     }
   }
@@ -168,45 +125,25 @@ export function MemberDetailDialog({
     joinUrl: string;
   } | null> {
     if (!id) return null;
-    setDialogError(null);
+    setWriteError(null);
     try {
-      const { res, data, error, code, retryAfterSec } = await fetchJson(
+      const data = await adminRequest<Record<string, unknown>>(
         `/api/members/${id}/invite`,
-        {
-          method: "POST",
-        },
+        { method: "POST" },
+        { fallbackMessage: "Échec de l'invitation." },
       );
-      if (res.status === 401 || code === "UNAUTHORIZED") {
-        if (onSessionExpired) onSessionExpired();
-        throw new Error("Session expirée. Reconnecte-toi.");
-      }
-      if (!res.ok) {
-        const base = error ?? "Échec de l'invitation.";
-        throw new Error(
-          res.status === 429 || code === "RATE_LIMITED"
-            ? withRetryAfter(base, retryAfterSec)
-            : base,
-        );
-      }
-      // Refresh detail + table after status change.
-      const refreshed = await fetchJson(`/api/members/${id}`, {
-        cache: "no-store",
-      });
-      if (refreshed.res.ok && refreshed.data?.member) {
-        setMember(refreshed.data.member as Record<string, unknown>);
-      }
+      await refreshDetail();
       onChanged();
       if (!data?.inviteMessage || !data?.joinUrl) {
         throw new Error("Réponse d'invitation incomplète.");
       }
       return {
-        inviteMessage: data.inviteMessage,
-        joinUrl: data.joinUrl,
+        inviteMessage: data.inviteMessage as string,
+        joinUrl: data.joinUrl as string,
       };
     } catch (e) {
       if (isAbortError(e)) return null;
-      const msg = e instanceof Error ? e.message : "Échec de l'invitation.";
-      setDialogError(msg);
+      setWriteError(adminErrorMessage(e, "Échec de l'invitation."));
       return null;
     }
   }
@@ -873,30 +810,34 @@ function TimelineStep({
 
 /** Historique des emails reçus par le membre (envois par lot + engagement). */
 function MemberEmailHistory({ memberId }: { memberId: string }) {
-  const [data, setData] = React.useState<{
+  /**
+   * D32 : l'ancien effet avalait toute erreur (catch muet) et
+   * gardait sa propre garde `cancelled`. Une `useQuery` rend les deux inutiles :
+   * l'annulation vient du `signal`, et l'échec reste silencieux parce que le
+   * composant ne rend rien si `data` est absent.
+   *
+   * Le rendu est identique : `null` tant qu'il n'y a rien à afficher.
+   */
+  const history = useAdminQuery<{
     sends: { at: string; label: string; kind: string; provider: string | null }[];
     engagement: { at: string; type: string; category: string | null }[];
-  } | null>(null);
+  } | null>({
+    queryKey: ["member-emails", memberId],
+    url: `/api/admin/member-emails?memberId=${encodeURIComponent(memberId)}`,
+    init: { cache: "no-store" },
+    retry: false,
+    selectData: (raw) => {
+      const d = raw as {
+        ok?: boolean;
+        sends?: { at: string; label: string; kind: string; provider: string | null }[];
+        engagement?: { at: string; type: string; category: string | null }[];
+      };
+      if (!d?.ok) return null;
+      return { sends: d.sends ?? [], engagement: d.engagement ?? [] };
+    },
+  });
 
-  React.useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const { res, data } = await fetchJson(
-          `/api/admin/member-emails?memberId=${encodeURIComponent(memberId)}`,
-          { cache: "no-store" },
-        );
-        if (!cancelled && res.ok && data?.ok) {
-          setData({ sends: data.sends ?? [], engagement: data.engagement ?? [] });
-        }
-      } catch {
-        /* silencieux */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [memberId]);
+  const data = history.data ?? null;
 
   if (!data || (data.sends.length === 0 && data.engagement.length === 0)) {
     return null;

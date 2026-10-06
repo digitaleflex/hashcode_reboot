@@ -16,7 +16,7 @@ import {
   CalendarDays,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { fetchJson, withRetryAfter } from "@/components/reboot/admin/lib/fetchJson";
+import { adminRequest } from "@/components/reboot/admin/lib/adminQuery";
 
 // ── Types (miroir de GET /api/admin/workshops et /stats) ────────────────────
 
@@ -146,41 +146,21 @@ function queryError(error: unknown): string {
 }
 
 async function loadWorkshops(): Promise<WorkshopsResponse> {
-  const { res, data, code, error, retryAfterSec } = await fetchJson(
+  // D25 : le bloc 401/429 (18 lignes) devient un appel. Le 401 redirige, le 403
+  // remonte en erreur affichable avec le message du serveur.
+  return adminRequest<WorkshopsResponse>(
     "/api/admin/workshops?limit=200",
     { cache: "no-store" },
+    { fallbackMessage: "Impossible de charger les ateliers." },
   );
-  if (res.status === 401 || code === "UNAUTHORIZED") {
-    window.location.href = "/?admin=1";
-    throw new Error("unauthorized");
-  }
-  if (!res.ok) {
-    throw new Error(
-      code === "RATE_LIMITED"
-        ? withRetryAfter(error ?? "Trop de requêtes.", retryAfterSec)
-        : error ?? "Impossible de charger les ateliers.",
-    );
-  }
-  return data as WorkshopsResponse;
 }
 
 async function loadStats(): Promise<StatsResponse> {
-  const { res, data, code, error, retryAfterSec } = await fetchJson(
+  return adminRequest<StatsResponse>(
     "/api/admin/workshops/stats",
     { cache: "no-store" },
+    { fallbackMessage: "Impossible de charger les statistiques." },
   );
-  if (res.status === 401 || code === "UNAUTHORIZED") {
-    window.location.href = "/?admin=1";
-    throw new Error("unauthorized");
-  }
-  if (!res.ok) {
-    throw new Error(
-      code === "RATE_LIMITED"
-        ? withRetryAfter(error ?? "Trop de requêtes.", retryAfterSec)
-        : error ?? "Impossible de charger les statistiques.",
-    );
-  }
-  return data as StatsResponse;
 }
 
 function StatCard({

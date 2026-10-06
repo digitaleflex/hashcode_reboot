@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { MonoLabel, RebootButton } from "@/components/reboot/shared";
-import { fetchJson } from "@/components/reboot/admin/lib/fetchJson";
+import { useAdminQuery } from "@/components/reboot/admin/lib/adminQuery";
 import { cn } from "@/lib/utils";
 import {
   Send,
@@ -26,6 +26,26 @@ import {
 /* ── Types ─────────────────────────────────────────────────────────────── */
 
 type Kind = "invite" | "relance" | "annonce" | "rejoin" | "engagement";
+
+/**
+ * D32 : l'URL était construite dans le corps de `load`. Elle devient une
+ * fonction pure, appelée par `useAdminQuery`. Les paramètres vides sont omis
+ * comme avant (`if (kind) params.set(...)`).
+ */
+function buildEmailLogUrl(f: {
+  kind: "" | Kind;
+  provider: "" | "resend" | "brevo";
+  search: string;
+  page: number;
+}): string {
+  const params = new URLSearchParams();
+  if (f.kind) params.set("kind", f.kind);
+  if (f.provider) params.set("provider", f.provider);
+  if (f.search) params.set("search", f.search);
+  params.set("page", String(f.page));
+  params.set("pageSize", "25");
+  return `/api/admin/email-log?${params.toString()}`;
+}
 
 interface LogRow {
   id: string;
@@ -443,9 +463,7 @@ function Pagination({
 
 /* ── Panneau ───────────────────────────────────────────────────────────── */
 
-export function CampaignLogPanel({ onSessionExpired }: { onSessionExpired: () => void }) {
-  const [data, setData] = React.useState<LogResponse | null>(null);
-  const [loading, setLoading] = React.useState(true);
+export function CampaignLogPanel() {
   const [kind, setKind] = React.useState<"" | Kind>("");
   const [provider, setProvider] = React.useState<"" | "resend" | "brevo">("");
   const [searchInput, setSearchInput] = React.useState("");
@@ -461,41 +479,37 @@ export function CampaignLogPanel({ onSessionExpired }: { onSessionExpired: () =>
     return () => window.clearTimeout(t);
   }, [searchInput]);
 
-  const load = React.useCallback(
-    async (signal?: AbortSignal) => {
-      setLoading(true);
-      try {
-        const params = new URLSearchParams();
-        if (kind) params.set("kind", kind);
-        if (provider) params.set("provider", provider);
-        if (search) params.set("search", search);
-        params.set("page", String(page));
-        params.set("pageSize", "25");
-
-        const { res, data: payload, code } = await fetchJson(
-          `/api/admin/email-log?${params.toString()}`,
-          { cache: "no-store", signal },
-        );
-
-        if (res.status === 401 || code === "UNAUTHORIZED") {
-          onSessionExpired();
-          return;
-        }
-        if (res.ok && payload?.ok) setData(payload as LogResponse);
-      } catch (e) {
-        if (e instanceof DOMException && e.name === "AbortError") return;
-      } finally {
-        setLoading(false);
-      }
+  /**
+   * D25 + D32 : `load` + `AbortController` + `useState(data, loading)` ->
+   * une seule `useQuery`.
+   *
+   * Équivalence vérifiée avant de migrer :
+   *   - QUAND la requête part : l'ancien `useEffect` dépendait de
+   *     `[kind, provider, search, page]`. La clé de query porte exactement ces
+   *     quatre valeurs : changer un filtre re-fetch comme avant.
+   *   - `searchInput` n'est PAS dans la clé — il reste débouncé par le `timeout`
+   *     au-dessus, donc la frappe ne relance toujours rien.
+   *   - `loading` : l'ancien `setLoading(true)` revenait à chaque `load`, donc
+   *     aussi lors d'un changement de filtre. `isLoading` ne serait vrai qu'au
+   *     premier chargement. On prend `isFetching`, qui couvre les deux cas et
+   *     garde le spinner du bouton « Actualiser » exact.
+   *   - le `catch` avalait tout : une erreur ne displays rien de nouveau.
+   */
+  const query = useAdminQuery<LogResponse | null>({
+    queryKey: ["admin", "email-log", { kind, provider, search, page }],
+    url: buildEmailLogUrl({ kind, provider, search, page }),
+    init: { cache: "no-store" },
+    selectData: (raw) => {
+      const payload = raw as LogResponse | null;
+      return payload?.ok ? payload : null;
     },
-    [kind, provider, search, page, onSessionExpired],
-  );
+  });
 
-  React.useEffect(() => {
-    const ctrl = new AbortController();
-    void load(ctrl.signal);
-    return () => ctrl.abort();
-  }, [load]);
+  const data = query.data ?? null;
+  const loading = query.isFetching;
+  const load = async () => {
+    await query.refetch();
+  };
 
   const changeKind = (value: "" | Kind) => {
     setKind(value);

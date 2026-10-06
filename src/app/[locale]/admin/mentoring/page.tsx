@@ -12,7 +12,11 @@ import {
   Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { fetchJson } from "@/components/reboot/admin/lib/fetchJson";
+import { adminErrorMessage, adminRequest, useAdminQuery } from "@/components/reboot/admin/lib/adminQuery";
+
+/** Références stables : évite de recréer un tableau vide à chaque rendu. */
+const EMPTY_LEADS: Lead[] = [];
+const EMPTY_MENTORS: Mentor[] = [];
 
 // ── Types (miroir des routes /api/admin/mentoring/*) ───────────────────────
 
@@ -79,10 +83,6 @@ function fmtDate(iso: string): string {
 
 export default function AdminMentoringPage() {
   const [tab, setTab] = React.useState<"leads" | "mentors">("leads");
-  const [leads, setLeads] = React.useState<Lead[]>([]);
-  const [mentors, setMentors] = React.useState<Mentor[]>([]);
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
   const [budgetFilter, setBudgetFilter] = React.useState<string>("all");
   const [domainFilter, setDomainFilter] = React.useState<string>("all");
   const [expandedLead, setExpandedLead] = React.useState<string | null>(null);
@@ -90,38 +90,53 @@ export default function AdminMentoringPage() {
   const [suggesting, setSuggesting] = React.useState(false);
   const [acting, setActing] = React.useState<string | null>(null);
 
-  const load = React.useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
+  /**
+   * D25 + D32 : `load` + `useEffect` + 2 `useState` -> une query.
+   *
+   * Les DEUX endpoints sont lus dans une seule query, pas deux : le `Promise.all`
+   * d'origine était tout-ou-rien (une erreur des deux annulait l'autre), et c'est
+   * aussi ce qui permet à `markContacted` / `assign` de revalider par un seul
+   * `refetch()` après écriture.
+   *
+   * D25 au passage : ce fichier ne testait NI 401 NI 429 — une session expirée y
+   * affichait « Chargement impossible. » ou pire, un `null` silencieux. Le 401
+   * redirige désormais.
+   */
+  const query = useAdminQuery<{ leads: Lead[]; mentors: Mentor[] }>({
+    queryKey: ["admin", "mentoring"],
+    queryFn: async ({ signal }) => {
       const [l, m] = await Promise.all([
-        fetchJson("/api/admin/mentoring/leads"),
-        fetchJson("/api/admin/mentoring/mentors"),
+        adminRequest<{ leads?: Lead[] }>("/api/admin/mentoring/leads", { signal }, {
+          fallbackMessage: "Chargement impossible.",
+        }),
+        adminRequest<{ mentors?: Mentor[] }>("/api/admin/mentoring/mentors", { signal }, {
+          fallbackMessage: "Chargement impossible.",
+        }),
       ]);
-      if (l.error) throw new Error(l.error);
-      if (m.error) throw new Error(m.error);
-      setLeads(l.data.leads ?? []);
-      setMentors(m.data.mentors ?? []);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Chargement impossible.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return { leads: l.leads ?? [], mentors: m.mentors ?? [] };
+    },
+  });
 
-  React.useEffect(() => {
-    void load();
-  }, [load]);
+  const leads = query.data?.leads ?? EMPTY_LEADS;
+  const mentors = query.data?.mentors ?? EMPTY_MENTORS;
+  const loading = query.isPending;
+  const error = query.error
+    ? adminErrorMessage(query.error, "Chargement impossible.")
+    : null;
+
+  const load = React.useCallback(async () => {
+    await query.refetch();
+  }, [query]);
 
   async function markContacted(id: string) {
     setActing(`contact-${id}`);
     try {
-      const { error: err } = await fetchJson("/api/admin/mentoring/contacted", {
+      await adminRequest("/api/admin/mentoring/contacted", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ memberId: id }),
       });
-      if (!err) await load();
+      await query.refetch();
     } finally {
       setActing(null);
     }
@@ -136,7 +151,9 @@ export default function AdminMentoringPage() {
     setSuggesting(true);
     setSuggestions([]);
     try {
-      const { data } = await fetchJson(`/api/admin/mentoring/match?menteeId=${leadId}`);
+      const data = await adminRequest<{ suggestions?: Suggestion[] }>(
+        `/api/admin/mentoring/match?menteeId=${leadId}`,
+      );
       setSuggestions(data?.suggestions ?? []);
     } finally {
       setSuggesting(false);
@@ -146,15 +163,13 @@ export default function AdminMentoringPage() {
   async function assign(mentorId: string, menteeId: string) {
     setActing(`assign-${mentorId}`);
     try {
-      const { error: err } = await fetchJson("/api/admin/mentoring/assign", {
+      await adminRequest("/api/admin/mentoring/assign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mentorId, menteeId }),
       });
-      if (!err) {
-        setExpandedLead(null);
-        await load();
-      }
+      setExpandedLead(null);
+      await query.refetch();
     } finally {
       setActing(null);
     }

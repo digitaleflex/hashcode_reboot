@@ -2,41 +2,49 @@
 
 import * as React from "react";
 import { MonoLabel, RebootButton } from "@/components/reboot/shared";
-import { fetchJson, withRetryAfter } from "@/components/reboot/admin/lib/fetchJson";
+import { adminErrorMessage, adminRequest } from "@/components/reboot/admin/lib/adminQuery";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, FlaskConical } from "lucide-react";
 
 type Kind = "welcome" | "invite" | "both";
 
-export function TestEmailPanel({ onSessionExpired }: { onSessionExpired: () => void }) {
+export function TestEmailPanel() {
   const { toast } = useToast();
   const [email, setEmail] = React.useState("");
   const [kind, setKind] = React.useState<Kind>("both");
   const [loading, setLoading] = React.useState(false);
 
+  /**
+   * D25 — correction du bug D24, c'est le site le plus explicite.
+   *
+   * Avant : `if (res.status === 401 || code === "UNAUTHORIZED" || res.status === 403)`
+   * Les deux derniers termes declenchaient la meme redirection : un 403 --
+   * session valide, role insuffisant -- deconnectait un admin legitime de
+   * l'espace admin alors qu'il avait le droit d'y etre.
+   *
+   * Après : `adminRequest` redirige sur 401 seul. Un 403 remonte en
+   * `AdminRequestError` et s'affiche dans le toast, sans navigation.
+   */
   async function handleSend() {
     if (loading || !email.trim()) return;
     setLoading(true);
     try {
-      const { res, data, error, code, retryAfterSec } = await fetchJson("/api/admin/test-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim().toLowerCase(), kind }),
-      });
-      if (res.status === 401 || code === "UNAUTHORIZED" || res.status === 403) {
-        onSessionExpired();
-        return;
-      }
-      if (!res.ok) {
-        const base = error ?? "Échec de l'envoi de test.";
-        toast({
-          title: "Erreur",
-          description: res.status === 429 || code === "RATE_LIMITED" ? withRetryAfter(base, retryAfterSec) : base,
-          variant: "destructive",
-        });
-        return;
-      }
+      await adminRequest(
+        "/api/admin/test-email",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email.trim().toLowerCase(), kind }),
+        },
+        { fallbackMessage: "Échec de l'envoi de test." },
+      );
       toast({ title: "Email de test envoyé", description: `Modèle(s) « ${kind} » envoyés à ${email.trim()}.` });
+    } catch (e) {
+      toast({
+        title: "Erreur",
+        description: adminErrorMessage(e, "Échec de l'envoi de test."),
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }

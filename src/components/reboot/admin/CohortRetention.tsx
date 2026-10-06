@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { fetchJson, isAbortError } from "@/components/reboot/admin/lib/fetchJson";
+import { adminErrorMessage, useAdminQuery } from "@/components/reboot/admin/lib/adminQuery";
 
 export interface CohortRow {
   cohort: string; // "2026-W36"
@@ -26,49 +26,28 @@ function colorForRate(rate: number): string {
 }
 
 export function CohortRetention() {
-  const [rows, setRows] = React.useState<CohortRow[] | null>(null);
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
+  /**
+   * D32 : la boucle `tick` + `setTimeout` + `mounted` + `AbortController` +
+   * 3 `useState` deviennent `refetchInterval` et deux valeurs dérivées.
+   *
+   * Le timer d'origine replanifiait APRÈS chaque réponse ; `refetchInterval`
+   * mesure l'intervalle entre le début des requêtes. Sur une réponse lente
+   * (> 30 s) le rythme diffère — sans effet ici, la donnée est un tableau de
+   * cohortes qui se refreshing pas à la seconde.
+   */
+  const query = useAdminQuery<CohortRow[]>({
+    queryKey: ["admin", "stats", "cohort"],
+    url: "/api/stats/cohort",
+    init: { cache: "no-store" },
+    fallbackMessage: "Erreur de chargement des cohortes.",
+    refetchInterval: POLL_MS,
+  });
 
-  const load = React.useCallback(async (signal?: AbortSignal) => {
-    try {
-      const { res, data, error: errMsg } = await fetchJson("/api/stats/cohort", {
-        cache: "no-store",
-        signal,
-      });
-      if (signal?.aborted) return;
-      if (!res.ok) {
-        throw new Error(errMsg ?? "Erreur de chargement des cohortes.");
-      }
-      setRows(data);
-    } catch (e) {
-      if (isAbortError(e)) return;
-      setError(
-        e instanceof Error
-          ? e.message
-          : "Erreur de chargement des cohortes.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  React.useEffect(() => {
-    const ctrl = new AbortController();
-    let mounted = true;
-    let timer: number | null = null;
-    const tick = async () => {
-      if (!mounted) return;
-      await load(ctrl.signal);
-      timer = window.setTimeout(tick, POLL_MS);
-    };
-    void tick();
-    return () => {
-      mounted = false;
-      if (timer) clearTimeout(timer);
-      ctrl.abort();
-    };
-  }, [load]);
+  const rows = query.data ?? null;
+  const loading = query.isPending;
+  const error = query.error
+    ? adminErrorMessage(query.error, "Erreur de chargement des cohortes.")
+    : null;
 
   if (loading && !rows) {
     return (

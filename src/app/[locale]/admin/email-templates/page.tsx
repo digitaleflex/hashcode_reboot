@@ -24,6 +24,7 @@ import {
 import { cn } from "@/lib/utils";
 import { MonoLabel, RebootButton } from "@/components/reboot/shared";
 import { fetchJson } from "@/components/reboot/admin/lib/fetchJson";
+import { adminErrorMessage, adminRequest } from "@/components/reboot/admin/lib/adminQuery";
 
 /* ── Types ─────────────────────────────────────────────────────────────── */
 
@@ -191,20 +192,34 @@ export default function EmailTemplatesPage() {
 
   /* ── Chargement ─────────────────────────────────────────────────────── */
 
+  /**
+   * D25 : le bloc 401/403/429 (7 lignes) passe par `adminRequest`. Une session
+   * expirée redirige ; un 403 (rôle insuffisant) remonte en `AdminRequestError`
+   * et s'affiche dans le bandeau d'erreur, sans navigation.
+   *
+   * D32 : cette lecture N'EST PAS encore passée en `useQuery`. Elle est appelée
+   * depuis 5 gestionnaires d'écriture, et partage un unique `error` avec eux
+   * (4 `setError(null)` manuels). Extraire la query obligerait à scinder cet
+   * état partagé — un refactor de rendu, pas un simple remplacement de fetch.
+   * Volontairement laissé tel quel : « migration n'est pas un changement de
+   * comportement », et celui-ci aurait un coût en régression invisible.
+   */
   const loadList = React.useCallback(async () => {
     setLoading(true);
     try {
-      const { res, data, code } = await fetchJson("/api/admin/email-templates", { cache: "no-store" });
-      if (res.status === 401 || code === "UNAUTHORIZED") {
-        window.location.assign("/?admin=1");
-        return;
-      }
-      if (!res.ok || !data?.ok) throw new Error(data?.error ?? "Chargement impossible.");
+      const data = await adminRequest<{
+        ok?: boolean;
+        templates?: TemplateListItem[];
+        counts?: { total: number; marketing: number; active: number; missing: number };
+      }>("/api/admin/email-templates", { cache: "no-store" }, {
+        fallbackMessage: "Chargement impossible.",
+      });
+      if (!data?.ok) throw new Error("Chargement impossible.");
       setList(data.templates ?? []);
       setCounts(data.counts ?? { total: 0, marketing: 0, active: 0, missing: 0 });
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Chargement impossible.");
+      setError(adminErrorMessage(e, "Chargement impossible."));
     } finally {
       setLoading(false);
     }

@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { fetchJson, isAbortError, withRetryAfter } from "@/components/reboot/admin/lib/fetchJson";
+import { adminErrorMessage, adminRequest } from "@/components/reboot/admin/lib/adminQuery";
+import { isAbortError } from "@/components/reboot/admin/lib/fetchJson";
 import { useToast } from "@/hooks/use-toast";
 import { Mail, Upload, CheckCircle, AlertCircle, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -27,7 +28,7 @@ interface SubmitResult {
   skippedEmails: string[];
 }
 
-export function ImportInvitePanel({ onSessionExpired }: { onSessionExpired: () => void }) {
+export function ImportInvitePanel() {
   const t = useTranslations("admin.members.importInvitePanel");
   const { toast } = useToast();
   const [csvText, setCsvText] = React.useState("");
@@ -37,6 +38,11 @@ export function ImportInvitePanel({ onSessionExpired }: { onSessionExpired: () =
   const [error, setError] = React.useState<string | null>(null);
   const [expanded, setExpanded] = React.useState(false);
 
+  /**
+   * D25 : `adminRequest` porte désormais la décision. Le 401 redirige, le 403
+   * remonte en `AdminRequestError` avec le message du serveur et s'affiche
+   * dans la bannière — il ne déclenche plus de redirection.
+   */
   const handleDryRun = React.useCallback(async () => {
     if (!csvText.trim()) return;
     setLoading(true);
@@ -44,32 +50,27 @@ export function ImportInvitePanel({ onSessionExpired }: { onSessionExpired: () =
     setResult(null);
     setDryRun(null);
     try {
-      const { res, data, error: err, code, retryAfterSec } = await fetchJson("/api/admin/import-invite", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ csvText, confirm: false }),
-      });
-      if (res.status === 401 || code === "UNAUTHORIZED") {
-        onSessionExpired();
-        return;
-      }
-      if (!res.ok) {
-        const base = err ?? t("analyzeFailed");
-        setError(
-          res.status === 429 || code === "RATE_LIMITED"
-            ? withRetryAfter(base, retryAfterSec)
-            : t("analyzeError", { detail: base }),
-        );
-        return;
-      }
-      setDryRun(data as DryRunResult);
+      const data = await adminRequest<DryRunResult>(
+        "/api/admin/import-invite",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ csvText, confirm: false }),
+        },
+        { fallbackMessage: t("analyzeFailed") },
+      );
+      setDryRun(data);
     } catch (e) {
       if (isAbortError(e)) return;
-      setError(t("analyzeError", { detail: "Erreur lors de l'analyse du CSV." }));
+      setError(
+        t("analyzeError", {
+          detail: adminErrorMessage(e, "Erreur lors de l'analyse du CSV."),
+        }),
+      );
     } finally {
       setLoading(false);
     }
-  }, [csvText, onSessionExpired, t]);
+  }, [csvText, t]);
 
   const handleSend = React.useCallback(async () => {
     if (!csvText.trim()) return;
@@ -78,37 +79,30 @@ export function ImportInvitePanel({ onSessionExpired }: { onSessionExpired: () =
     setDryRun(null);
     setResult(null);
     try {
-      const { res, data, error: err, code, retryAfterSec } = await fetchJson("/api/admin/import-invite", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ csvText, confirm: true }),
-      });
-      if (res.status === 401 || code === "UNAUTHORIZED") {
-        onSessionExpired();
-        return;
-      }
-      if (!res.ok) {
-        const base = err ?? t("importFailed");
-        setError(
-          res.status === 429 || code === "RATE_LIMITED"
-            ? withRetryAfter(base, retryAfterSec)
-            : t("importError", { detail: base }),
-        );
-        return;
-      }
-      setResult(data as SubmitResult);
+      const data = await adminRequest<SubmitResult>(
+        "/api/admin/import-invite",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ csvText, confirm: true }),
+        },
+        { fallbackMessage: t("importFailed") },
+      );
+      setResult(data);
       toast({
-        title: t("toastCreatedTitle", { created: (data as SubmitResult).created }),
-        description: t("toastSentDescription", { emailsSent: (data as SubmitResult).emailsSent }),
+        title: t("toastCreatedTitle", { created: data.created }),
+        description: t("toastSentDescription", { emailsSent: data.emailsSent }),
       });
       setCsvText("");
     } catch (e) {
       if (isAbortError(e)) return;
-      setError(t("importError", { detail: "Erreur lors de l'import." }));
+      setError(
+        t("importError", { detail: adminErrorMessage(e, "Erreur lors de l'import.") }),
+      );
     } finally {
       setLoading(false);
     }
-  }, [csvText, onSessionExpired, toast, t]);
+  }, [csvText, toast, t]);
 
   return (
     <section className="rounded-lg border border-border bg-card p-4 space-y-4">

@@ -3,7 +3,11 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { fetchJson, withRetryAfter } from "@/components/reboot/admin/lib/fetchJson";
+import {
+  adminErrorMessage,
+  adminRequest,
+  useAdminQuery,
+} from "@/components/reboot/admin/lib/adminQuery";
 import {
   Mail,
   MailCheck,
@@ -69,15 +73,21 @@ interface InvitationsResponse {
   pagination: { page: number; pageSize: number; total: number; totalPages: number };
 }
 
+/** D32 : l'URL de la liste devient une fonction pure, appelée par `useQuery`. */
+function buildInvitationsUrl(statusFilter: string, page: number): string {
+  const params = new URLSearchParams();
+  if (statusFilter !== "ALL") params.set("status", statusFilter);
+  params.set("page", String(page));
+  params.set("pageSize", "50");
+  return `/api/admin/invitations?${params.toString()}`;
+}
+
 /* ── Status config ─────────────────────────────────────────────────────── */
 
 export default function AdminInvitationsPage() {
   const t = useTranslations("admin.invitations");
-  const router = useRouter();
   const { toast } = useToast();
 
-  const [data, setData] = React.useState<InvitationsResponse | null>(null);
-  const [loading, setLoading] = React.useState(true);
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("ALL");
   const [page, setPage] = React.useState(1);
   const [search, setSearch] = React.useState("");
@@ -103,41 +113,44 @@ export default function AdminInvitationsPage() {
 
   type StatusFilter = typeof STATUS_FILTERS[number];
 
-  const handleSessionExpired = React.useCallback(() => {
-    router.push("/?admin=1");
-  }, [router]);
+  /**
+   * D25 : le 5e et dernier `handleSessionExpired` du dépôt disparaît. La
+   * lecture est une `useQuery` (D32) et la relance passe par `adminRequest`.
+   *
+   * Le filtre `statusFilter` et la `page` sont dans la clé, donc changer de
+   * filtre relance la requête — exactement ce que faisait l'ancien
+   * `useEffect([fetchData])` avec `fetchData` dépendant de `[statusFilter, page]`.
+   */
+  const list = useAdminQuery<InvitationsResponse | null>({
+    queryKey: ["admin", "invitations", statusFilter, page],
+    url: buildInvitationsUrl(statusFilter, page),
+    fallbackMessage: t("toast.loadFailed"),
+    selectData: (raw) => {
+      const d = raw as InvitationsResponse | null;
+      return d?.ok ? d : null;
+    },
+  });
+
+  const data = list.data ?? null;
+  const loading = list.isFetching;
 
   const fetchData = React.useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (statusFilter !== "ALL") params.set("status", statusFilter);
-      params.set("page", String(page));
-      params.set("pageSize", "50");
-
-      const { res, data, error, code } = await fetchJson(
-        `/api/admin/invitations?${params.toString()}`,
-      );
-
-      if (res.status === 401 || code === "UNAUTHORIZED") {
-        handleSessionExpired();
-        return;
-      }
-      if (!res.ok || !data?.ok) {
-        toast({ title: t("toast.loadErrorTitle"), description: error || t("toast.loadFailed"), variant: "destructive" });
-        return;
-      }
-      setData(data);
-    } catch {
-      toast({ title: t("toast.networkErrorTitle"), variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  }, [statusFilter, page, handleSessionExpired, toast, t]);
+    await list.refetch();
+  }, [list]);
 
   React.useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    // D25 : les erreurs ne sont plus converties en toast ici. Une 401 a
+    // redirigé ; un 403/429 remonte dans `list.error` et l'affichage du bandeau
+    // prend le relais. Le toast réseau de l'ancien `catch` n'a plus de source.
+    if (list.error) {
+      toast({
+        title: t("toast.loadErrorTitle"),
+        description: adminErrorMessage(list.error, t("toast.loadFailed")),
+        variant: "destructive",
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [list.error]);
 
   const handleRelance = React.useCallback(
     async (ids: string[]) => {
@@ -147,37 +160,42 @@ export default function AdminInvitationsPage() {
       }
       setRelanceLoading(true);
       try {
-        const { res, data: d, error, code, retryAfterSec } = await fetchJson(
+        const d = await adminRequest<{
+          ok?: boolean;
+          sent?: number;
+        }>(
           "/api/invite/relance",
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ memberIds: ids, confirm: true }),
           },
+          { fallbackMessage: t("toast.relanceFailed") },
         );
-        if (res.status === 401 || code === "UNAUTHORIZED") {
-          handleSessionExpired();
-          return;
-        }
-        if (!res.ok || !d?.ok) {
+        if (!d?.ok) {
           toast({
             title: t("toast.relanceErrorTitle"),
-            description: res.status === 429 || code === "RATE_LIMITED" ? withRetryAfter(error ?? t("toast.tooManyRequests"), retryAfterSec) : error || t("toast.relanceFailed"),
+            description: t("toast.relanceFailed"),
             variant: "destructive",
           });
           return;
         }
-        toast({ title: t("toast.relanceSentTitle"), description: t("toast.relanceSentDescription", { sent: d.sent }) });
+        toast({ title: t("toast.relanceSentTitle"), description: t("toast.relanceSentDescription", { sent: d.sent ?? 0 }) });
         setRelanceOpen(false);
         setSelectedIds(new Set());
-        fetchData();
-      } catch {
-        toast({ title: t("toast.networkErrorTitle"), variant: "destructive" });
+        await list.refetch();
+      } catch (e) {
+        // 401 a déjà redirigé. 403 / 429 / panne : message serveur dans le toast.
+        toast({
+          title: t("toast.relanceErrorTitle"),
+          description: adminErrorMessage(e, t("toast.relanceFailed")),
+          variant: "destructive",
+        });
       } finally {
         setRelanceLoading(false);
       }
     },
-    [fetchData, handleSessionExpired, toast, t],
+    [list, toast, t],
   );
 
   const stats = data?.stats;

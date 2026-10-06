@@ -18,7 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { fetchJson, withRetryAfter } from "@/components/reboot/admin/lib/fetchJson";
+import { adminRequest } from "@/components/reboot/admin/lib/adminQuery";
 import { useToast } from "@/hooks/use-toast";
 
 // ── Types (miroir de GET /api/admin/workshops/submissions) ──────────────────
@@ -151,22 +151,14 @@ async function loadSubmissions(filter: FilterValue): Promise<SubmissionListRespo
 
   const lists = await Promise.all(
     statuses.map(async (status) => {
-      const { res, data, code, error, retryAfterSec } = await fetchJson(
+      // D25 : le `Promise.all` multi-statuts est conservé tel quel — la fusion
+      // qui suit a besoin du tableau complet. Seul le bloc 401/429 disparaît.
+      const data = await adminRequest<SubmissionListResponse>(
         `/api/admin/workshops/submissions?status=${status}&limit=500`,
         { cache: "no-store" },
+        { fallbackMessage: "Impossible de charger les soumissions." },
       );
-      if (res.status === 401 || code === "UNAUTHORIZED") {
-        window.location.href = "/?admin=1";
-        throw new Error("unauthorized");
-      }
-      if (!res.ok) {
-        throw new Error(
-          code === "RATE_LIMITED"
-            ? withRetryAfter(error ?? "Trop de requêtes.", retryAfterSec)
-            : error ?? "Impossible de charger les soumissions.",
-        );
-      }
-      return (data as SubmissionListResponse).submissions;
+      return data.submissions;
     }),
   );
 
@@ -414,25 +406,15 @@ function ReviewPanel({
       decision: ReviewDecision;
       feedback: string;
     }) => {
-      const { res, data, code, error, retryAfterSec } = await fetchJson(
+      const data = await adminRequest(
         `/api/admin/workshops/submissions/${submission.id}/review`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(variables),
         },
+        { fallbackMessage: "Échec de l'enregistrement de la revue." },
       );
-      if (res.status === 401 || code === "UNAUTHORIZED") {
-        window.location.href = "/?admin=1";
-        throw new Error("unauthorized");
-      }
-      if (!res.ok) {
-        throw new Error(
-          code === "RATE_LIMITED"
-            ? withRetryAfter(error ?? "Trop de requêtes.", retryAfterSec)
-            : error ?? "Échec de l'enregistrement de la revue.",
-        );
-      }
       return data;
     },
     onSuccess: () => {

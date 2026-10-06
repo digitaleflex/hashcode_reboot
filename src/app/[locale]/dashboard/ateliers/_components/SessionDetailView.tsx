@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import {
   ArrowLeft,
@@ -93,6 +94,14 @@ interface SessionData {
   mySubmissions: Submission[];
 }
 
+/**
+ * Résultat de la lecture d'une session. D32 : l'erreur est une VARIANTE de la
+ * valeur de retour, pas une exception — voir le commentaire sur la query.
+ */
+type SessionResult =
+  | { ok: true; data: SessionData }
+  | { ok: false; status: number; code: string; message: string };
+
 function isUrlDeliverable(type: string): boolean {
   return ["url", "github_repo", "pull_request", "project", "deployed_url", "screenshot"].includes(type);
 }
@@ -107,12 +116,23 @@ function formatDate(iso: string): string {
 }
 
 export function SessionDetailView({ slug, sessionId, t }: { slug: string; sessionId: string; t: ReturnType<typeof useTranslations> }) {
-  const [data, setData] = React.useState<SessionData | null>(null);
-  const [error, setError] = React.useState<{ status: number; code: string; message: string } | null>(null);
-  const [loading, setLoading] = React.useState(true);
-
-  const load = React.useCallback(
-    async (signal: AbortSignal) => {
+  /**
+   * D32 — le pire cas de la roadmap (2 `AbortController`, `load` + `reload`).
+   *
+   * DÉLIBÉRÉMENT PAS `adminRequest` : c'est la vue MEMBRE d'un atelier. Le 401 y
+   *.displayait un `ErrorScreen`, il ne redirigeait pas. Appliquer la redirection
+   * admin vers `/login?next=%2Fadmin` aurait été une régression. On garde donc
+   * un `useQuery` neutre, sans la décision admin.
+   *
+   * L'erreur n'est pas `throw`ée : elle voyage dans la valeur de retour, sous
+   * forme d'union `{ok:false, status, code, message}`. `useQuery` ne modelled
+   * qu'un `Error`, et cette vue a besoin de `status` ET `code` pour choisir
+   * entre `LockScreen` (SESSION_LOCKED, NOT_ENROLLED, 404) et `ErrorScreen`.
+   * Jeter un objet non-`Error` aurait cassé cette discrimination.
+   */
+  const query = useQuery<SessionResult>({
+    queryKey: ["workshop-session", sessionId],
+    queryFn: async ({ signal }) => {
       try {
         const res = await fetch(`/api/workshops/sessions/${sessionId}`, {
           cache: "no-store",
@@ -122,36 +142,38 @@ export function SessionDetailView({ slug, sessionId, t }: { slug: string; sessio
           | (SessionData & { error?: string; code?: string })
           | null;
         if (!res.ok) {
-          setError({
+          return {
+            ok: false as const,
             status: res.status,
             code: json?.code ?? "ERROR",
             message: json?.error ?? t("loadError"),
-          });
-          setData(null);
-        } else if (json) {
-          setData(json as SessionData);
-          setError(null);
+          };
         }
+        return json
+          ? { ok: true as const, data: json as SessionData }
+          : { ok: false as const, status: 0, code: "EMPTY", message: t("loadError") };
       } catch (err) {
-        if (err instanceof DOMException && err.name === "AbortError") return;
-        setError({ status: 0, code: "NETWORK", message: t("networkError") });
-      } finally {
-        setLoading(false);
+        if (err instanceof DOMException && err.name === "AbortError") throw err;
+        return {
+          ok: false as const,
+          status: 0,
+          code: "NETWORK",
+          message: t("networkError"),
+        };
       }
     },
-    [sessionId, t],
-  );
+  });
 
-  React.useEffect(() => {
-    const ctrl = new AbortController();
-    void load(ctrl.signal);
-    return () => ctrl.abort();
-  }, [load]);
+  const result = query.data;
+  const data = result?.ok ? result.data : null;
+  const error = result && !result.ok
+    ? { status: result.status, code: result.code, message: result.message }
+    : null;
+  const loading = query.isPending;
 
   const reload = React.useCallback(async () => {
-    const ctrl = new AbortController();
-    await load(ctrl.signal);
-  }, [load]);
+    await query.refetch();
+  }, [query]);
 
   // ── États bloquants — venus du serveur, jamais devinés ──
   if (error) {

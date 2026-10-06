@@ -1,9 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search, ShieldOff, Loader2, X, AlertTriangle } from "lucide-react";
-import { fetchJson, isAbortError, withRetryAfter } from "@/components/reboot/admin/lib/fetchJson";
+import { adminErrorMessage, adminRequest, isRateLimitedError, useAdminQuery } from "@/components/reboot/admin/lib/adminQuery";
 import { MonoLabel } from "@/components/reboot/shared";
 import { cn } from "@/lib/utils";
 
@@ -35,6 +35,18 @@ interface BlacklistEntry {
   autoAdded: boolean;
 }
 
+/** D25 : l'URL était construite dans le `queryFn`. Devient une fonction pure. */
+function buildBlacklistUrl(f: {
+  page: number;
+  search: string;
+  reason: string;
+}): string {
+  const params = new URLSearchParams({ page: String(f.page), perPage: "25" });
+  if (f.search) params.set("search", f.search);
+  if (f.reason) params.set("reason", f.reason);
+  return `/api/admin/blacklist?${params.toString()}`;
+}
+
 export function BlacklistTable() {
   const qc = useQueryClient();
   const [page, setPage] = React.useState(1);
@@ -43,29 +55,11 @@ export function BlacklistTable() {
   const [addOpen, setAddOpen] = React.useState(false);
   const [removeId, setRemoveId] = React.useState<string | null>(null);
 
-  const query = useQuery({
+  const query = useAdminQuery<{ items: BlacklistEntry[]; total: number; page: number }>({
     queryKey: ["admin", "blacklist", { page, search, reason: reasonFilter }],
-    queryFn: async () => {
-      const params = new URLSearchParams({ page: String(page), perPage: "25" });
-      if (search) params.set("search", search);
-      if (reasonFilter) params.set("reason", reasonFilter);
-      const { res, data, code, error, retryAfterSec } = await fetchJson(
-        `/api/admin/blacklist?${params.toString()}`,
-        { cache: "no-store" },
-      );
-      if (res.status === 401 || code === "UNAUTHORIZED") {
-        window.location.href = "/?admin=1";
-        throw new Error("unauthorized");
-      }
-      if (!res.ok) {
-        throw new Error(
-          code === "RATE_LIMITED"
-            ? withRetryAfter(error ?? "Trop de requêtes.", retryAfterSec)
-            : error ?? "Erreur de chargement.",
-        );
-      }
-      return data as { items: BlacklistEntry[]; total: number; page: number };
-    },
+    url: buildBlacklistUrl({ page, search, reason: reasonFilter }),
+    init: { cache: "no-store" },
+    fallbackMessage: "Erreur de chargement.",
   });
 
   const removeMutation = useMutation({
@@ -324,23 +318,31 @@ function AddToBlacklistDialog({
       if (note.trim()) body.note = note.trim();
       if (expiresAt) body.expiresAt = new Date(expiresAt).toISOString();
 
-      const res = await fetch("/api/admin/blacklist", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-csrf-token": csrf },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        if (res.status === 429) {
-          setError(data.error ?? "Trop d'ajouts. Réessaie plus tard.");
-        } else {
-          setError(data.error ?? "Erreur lors de l'ajout.");
-        }
-        return;
-      }
+      /**
+       * D25 : ce POST ne testait que le 429. Une session expirée (401) y
+       * affichait « Erreur lors de l'ajout. » — un message qui exhorte a
+       * reessayer alors que c'est la session le probleme.
+       *
+       * `adminRequest` distingue 401 (redirection), 403 (refus affiché) et
+       * erreurs. Le 429 garde SA copie d'origine, volontairement distincte du
+       * `Retry-After` générique : ce message est déjà rédigé pour l'utilisateur.
+       */
+      await adminRequest(
+        "/api/admin/blacklist",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-csrf-token": csrf },
+          body: JSON.stringify(body),
+        },
+        { fallbackMessage: "Erreur lors de l'ajout." },
+      );
       onSuccess();
-    } catch {
-      setError("Erreur réseau.");
+    } catch (err) {
+      setError(
+        isRateLimitedError(err)
+          ? "Trop d'ajouts. Réessaie plus tard."
+          : adminErrorMessage(err, "Erreur réseau."),
+      );
     } finally {
       setLoading(false);
     }

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchJson, withRetryAfter } from "../lib/fetchJson";
+import { adminRequest } from "../lib/adminQuery";
 
 export interface MemberRow {
   id: string;
@@ -120,11 +120,7 @@ function sortClientSide(
   return sorted;
 }
 
-export function useMembers({
-  onSessionExpired,
-}: {
-  onSessionExpired: () => void;
-}) {
+export function useMembers() {
   const initial = React.useMemo(() => readInitialUrl(), []);
   const [filters, setFilters] = React.useState<Record<string, string>>(initial.filters);
   const [searchQuery, setSearchQuery] = React.useState(initial.search);
@@ -185,7 +181,13 @@ export function useMembers({
   // Query clé : include tous les filtres pertinents pour invalider correctement.
   const queryKey = React.useMemo(() => ["members", filters, debouncedSearchQuery, page, pageSize, sortKey, sortDir], [filters, debouncedSearchQuery, page, pageSize, sortKey, sortDir]);
 
-  const { data: queryData, isLoading, isError, error, refetch } = useQuery({
+  interface MembersResponse {
+    members?: MemberRow[];
+    total?: number;
+    page?: number;
+  }
+
+  const { data: queryData, isLoading, isError, error, refetch } = useQuery<MembersResponse>({
     queryKey,
     queryFn: async () => {
       const params = new URLSearchParams(filters);
@@ -194,22 +196,11 @@ export function useMembers({
       params.set("pageSize", String(pageSize));
       params.set("sortKey", sortKey);
       params.set("sortDir", sortDir);
-      const { res, data, error, code, retryAfterSec } = await fetchJson(
-        `/api/members?${params.toString()}`, { cache: "no-store" },
-      );
-      if (res.status === 401 || code === "UNAUTHORIZED") {
-        onSessionExpired();
-        throw new Error("unauthorized");
-      }
-      if (!res.ok) {
-        const msg = error ?? "Erreur de chargement des membres.";
-        throw new Error(
-          res.status === 429 || code === "RATE_LIMITED"
-            ? withRetryAfter(msg, retryAfterSec)
-            : msg,
-        );
-      }
-      return data;
+      // D25 : le bloc 401/429 disparait. `adminRequest` redirige sur 401 et
+      // leve `AdminRequestError` (message serveur + Retry-After) sur 403/429.
+      return adminRequest<MembersResponse>(`/api/members?${params.toString()}`, { cache: "no-store" }, {
+        fallbackMessage: "Erreur de chargement des membres.",
+      });
     },
     staleTime: 60 * 1000,
     gcTime: 24 * 60 * 60 * 1000,

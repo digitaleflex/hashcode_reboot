@@ -18,7 +18,10 @@ import {
   GraduationCap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { fetchJson } from "@/components/reboot/admin/lib/fetchJson";
+import { adminErrorMessage, adminRequest, useAdminQuery } from "@/components/reboot/admin/lib/adminQuery";
+
+/** Référence stable : évite de recréer un tableau à chaque rendu. */
+const EMPTY_EVENTS: AdminEvent[] = [];
 import { useToast } from "@/hooks/use-toast";
 
 interface AdminEvent {
@@ -103,10 +106,7 @@ function toISOStringLocal(v: string): string | null {
  * Liste de pilotage admin : compteurs RSVP + changement de statut
  * + édition + renotification + suppression.
  */
-export function AdminEventList({ refreshSignal }: { refreshSignal: number }) {
-  const { toast } = useToast();
-  const [events, setEvents] = React.useState<AdminEvent[]>([]);
-  const [loading, setLoading] = React.useState(true);
+export function AdminEventList({ refreshSignal }: { refreshSignal: number }) {  const { toast } = useToast();
   const [actionId, setActionId] = React.useState<string | null>(null);
   const [editing, setEditing] = React.useState<AdminEvent | null>(null);
   const [editForm, setEditForm] = React.useState({
@@ -125,36 +125,44 @@ export function AdminEventList({ refreshSignal }: { refreshSignal: number }) {
   const [saving, setSaving] = React.useState(false);
   const [unlockId, setUnlockId] = React.useState<string | null>(null);
 
-  const load = React.useCallback(async () => {
-    setLoading(true);
-    try {
-      const { res, data } = await fetchJson("/api/events?status=all&limit=50");
-      if (res.ok) setEvents(data.events ?? []);
-    } catch {
-      /* silent */
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  /**
+   * D25 + D32 : `load` + `useEffect([load, refreshSignal])` + 2 `useState`
+   * deviennent une query.
+   *
+   * `refreshSignal` est une prop numérique incrémentée par le parent pour forcer
+   * un rechargement. Elle entre dans la CLÉ : l'incrément produit une nouvelle
+   * clé, donc une nouvelle requête — exactement l'effet du `useEffect`.
+   * (Un `refetch()` imperatif aurait été plus simple, mais changer le contrat de
+   * la prop sort du périmètre ; la clé le préserve tel quel.)
+   *
+   * D25 au passage : aucun de ces 6 `fetchJson` ne testait le 401. Une session
+   * expirée y affichait « Échec » ou rien du tout.
+   */
+  const query = useAdminQuery<AdminEvent[]>({
+    queryKey: ["admin", "events", refreshSignal],
+    url: "/api/events?status=all&limit=50",
+    fallbackMessage: "Échec",
+    selectData: (raw) => (raw as { events?: AdminEvent[] } | null)?.events ?? [],
+  });
 
-  React.useEffect(() => {
-    void load();
-  }, [load, refreshSignal]);
+  const events = query.data ?? EMPTY_EVENTS;
+  const loading = query.isPending;
+  const load = React.useCallback(async () => {
+    await query.refetch();
+  }, [query]);
 
   async function handleStatus(id: string, status: string) {
     setActionId(id);
     try {
-      const { res, error } = await fetchJson(`/api/events/${id}`, {
+      await adminRequest(`/api/events/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
-      });
-      if (!res.ok) {
-        toast({ title: "Erreur", description: error ?? "Échec", variant: "destructive" });
-        return;
-      }
+      }, { fallbackMessage: "Échec" });
       toast({ title: "Statut mis à jour", description: STATUS_LABELS[status] ?? status });
-      await load();
+      await query.refetch();
+    } catch (e) {
+      toast({ title: "Erreur", description: adminErrorMessage(e, "Échec"), variant: "destructive" });
     } finally {
       setActionId(null);
     }
@@ -163,20 +171,22 @@ export function AdminEventList({ refreshSignal }: { refreshSignal: number }) {
   async function handleRenotify(id: string) {
     setActionId(id);
     try {
-      const { res, data, error } = await fetchJson(`/api/events/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notify: true }),
-      });
-      if (!res.ok) {
-        toast({ title: "Erreur", description: error ?? "Échec", variant: "destructive" });
-        return;
-      }
+      const data = await adminRequest<{ notify?: { recipientCount?: number } }>(
+        `/api/events/${id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ notify: true }),
+        },
+        { fallbackMessage: "Échec" },
+      );
       toast({
         title: "Notifications renvoyées",
         description: `${data?.notify?.recipientCount ?? 0} membres notifiés.`,
       });
       await load();
+    } catch (e) {
+      toast({ title: "Erreur", description: adminErrorMessage(e, "Échec"), variant: "destructive" });
     } finally {
       setActionId(null);
     }
@@ -186,15 +196,13 @@ export function AdminEventList({ refreshSignal }: { refreshSignal: number }) {
     if (!window.confirm(`Supprimer "${title}" ? Les RSVP seront supprimés aussi.`)) return;
     setActionId(id);
     try {
-      const { res, error } = await fetchJson(`/api/events/${id}`, {
-        method: "DELETE",
+      await adminRequest(`/api/events/${id}`, { method: "DELETE" }, {
+        fallbackMessage: "Échec",
       });
-      if (!res.ok) {
-        toast({ title: "Erreur", description: error ?? "Échec", variant: "destructive" });
-        return;
-      }
       toast({ title: "Événement supprimé" });
       await load();
+    } catch (e) {
+      toast({ title: "Erreur", description: adminErrorMessage(e, "Échec"), variant: "destructive" });
     } finally {
       setActionId(null);
     }
@@ -227,7 +235,7 @@ export function AdminEventList({ refreshSignal }: { refreshSignal: number }) {
     }
     setSaving(true);
     try {
-      const { res, error } = await fetchJson(`/api/events/${editing.id}`, {
+      await adminRequest(`/api/events/${editing.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -243,14 +251,12 @@ export function AdminEventList({ refreshSignal }: { refreshSignal: number }) {
           status: editForm.status,
           maxAttendees: editForm.maxAttendees ? Number(editForm.maxAttendees) : null,
         }),
-      });
-      if (!res.ok) {
-        toast({ title: "Erreur", description: error ?? "Échec", variant: "destructive" });
-        return;
-      }
+      }, { fallbackMessage: "Échec" });
       toast({ title: "Événement mis à jour" });
       setEditing(null);
       await load();
+    } catch (e) {
+      toast({ title: "Erreur", description: adminErrorMessage(e, "Échec"), variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -268,23 +274,22 @@ export function AdminEventList({ refreshSignal }: { refreshSignal: number }) {
     }
     setUnlockId(sessionId);
     try {
-      const { res, error } = await fetchJson(
+      await adminRequest(
         `/api/admin/workshops/sessions/${sessionId}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ unlockOverride: unlock }),
         },
+        { fallbackMessage: "Échec" },
       );
-      if (!res.ok) {
-        toast({ title: "Erreur", description: error ?? "Échec", variant: "destructive" });
-        return;
-      }
       toast({
         title: unlock ? "Séance déverrouillée" : "Séance reverrouillée",
         description: title,
       });
       await load();
+    } catch (e) {
+      toast({ title: "Erreur", description: adminErrorMessage(e, "Échec"), variant: "destructive" });
     } finally {
       setUnlockId(null);
     }

@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
+import { useMemo } from "react";
 import { MonoLabel } from "../shared";
 import { cn } from "@/lib/utils";
-import { fetchJson, isAbortError } from "./lib/fetchJson";
+import { adminErrorMessage, useAdminQuery } from "./lib/adminQuery";
 import { useToast } from "@/hooks/use-toast";
 import { ActivityLogSkeleton } from "./skeletons/ActivityLogSkeleton";
 import { ChevronDown, Search } from "lucide-react";
@@ -67,55 +68,48 @@ function formatValue(v: number | null): string | null {
   return `${v}ms`;
 }
 
+/** Référence stable : évite de recréer un tableau à chaque rendu. */
+const EMPTY_EVENTS: FeedEvent[] = [];
+
 export function ActivityLog() {
-  const [events, setEvents] = React.useState<FeedEvent[]>([]);
-  const [loading, setLoading] = React.useState(true);
   const [expanded, setExpanded] = React.useState(false);
   const [openId, setOpenId] = React.useState<string | null>(null);
   const [query, setQuery] = React.useState("");
   const { toast } = useToast();
 
-const load = React.useCallback(async (showMore: boolean, signal?: AbortSignal) => {
-  try {
-    const { res, data, error, code, retryAfterSec } = await fetchJson(
-      `/api/admin/activity?limit=${showMore ? 50 : 12}`,
-      { cache: "no-store", signal },
-    );
-    if (signal?.aborted) return;
-    if (res.ok) {
-      setEvents((data?.events ?? []) as FeedEvent[]);
-    } else {
-      const msg = error ?? "Erreur de chargement de l'activité.";
-      toast({
-        variant: "destructive",
-        title: "Erreur",
-        description: msg,
-      });
-    }
-  } catch (e) {
-    if (isAbortError(e)) return;
-    console.warn(e);
+  /**
+   * D32 : `load(showMore)` + `AbortController` + `mounted` + 2 `useState`
+   * deviennent une query dont la clé porte `expanded`.
+   *
+   * Équivalence vérifiée : l'ancien `useEffect` dépendait de `[expanded, load]`,
+   * donc cliquer « Voir plus » relançait avec `limit=50`. La clé fait de même.
+   * `query` (le filtre texte) reste hors clé et hors requête — il filtre côté
+   * client, dans le `useMemo` inchangé.
+   *
+   * Le toast d'erreur est conservé via `useEffect` sur `query.error` : le
+   * `catch` d'origine affichait aussi « Erreur réseau » sur simple échec réseau.
+   */
+  const activity = useAdminQuery<{ events?: FeedEvent[] }>({
+    queryKey: ["admin", "activity", expanded ? 50 : 12],
+    url: `/api/admin/activity?limit=${expanded ? 50 : 12}`,
+    init: { cache: "no-store" },
+    fallbackMessage: "Erreur de chargement de l'activité.",
+  });
+
+  const events = useMemo(() => activity.data?.events ?? EMPTY_EVENTS, [activity.data]);
+  const loading = activity.isPending;
+
+  React.useEffect(() => {
+    if (!activity.error) return;
+    console.warn(activity.error);
     toast({
       variant: "destructive",
       title: "Erreur",
-      description: "Erreur réseau.",
+      description: adminErrorMessage(activity.error, "Erreur réseau."),
     });
-  }
-}, [toast]);
-
-  React.useEffect(() => {
-    const ctrl = new AbortController();
-    let mounted = true;
-    setLoading(true);
-    (async () => {
-      await load(expanded, ctrl.signal);
-      if (mounted) setLoading(false);
-    })();
-    return () => {
-      mounted = false;
-      ctrl.abort();
-    };
-  }, [expanded, load]);
+    // `toast` est stable ; on ne veut pas re-toster à chaque render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activity.error]);
 
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -167,8 +161,7 @@ const load = React.useCallback(async (showMore: boolean, signal?: AbortSignal) =
             <button
               type="button"
               onClick={() => {
-                setLoading(true);
-                void load(expanded).finally(() => setLoading(false));
+                void activity.refetch();
               }}
               className="mt-3 inline-flex items-center min-h-[44px] px-4 rounded-md border border-border bg-card text-sm text-foreground hover:border-lime/60 hover:text-lime transition-colors focus-lime"
             >

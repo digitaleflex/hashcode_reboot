@@ -1,52 +1,34 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { AuditLogViewer } from "@/components/reboot/admin/AuditLogViewer";
 import { RebootButton, MonoLabel } from "@/components/reboot/shared";
-import { fetchJson } from "@/components/reboot/admin/lib/fetchJson";
+import { useAdminQuery } from "@/components/reboot/admin/lib/adminQuery";
 import { Activity, Server, Clock, AlertCircle } from "lucide-react";
 
 export default function AdminSettingsPage() {
-  const router = useRouter();
-  const [sessionInfo, setSessionInfo] = React.useState<{
-    role: string | null;
-    identity: string | null;
-    expiresAt: string | null;
-  } | null>(null);
-  const [loadingSession, setLoadingSession] = React.useState(true);
+  /**
+   * D25 + D32 : le 3e `handleSessionExpired` du dépôt disparaît, avec son
+   * `useEffect` et son `AbortController`. La lecture de `/api/admin/verify`
+   * devient une query ; un 401 y redirige seul, sans passer par un callback.
+   *
+   * `retry: false` : la route est interrogée au montage et rien d'autre. Sans
+   * cela React Query réessaierait 3 fois un 401 en boucle — exactement le
+   * symptôme décrit dans `admin-auth.ts`.
+   */
+  const verify = useAdminQuery<{
+    role?: string | null;
+    identity?: string | null;
+    expiresAt?: string | null;
+  } | null>({
+    queryKey: ["admin", "verify"],
+    url: "/api/admin/verify",
+    init: { cache: "no-store" },
+    retry: false,
+  });
 
-  const handleSessionExpired = React.useCallback(() => {
-    router.push("/?admin=1");
-  }, [router]);
-
-  React.useEffect(() => {
-    const ctrl = new AbortController();
-    (async () => {
-      try {
-        const { res, data, code } = await fetchJson("/api/admin/verify", {
-          cache: "no-store",
-          signal: ctrl.signal,
-        });
-        if (res.status === 401 || code === "UNAUTHORIZED") {
-          handleSessionExpired();
-          return;
-        }
-        if (res.ok && data) {
-          setSessionInfo({
-            role: (data as Record<string, unknown>).role as string | null,
-            identity: (data as Record<string, unknown>).identity as string | null,
-            expiresAt: (data as Record<string, unknown>).expiresAt as string | null,
-          });
-        }
-      } catch {
-        /* silent */
-      } finally {
-        setLoadingSession(false);
-      }
-    })();
-    return () => ctrl.abort();
-  }, [handleSessionExpired]);
+  const sessionInfo = verify.data ?? null;
+  const loadingSession = verify.isLoading;
 
   return (
     <div className="space-y-8">
@@ -101,7 +83,7 @@ export default function AdminSettingsPage() {
         <p className="text-sm text-muted-foreground mb-4">
           Historique de toutes les actions admin (connexions, rotations de clé, modifications de membres…).
         </p>
-        <AuditLogViewer onSessionExpired={handleSessionExpired} />
+        <AuditLogViewer />
       </section>
     </div>
   );

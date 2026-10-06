@@ -2,23 +2,27 @@
 
 import * as React from "react";
 import { MonoLabel, RebootButton } from "@/components/reboot/shared";
-import { fetchJson, withRetryAfter } from "@/components/reboot/admin/lib/fetchJson";
+import { adminErrorMessage, adminRequest } from "@/components/reboot/admin/lib/adminQuery";
 import { useToast } from "@/hooks/use-toast";
 import { Send, Loader2 } from "lucide-react";
 
-export function RelancePanel({ onSessionExpired }: { onSessionExpired: () => void }) {
+export function RelancePanel() {
   const { toast } = useToast();
   const [relanceable, setRelanceable] = React.useState<string[] | null>(null);
   const [alreadyRelanced, setAlreadyRelanced] = React.useState(0);
   const [loading, setLoading] = React.useState(false);
 
   const load = React.useCallback(async () => {
-    const { res, data, code } = await fetchJson("/api/admin/invitations?status=INVITED&page=1&pageSize=100");
-    if (res.status === 401 || code === "UNAUTHORIZED") {
-      onSessionExpired();
-      return;
-    }
-    if (res.ok && data?.ok && Array.isArray(data.members)) {
+    /**
+     * D25 : le fetch SEQUENTIEL est conserve tel quel. La 2e requete (le
+     * dry-run) ne part qu'`ids.length > 0` et son corps depend du resultat de
+     * la 1re : deux `useQuery` en `enabled` se contrediraient et
+     * introduiraient un aller-retour. Une seule fonction, deux `adminRequest`.
+     */
+    const data = await adminRequest<{ ok?: boolean; members?: unknown }>(
+      "/api/admin/invitations?status=INVITED&page=1&pageSize=100",
+    );
+    if (data?.ok && Array.isArray(data.members)) {
       const ids = (data.members as { id: string; invitationClicks: number }[])
         .filter((m) => m.invitationClicks === 0)
         .map((m) => m.id);
@@ -26,13 +30,16 @@ export function RelancePanel({ onSessionExpired }: { onSessionExpired: () => voi
       // Dry-run : combien ont déjà été relancés (ignorés à l'envoi) ?
       if (ids.length > 0) {
         try {
-          const dry = await fetchJson("/api/invite/relance", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ memberIds: ids.slice(0, 50) }),
-          });
-          if (dry.res.ok && typeof dry.data?.alreadyRelanced === "number") {
-            setAlreadyRelanced(dry.data.alreadyRelanced as number);
+          const dry = await adminRequest<{ alreadyRelanced?: number }>(
+            "/api/invite/relance",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ memberIds: ids.slice(0, 50) }),
+            },
+          );
+          if (typeof dry?.alreadyRelanced === "number") {
+            setAlreadyRelanced(dry.alreadyRelanced);
           }
         } catch {
           /* best-effort */
@@ -41,7 +48,7 @@ export function RelancePanel({ onSessionExpired }: { onSessionExpired: () => voi
         setAlreadyRelanced(0);
       }
     }
-  }, [onSessionExpired]);
+  }, []);
 
   React.useEffect(() => {
     void load();
@@ -51,20 +58,19 @@ export function RelancePanel({ onSessionExpired }: { onSessionExpired: () => voi
     if (loading || !relanceable?.length) return;
     setLoading(true);
     try {
-      const { res, data, error, code, retryAfterSec } = await fetchJson("/api/invite/relance", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ memberIds: relanceable.slice(0, 50), confirm: true }),
-      });
-      if (res.status === 401 || code === "UNAUTHORIZED") {
-        onSessionExpired();
-        return;
-      }
-      if (!res.ok || !data?.ok) {
-        const base = error ?? "Échec de la relance.";
+      const data = await adminRequest<{ ok?: boolean; sent?: number; skippedRelanced?: number }>(
+        "/api/invite/relance",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ memberIds: relanceable.slice(0, 50), confirm: true }),
+        },
+        { fallbackMessage: "Échec de la relance." },
+      );
+      if (!data?.ok) {
         toast({
           title: "Erreur relance",
-          description: res.status === 429 || code === "RATE_LIMITED" ? withRetryAfter(base, retryAfterSec) : base,
+          description: "Échec de la relance.",
           variant: "destructive",
         });
         return;
@@ -79,6 +85,12 @@ export function RelancePanel({ onSessionExpired }: { onSessionExpired: () => voi
       setRelanceable(null);
       setAlreadyRelanced(0);
       await load();
+    } catch (e) {
+      toast({
+        title: "Erreur relance",
+        description: adminErrorMessage(e, "Échec de la relance."),
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }

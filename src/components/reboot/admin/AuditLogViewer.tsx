@@ -3,7 +3,7 @@
 import * as React from "react";
 import { MonoLabel } from "../shared";
 import { cn } from "@/lib/utils";
-import { fetchJson, isAbortError } from "./lib/fetchJson";
+import { adminErrorMessage, useAdminQuery } from "./lib/adminQuery";
 import { Download, Search, Filter, AlertCircle } from "lucide-react";
 
 interface AuditMember {
@@ -46,46 +46,34 @@ function getActionColor(action: string): string {
   return "text-muted-foreground";
 }
 
-export function AuditLogViewer({
-  onSessionExpired,
-}: {
-  onSessionExpired: () => void;
-}) {
-  const [logs, setLogs] = React.useState<AuditEntry[]>([]);
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
+export function AuditLogViewer() {
   const [filter, setFilter] = React.useState("");
   const [expandedId, setExpandedId] = React.useState<string | null>(null);
 
-  const loadLogs = React.useCallback(async (signal?: AbortSignal) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { res, data, code } = await fetchJson("/api/admin/audit-log?limit=500", {
-        cache: "no-store",
-        signal,
-      });
-      if (res.status === 401 || code === "UNAUTHORIZED") {
-        onSessionExpired();
-        return;
-      }
-      if (!res.ok) {
-        throw new Error("Erreur de chargement des logs.");
-      }
-      setLogs((data?.logs ?? []) as AuditEntry[]);
-    } catch (e) {
-      if (isAbortError(e)) return;
-      setError(e instanceof Error ? e.message : "Erreur de chargement.");
-    } finally {
-      setLoading(false);
-    }
-  }, [onSessionExpired]);
+  /**
+   * D25 + D32 : `useEffect` + `AbortController` + `loadLogs` + 4 `useState`
+   * remplacés par une seule `useQuery`.
+   *
+   * Le bouton « Actualiser` appelle `refetch()` — même effet qu'un
+   * `loadLogs()` manuel. Le filtre de recherche reste côté client, donc il ne
+   * fait PAS partie de la clé : taper dans le filtre ne relance aucune requête,
+   * exactement comme avant (le `filter` n'était jamais dans le `useEffect`).
+   */
+  const query = useAdminQuery<AuditEntry[]>({
+    queryKey: ["admin", "audit-log"],
+    url: "/api/admin/audit-log?limit=500",
+    init: { cache: "no-store" },
+    fallbackMessage: "Erreur de chargement des logs.",
+    selectData: (data) => (data as { logs?: AuditEntry[] } | null)?.logs ?? [],
+  });
 
-  React.useEffect(() => {
-    const ctrl = new AbortController();
-    void loadLogs(ctrl.signal);
-    return () => ctrl.abort();
-  }, [loadLogs]);
+  // Mémoïsé : sans cela `logs` serait un nouveau tableau à chaque rendu et le
+// `useMemo` du filtre en aval se recalculerait pour rien (eslint exhaustive-deps).
+const EMPTY_LOGS: AuditEntry[] = [];
+const logs = query.data ?? EMPTY_LOGS;
+  const loading = query.isLoading;
+  const error = query.error ? adminErrorMessage(query.error, "Erreur de chargement des logs.") : null;
+  const loadLogs = query.refetch;
 
   const filtered = React.useMemo(() => {
     if (!filter.trim()) return logs;
@@ -101,6 +89,8 @@ export function AuditLogViewer({
     );
   }, [logs, filter]);
 
+  const [exportError, setExportError] = React.useState<string | null>(null);
+
   async function handleExportCsv() {
     try {
       const res = await fetch("/api/admin/audit-log?format=csv&limit=10000", { cache: "no-store" });
@@ -115,7 +105,10 @@ export function AuditLogViewer({
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch {
-      setError("Échec de l'export CSV.");
+      // L'export est un téléchargement de fichier, pas une requête de données :
+      // il garde son `fetch` brut et son erreur propre, sinon un 403 y serait
+      // traité comme un 401 par `adminRequest` et redirigerait à tort.
+      setExportError("Échec de l'export CSV.");
     }
   }
 
@@ -161,10 +154,10 @@ export function AuditLogViewer({
         />
       </div>
 
-      {error && (
+      {(error || exportError) && (
         <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2.5 text-sm text-foreground flex items-center gap-2" role="alert">
           <AlertCircle className="size-4 text-destructive shrink-0" />
-          <span>{error}</span>
+          <span>{error ?? exportError}</span>
         </div>
       )}
 

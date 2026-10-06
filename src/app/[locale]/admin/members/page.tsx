@@ -4,7 +4,8 @@ import * as React from "react";
 import { useMembers } from "@/components/reboot/admin/hooks/useMembers";
 import { MemberTable } from "@/components/reboot/admin/MemberTable";
 import { MemberDetailDialog } from "@/components/reboot/admin/MemberDetailDialog";
-import { fetchJson, isAbortError, withRetryAfter } from "@/components/reboot/admin/lib/fetchJson";
+import { adminErrorMessage, adminRequest } from "@/components/reboot/admin/lib/adminQuery";
+import { isAbortError } from "@/components/reboot/admin/lib/fetchJson";
 import { AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
@@ -20,10 +21,6 @@ export default function AdminMembersPage() {
   const [bulkResult, setBulkResult] = React.useState<string | null>(null);
   const [confirmBulkDelete, setConfirmBulkDelete] = React.useState(false);
 
-  const handleSessionExpired = React.useCallback(() => {
-    router.push("/?admin=1");
-  }, [router]);
-
   const {
     members, total, page, pageSize, setPage,
     filters, setFilters, setFilter,
@@ -32,7 +29,7 @@ export default function AdminMembersPage() {
     selectedIds, setSelectedIds, toggleSelect, toggleSelectAll,
     recentMembers, loading, refreshMembers, serverSorted,
     loadError,
-  } = useMembers({ onSessionExpired: handleSessionExpired });
+  } = useMembers();
 
   const runBulk = React.useCallback(
     async (action: "approve" | "invite" | "waitlist" | "reject" | "delete") => {
@@ -44,25 +41,18 @@ export default function AdminMembersPage() {
       setBulkAction(action);
       setBulkResult(null);
       try {
-        const { res, data, error, code, retryAfterSec } = await fetchJson(
+        // D25 : 401 redirige, 403/429 remontent en `AdminRequestError`.
+        const data = await adminRequest<Record<string, unknown>>(
           "/api/members/bulk",
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ ids: Array.from(selectedIds), action }),
           },
+          { fallbackMessage: t("bulkErrorBase") },
         );
-        if (res.status === 401 || code === "UNAUTHORIZED") {
-          handleSessionExpired();
-          return;
-        }
-        if (!res.ok || !data?.ok) {
-          const base = error ?? t("bulkErrorBase");
-          setBulkResult(
-            res.status === 429 || code === "RATE_LIMITED"
-              ? t("bulkErrorPrefix", { detail: withRetryAfter(base, retryAfterSec) })
-              : t("bulkErrorPrefix", { detail: base }),
-          );
+        if (!data?.ok) {
+          setBulkResult(t("bulkErrorPrefix", { detail: t("bulkErrorBase") }));
           return;
         }
         const affected = (data.affected as number) ?? 0;
@@ -82,44 +72,32 @@ export default function AdminMembersPage() {
         await refreshMembers();
       } catch (e) {
         if (isAbortError(e)) return;
-        setBulkResult(t("bulkErrorBase"));
+        setBulkResult(t("bulkErrorPrefix", { detail: adminErrorMessage(e, t("bulkErrorBase")) }));
       } finally {
         setBulkAction(null);
       }
     },
-    [selectedIds, confirmBulkDelete, handleSessionExpired, refreshMembers, toast, t, setSelectedIds],
+    [selectedIds, confirmBulkDelete, refreshMembers, toast, t, setSelectedIds],
   );
 
   const deleteMember = React.useCallback(
     async (id: string) => {
       try {
-        const { res, error, code, retryAfterSec } = await fetchJson(`/api/members/${id}`, {
-          method: "DELETE",
+        await adminRequest(`/api/members/${id}`, { method: "DELETE" }, {
+          fallbackMessage: t("deleteErrorBase"),
         });
-        if (res.status === 401 || code === "UNAUTHORIZED") {
-          handleSessionExpired();
-          return;
-        }
-        if (!res.ok) {
-          const base = error ?? t("deleteErrorBase");
-          toast({
-            title: t("toastErrorTitle"),
-            description:
-              res.status === 429 || code === "RATE_LIMITED"
-                ? withRetryAfter(base, retryAfterSec)
-                : base,
-            variant: "destructive",
-          });
-          return;
-        }
         setSelectedId(null);
         await refreshMembers();
       } catch (e) {
         if (isAbortError(e)) return;
-        toast({ title: t("toastErrorTitle"), description: t("deleteErrorBase"), variant: "destructive" });
+        toast({
+          title: t("toastErrorTitle"),
+          description: adminErrorMessage(e, t("deleteErrorBase")),
+          variant: "destructive",
+        });
       }
     },
-    [handleSessionExpired, refreshMembers, toast, t],
+    [refreshMembers, toast, t],
   );
 
   return (
@@ -175,7 +153,7 @@ export default function AdminMembersPage() {
       </section>
 
       <section aria-label={t("sections.inviteFormer")}>
-        <ImportInvitePanel onSessionExpired={handleSessionExpired} />
+        <ImportInvitePanel />
       </section>
 
       <MemberDetailDialog
@@ -183,7 +161,6 @@ export default function AdminMembersPage() {
         onClose={() => setSelectedId(null)}
         onChanged={() => void refreshMembers()}
         onDelete={deleteMember}
-        onSessionExpired={handleSessionExpired}
       />
     </div>
   );
