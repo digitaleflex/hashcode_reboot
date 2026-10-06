@@ -2,7 +2,7 @@
 
 > **Date** : 2026-09-18 · **Statut** : D1/D2/D4 **validés** · D3 **en attente**
 > **Décideur** : utilisateur (conversation, « oui » du 2026-09-18)
-> **Références** : `docs/ateliers/00-audit-phase1.md` §21-22 · issues #75 (cette ADR), #80 (schéma)
+> **Références** : `docs/ateliers/ARCHITECTURE.md` (GATE 1) · issues #75 (cette ADR), #80 (schéma)
 
 ---
 

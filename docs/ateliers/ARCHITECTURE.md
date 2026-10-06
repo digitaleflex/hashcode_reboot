@@ -106,10 +106,10 @@ Le scoring est **exclusivement côté serveur** (voir ADR-003) :
 
 ## Audits
 
-- `docs/ateliers/00-audit-phase1.md` — audit d'architecture (GATE 1)
+- `docs/ateliers/ARCHITECTURE.md` — audit d'architecture (GATE 1) (archive historique)
 - `docs/ateliers/AUDIT-UX.md` — audit UX (8/10, #94 : `transition-[width]`,
   `focus-visible`, `aria-label`, `motion-reduce` appliqués)
-- `docs/audit-securite-2026-09-18.md` — audit de sécurité (C2)
+- Audit de sécurité 2026-09-18 (archivé — voir `docs/audit-securite-2026-09-18.md` dans l'historique)
 
 ## ADR associés
 

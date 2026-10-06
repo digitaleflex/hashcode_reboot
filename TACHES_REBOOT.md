@@ -125,8 +125,8 @@
 ### T12 — `docs/interface-utilisateur.md` — Inventaire exhaustif UI
 **Contenu :** Toutes les pages, composants, états, resp. breakpoints, accessibilité
 
-### T13 — `docs/ateliers/00-audit-phase1.md` → `docs/ateliers/README.md`
-**Action :** Déplacer/aider la doc ateliers existante (réf. dans `schema.prisma` ligne 471) vers `docs/ateliers/`
+### T13 — `docs/ateliers/00-audit-phase1.md` → `docs/ateliers/README.md` (ARCHIVÉ)
+**Action :** Fichier d'audit supprimé (obsolète). La doc ateliers est désormais dans `docs/ateliers/ARCHITECTURE.md`.
 
 ---
 

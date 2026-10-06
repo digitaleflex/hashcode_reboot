@@ -12,7 +12,7 @@
 ## 0. Cadre technique et périmètre
 
 - **Stack** : Next.js 16 App Router · TypeScript · Tailwind CSS 4 · shadcn/ui ·
-  Prisma 6 + Neon Postgres · Resend (fallback Brevo) · Zustand · TanStack Query · Zod.
+  Prisma 6 + PostgreSQL natif · Resend (fallback Brevo) · Zustand · TanStack Query · Zod.
   Package manager **Bun** (`bun.lock`). Déploiement Vercel.
 - **Thème** : sombre unique (`src/app/globals.css:55`), accent **lime**
   (`--primary`, ≈ `#C5F441`), `font-display` pour les titres, `mono-label` pour
