@@ -1,21 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import {
-  requireAdminRole,
-  checkCSRF,
-  getAdminRole,
-} from "@/lib/admin-auth";
+import { checkCSRF, requireAdminOrThrow } from "@/lib/admin-auth";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { audit } from "@/lib/admin-audit";
 import { blockIfTesting } from "@/lib/test-guard";
-import {
-  ForbiddenError,
-  NotFoundError,
-  RateLimitError,
-  ValidationError,
-  errorToResponse,
-  parseJsonBody,
-} from "@/lib/errors";
+import { ForbiddenError, NotFoundError, RateLimitError, ValidationError, errorToResponse, parseJsonBody } from "@/lib/errors";
 
 export const runtime = "nodejs";
 
@@ -75,9 +64,7 @@ function parseBody(body: Record<string, unknown>): {
  */
 export async function GET(req: NextRequest, { params }: Params) {
   try {
-    if (!(await requireAdminRole(req, "viewer"))) {
-      throw new ForbiddenError("Accès refusé.");
-    }
+    await requireAdminOrThrow(req, "viewer");
 
     const rl = await rateLimit(`admin-session-read:${rateKey(req)}`, {
       capacity: 120,
@@ -133,9 +120,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const blocked = blockIfTesting();
     if (blocked) return blocked;
 
-    if (!(await requireAdminRole(req, "operator"))) {
-      throw new ForbiddenError("Accès refusé. Rôle operator requis.");
-    }
+    const admin = await requireAdminOrThrow(req, "operator");
     if (!checkCSRF(req)) {
       throw new ForbiddenError("CSRF validation failed.");
     }
@@ -183,7 +168,6 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       },
     });
 
-    const adminRole = (await getAdminRole(req)) ?? "operator";
     void audit(
       "workshop-session.unlock",
       "workshop_session",
@@ -197,7 +181,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         sessionNumber: existing.number,
         sessionTitle: existing.title,
       },
-      { type: "admin", role: adminRole },
+      { type: "admin", role: admin.role },
     );
 
     return NextResponse.json({ ok: true, session });

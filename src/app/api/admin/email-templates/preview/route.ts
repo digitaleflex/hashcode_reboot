@@ -1,21 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAdminRole, checkCSRF } from "@/lib/admin-auth";
+import { checkCSRF, requireAdminOrThrow } from "@/lib/admin-auth";
 import { bodyLimit } from "@/lib/body-limit";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
-import {
-  AppError,
-  AuthError,
-  ForbiddenError,
-  RateLimitError,
-  ValidationError,
-  errorToResponse,
-  parseJsonBody,
-} from "@/lib/errors";
-import {
-  getTemplateDefinition,
-  getTemplateVariables,
-} from "@/lib/email-templates/registry";
+import { AppError, RateLimitError, ValidationError, errorToResponse, parseJsonBody } from "@/lib/errors";
+import { getTemplateVariables } from "@/lib/email-templates/registry";
 import { renderEmailTemplate } from "@/lib/email-templates/render";
 
 export const runtime = "nodejs";
@@ -51,9 +40,7 @@ export async function POST(req: NextRequest) {
     throw new RateLimitError("Trop de requêtes.", rl.retryAfterMs);
   }
 
-  if (!(await requireAdminRole(req, "viewer"))) {
-    throw new AuthError("Non autorisé.", "UNAUTHORIZED");
-  }
+  await requireAdminOrThrow(req, "viewer");
   // Invariant uniforme : toute route POST admin vérifie le CSRF.
   if (!checkCSRF(req)) {
     throw new AppError("CSRF validation failed.", { status: 403, code: "CSRF_FAILED" });

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAdminRole, checkCSRF } from "@/lib/admin-auth";
+import { checkCSRF, requireAdmin, adminGuardResponse } from "@/lib/admin-auth";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { audit } from "@/lib/admin-audit";
 import { addToBlacklist, getBlacklist, BLACKLIST_REASONS } from "@/lib/blacklist";
@@ -21,9 +21,8 @@ export const runtime = "nodejs";
  * Crée ou met à jour l'entrée.
  */
 export async function GET(req: NextRequest) {
-  if (!(await requireAdminRole(req, "operator"))) {
-    return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
-  }
+  const adminGuard = await requireAdmin(req, "operator");
+  if (!adminGuard.ok) return adminGuardResponse(adminGuard);
   const { searchParams } = new URL(req.url);
   const page = Math.max(1, Number(searchParams.get("page") ?? "1"));
   const perPage = Math.min(
@@ -51,9 +50,8 @@ const addSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  if (!(await requireAdminRole(req, "operator"))) {
-    return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
-  }
+  const adminGuard = await requireAdmin(req, "operator");
+  if (!adminGuard.ok) return adminGuardResponse(adminGuard);
   if (!checkCSRF(req)) {
     return NextResponse.json(
       { error: "Jeton CSRF invalide." },

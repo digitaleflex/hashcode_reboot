@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireAdminRole } from "@/lib/admin-auth";
+import { requireAdminOrThrow } from "@/lib/admin-auth";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { suggestMentors, type MentorProfile } from "@/lib/matching";
-import {
-  ForbiddenError,
-  NotFoundError,
-  RateLimitError,
-  ValidationError,
-  errorToResponse,
-} from "@/lib/errors";
+import { NotFoundError, RateLimitError, ValidationError, errorToResponse } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,9 +18,7 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(req: NextRequest) {
   try {
-  if (!(await requireAdminRole(req, "operator"))) {
-    throw new ForbiddenError("Accès refusé.");
-  }
+  await requireAdminOrThrow(req, "operator");
 
   const rl = await rateLimit(`admin-mentoring-match:${rateKey(req)}`, {
     capacity: 60,

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/account-auth";
-import { requireAdminRole, checkCSRF, getAdminRole } from "@/lib/admin-auth";
+import { checkCSRF, requireAdminOrThrow, requireAdmin } from "@/lib/admin-auth";
 import { sendEventNotificationEmail } from "@/lib/mail";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { validateEventCreate, notifyWhere, parseNotify } from "@/lib/events-validation";
@@ -11,14 +11,7 @@ import { planBatch } from "@/lib/email-budget";
 import { audit } from "@/lib/admin-audit";
 import { blockIfTesting } from "@/lib/test-guard";
 import { bodyLimit } from "@/lib/body-limit";
-import {
-  AuthError,
-  ForbiddenError,
-  RateLimitError,
-  ValidationError,
-  errorToResponse,
-  parseJsonBody,
-} from "@/lib/errors";
+import { AuthError, ForbiddenError, RateLimitError, ValidationError, errorToResponse, parseJsonBody } from "@/lib/errors";
 
 export const runtime = "nodejs";
 
@@ -29,7 +22,7 @@ export const runtime = "nodejs";
 export async function GET(req: NextRequest) {
   try {
   const session = await getSession(req);
-  const isAdmin = await requireAdminRole(req, "viewer");
+  const isAdmin = (await requireAdmin(req, "viewer")).ok;
   if (!session && !isAdmin) {
     throw new AuthError("Non authentifié.", "UNAUTHENTICATED");
   }
@@ -220,9 +213,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Admin RBAC: operator uniquement
-  if (!(await requireAdminRole(req, "operator"))) {
-    throw new ForbiddenError("Accès refusé. Rôle operator requis.");
-  }
+  const admin = await requireAdminOrThrow(req, "operator");
 
   if (!checkCSRF(req)) {
     throw new ForbiddenError("CSRF validation failed.");
@@ -269,7 +260,7 @@ export async function POST(req: NextRequest) {
     "event",
     event.id,
     { title: event.title },
-    { type: "admin", role: (await getAdminRole(req)) ?? "operator" },
+    { type: "admin", role: admin.role },
   );
 
   // Notification email en masse (fire-and-forget)
@@ -349,7 +340,7 @@ export async function POST(req: NextRequest) {
       "event",
       event.id,
       { title: event.title, recipients: members.length },
-      { type: "admin", role: (await getAdminRole(req)) ?? "operator" },
+      { type: "admin", role: admin.role },
     );
 
     return NextResponse.json(

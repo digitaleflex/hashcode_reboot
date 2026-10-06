@@ -1,25 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireAdminRole, checkCSRF, getAdminRole } from "@/lib/admin-auth";
+import { checkCSRF, requireAdminOrThrow } from "@/lib/admin-auth";
 import { audit } from "@/lib/admin-audit";
 import { bodyLimit } from "@/lib/body-limit";
 import { blockIfTesting } from "@/lib/test-guard";
-import {
-  AppError,
-  AuthError,
-  ConflictError,
-  ForbiddenError,
-  ValidationError,
-  errorToResponse,
-  parseJsonBody,
-} from "@/lib/errors";
-import {
-  TEMPLATE_REGISTRY,
-  CUSTOM_TEMPLATE_VARIABLES,
-  getTemplateDefinition,
-  isCategoryEditable,
-} from "@/lib/email-templates/registry";
+import { AppError, ConflictError, ForbiddenError, ValidationError, errorToResponse, parseJsonBody } from "@/lib/errors";
+import { TEMPLATE_REGISTRY, CUSTOM_TEMPLATE_VARIABLES, getTemplateDefinition, isCategoryEditable } from "@/lib/email-templates/registry";
 import { renderEmailTemplate } from "@/lib/email-templates/render";
 
 export const runtime = "nodejs";
@@ -55,9 +42,7 @@ const createSchema = z.object({
  */
 export async function GET(req: NextRequest) {
   try {
-  if (!(await requireAdminRole(req, "viewer"))) {
-    throw new AuthError("Non autorisé.", "UNAUTHORIZED");
-  }
+  await requireAdminOrThrow(req, "viewer");
 
   const rows = await db.emailTemplate.findMany({
     orderBy: [{ category: "asc" }, { key: "asc" }],
@@ -138,9 +123,8 @@ export async function POST(req: NextRequest) {
   if (blocked) return blocked;
   const tooLarge = bodyLimit(req);
   if (tooLarge) return tooLarge;
-  if (!(await requireAdminRole(req, "operator"))) {
-    throw new ForbiddenError("Accès refusé. Rôle operator requis.");
-  }
+  // D24 : session renvoyée par le garde, réutilisée par l'écriture et `audit()`.
+  const admin = await requireAdminOrThrow(req, "operator");
   if (!checkCSRF(req)) {
     throw new ForbiddenError("CSRF validation failed.");
   }
@@ -186,7 +170,7 @@ export async function POST(req: NextRequest) {
       preheader: d.preheader,
       bodyHtml,
       isActive: false,
-      updatedBy: (await getAdminRole(req)) ?? null,
+      updatedBy: admin.role,
     },
     select: { key: true, name: true, category: true },
   });
@@ -196,7 +180,7 @@ export async function POST(req: NextRequest) {
     "email_template",
     created.key,
     { name: created.name, warnings: probe.warnings.length },
-    { type: "admin", role: (await getAdminRole(req)) ?? "operator" },
+    { type: "admin", role: admin.role },
   );
 
   return NextResponse.json({ ok: true, template: created, warnings: probe.warnings }, { status: 201 });

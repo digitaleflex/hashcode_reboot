@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAdminRole, checkCSRF } from "@/lib/admin-auth";
+import { checkCSRF, requireAdmin, adminGuardResponse } from "@/lib/admin-auth";
 import { blockIfTesting } from "@/lib/test-guard";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { sendInvitationEmail, sendWelcomeEmail } from "@/lib/mail";
@@ -17,9 +17,8 @@ export async function POST(req: NextRequest) {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
 
-  if (!(await requireAdminRole(req, "operator"))) {
-    return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
-  }
+  const adminGuard = await requireAdmin(req, "operator");
+  if (!adminGuard.ok) return adminGuardResponse(adminGuard);
   // CSRF protection: ensure same-origin request
   if (!checkCSRF(req)) {
     return NextResponse.json({ error: "CSRF validation failed." }, { status: 403 });

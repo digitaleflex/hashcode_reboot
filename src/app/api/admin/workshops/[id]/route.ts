@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireAdminRole } from "@/lib/admin-auth";
+import { requireAdminOrThrow } from "@/lib/admin-auth";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { SUBMISSION_STATUSES } from "@/lib/workshop-validation";
-import {
-  ForbiddenError,
-  NotFoundError,
-  RateLimitError,
-  errorToResponse,
-} from "@/lib/errors";
+import { NotFoundError, RateLimitError, errorToResponse } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,9 +37,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    if (!(await requireAdminRole(req, "operator"))) {
-      throw new ForbiddenError("Accès refusé.");
-    }
+    await requireAdminOrThrow(req, "operator");
 
     const rl = await rateLimit(`admin-workshop-detail:${rateKey(req)}`, {
       capacity: 120,

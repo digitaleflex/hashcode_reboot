@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAdminRole, checkCSRF } from "@/lib/admin-auth";
+import { checkCSRF, requireAdmin, adminGuardResponse } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/admin-audit";
 import { removeFromBlacklist } from "@/lib/blacklist";
@@ -26,9 +26,8 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  if (!(await requireAdminRole(req, "operator"))) {
-    return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
-  }
+  const adminGuard = await requireAdmin(req, "operator");
+  if (!adminGuard.ok) return adminGuardResponse(adminGuard);
   if (!checkCSRF(req)) {
     return NextResponse.json(
       { error: "Jeton CSRF invalide." },
@@ -84,9 +83,8 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  if (!(await requireAdminRole(req, "operator"))) {
-    return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
-  }
+  const adminGuard = await requireAdmin(req, "operator");
+  if (!adminGuard.ok) return adminGuardResponse(adminGuard);
   if (!checkCSRF(req)) {
     return NextResponse.json(
       { error: "Jeton CSRF invalide." },

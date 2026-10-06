@@ -20,10 +20,7 @@ import {
   RateLimitError,
   ValidationError,
 } from "@/lib/errors";
-import {
-  issuePhoneFillTicket,
-  phoneFillSetCookie,
-} from "@/lib/phone-fill-ticket";
+import { issuePhoneFillTicket, phoneFillSetCookie } from "@/lib/phone-fill-ticket";
 import { getTranslations } from "next-intl/server";
 
 export const runtime = "nodejs";

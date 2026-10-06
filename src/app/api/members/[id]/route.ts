@@ -1,17 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { isAdminAuthed, requireAdminRole, getAdminRole } from "@/lib/admin-auth";
+import { isAdminAuthed, requireAdminOrThrow } from "@/lib/admin-auth";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { audit } from "@/lib/admin-audit";
 import { sendStatusChangeEmail, type StatusChangeType } from "@/lib/mail";
 import { addToBlacklist } from "@/lib/blacklist";
 import { blockIfTesting } from "@/lib/test-guard";
 import {
-  AppError,
   AuthError,
   errorToResponse,
-  ForbiddenError,
   NotFoundError,
   parseJsonBody,
   RateLimitError,
@@ -74,9 +72,9 @@ export async function PATCH(
   try {
     const blocked = blockIfTesting();
     if (blocked) return blocked;
-    if (!(await requireAdminRole(req, "operator"))) {
-      throw new ForbiddenError("Opérateur requis.");
-    }
+    // D24 : le garde renvoie la session (rôle) réutilisée par `audit()` plus
+    // bas — pas de seconde résolution de session (cf. D28).
+    const admin = await requireAdminOrThrow(req, "operator");
     // Anti-abus : 20 mises à jour par IP toutes les 10 minutes.
     const rlPatch = await rateLimit(`admin-member-write:${rateKey(req)}`, {
       capacity: 20,
@@ -174,13 +172,12 @@ export async function PATCH(
       /* ignore */
     }
     if (statusTransition) {
-      const role = (await getAdminRole(req)) ?? "operator";
       void audit(
         "member.status-change",
         "member",
         id,
         { from: statusTransition.from, to: statusTransition.to },
-        { type: "admin", role },
+        { type: "admin", role: admin.role },
       );
     }
     return NextResponse.json({ member: updated });
@@ -203,9 +200,7 @@ export async function DELETE(
   try {
     const blocked = blockIfTesting();
     if (blocked) return blocked;
-    if (!(await requireAdminRole(req, "operator"))) {
-      throw new ForbiddenError("Opérateur requis.");
-    }
+    await requireAdminOrThrow(req, "operator");
     // Anti-abus : 20 suppressions par IP toutes les 10 minutes.
     const rlDelete = await rateLimit(`admin-member-delete:${rateKey(req)}`, {
       capacity: 20,

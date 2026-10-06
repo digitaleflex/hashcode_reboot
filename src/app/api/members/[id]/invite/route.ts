@@ -1,15 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireAdminRole, getAdminRole } from "@/lib/admin-auth";
+import { requireAdminOrThrow } from "@/lib/admin-auth";
 import { audit } from "@/lib/admin-audit";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
-import {
-  errorToResponse,
-  ForbiddenError,
-  NotFoundError,
-  RateLimitError,
-} from "@/lib/errors";
+import { errorToResponse, NotFoundError, RateLimitError } from "@/lib/errors";
 
 export const runtime = "nodejs";
 
@@ -27,9 +22,9 @@ export async function POST(
   try {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
-  if (!(await requireAdminRole(req, "operator"))) {
-    throw new ForbiddenError("Opérateur requis.");
-  }
+  // D24 : session renvoyée par le garde, réutilisée par `audit()` — une seule
+  // résolution de session par requête (cf. D28).
+  const admin = await requireAdminOrThrow(req, "operator");
   // Anti-abus : 20 invitations par IP toutes les 10 minutes.
   const rl = await rateLimit(`admin-invite:${rateKey(req)}`, {
     capacity: 20,
@@ -65,7 +60,7 @@ export async function POST(
     "member",
     id,
     { email: member.email },
-    { type: "admin", role: (await getAdminRole(req)) ?? "operator" },
+    { type: "admin", role: admin.role },
   );
 
   try {

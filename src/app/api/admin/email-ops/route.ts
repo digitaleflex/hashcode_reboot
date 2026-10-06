@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { isAdminAuthed } from "@/lib/admin-auth";
-import {
-  type EmailBudget,
-  getAllBudgets,
-  recentThroughput,
-  remainingBatches,
-} from "@/lib/email-budget";
+import { type EmailBudget, getAllBudgets, recentThroughput, remainingBatches } from "@/lib/email-budget";
 import { AuthError, ValidationError, errorToResponse } from "@/lib/errors";
 
 export const runtime = "nodejs";

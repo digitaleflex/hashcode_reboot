@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { isAdminAuthed } from "@/lib/admin-auth";
 import { AppError, AuthError, errorToResponse } from "@/lib/errors";
-import {
-  EMAIL_SEMANTIC_CATEGORIES,
-  PROFILE_RELANC_CATEGORY,
-} from "@/lib/email-categories";
+import { EMAIL_SEMANTIC_CATEGORIES, PROFILE_RELANC_CATEGORY } from "@/lib/email-categories";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

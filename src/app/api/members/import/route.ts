@@ -1,16 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireAdminRole } from "@/lib/admin-auth";
+import { requireAdminOrThrow } from "@/lib/admin-auth";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
-import {
-  AppError,
-  errorToResponse,
-  ForbiddenError,
-  parseJsonBody,
-  RateLimitError,
-} from "@/lib/errors";
+import { AppError, errorToResponse, parseJsonBody, RateLimitError } from "@/lib/errors";
 
 export const runtime = "nodejs";
 
@@ -36,9 +30,7 @@ export async function POST(req: NextRequest) {
   try {
     const blocked = blockIfTesting();
     if (blocked) return blocked;
-    if (!(await requireAdminRole(req, "operator"))) {
-      throw new ForbiddenError("Opérateur requis.");
-    }
+    await requireAdminOrThrow(req, "operator");
 
     const rl = await rateLimit(`import:${rateKey(req)}`, {
       capacity: 10,

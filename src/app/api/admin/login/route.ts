@@ -17,12 +17,12 @@ export const runtime = "nodejs";
 /**
  * D05 — budget de confiance du captcha.
  *
- * Le widget Turnstile n'est monté par le client (`admin-login.tsx`) qu'après 3
- * échecs, et ce compteur vit dans un `useState` : il part de zéro au
- * rechargement de la page et n'est alimenté que par les réponses 401 du serveur.
- * Un attaquant n'a donc qu'à **ne jamais envoyer** `captchaToken` pour que la
- * vérification ne soit jamais exécutée — l'ancien
- * `if (!token) return true` rendait le captcha décoratif.
+ * Le widget Turnstile n'est monté par le client qu'après 3 échecs, et ce
+ * compteur vit dans un `useState` : il part de zéro au rechargement de la page
+ * et n'est alimenté que par les réponses 401 du serveur. Un attaquant n'a donc
+ * qu'à **ne jamais envoyer** `captchaToken` pour que la vérification ne soit
+ * jamais exécutée — l'ancien `if (!token) return true` rendait le captcha
+ * décoratif.
  *
  * `REQUIRE_CAPTCHA_WHEN_CONFIGURED` porte le choix de politique :
  *   - `true`  → fail-closed. Secret présent ⇒ token obligatoire, sans exception.
@@ -145,8 +145,8 @@ export async function POST(req: NextRequest) {
     //    « ne pas être vérifié ».
     //
     // Pourquoi c'est jouable côté client officiel, et pourquoi un 401 : le
-    // formulaire n'affiche le widget qu'après 3 réponses 401 (`admin-login.tsx`,
-    // `failedAttempts >= 3`). Il suffit donc de répondre `UNAUTHORIZED` : le
+    // formulaire n'affiche le widget qu'après 3 réponses 401
+    // (`failedAttempts >= 3`). Il suffit donc de répondre `UNAUTHORIZED` : le
     // client compte l'échec, monte le captcha et renvoie le token au 4e essai.
     // Un code dédié (ex. CAPTCHA_REQUIRED) tomberait dans la branche `else` du
     // client, qui n'incrémente PAS le compteur → verrouillage définitif de

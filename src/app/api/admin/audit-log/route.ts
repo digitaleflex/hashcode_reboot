@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireAdminRole } from "@/lib/admin-auth";
-import { AppError, ForbiddenError, errorToResponse } from "@/lib/errors";
+import { requireAdminOrThrow } from "@/lib/admin-auth";
+import { AppError, errorToResponse } from "@/lib/errors";
 
 export const runtime = "nodejs";
 
@@ -16,9 +16,7 @@ export const runtime = "nodejs";
  */
 export async function GET(req: NextRequest) {
   try {
-  if (!(await requireAdminRole(req, "operator"))) {
-    throw new ForbiddenError("Accès refusé.");
-  }
+  await requireAdminOrThrow(req, "operator");
 
   try {
     const { searchParams } = new URL(req.url);

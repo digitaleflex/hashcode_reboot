@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/account-auth";
-import { requireAdminRole, checkCSRF, getAdminRole } from "@/lib/admin-auth";
+import { checkCSRF, requireAdminOrThrow, requireAdmin } from "@/lib/admin-auth";
 import { sendEventNotificationEmail } from "@/lib/mail";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { validateEventPatch, notifyWhere, parseNotify } from "@/lib/events-validation";
@@ -10,15 +10,7 @@ import { sendPacedBatch } from "@/lib/email-batch";
 import { planBatch } from "@/lib/email-budget";
 import { audit } from "@/lib/admin-audit";
 import { blockIfTesting } from "@/lib/test-guard";
-import {
-  AuthError,
-  ForbiddenError,
-  NotFoundError,
-  RateLimitError,
-  ValidationError,
-  errorToResponse,
-  parseJsonBody,
-} from "@/lib/errors";
+import { AuthError, ForbiddenError, NotFoundError, RateLimitError, ValidationError, errorToResponse, parseJsonBody } from "@/lib/errors";
 
 export const runtime = "nodejs";
 
@@ -32,7 +24,7 @@ type Params = { params: Promise<{ id: string }> };
 export async function GET(req: NextRequest, { params }: Params) {
   try {
   const session = await getSession(req);
-  const isAdmin = await requireAdminRole(req, "viewer");
+  const isAdmin = (await requireAdmin(req, "viewer")).ok;
   if (!session && !isAdmin) {
     throw new AuthError("Non authentifié.", "UNAUTHENTICATED");
   }
@@ -89,9 +81,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     );
   }
 
-  if (!(await requireAdminRole(req, "operator"))) {
-    throw new ForbiddenError("Accès refusé. Rôle operator requis.");
-  }
+  const admin = await requireAdminOrThrow(req, "operator");
   if (!checkCSRF(req)) {
     throw new ForbiddenError("CSRF validation failed.");
   }
@@ -127,9 +117,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const event = Object.keys(data).length
     ? await db.event.update({ where: { id }, data })
     : existing;
-  const adminRole = (await getAdminRole(req)) ?? "operator";
   if (Object.keys(data).length) {
-    void audit("event.update", "event", id, { fields: Object.keys(data) }, { type: "admin", role: adminRole });
+    void audit("event.update", "event", id, { fields: Object.keys(data) }, { type: "admin", role: admin.role });
   }
 
   // Re-notification optionnelle (même canal qu'à la création)
@@ -197,7 +186,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       "event",
       event.id,
       { title: event.title, recipients: members.length },
-      { type: "admin", role: adminRole },
+      { type: "admin", role: admin.role },
     );
     notifyResult = {
       status: "queued",
@@ -225,9 +214,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   try {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
-  if (!(await requireAdminRole(req, "operator"))) {
-    throw new ForbiddenError("Accès refusé. Rôle operator requis.");
-  }
+  const admin = await requireAdminOrThrow(req, "operator");
   if (!checkCSRF(req)) {
     throw new ForbiddenError("CSRF validation failed.");
   }
@@ -247,7 +234,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     "event",
     existing.id,
     { title: existing.title },
-    { type: "admin", role: (await getAdminRole(req)) ?? "operator" },
+    { type: "admin", role: admin.role },
   );
   return NextResponse.json({ ok: true, deleted: existing });
   } catch (err) {

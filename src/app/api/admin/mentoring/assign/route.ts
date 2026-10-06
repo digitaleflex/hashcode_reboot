@@ -1,19 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireAdminRole } from "@/lib/admin-auth";
+import { requireAdminOrThrow } from "@/lib/admin-auth";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
 import { bodyLimit } from "@/lib/body-limit";
 import { audit } from "@/lib/admin-audit";
-import {
-  ConflictError,
-  ForbiddenError,
-  NotFoundError,
-  RateLimitError,
-  ValidationError,
-  errorToResponse,
-} from "@/lib/errors";
+import { ConflictError, NotFoundError, RateLimitError, ValidationError, errorToResponse } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,9 +29,7 @@ export async function POST(req: NextRequest) {
   try {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
-  if (!(await requireAdminRole(req, "operator"))) {
-    throw new ForbiddenError("Accès refusé.");
-  }
+  await requireAdminOrThrow(req, "operator");
   const tooLarge = bodyLimit(req);
   if (tooLarge) return tooLarge;
 

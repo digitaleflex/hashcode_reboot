@@ -1,20 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireAdminRole, checkCSRF, getAdminIdentity } from "@/lib/admin-auth";
+import { checkCSRF, requireAdminOrThrow } from "@/lib/admin-auth";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { audit } from "@/lib/admin-audit";
 import { REVIEW_DECISIONS } from "@/lib/workshop-validation";
 import { sendEmail } from "@/lib/mail";
 import { reviewEmail } from "@/lib/workshop-emails";
-import {
-  ForbiddenError,
-  NotFoundError,
-  RateLimitError,
-  ValidationError,
-  errorToResponse,
-  parseJsonBody,
-} from "@/lib/errors";
+import { ForbiddenError, NotFoundError, RateLimitError, ValidationError, errorToResponse, parseJsonBody } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -46,14 +39,14 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    if (!(await requireAdminRole(req, "operator"))) {
-      throw new ForbiddenError("Accès refusé.");
-    }
+    // D24 : le garde renvoie la session résolue — pas de seconde résolution
+    // pour l'identité du reviewer (cf. D28).
+    const admin = await requireAdminOrThrow(req, "operator");
     if (!checkCSRF(req)) {
       throw new ForbiddenError("CSRF validation failed.");
     }
 
-    const reviewer = await getAdminIdentity(req);
+    const reviewer = admin.email;
     const rl = await rateLimit(`admin-workshop-review:${reviewer}:${rateKey(req)}`, {
       capacity: 30,
       windowMs: 60_000,

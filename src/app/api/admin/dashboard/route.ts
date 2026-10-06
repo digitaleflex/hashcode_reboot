@@ -2,18 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { isAdminAuthed } from "@/lib/admin-auth";
-import {
-  getAllBudgets,
-  recentThroughput,
-  remainingBatches,
-  type EmailBudget,
-  type BudgetLevel,
-} from "@/lib/email-budget";
+import { getAllBudgets, recentThroughput, remainingBatches, type EmailBudget } from "@/lib/email-budget";
 import { AuthError, ValidationError, errorToResponse } from "@/lib/errors";
-import {
-  EMAIL_SEMANTIC_CATEGORIES,
-  PROFILE_RELANC_CATEGORY,
-} from "@/lib/email-categories";
+import { EMAIL_SEMANTIC_CATEGORIES, PROFILE_RELANC_CATEGORY } from "@/lib/email-categories";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

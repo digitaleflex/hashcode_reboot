@@ -1,30 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import {
-  requireAdminRole,
-  checkCSRF,
-  getAdminRole,
-} from "@/lib/admin-auth";
+import { checkCSRF, requireAdminOrThrow } from "@/lib/admin-auth";
 import { audit } from "@/lib/admin-audit";
 import { bodyLimit } from "@/lib/body-limit";
 import { blockIfTesting } from "@/lib/test-guard";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
-import {
-  AppError,
-  AuthError,
-  ForbiddenError,
-  NotFoundError,
-  RateLimitError,
-  ValidationError,
-  errorToResponse,
-  parseJsonBody,
-} from "@/lib/errors";
-import {
-  getTemplateDefinition,
-  getTemplateVariables,
-  isCategoryEditable,
-} from "@/lib/email-templates/registry";
+import { AppError, ForbiddenError, NotFoundError, RateLimitError, ValidationError, errorToResponse, parseJsonBody } from "@/lib/errors";
+import { getTemplateDefinition, getTemplateVariables, isCategoryEditable } from "@/lib/email-templates/registry";
 import { renderEmailTemplate } from "@/lib/email-templates/render";
 import { invalidateActiveTemplates } from "@/lib/email-templates/active";
 
@@ -59,9 +42,7 @@ export async function GET(
   { params }: { params: Promise<{ key: string }> },
 ) {
   try {
-  if (!(await requireAdminRole(req, "viewer"))) {
-    throw new AuthError("Non autorisé.", "UNAUTHORIZED");
-  }
+  await requireAdminOrThrow(req, "viewer");
 
   const { key } = await params;
   const { row, def } = await loadTemplate(key);
@@ -133,9 +114,8 @@ export async function PATCH(
     throw new RateLimitError("Trop de requêtes.", rl.retryAfterMs);
   }
 
-  if (!(await requireAdminRole(req, "operator"))) {
-    throw new ForbiddenError("Accès refusé. Rôle operator requis.");
-  }
+  // D24 : session renvoyée par le garde, réutilisée par `audit()` plus bas.
+  const admin = await requireAdminOrThrow(req, "operator");
   if (!checkCSRF(req)) {
     throw new ForbiddenError("CSRF validation failed.");
   }
@@ -193,7 +173,7 @@ export async function PATCH(
       ...next,
       ...(patch.isActive !== undefined ? { isActive: patch.isActive } : {}),
       ...(contentChanged ? { version: { increment: 1 } } : {}),
-      updatedBy: (await getAdminRole(req)) ?? null,
+      updatedBy: admin.role,
     },
     select: { key: true, isActive: true, version: true, updatedAt: true },
   });
@@ -210,7 +190,7 @@ export async function PATCH(
       isActive: updated.isActive,
       fields: Object.keys(patch),
     },
-    { type: "admin", role: (await getAdminRole(req)) ?? "operator" },
+    { type: "admin", role: admin.role },
   );
 
   return NextResponse.json({

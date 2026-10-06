@@ -1,18 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireAdminRole } from "@/lib/admin-auth";
+import { requireAdminOrThrow } from "@/lib/admin-auth";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { audit } from "@/lib/admin-audit";
 import { blockIfTesting } from "@/lib/test-guard";
-import {
-  AppError,
-  ForbiddenError,
-  RateLimitError,
-  ValidationError,
-  errorToResponse,
-  parseJsonBody,
-} from "@/lib/errors";
+import { AppError, RateLimitError, ValidationError, errorToResponse, parseJsonBody } from "@/lib/errors";
 
 export const runtime = "nodejs";
 
@@ -29,9 +22,7 @@ export async function POST(req: NextRequest) {
   try {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
-  if (!(await requireAdminRole(req, "operator"))) {
-    throw new ForbiddenError("Opérateur requis.");
-  }
+  await requireAdminOrThrow(req, "operator");
   // Anti-abus : 20 actions bulk par IP toutes les 10 minutes.
   const rl = await rateLimit(`admin-bulk:${rateKey(req)}`, {
     capacity: 20,
