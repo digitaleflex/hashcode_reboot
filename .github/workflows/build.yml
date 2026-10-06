@@ -1,0 +1,41 @@
+name: Build
+
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+    branches: [main, development]
+
+jobs:
+  next-build:
+    name: Build production
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      # La build est l'épreuve que le Codespace local ne peut pas tenir :
+      # Next 16 + Turbopack demande plus de RAM que notre 8 Go. Ici, un
+      # runner GitHub dédié a la place.
+      - name: Build
+        run: npm run build
+        env:
+          # Valeurs minimales pour que le bundler embarque quelque chose ;
+          # elles sont figées dans .env.prod pour le vrai build du VPS.
+          NEXT_PUBLIC_SITE_URL: https://example.com
+          NEXT_PUBLIC_URL: https://example.com
+          NEXT_PUBLIC_APP_VERSION: ci
+          # Le client Prisma est généré mais ne se connecte pas à la build ;
+          # une URL au bon format suffit pour passer l'étape prisma generate.
+          DATABASE_URL: postgresql://user:pass@localhost:5432/db
+          NEXT_TELEMETRY_DISABLED: "1"
