@@ -8,11 +8,16 @@ import { CommandPalette } from "./CommandPalette";
 import { SessionReminder } from "@/app/[locale]/admin/session-reminder";
 import { adminMono, adminSans } from "@/app/[locale]/admin/fonts";
 import { LogOut, Command } from "lucide-react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname } from "@/i18n/routing";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { MobileBottomNav } from "@/components/reboot/mobile-bottom-nav";
 import { useTranslations } from "next-intl";
+import {
+  resolveAdminSectionId,
+  SECTION_ROUTES,
+  type AdminSectionId,
+} from "./admin-sections";
 
 /**
  * Coquille visuelle de l'espace admin.
@@ -21,34 +26,12 @@ import { useTranslations } from "next-intl";
  * être un **server component** : c'est lui qui porte la garde d'accès
  * (`getAdminRoleFromRequestHeaders`), impossible depuis un module client.
  * Aucun état ni comportement n'est modifié par cette extraction.
+ *
+ * D27 — les tables de correspondance section ↔ route vivent désormais dans
+ * `./admin-sections` (module pur, testé par `tests/admin-sections.test.cjs`).
  */
 
-const SECTION_MAP: Record<string, string> = {
-  "/admin/dashboard": "section-stats",
-  "/admin/stats": "section-stats",
-  "/admin/members": "section-members",
-  "/admin/invitations": "section-invitations",
-  "/admin/marketing": "section-marketing",
-  "/admin/email-deliverability": "section-email-deliverability",
-  "/admin/events": "section-events",
-  "/admin/activity": "section-activity",
-  "/admin/exports": "section-exports",
-  "/admin/audit-log": "section-audit-log",
-  "/admin/settings": "section-settings",
-};
-
-const routeMap: Record<string, string> = {
-  "section-stats": "/admin/dashboard",
-  "section-members": "/admin/members",
-  "section-invitations": "/admin/invitations",
-  "section-marketing": "/admin/marketing",
-  "section-email-deliverability": "/admin/email-deliverability",
-  "section-events": "/admin/events",
-  "section-activity": "/admin/activity",
-  "section-exports": "/admin/exports",
-  "section-audit-log": "/admin/audit-log",
-  "section-settings": "/admin/settings",
-};
+const DEFAULT_SECTION_ID: AdminSectionId = "section-stats";
 
 export default function AdminShell({ children }: { children: React.ReactNode }) {
   const t = useTranslations("admin.sidebar");
@@ -75,7 +58,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     }
     fetchCount();
   }, []);
-  const activeSectionId = SECTION_MAP[pathname] || "section-stats";
+  const activeSectionId = resolveAdminSectionId(pathname) ?? DEFAULT_SECTION_ID;
 
   const handleLogout = React.useCallback(async () => {
     try {
@@ -98,7 +81,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
   const onNavigate = React.useCallback(
     (sectionId: string) => {
-      const targetRoute = routeMap[sectionId];
+      const targetRoute = SECTION_ROUTES[sectionId as AdminSectionId];
       if (targetRoute) {
         router.push(targetRoute);
       }

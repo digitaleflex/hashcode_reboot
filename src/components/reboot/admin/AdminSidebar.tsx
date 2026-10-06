@@ -3,11 +3,24 @@
 import * as React from "react";
 import { LayoutDashboard, Users, Activity, FileJson, Settings, Shield, ShieldBan, Calendar, Mail, Megaphone, ChevronLeft, ChevronRight, Command, FileText, BookOpen, GraduationCap } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { usePathname } from "next/navigation";
+import { usePathname } from "@/i18n/routing";
+import { resolveAdminSectionId, type AdminSectionId } from "./admin-sections";
 
 const SIDEBAR_KEY = "hashcode-admin-sidebar";
 
-const ITEMS = [
+/**
+ * D27 — `id` est typé `AdminSectionId` : le vocabulaire des sections est
+ * défini une seule fois dans `./admin-sections`. Un identifiant mal orthographié
+ * ici devient une erreur de compilation au lieu d'un onglet qui ne s'allume
+ * jamais, et les 14 entrées below sont couvertes par
+ * `tests/admin-sections.test.cjs`.
+ */
+const ITEMS: readonly {
+  path: string;
+  id: AdminSectionId;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}[] = [
   { path: "/admin/dashboard", id: "section-stats", label: "Vue d'ensemble", icon: LayoutDashboard },
   { path: "/admin/members", id: "section-members", label: "Membres", icon: Users },
   { path: "/admin/ateliers", id: "section-ateliers", label: "Ateliers", icon: BookOpen },
@@ -22,7 +35,7 @@ const ITEMS = [
   { path: "/admin/blacklist", id: "section-blacklist", label: "Blacklist", icon: ShieldBan },
   { path: "/admin/audit-log", id: "section-audit-log", label: "Audit", icon: Shield },
   { path: "/admin/settings", id: "section-settings", label: "Paramètres", icon: Settings },
-] as const;
+];
 
 function useCollapsed() {
   const [collapsed, setCollapsed] = React.useState<boolean>(() => {
@@ -107,7 +120,7 @@ export function AdminSidebar({ activeSection, onNavigate, onOpenPalette }: Admin
   const mobileCloseRef = React.useRef<HTMLButtonElement>(null);
   const mobileOpenRef = React.useRef<HTMLButtonElement>(null);
 
-  const activeSectionId = activeSection ?? ITEMS.find(i => pathname.startsWith(i.path))?.id ?? "section-stats";
+  const activeSectionId = activeSection ?? resolveAdminSectionId(pathname) ?? "section-stats";
 
   function handleNav(sectionId: string) {
     const item = ITEMS.find(i => i.id === sectionId);
