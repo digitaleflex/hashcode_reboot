@@ -13,7 +13,7 @@ import { AlertCircle } from "lucide-react";
 import type { ProfileAnswers } from "@/lib/profiling/types";
 import { generateProfile } from "@/lib/profiling/engine";
 import { runAutoControls } from "@/lib/profiling/auto-controls";
-import { track, getSource } from "@/lib/analytics";
+import { track, getSource, captureSource } from "@/lib/analytics";
 import { useTranslations } from "next-intl";
 
 // framer-motion sort du bundle initial : chargé seulement quand
@@ -67,6 +67,12 @@ export default function Home() {
   // Allow `?resume=1` (relance email) to auto-open the profiling flow.
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+
+    // D40 — la source d'acquisition n'était jamais capturée : `getSource()`
+    // renvoyait « direct » en permanence, et c'est cette valeur qui partait
+    // dans `Member.source`. On capture au premier rendu, avant tout track.
+    captureSource();
+
     if (params.get("admin") === "1") {
       // D33 — la phase `admin-login` et le composant `admin-login.tsx`
       // (402 l.) ont été supprimés. `?admin=1` n'est plus qu'un alias vers

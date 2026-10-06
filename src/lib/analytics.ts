@@ -65,6 +65,55 @@ export function getSource(): string {
 }
 
 /**
+ * D40 — capture la source d'acquisition depuis l'URL et la persiste.
+ *
+ * `SOURCE_KEY` n'était plus écrit par personne : `getOrCreateSource`, seul
+ * écrivain, avait disparu. `getSource()` renvoyait donc « direct » en toutes
+ * circonstances, et cette valeur partait dans `POST /api/members` vers la colonne
+ * `Member.source` — documentée dans schema.prisma:66 comme
+ * « utm_source/medium/campaign, e.g. "whatsapp/post?reboot" | "direct" ».
+ * Autrement dit TOUS les membres étaient enregistrés comme « direct » : la
+ * donnée n'était pas absente, elle était fausse.
+ *
+ * Format conservé, conforme à l'exemple du schéma : `source/medium?campaign`,
+ * la partie campagne optionnelle.
+ *
+ * Ne pas écraser une source déjà capturée : la première visite est la bonne.
+ * Un visiteur venu d'une campagne ne doit pas voir son origine écrasée par un
+ * `?ref=` de partage ou une relance.
+ */
+export function captureSource(search?: string): string {
+  if (typeof window === "undefined") return "direct";
+  const existing = getSource();
+  if (existing && existing !== "direct") return existing;
+
+  try {
+    const params = new URLSearchParams(
+      search ?? window.location.search,
+    );
+    const source = (params.get("utm_source") ?? "").trim();
+    if (!source) return "direct";
+
+    const medium = (params.get("utm_medium") ?? "").trim();
+    const campaign = (params.get("utm_campaign") ?? "").trim();
+
+    // On borne la longueur : la valeur part en base et dans des tableaux de
+    // bord. Une chaîne non bornée allowit d'y glisser un contenu arbitraire.
+    const clean = (v: string, max: number) =>
+      v.replace(/[^\p{L}\p{N}._?/-]/gu, "").slice(0, max);
+
+    const value =
+      [clean(source, 40), clean(medium, 40)].filter(Boolean).join("/") +
+      (campaign ? `?${clean(campaign, 40)}` : "");
+
+    localStorage.setItem(SOURCE_KEY, value);
+    return value;
+  } catch {
+    return "direct";
+  }
+}
+
+/**
  * Fire-and-forget client tracker. Never blocks the UI.
  * Retries up to 3 times with exponential backoff.
  * Analytics errors are logged but never break the user experience.
