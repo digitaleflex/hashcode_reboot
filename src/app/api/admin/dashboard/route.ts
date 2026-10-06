@@ -10,6 +10,7 @@ import {
   type BudgetLevel,
 } from "@/lib/email-budget";
 import { AuthError, ValidationError, errorToResponse } from "@/lib/errors";
+import { CRON_HEALTH } from "@/lib/cron/registry";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,15 +27,9 @@ const querySchema = z.object({
 
 // ── Reused constants ────────────────────────────────────────────────
 
-const CRONS = [
-  { key: "cron_relance", label: "Relance profils (J+7)", expectedEveryH: 24 },
-  { key: "cron_email_alerts", label: "Alertes délivrabilité", expectedEveryH: 24 },
-  { key: "cron_collect_metrics", label: "Collecte métriques", expectedEveryH: 24 },
-  { key: "cron_event_reminders", label: "Relances événements (J-3/J-1/H-1)", expectedEveryH: 1 },
-  { key: "admin_announce_dashboard", label: "Annonce espace (manuel)", expectedEveryH: null },
-  { key: "admin_invite_relance", label: "Relance invitations (manuel)", expectedEveryH: null },
-  { key: "admin_import_invite", label: "Import invitations (manuel)", expectedEveryH: null },
-] as const;
+// Liste des crons suivis : voir le registre unique (supprime la duplication
+// dashboard/route.ts <> cron-health/route.ts — ajouter un cron = le registre).
+// `CRON_HEALTH` reproduit exactement les 7 lignes historiques, dans le même ordre.
 
 const CATEGORIES = ["welcome", "waitlist", "engagement", "relance", "other"] as const;
 
@@ -392,7 +387,7 @@ async function fetchEmailOps(batchSize: number, minutes: number) {
 async function fetchCronHealth() {
   const now = Date.now();
   return Promise.all(
-    CRONS.map(async (c) => {
+    CRON_HEALTH.map(async (c) => {
       const last = await db.analyticsEvent.findFirst({
         where: { type: c.key },
         orderBy: { createdAt: "desc" },

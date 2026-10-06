@@ -1,0 +1,295 @@
+# HASHCODE REBOOT — production
+#
+# TOUTE la configuration vient du fichier .env (voir .env.example).
+# Ce fichier ne déclare que ce qui ne peut pas venir de .env :
+#   - les overrides de réseau interne (DATABASE_URL pointant vers le
+#     conteneur postgres plutôt que vers un Neon externe)
+#   - les labels de routage Traefik
+#
+# Ajouter une variable = l'ajouter dans .env. Rien à toucher ici.
+#
+# Prérequis : Traefik publie déjà le réseau « proxy ».
+#   docker network ls | grep proxy
+#
+# Déploiement :
+#   docker compose up -d --build
+
+name: hashcode-reboot
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    # Pas de `env_file: .env` ici, contrairement aux autres services : Postgres
+    # n'a besoin que des identifiants. Tout le .env lui exposerait
+    # BETTER_AUTH_SECRET et les clés d'email pour rien. Les valeurs viennent
+    # quand même du .env, par interpolation.
+    environment:
+      # `TZ` et `initdb` sont des options du conteneur, pas des variables
+      # applicatives : elles restent ici car elles n'ont pas leur place dans
+      # un .env partagé avec le local.
+      TZ: Africa/Porto-novo
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=fr_FR.UTF-8"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    # Pas de `ports:` — la base est injoignable depuis l'hôte.
+    # Postgres est dimensionné pour tenir un serveur HASHCODE à l'échelle :
+    # shared_buffers 512 Mo couvre les requêtes d'agrégats admin (les plus
+    # lourdes du projet), le reste va au cache OS.
+    command: >
+      postgres
+      -c shared_buffers=${PG_SHARED_BUFFERS:-512MB}
+      -c effective_cache_size=${PG_EFFECTIVE_CACHE_SIZE:-1536MB}
+      -c work_mem=${PG_WORK_MEM:-8MB}
+      -c maintenance_work_mem=${PG_MAINTENANCE_WORK_MEM:-128MB}
+      -c max_connections=${PG_MAX_CONNECTIONS:-50}
+    deploy:
+      resources:
+        limits:
+          # 1 Go : Postgres qui dépasse 1 Go sur ce volume de travail signale
+          # un problème de requête, pas un besoin de mémoire.
+          cpus: "${PG_CPU_LIMIT:-1.0}"
+          memory: ${PG_MEMORY_LIMIT:-1g}
+        reservations:
+          memory: ${PG_MEMORY_RESERVATION:-512m}
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  # Applique les migrations, puis sort. L'app ne démarre qu'après son succès.
+  # C'est le garde-fou contre un déploiement sur un schéma incohérent.
+  migrate:
+    image: hashcode-reboot:local
+    restart: "no"
+    # Chaîne complète, en un seul passage et dans cet ordre :
+    #   1. deploy  → applique les migrations de prisma/migrations
+    #   2. verify  → compare le schéma réel au schema.prisma, lit seule
+    #   3. seed    → pose Member.adminRole pour ADMIN_OPERATORS (idempotent)
+    #
+    # `set -e` : si une étape échoue, les suivantes ne tournent pas et le
+    # service sort en erreur — donc `web`, qui dépend de son succès, ne
+    # démarre pas.
+    entrypoint: >
+      sh -c '
+        set -e
+        echo "── 1/3 migrations ──";
+        npx prisma migrate deploy;
+        echo "── 2/3 vérification du schéma ──";
+        node --import tsx scripts/verify-schema.ts;
+        echo "── 3/3 rôle admin ──";
+        node --import tsx scripts/ensure-admin.ts;
+        echo "── terminé ──";
+      '
+    # Seul ADMIN_OPERATORS est nécessaire ici : c'est le seulscript qui lit
+    # une variable métier. Les clés d'email et le secret Better Auth n'ont
+    # rien à faire dans un service de migration.
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      ADMIN_OPERATORS: ${ADMIN_OPERATORS:-}
+    # PAS sur le réseau `proxy` : migrate n'a aucun besoin d'être joignable
+    # depuis le réseau partagé du VPS. Le brancher donnait à une opération
+    # ponctuelle un accès à toutes les autres stacks du serveur.
+    networks:
+      - backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Le build Next.js est le moment le plus gourmand du cycle de vie : webpack
+    # charge tout le graphe de modules en mémoire. 2 Go suffisent ; au-delà,
+    # c'est un build cassé ou un virus de machine.
+    deploy:
+      resources:
+        limits:
+          cpus: "${MIGRATE_CPU_LIMIT:-1.0}"
+          memory: ${MIGRATE_MEMORY_LIMIT:-2g}
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  web:
+    image: hashcode-reboot:local
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      # Les trois variables d'URL doivent désigner le MÊME domaine public :
+      #   NEXT_PUBLIC_SITE_URL → baseURL de l'authClient (navigateur) ET
+      #                       trustedOrigins côté serveur (auth/index.ts:97)
+      #   BETTER_AUTH_URL      → base serveur, détermine le domaine du cookie
+      #   NEXT_PUBLIC_URL      → liens des emails et pages de profil
+      # Si elles divergent, l'authClient vise une origine que trustedOrigins
+      # n'autorise pas, et la connexion échoue sans message.
+      BETTER_AUTH_URL: ${PUBLIC_URL:?PUBLIC_URL est obligatoire dans .env}
+      NEXT_PUBLIC_SITE_URL: ${PUBLIC_URL:?PUBLIC_URL est obligatoire dans .env}
+      NEXT_PUBLIC_URL: ${PUBLIC_URL:?PUBLIC_URL est obligatoire dans .env}
+      # Borne le tas V8 en cohérence avec la limite du conteneur : sans ça,
+      # Node ignore la limite et se fait tuer par l'OOM killer sans avoir
+      # pu collecter. Doit rester SOUS WEB_MEMORY_LIMIT.
+      NODE_OPTIONS: "--max-old-space-size=${WEB_NODE_HEAP:-640}"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=${TRAEFIK_NETWORK:-proxy}"
+      - "traefik.http.routers.hashcode.rule=Host(`${PUBLIC_HOST:?PUBLIC_HOST est obligatoire dans .env}`)"
+      - "traefik.http.routers.hashcode.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}"
+      - "traefik.http.routers.hashcode.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}"
+      - "traefik.http.services.hashcode.loadbalancer.server.port=3000"
+    # Aucun `ports:` — Traefik route via le réseau « proxy ».
+    networks:
+      - backend
+      - proxy
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    # Runtime Node en steady state. 1 Go : Next.js standalone tient largement
+    # dedans. Le pic, c'est le rendu serveur des pages admin (agrégats), pas
+    # le trafic — d'où 1 Go plutôt que 512 Mo.
+    deploy:
+      resources:
+        limits:
+          cpus: "${WEB_CPU_LIMIT:-1.0}"
+          memory: ${WEB_MEMORY_LIMIT:-1g}
+        reservations:
+          memory: ${WEB_MEMORY_RESERVATION:-512m}
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
+
+  # Ordonnanceur interne — remplace cron-job.org (SaaS tiers, 5 configs
+  # manuelles) ET l'ancien service `backup` (boucle `sleep 86400` dont le
+  # rythme dérivait de 24 h à chaque redémarrage, ni inspectable ni pilotable).
+  #
+  # Le crontab est RÉGÉNÉRÉ à chaque démarrage depuis le registre TypeScript
+  # embarqué dans l'image (src/lib/cron/registry.ts) : ne jamais l'éditer à
+  # la main dans le conteneur, le redémarrage suivant l'écraserait.
+  # Deux types de lignes :
+  #   - `call-cron <slug>` → GET http://web:3000/api/cron/<slug> (réseau
+  #     interne `backend`, jamais via Traefik ni le domaine public) ;
+  #   - `pg-backup`        → dump pg_dump + vérification + rotation.
+  #
+  # `scripts/backup.sh` côté HÔTE existe toujours : c'est l'outil manuel
+  # d'urgence (restore, list, verify, pre-deploy de scripts/deploy.sh).
+  # Doublon VOULU, pas un bug : le cron fait le quotidien automatique, le
+  # script sert quand il faut agir à la main.
+  cron:
+    # Construite depuis le même Dockerfile que `web`, cible `cron` dont la
+    # base est postgres:16-alpine (busybox `crond` + `pg_dump` déjà dedans :
+    # aucune image supplémentaire à maintenir, juste une étape de plus).
+    # Le build embarque le registre → toute modification du planning impose
+    # un rebuild (`docker compose build cron`), sinon le crontab régénéré au
+    # boot resterait celui de l'ancienne image.
+    build:
+      context: .
+      target: cron
+    image: hashcode-reboot-cron:local
+    restart: unless-stopped
+    # Le crontab n'appelle que http://web:3000 en interne : `service_started`
+    # suffit, pas besoin d'attendre le healthcheck (les passages ont lieu à
+    # heure fixe, bien après le boot de toute façon).
+    depends_on:
+      web:
+        condition: service_started
+    environment:
+      # Heures du crontab en heure locale. Exige tzdata dans l'image (voir
+      # Dockerfile) : sans les fichiers zoneinfo, musl ignore cette variable
+      # et tout tournerait en UTC, silencieusement.
+      TZ: Africa/Porto-novo
+      # Consommé par l'entrypoint, qui l'écrit en chmod 600 dans
+      # /run/cron/secret. Le secret n'apparaît JAMAIS dans le crontab
+      # (`crontab -l` est lisible par tous les process du conteneur).
+      CRON_SECRET: ${CRON_SECRET:?CRON_SECRET est obligatoire dans .env}
+      WEB_URL: http://web:3000
+      # Même triplet que l'ancien service `backup`, mêmes noms
+      # d'interpolation : libpq les lit nativement
+      # (PGHOST/PGUSER/PGPASSWORD/PGDATABASE), rien à changer dans le .env.
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER:?POSTGRES_USER est obligatoire dans .env}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD est obligatoire dans .env}
+      PGDATABASE: ${POSTGRES_DB:?POSTGRES_DB est obligatoire dans .env}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+      BACKUP_DIR: /backups
+    volumes:
+      - backup-data:/backups
+    # PAS sur le réseau `proxy` : même cloisonnement que `migrate`, un cron
+    # n'a rien à faire sur le réseau partagé du VPS.
+    # PAS de `ports:`, PAS de labels Traefik : injoignable de l'extérieur.
+    networks:
+      - backend
+    # Quasi inactif en dehors des passages : plafond bas pour qu'un run en
+    # boucle ne concurrence jamais l'app.
+    deploy:
+      resources:
+        limits:
+          cpus: "${CRON_CPU_LIMIT:-0.2}"
+          memory: ${CRON_MEMORY_LIMIT:-128m}
+        reservations:
+          memory: ${CRON_MEMORY_RESERVATION:-32m}
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "3" }
+
+# ─── Réseaux ───────────────────────────────────────────────────────────────
+#   backend → base de données, cloisonnée. Aucun port publié.
+#   proxy   → réseau EXTERNE partagé avec Traefik. Seul `web` y est branché.
+#
+# `backend` porte un nom explicite préfixé du projet : sans lui, Docker le
+# préfixe automatiquement, ce qui fonctionne mais rend les réseaux invisibles
+# dans `docker network ls` — impossible de distinguer la prod du dev d'un
+# coup d'œil quand plusieurs stacks coexistent sur le VPS.
+#
+# Le cloisonnement a un intérêt réel : `migrate`, `cron` et `postgres` ne
+# sont PAS sur le réseau partagé. Sinon, une migration en cours donnerait
+# accès au réseau commun du VPS, et la base serait atteignable depuis les
+# autres stacks.
+networks:
+  backend:
+    driver: bridge
+    name: ${BACKEND_NETWORK:-proxy-backend}
+  # Réseau partagé Traefik. DOIT déjà exister sur le VPS : cette stack
+  # s'y attache, elle ne le crée pas.
+  #
+  # Un réseau `proxy` par projet hashcode : la prod s'y attache, le dev non.
+  # Les stacks d'autres projets ont le leur. C'est ce cloisonnement qui
+  # empêche Traefik de router le trafic d'un site vers le conteneur d'un
+  # autre — un nom de réseau partagé par TOUS les projets créerait cette
+  # confusion, chaque service deviendrait atteignable par tous les autres.
+  proxy:
+    external: true
+    name: ${TRAEFIK_NETWORK:-proxy}
+
+# ─── Volumes ───────────────────────────────────────────────────────────────
+# ⚠️ NOM EXPLICITE = CHANGEMENT DE NOM = BASE VIDE.
+#
+# `name:` fige le volume. Si ce nom ne correspond pas au volume qui porte
+# déjà les données, Docker en crée un neuf et vide, et l'app démarre sans
+# aucune donnée — sans aucune erreur visible.
+#
+# ＞ Depuis le VPS :
+#     docker volume ls | grep hashcode
+#   Si un volume existe déjà avec un autre nom, le reprendre :
+#     docker volume create hashcode_reboot_postgres_data   ← même nom qu'ici
+#   ou, pour un volume existant :
+#     VOLUME_EXTERNAL=1 docker volume inspect <nom-existant>
+#
+# Les noms portent `hashcode_reboot_` comme préfixe, cohérent avec le
+# répertoire projet et avec le réseau hashcode.
+volumes:
+  postgres-data:
+    name: ${POSTGRES_VOLUME:-hashcode_reboot_postgres_data}
+  backup-data:
+    name: ${BACKUP_VOLUME:-hashcode_reboot_backup_data}

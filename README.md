@@ -35,7 +35,7 @@ Noms lus par le code, dans l'ordre d'importance :
 |---|---|
 | `POSTGRES_PRISMA_URL` | Connexion poolée (runtime, fournie par l'intégration Vercel-Neon) |
 | `POSTGRES_URL_NON_POOLING` | Connexion directe (migrations CLI) |
-| `Member.adminRole` (en base) | Rôle admin : `operator` (accès complet), `viewer` (lecture seule), `null` = pas admin. **Fail-closed** : `null` = aucun accès. Posé via `scripts/seed-admin-role.ts` |
+| `Member.adminRole` (en base) | Rôle admin : `operator` (accès complet), `viewer` (lecture seule), `null` = pas admin. **Fail-closed** : `null` = aucun accès. Posé via `scripts/ensure-admin.ts` |
 | `NEXT_PUBLIC_WHATSAPP_URL` | Lien communauté WhatsApp côté client (requis, aucune valeur en dur) |
 | `WHATSAPP_URL` | Idem, côté serveur (prioritaire sur la précédente, aucune valeur en dur) |
 | `RESEND_API_KEY` / `EMAIL_FROM` | Envoi + vérification Resend |
@@ -154,7 +154,7 @@ avec les cold starts (~1 s au réveil).
 ## Déploiement Vercel
 
 1. Lier le projet à l'intégration Neon (injecte `POSTGRES_*` tout seul).
-2. Poser le rôle admin en base (`Member.adminRole = "operator"`, voir `scripts/seed-admin-role.ts`) + renseigner `CRON_SECRET` dans les vars du projet.
+2. Poser le rôle admin en base (`Member.adminRole = "operator"`, voir `scripts/ensure-admin.ts`) + renseigner `CRON_SECRET` dans les vars du projet.
 3. Push sur `main` : `vercel-build` migre (`migrate deploy`) puis build.
 4. Créer le job cron-job.org (section précédente).
 

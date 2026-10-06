@@ -188,7 +188,7 @@ npm run test:e2e:ui       # UI mode
 | `RESEND_API_KEY` | Emails transactionnels | ✅ |
 | `BREVO_API_KEY` | Emails marketing/deliverability | ✅ |
 | `NEXT_PUBLIC_APP_URL` | URL publique pour liens emails | ✅ |
-| `Member.adminRole` (en base) | Rôle admin (`operator` / `viewer`). Fail-closed : `null` = pas admin. Posé via `scripts/seed-admin-role.ts` | ✅ |
+| `Member.adminRole` (en base) | Rôle admin (`operator` / `viewer`). Fail-closed : `null` = pas admin. Posé via `scripts/ensure-admin.ts` | ✅ |
 
 ## Scripts utiles
 

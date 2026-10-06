@@ -1,0 +1,49 @@
+# ─── .dockerignore ───────────────────────────────────────────────────────────
+# Tout ce qui est exclu ci-dessous ne traverse ni le réseau de build ni les
+# couches de l'image. Le contexte passe de ~2,7 Go à un saut de quelques Mo.
+#
+# Règle générale : on ne garde que ce dont le Dockerfile a besoin pour
+# construire l'image Next.js standalone.
+
+# ─── Secrets et config locale (PRIORITAIRE) ─────────────────────────────────
+# Les clés injectées au build passent par ARG, jamais par le .env du checkout.
+.env
+.env.*
+!.env.example   # modèle sans secrets, utile aux tests éventuels
+
+# ─── Données, caches et sorties ─────────────────────────────────────────────
+.git
+.next
+node_modules
+coverage
+backups
+*.dump
+.vercel
+local-config
+
+# ─── Fichiers de développement / outillage local ───────────────────────────
+.vscode
+.idea
+.claude
+.codex
+.slim
+.agents
+.task-progress.json
+Dockerfile
+.dockerignore
+compose*.yml
+playwright.config.ts
+test-results
+playwright-report
+eslint.config.mjs
+
+# ─── Installs à ne pas recopier depuis l'hôte ──────────────────────────────
+# Le builder fait son propre `npm ci` : node_modules du checkout ne doit
+# JAMAIS entrer dans le contexte, sinon le cache Docker se invalide à chaque
+# modification et le contexte explose (1,3 Go).
+npm-debug.log
+yarn-error.log
+
+# ─── OS / éditeur ───────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db

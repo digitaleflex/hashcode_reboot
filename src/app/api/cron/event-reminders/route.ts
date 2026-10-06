@@ -206,6 +206,23 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Heartbeat : sans cette ligne, le tableau de santé admin affiche
+  // « Relances événements » en `never` en permanence — même quand le cron
+  // tourne parfaitement — et HealthAlertsBanner le remonte comme cron stale.
+  // Même défaut que les 3 autres crons, qui écrivent toutes leur clé `cron_*`.
+  // Best-effort : un échec ici ne doit pas faire échouer l'envoi des relances.
+  try {
+    await db.analyticsEvent.create({
+      data: {
+        type: "cron_event_reminders",
+        ref: `checked=${events.length} sent=${sentTotal} batches=${remindersSent}`,
+        value: sentTotal,
+      },
+    });
+  } catch {
+    /* ignore */
+  }
+
   return NextResponse.json({
     ok: true,
     checked: events.length,

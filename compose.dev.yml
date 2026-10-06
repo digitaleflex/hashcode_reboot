@@ -1,0 +1,130 @@
+# HASHCODE REBOOT — développement
+#
+# Même source de vérité que la prod : le .env.
+#   docker compose -f compose.dev.yml up -d
+#
+# Deux garanties :
+#   1. Base SÉPARÉE — volume `hashcode-postgres-dev-data`, jamais celui de prod.
+#   2. Base LOCALE — ici on force localhost, jamais l'hôte Neon, pour qu'un
+#      `migrate reset` en dev ne puisse pas toucher la production.
+#
+# Pas de Traefik, pas de certificat : tout est sur localhost.
+
+name: hashcode-reboot-dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    # Que les identifiants : Postgres n'a besoin de rien d'autre.
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD}
+      TZ: Europe/Paris
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=fr_FR.UTF-8"
+      # Suffixe `_DEV` : une base distincte dans le même conteneur. Évite qu'un
+      # mot de passe oublié en dev n'écrase la prod.
+      POSTGRES_DB: ${POSTGRES_DB}_dev
+    # 5432 publié sur localhost UNIQUEMENT, pour brancher un client SQL ou
+    # Prisma Studio depuis le poste. Jamais 0.0.0.0 : le port resterait
+    # joignable depuis tout le réseau local.
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-dev-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$${POSTGRES_DB}_dev\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # En dev, la base est un bac à sable : moitié des réglages de la prod.
+    # shared_buffers plus bas = moins de concurrence avec le reste du poste.
+    command: >
+      postgres
+      -c shared_buffers=${PG_DEV_SHARED_BUFFERS:-128MB}
+      -c work_mem=${PG_DEV_WORK_MEM:-4MB}
+      -c max_connections=${PG_DEV_MAX_CONNECTIONS:-20}
+    deploy:
+      resources:
+        limits:
+          cpus: "${PG_DEV_CPU_LIMIT:-0.5}"
+          memory: ${PG_DEV_MEMORY_LIMIT:-512m}
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    networks:
+      - backend
+
+  migrate:
+    image: hashcode-reboot:local
+    restart: "no"
+    command: ["npx", "prisma", "migrate", "deploy"]
+    # Migrer n'a besoin que de la base : pas de secrets dans ce service.
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}_dev?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "${MIGRATE_DEV_CPU_LIMIT:-1.0}"
+          memory: ${MIGRATE_DEV_MEMORY_LIMIT:-1g}
+    networks:
+      - backend
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: hashcode-reboot:local
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: development
+      TZ: Europe/Paris
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}_dev?schema=public
+      # En dev on force localhost : Better Auth doit savoir l'URL réellement
+      # servie, sinon les cookies de session ne sont pas posés.
+      BETTER_AUTH_URL: ${DEV_URL:-http://localhost:3000}
+      NEXT_PUBLIC_SITE_URL: ${DEV_URL:-http://localhost:3000}
+      NEXT_PUBLIC_URL: ${DEV_URL:-http://localhost:3000}
+      # Borne le tas V8 en cohérence avec la limite du conteneur : sans ça,
+      # Node ignore la limite et se fait tuer par l'OOM killer. Doit rester
+      # SOUS WEB_DEV_MEMORY_LIMIT.
+      NODE_OPTIONS: "--max-old-space-size=${WEB_DEV_NODE_HEAP:-512}"
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    # 768 Mo en dev : le hot-reload et la compilation à la volée consomment
+    # plus que le runtime, mais 1 Go resterait excessif sur un poste qui fait
+    # déjà tourner un IDE et un navigateur.
+    deploy:
+      resources:
+        limits:
+          cpus: "${WEB_DEV_CPU_LIMIT:-1.5}"
+          memory: ${WEB_DEV_MEMORY_LIMIT:-768m}
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    networks:
+      - backend
+
+networks:
+  # Nom explicite, suffixe _dev : si le dev tourne sur le MÊME VPS que la
+  # prod, les deux réseaux restent distinguables dans `docker network ls`.
+  # Aucun réseau externe ici — Traefik n'est pas concerné en local.
+  backend:
+    driver: bridge
+    name: ${BACKEND_NETWORK_DEV:-proxy-backend-dev}
+
+# ─── Volumes ───────────────────────────────────────────────────────────────
+# ⚠️ Suffixe _dev obligatoire. Un volume nommé comme celui de la prod
+# écraserait la base de production au premier `docker compose up` en dev.
+volumes:
+  postgres-dev-data:
+    name: ${POSTGRES_VOLUME_DEV:-hashcode_reboot_postgres_data_dev}
