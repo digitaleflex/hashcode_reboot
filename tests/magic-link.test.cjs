@@ -345,11 +345,32 @@ describe("verify-email: flux complet (request → confirm → verified)", () => 
     });
     assert.equal(await verifyEmail.isEmailVerified(email), true);
 
-    // Un renvoi immédiat reste bloqué par le cooldown (60 s), même après
-    // consommation du lien.
+    // D34 — après consommation du lien, un renvoi ne produit PLUS un cooldown.
+    //
+    // Avant D34, ce test affirmait `cooldownSec > 0` : l'utilisateur déjà
+    // vérifié recevait un 429 « réessaie dans 60 s » alors qu'aucun envi n'a
+    // lieu et qu'aucune attente n'a de sens. `requestEmailLink` court-circuite
+    // désormais sur le flag et signale `alreadyVerified`.
+    //
+    // Le cooldown reste vérifié séparément, sur une adresse NON vérifiée —
+    // c'est le cas qui a du sens.
     const again = await verifyEmail.requestEmailLink(email);
     assert.equal(again.ok, false);
-    assert.ok(again.cooldownSec > 0);
+    assert.equal(again.alreadyVerified, true, "le flag doit être lu, pas ignoré");
+    assert.equal(
+      again.cooldownSec ?? null,
+      null,
+      "un email déjà vérifié ne doit pas être présenté comme une attente",
+    );
+
+    // Le cooldown de 60 s reste actif pour une adresse non vérifiée.
+    const fresh = `cooldown-${Date.now()}-${Math.random()}@example.test`;
+    const first = await verifyEmail.requestEmailLink(fresh);
+    assert.equal(first.ok, true);
+    const second = await verifyEmail.requestEmailLink(fresh);
+    assert.equal(second.ok, false);
+    assert.equal(second.alreadyVerified, undefined);
+    assert.ok(second.cooldownSec > 0, "le cooldown doit rester actif");
   });
 });
 

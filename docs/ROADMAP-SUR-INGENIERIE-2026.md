@@ -627,6 +627,55 @@ Suppression ~150 lignes.
 
 **Dépend de :** D18 (les tests doivent couvrir le nouveau contrat de statut).
 
+**D24 — fait le 2026-10-06**
+
+Le bug décrit plus haut était plus précis que « deux styles de refus » :
+`requireAdminRole()` renvoyait un **booléen**, donc **aucune** des 28 routes
+appelantes ne pouvait distinguer deux situations opposées. Une route operator
+répondait la même chose pour « pas d'admin du tout » et pour « admin viewer ».
+
+**Forme du garde** (`src/lib/admin-auth.ts`) :
+
+```ts
+export type AdminGuard =
+  | { ok: true; role: AdminRole; email: string }
+  | { ok: false; reason: "unauthenticated" | "insufficient_role" };
+export async function requireAdmin(req, allowedRole?): Promise<AdminGuard>
+```
+
+Trois sorties, une seule résolution de session :
+`requireAdmin()` (verdict), `adminGuardResponse()` (401 `AUTH_REQUIRED` /
+403 `FORBIDDEN`, via `errors.ts`), `requireAdminOrThrow()` (même verdict levé en
+`AppError`, pour les routes déjà dans un `try/catch` `errorToResponse`).
+
+**Contrat HTTP** : `unauthenticated` → 401, `insufficient_role` → 403. Les 6
+variantes de message du tableau ci-dessus ont disparu : le statut et le `code`
+portent le sens, le message est uniforme.
+
+**Non-régression** : `tests/admin-guard.test.cjs` (12 tests), dont un cas de bout
+en bout sur `GET /api/admin/audit-log`. Le fichier échoue si `adminGuardError`
+renvoie 401 pour les deux verdicts (bug réinjecté puis restauré, vérifié).
+
+**Statuts corrigés** (28 routes). Le détail par route est dans le rapport de
+session. En résumé : 17 routes renvoyaient 401 à un viewer sur une route
+operator (client redirigé vers la connexion alors que sa session était valide) ;
+6 routes renvoyaient 403 à un appel anonyme (client qui réessaie sur 401 en
+boucle) ; le reste était correct et n'a pas bougé.
+
+**Deux tests existants verrouillaient le bug** et ont été corrigés en
+conséquence, pas contournés : `tests/integration.test.cjs` (403 → 401 sur
+`audit-log` et `activity`, sans cookie) et `tests/e2e/workshop-gate.spec.ts`
+(403 → 401 sur `GET /api/admin/workshops/[id]`). Voir la section « Tests
+modifiés » du rapport.
+
+**D28 — traité partiellement, sans élargir le périmètre.** Les 5 cas listés dans
+D28 qui*tombaient dans le périmètre* D24 sont résolus par le fait que
+`requireAdminOrThrow()` renvoie la session : plus de second `getAdminRole()` /
+`getAdminIdentity()`. Restent hors périmètre : `admin/verify` (interroge
+volontairement le rôle pour un client sans session), `members/[id]/invite` et
+`export`, `export/json`, `events/[id]`, `events/route.ts` sur leurs handlers
+d'écriture — à traiter dans D28.
+
 ## D25 — `adminQuery()` : factoriser le bloc 401/429
 
 **Constat.** `src/components/reboot/admin/lib/fetchJson.ts` (43 l.) centralise le
@@ -679,12 +728,23 @@ Navigation cassée sur 4 des 14 pages.
 `getAdminIdentity`, `requireAdminRole`) qui **re-résolvent chacune** `resolveAdminSession`
 → `auth.api.getSession()` + parsing des 3 listes d'env.
 
+> **D24 a traité 4 des 5 cas** (voir la note D24 ci-dessus) : `requireAdminRole`
+> n'existe plus, et `requireAdminOrThrow()` renvoie `{email, role}`, ce qui a
+> supprimé la seconde résolution dans `members/[id]` (PATCH),
+> `members/[id]/invite`, `events/[id]` (PATCH, DELETE), `events/route.ts` (POST),
+> `email-templates` (POST) et `email-templates/[key]` (PATCH).
+> Restent : `admin/verify:11` + `:15` (cas particulier, voir plus bas) et
+> `export`, `export/json` (jamais migrés — ils utilisent `isAdminAuthed`).
+> `getAdminRole` / `getAdminIdentity` / `isAdminAuthed` sont toujours exportés
+> pour ces appelants : **les supprimer est le cœur de D28.**
+
 Séquences qui font **2× `getSession()`** par requête :
-- `admin/verify:11` + `:15`
-- `members/[id]/invite:30` + `:68`
-- `events/[id]:92` + `:130`
-- `events/route.ts:223` + `:272`
-- `admin/workshops/submissions/[id]/review` : `requireAdminRole` + `getAdminIdentity`
+- `admin/verify:11` + `:15` — **à traité avec soin** : cette route sert
+  justement à *dire* au client « session invalide » et à renvoyer le rôle. La
+  fusionner en un seul appel est possible (`requireAdmin(req, "viewer")`) mais
+  change la forme de la réponse : à trancher dans D28, pas dans D24.
+- `export` + `export/json` : `isAdminAuthed` puis `getAdminRole`
+- `members/[id]` GET : `isAdminAuthed` (le handler PATCH est déjà corrigé)
 
 **Correctif.** Exposer un `resolveAdminSession(req)` public retourne `{email, role}`.
 Suppression ~30 lignes et une requête DB par route touchée.
@@ -851,7 +911,7 @@ Et `:37-39` lit `identity` / `expiresAt` que la route **ne renvoie pas** → deu
 affichées en permanence `—`.
 
 **Options.** (a) Supprimer les 355 lignes. (b) Aligner `SESSION_MS` sur la durée réelle
-(peut-être 12 h de *confort*, à缭绕 dans le design). (c) Faire renvoyer `expiresAt` par
+(peut-être 12 h de *confort*, à'intégrer dans le design). (c) Faire renvoyer `expiresAt` par
 `/api/admin/verify` et piloter le rappel sur la vraie expiration.
 
 ## D36 — Supprimer les tables et colonnes mortes (~60 l. de schéma)

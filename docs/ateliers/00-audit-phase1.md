@@ -13,7 +13,7 @@
 3. **[FACT]** Le programme « Maîtrise GitHub — Bases » existe déjà… **sous forme de 12 `Event`** avec le contenu noyé dans `description` (`scripts/seed-github-program.ts`, commit `d73022c`). C'est un contenu, pas un parcours : pas de semaines, pas de livrables, pas de quiz, pas de progression.
 4. **[FACT]** L'Event engine est complet et solide : POST/GET/PATCH/DELETE + RSVP + notify ciblé + notify-count + audit + rate-limit + CSRF + page publique `/evenements`. Le formulaire admin Event fonctionne (création, édition, statuts, renotification, suppression).
 5. **[GAP]** Le contrat API du protocole §6 correspond au code réel à un détail près : `notify` n'est pas validé comme booléen strict (`notify !== false` → toute autre valeur déclenche l'envoi) — mineur.
-6. **[FACT]** Les briques réutilisables sont nombreuses et propres : `getSession()`, `requireAdminRole()`, `checkCSRF()`, `rateLimit()`, `audit()`, `blockIfTesting()`, `bodyLimit()`, mail multi-provider, `EmailTemplate`, `AnalyticsEvent`, patterns de seed idempotent, patterns de tests.
+6. **[FACT]** Les briques réutilisables sont nombreuses et propres : `getSession()`, `requireAdmin()` (D24 : remplace `requireAdminRole()`, distingue 401 non authentifié / 403 rôle insuffisant), `checkCSRF()`, `rateLimit()`, `audit()`, `blockIfTesting()`, `bodyLimit()`, mail multi-provider, `EmailTemplate`, `AnalyticsEvent`, patterns de seed idempotent, patterns de tests.
 7. **[RISK]** `main` et `development` ont **divergé** : 40 commits dans `development` absents de `main`, 29 dans `main` absents de `development` (merge-base `92ea6f4` du 2026-09-10). Main contient des prune knip + analytics Vercel que dev n'a pas ; dev contient tout le travail Events/email récent.
 8. **[RISK]** Pas de DB de test : les tests d'écriture d'intégration ont été retirés volontairement (pollution prod). Le guard `TESTING=1` bloque les writes. Toute la stratégie de test Atelier devra en tenir compte.
 9. **[RISK]** Les tests unitaires sont des **miroirs CJS** de la logique TS (dérive possible). C'est le pattern maison assumé (documenté en tête de `tests/event-validation.test.cjs`).
@@ -116,7 +116,7 @@ PUBLIC (anonyme)                MEMBRE CONNECTÉ (/dashboard/*)
 - **Pages** : ~15 pages `src/app/admin/*/page.tsx`. Patterns : page client + `fetchJson` (`src/components/reboot/admin/lib/fetchJson.ts`, gère 429 + Retry-After) + `useToast` + invalidation TanStack Query.
 - **Formulaire de référence** : `src/app/admin/events/page.tsx` — champs contrôlés maison, conversion `datetime-local → ISO`, compteur pré-envoi `notify-count` débouncé 300 ms, feedback succès/erreur, reset partiel.
 - **Liste de référence** : `AdminEventList.tsx` — actions statut (PATCH), renotify (PATCH `{notify:true}`), édition inline, suppression (DELETE) + toasts.
-- **Philosophie admin constatée** : mutations = `requireAdminRole("operator")` + `checkCSRF` + rate-limit + `audit()` ; lecture = `requireAdminRole("viewer")`. C'est ce contrat que l'admin Atelier doit adopter.
+- **Philosophie admin constatée** : mutations = `requireAdminOrThrow(req, "operator")` + `checkCSRF` + rate-limit + `audit()` ; lecture = `requireAdminOrThrow(req, "viewer")`. Depuis D24, le refus sans session est un 401 et le refus de rôle un 403 — le contrat que l'admin Atelier adopte déjà via `requireAdmin()`.
 
 ---
 
@@ -130,7 +130,7 @@ PUBLIC (anonyme)                MEMBRE CONNECTÉ (/dashboard/*)
 
 **Admin** [FACT] :
 - Passcode unique `ADMIN_PASSCODE` (≥ 16 chars en prod, fail-closed au boot) → login `POST /api/admin/login` (CSRF + rate-limit 10/10 s) → token `exp.role[.identity].sig` HMAC-SHA256, cookie `hashcode-admin` 12 h.
-- `requireAdminRole(req, "viewer" | "operator")` : `operator` ⊇ `viewer`.
+- `requireAdminOrThrow(req, "viewer" | "operator")` : `operator` ⊇ `viewer` (D24 ; avant : `requireAdminRole`, booléen, incapable de distinguer 401 de 403).
 - **Identité admin non renseignée au login** [RISK] : `issueAdminToken(role, identity?)` accepte une identité mais `admin/login` ne la fournit pas → `getAdminIdentity()` = `"unknown"` aujourd'hui. Conséquence directe sur la traçabilité des reviews Atelier (cf. §16).
 
 ---
@@ -140,7 +140,7 @@ PUBLIC (anonyme)                MEMBRE CONNECTÉ (/dashboard/*)
 | Contrôle | Implémentation existante |
 |---|---|
 | Auth membre | `getSession(req)` par route/layout [FACT] |
-| Auth admin | `requireAdminRole(req, role)` / `isAdminAuthed` [FACT] |
+| Auth admin | `requireAdmin(req, role)` / `isAdminAuthed` [FACT, D24] |
 | CSRF | `checkCSRF(req)` : `Origin.host === Host` — utilisé sur **toutes** les mutations admin [FACT] |
 | Rate limit | `rateLimit(key, {capacity, windowMs})` + `retryAfterHeader` — Redis/Upstash, fallback mémoire [FACT] |
 | Ownership | Vérifications ad hoc par requête (ex : RSVP unique `[eventId, memberId]`, `memberId === session.member.id` implicite) [FACT] |
