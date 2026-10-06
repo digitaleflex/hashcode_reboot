@@ -10,9 +10,29 @@ export const revalidate = 0;
 /**
  * GET /api/admin/activity-logins — activité des connexions membres (admin-only).
  *
- * Proxy : MemberSession.lastSeenAt (refresh sliding-window à chaque requête
- * authentifiée, 1 write/heure max). Membres distincts actifs par jour (DAU)
- * sur 30 jours + distincts 7j / 30j.
+ * Source de vérité : `Session` (Better Auth). Elle lisait `MemberSession`, un
+ * doublon de l'ère pré-Better Auth resté sans aucun écrivain — donc ses deux
+ * lectures renvoyaient du vide, en silence : le DAU du tableau de bord valait
+ * 0 et s'affichait comme un vrai chiffre. Ce n'était pas une donnée absente,
+ * c'était une donnée fausse.
+ *
+ * Deux colonnes de `MemberSession` n'existent pas dans `Session`, et les
+ * remplacer naïvement aurait reconduit le même mensonge :
+ *
+ *  - `lastSeenAt` → `updatedAt`. `Session` n'a pas de « dernier vu », mais
+ *    Better Auth rafraîchit `updatedAt` à chaque requête authentifiée (fenêtre
+ *    glissante) : c'est exactement la même sémantique, à l'écriture près
+ *    (1 write par requête authentifiée au lieu d'1 par heure). C'est donc le
+ *    meilleur substitut, et le seul défendable.
+ *  - `revokedAt` → `expiresAt > NOW()`. Il n'y a pas de colonne de révocation :
+ *    Better Auth SUPPRIME la ligne à la déconnexion ou à la révocation, et la
+ *    seule façon qu'une ligne subsiste en étant invalide est d'avoir dépassé
+ *    son expiration. `expiresAt > NOW()` est donc l'équivalent exact, pas une
+ *    approximation.
+ *
+ * « Membre » se compte par `userId` : `Member` et `User` se correspondent 1:1
+ * par email (`account-auth.ts`), et le `groupBy` déduplique les appareils. Un
+ * membre sans session n'apparaît pas, ce qui est correct pour un DAU.
  */
 export async function GET(req: NextRequest) {
   try {
@@ -24,11 +44,11 @@ export async function GET(req: NextRequest) {
       Array<{ day: string; active: bigint }>
     >`
     SELECT
-      to_char(date_trunc('day', "lastSeenAt"), 'YYYY-MM-DD') AS day,
-      COUNT(DISTINCT "memberId") AS active
-    FROM "MemberSession"
-    WHERE "lastSeenAt" >= NOW() - INTERVAL '30 days'
-      AND "revokedAt" IS NULL
+      to_char(date_trunc('day', "updatedAt"), 'YYYY-MM-DD') AS day,
+      COUNT(DISTINCT "userId") AS active
+    FROM "Session"
+    WHERE "updatedAt" >= NOW() - INTERVAL '30 days'
+      AND "expiresAt" > NOW()
     GROUP BY 1
     ORDER BY 1 ASC
   `;
@@ -44,11 +64,13 @@ export async function GET(req: NextRequest) {
     }
 
     const last7 = daily.slice(-7).reduce((a, d) => a + d.active, 0);
-    const distinct30 = await db.memberSession.groupBy({
-      by: ["memberId"],
+    // Même couple de prédicats que le SQL ci-dessus : c'est `userId` qui joue
+    // le rôle du membre, et `expiresAt` celui de la révocation.
+    const distinct30 = await db.session.groupBy({
+      by: ["userId"],
       where: {
-        lastSeenAt: { gte: new Date(Date.now() - 30 * 24 * 3600 * 1000) },
-        revokedAt: null,
+        updatedAt: { gte: new Date(Date.now() - 30 * 24 * 3600 * 1000) },
+        expiresAt: { gt: new Date() },
       },
     });
 

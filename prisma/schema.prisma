@@ -92,7 +92,8 @@ model Member {
   approvedAt       DateTime? // quand le profil a été validé
   joinedAt         DateTime? // quand le membre a rejoint la communauté
 
-  sessions  MemberSession[]
+  // D36 : `sessions MemberSession[]` retiré — doublon de l'ère pré-Better Auth,
+  // sans écrivain. Les sessions vivent dans `Session` (User).
   rsvps     EventRsvp[]
   emailLogs MemberEmailLog[]
 
@@ -186,30 +187,14 @@ model Verification {
   @@index([expiresAt])
 }
 
-model RateLimit {
-  id         String   @id @default(cuid())
-  key        String   @unique
-  count      Int
-  lastRequest BigInt
-  createdAt  DateTime @default(now())
-
-  @@index([key])
-}
-
-// Clés admin persistées (rotation, expiration, invalidation)
-model AdminKey {
-  id           String    @id @default(cuid())
-  kid          String    @unique
-  passcodeHash String
-  createdAt    DateTime  @default(now())
-  expiresAt    DateTime? // null = jamais expiré
-  revokedAt    DateTime? // null = pas révoqué
-  createdBy    String? // qui a créé la clé (audit)
-
-  @@index([kid])
-  @@index([revokedAt])
-  @@index([expiresAt])
-}
+// D36 : `RateLimit` retiré. Le rate limiting applicatif est Redis
+// (src/lib/rate-limit.ts) et Better Auth n'a AUCUNE option `rateLimit` dans
+// src/lib/auth/index.ts. Table vide et non écrite : la migration D07 la créait
+// pour rester aligné sur le schéma, ce qui la rendait inexploitable.
+//
+// D36 : `AdminKey` retiré. La rotation de clés admin n'existe plus
+// (l'authentification admin est portée par Better Auth, allow-lists
+// ADMIN_OPERATORS/ADMIN_VIEWERS). Zéro accès applicatif dans tout le repo.
 
 /// Audit log for admin actions (write-only from API routes)
 model AuditLog {
@@ -327,34 +312,13 @@ model ProfilingDraft {
   @@index([relanceSentAt])
 }
 
-/// Member auth sessions (magic link via OTP).
-/// One MemberSession = one cookie = one device/browser.
-model MemberSession {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-
-  memberId String
-  member   Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
-
-  /// Hashed OTP (bcrypt). null = OTP consumed (verified).
-  otpHash   String?
-  /// Number of failed OTP attempts for this session (max 3).
-  attempts  Int      @default(0)
-  expiresAt DateTime
-
-  /// IP and user-agent for audit/security.
-  ip        String?
-  userAgent String?
-
-  /// When the session was last refreshed (cookie sliding window).
-  lastSeenAt DateTime  @default(now())
-  /// When the session was invalidated (logout or hard-revoke).
-  revokedAt  DateTime?
-
-  @@index([memberId])
-  @@index([expiresAt])
-  @@index([revokedAt])
-}
+// D36 : `MemberSession` SUPPRIMÉE. Doublon de l'ère pré-Better Auth (magic
+// link par OTP) : plus aucun écrivain applicatif — les sessions vivent dans
+// `Session` (Better Auth), qui porte `userId`, `ipAddress`, `userAgent`,
+// `createdAt`, `updatedAt`, `expiresAt`. Ses deux lecteurs (`admin/activity-logins`
+// et `account/export`) lisaient donc une table vide et renvoyaient des zéros /
+// des listes vides en silence ; ils ont été basculés sur `Session` AVANT le
+// DROP. `otpHash`, `attempts`, `lastSeenAt` et `revokedAt` disparaissent avec.
 
 /// Email blacklist — block signups from known abusers or spam.
 /// One row per blocked email. `expiresAt = null` = permanent.

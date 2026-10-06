@@ -172,9 +172,12 @@ routes. Guard `TESTING=1` sur les routes d'écriture (`src/lib/test-guard.ts`).
 
 > `src/lib/account-otp.ts`, la table `MemberSession` comme source de session et
 > le cookie `hashcode_session` n'existent plus : la session membre est celle de
-> Better Auth. `MemberSession` reste dans le schéma à titre de données
-> historiques lues par `admin/activity-logins` et `account/export` — sa
-> suppression est prévue en D36.
+> Better Auth. `MemberSession` a elle aussi été supprimée (D36) : c'était un
+> doublon sans aucun écrivain applicatif, dont les deux lecteurs
+> (`admin/activity-logins`, `account/export`) lisaient une table vide — le DAU
+> admin valait donc toujours 0 et l'export RGPD renvoyait `sessions: []`. Les
+> deux lisent désormais `Session`, le vrai magasin. `AdminKey` et `RateLimit`
+> ont également disparu, sans lecteur ni écrivain.
 
 ## Santé & keepalive Neon
 

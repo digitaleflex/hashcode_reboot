@@ -75,11 +75,30 @@ export async function GET(req: NextRequest) {
           select: { id: true, kind: true, createdAt: true },
           orderBy: { createdAt: "desc" },
         }),
-        // Sessions : sans otpHash (secret), avec métadonnées utiles au membre.
-        db.memberSession.findMany({
-          where: { memberId },
-          select: { id: true, createdAt: true, lastSeenAt: true, revokedAt: true, expiresAt: true, ip: true, userAgent: true },
-          orderBy: { lastSeenAt: "desc" },
+        // Sessions : l'export RGPD doit contenir les sessions RÉELLES du membre.
+        // Elle lisait `MemberSession`, doublon de l'ère pré-Better Auth resté
+        // sans aucun écrivain : `sessions` valait toujours `[]`. Le membre
+        // demandait ses données et le système lui répondait qu'il n'en avait
+        // aucune, alors que la table `Session` en contient. Export incomplet.
+        //
+        // `Session.userId` référence `User`, pas `Member` : il n'y a pas de
+        // `memberId` à filtrer. Le lien réel est l'email — c'est par lui que
+        // `account-auth.ts:46` résout le membre depuis la session Better Auth,
+        // et par lui que `api/account/route.ts:101` révoque les sessions. On
+        // filtre donc sur `user.email` : le seul `email` présent dans la clause
+        // est celui du membre authentifié (cf. `email` ligne 42), jamais celui
+        // d'un autre. Aucun `OR`, aucun `in` : une seule identité possible.
+        //
+        // `token` n'est JAMAIS sélectionné — c'est le secret qui authentifie le
+        // cookie. Le divulguer dans un JSON téléchargeable reviendrait à offrir
+        // le vol de session. On garde les métadonnées utiles au membre.
+        db.session.findMany({
+          where: { user: { email } },
+          select: {
+            id: true, createdAt: true, updatedAt: true, expiresAt: true,
+            ipAddress: true, userAgent: true,
+          },
+          orderBy: { updatedAt: "desc" },
         }),
         db.profilingDraft.findUnique({ where: { email } }),
         db.analyticsEvent.findMany({
