@@ -147,6 +147,7 @@ const TASKS = [
 
   // P5 auth refactor
   { id: 'T17', title: 'Migration admin auth → Better Auth', priority: 'P5', deps: ['T01','T02','T03','T04','T05','T06','T07','T08','T09','T10','T11','T12','T13','T14','T15','T16','R01','R02','R03','R04','R05','R06','R07','R08','R09','R10','R11','R12','R13','R14','R15','R16','R17','R18','R19','R20'], area: 'refactor' },
+  { id: 'D43', title: 'Rendre les 4 pages legales atteignables depuis le footer', priority: 'P1', deps: ['D21'], area: 'legal' },
 ];
 
 function loadProgress() {
