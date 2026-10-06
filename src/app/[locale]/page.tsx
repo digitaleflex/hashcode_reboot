@@ -4,7 +4,6 @@ import * as React from "react";
 import dynamic from "next/dynamic";
 import { Landing } from "@/components/reboot/landing";
 import { Welcome, type WelcomeResult } from "@/components/reboot/welcome";
-import { AdminLogin } from "@/components/reboot/admin-login";
 import { HashSymbol, Logo } from "@/components/brand/logo";
 import { MonoLabel, RebootButton } from "@/components/reboot/shared";
 import { PrivacyModal } from "@/components/reboot/privacy-modal";
@@ -16,6 +15,7 @@ import { generateProfile } from "@/lib/profiling/engine";
 import { runAutoControls } from "@/lib/profiling/auto-controls";
 import { track, getSource } from "@/lib/analytics";
 import { useTranslations } from "next-intl";
+import { useRouter } from "@/i18n/routing";
 
 // framer-motion sort du bundle initial : chargé seulement quand
 // l'utilisateur démarre le profiling (phase "profiling").
@@ -36,7 +36,7 @@ const ProfilingFlow = dynamic(
   },
 );
 
-type Phase = "landing" | "profiling" | "submitting" | "result" | "admin-login" | "admin";
+type Phase = "landing" | "profiling" | "submitting" | "result" | "admin";
 
 interface SubmitResponse {
   ok: boolean;
@@ -53,6 +53,7 @@ interface SubmitResponse {
 
 export default function Home() {
   const t = useTranslations("profiling");
+  const router = useRouter();
   const [phase, setPhase] = React.useState<Phase>("landing");
   const [answers, setAnswers] = React.useState<ProfileAnswers | null>(null);
   const [result, setResult] = React.useState<WelcomeResult | null>(null);
@@ -62,19 +63,18 @@ export default function Home() {
   const [sharedMemberId, setSharedMemberId] = React.useState<string | null>(null);
   const profilingStartedRef = React.useRef(false);
 
-  // Allow `?admin=1` to reveal the in-page admin dashboard (gated by auth).
+  // `?admin=1` redirige vers le parcours OTP (`/login?next=/admin`) : la
+  // garde serveur du layout /admin tranche (pas de probe client
+  // /api/admin/verify, pas de flash de la landing en attendant la réponse).
   // Allow `?share=<id>` to show a public shared profile.
   // Allow `?resume=1` (relance email) to auto-open the profiling flow.
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("admin") === "1") {
-      // Check auth status; if authed go straight to admin, else show login.
-      fetch("/api/admin/verify", { cache: "no-store" })
-        .then((r) => r.json())
-        .then((d) => {
-          setPhase(d.authed ? "admin" : "admin-login");
-        })
-        .catch(() => setPhase("admin-login"));
+      // Nettoie `?admin=1` de l'entrée d'historique courante avant de partir
+      // (même motif `history.replaceState` que otp-form.tsx).
+      window.history.replaceState({}, "", window.location.pathname);
+      router.replace("/login?next=%2Fadmin");
     } else if (params.get("share")) {
       setSharedMemberId(params.get("share"));
       track({ type: "reboot_page_view", ref: "shared-profile" });
@@ -88,7 +88,7 @@ export default function Home() {
     } else {
       track({ type: "reboot_page_view" });
     }
-  }, []);
+  }, [router]);
 
   React.useEffect(() => {
     if (phase === "admin" && window.location.pathname !== "/admin") {
@@ -244,14 +244,6 @@ export default function Home() {
       window.history.replaceState({}, "", "/");
     }
   }
-
-  if (phase === "admin-login")
-    return (
-      <AdminLogin
-        onAuthed={() => setPhase("admin")}
-        onExit={reset}
-      />
-    );
 
   if (phase === "admin") {
     // Redirect is performed in an effect so render stays pure.

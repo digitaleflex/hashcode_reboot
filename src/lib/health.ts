@@ -20,7 +20,6 @@ export const ROUTES: string[] = [
   "/api/export/json",
   "/api/check-email",
   "/api/community/count",
-  "/api/admin/login",
   "/api/admin/logout",
   "/api/admin/verify",
   "/api/admin/activity",
