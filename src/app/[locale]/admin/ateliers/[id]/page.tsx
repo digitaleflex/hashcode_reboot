@@ -22,7 +22,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { fetchJson, withRetryAfter } from "@/components/reboot/admin/lib/fetchJson";
+import { adminErrorMessage, adminRequest } from "@/components/reboot/admin/lib/adminQuery";
 import { useToast } from "@/hooks/use-toast";
 import {
   Tabs,
@@ -276,22 +276,12 @@ function queryError(error: unknown): string {
 }
 
 async function loadWorkshop(id: string): Promise<DetailResponse> {
-  const { res, data, code, error, retryAfterSec } = await fetchJson(
+  // D25 : bloc 401/429 factorisé dans `adminRequest`.
+  return adminRequest<DetailResponse>(
     `/api/admin/workshops/${id}`,
     { cache: "no-store" },
+    { fallbackMessage: "Impossible de charger l'atelier." },
   );
-  if (res.status === 401 || code === "UNAUTHORIZED") {
-    window.location.href = "/?admin=1";
-    throw new Error("unauthorized");
-  }
-  if (!res.ok) {
-    throw new Error(
-      code === "RATE_LIMITED"
-        ? withRetryAfter(error ?? "Trop de requêtes.", retryAfterSec)
-        : error ?? "Impossible de charger l'atelier.",
-    );
-  }
-  return data as DetailResponse;
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -763,20 +753,26 @@ function SessionUnlockControls({
   async function patch(body: Record<string, unknown>, okMsg: string) {
     setBusy(true);
     try {
-      const { res, error } = await fetchJson(
+      // D25 : ce PATCH ne testait NI le 401 ni le 429 — une session expirée
+      // y affichait « Échec » sans rien dire de plus. `adminRequest` redirige
+      // sur 401 et remonte le message serveur sur 403/429.
+      await adminRequest(
         `/api/admin/workshops/sessions/${session.id}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         },
+        { fallbackMessage: "Échec" },
       );
-      if (!res.ok) {
-        toast({ title: "Erreur", description: error ?? "Échec", variant: "destructive" });
-        return;
-      }
       toast({ title: okMsg });
       onChanged();
+    } catch (e) {
+      toast({
+        title: "Erreur",
+        description: adminErrorMessage(e, "Échec"),
+        variant: "destructive",
+      });
     } finally {
       setBusy(false);
     }
