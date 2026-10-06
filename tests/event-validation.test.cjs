@@ -475,7 +475,7 @@ describe("mergeBySource", () => {
     ]);
   });
 
-  test("dérive : les deux copies de mergeBySource dans src/ sont identiques", () => {
+  test("dérive : toutes les copies de mergeBySource dans src/ sont identiques", () => {
     const read = (p) => fs.readFileSync(path.join(__dirname, "..", p), "utf8");
     // On compare le NOYAU de la fonction, pas sa signature : les annotations de
     // type TypeScript ne sont pas compilables telles quelles et n'ont aucun
@@ -494,16 +494,26 @@ describe("mergeBySource", () => {
         // de type, qui sont effacés à la compilation et n'ont aucun effet.
         .replace(/<[^<>]*>\(/g, "(");
     };
-    const a = core(read("src/app/api/stats/route.ts"));
-    const b = core(read("src/app/api/admin/dashboard/route.ts"));
-    assert.equal(
-      a,
-      b,
-      "les deux mergeBySource de src/ ont divergé : extraire la fonction dans src/lib et réécrire ce test",
-    );
+    // D29 : la copie du dashboard a rejoint `src/lib/admin/aggregates.ts`. Il
+    // reste celle de `/api/stats`, qui n'a pas été déportée (hors périmètre D29).
+    // Le test garde son rôle : comparer TOUTES les copies entre elles, pour que
+    // la prochaine extraction n'en laisse pas une diverger en silence.
+    const copies = [
+      "src/lib/admin/aggregates.ts",
+      "src/app/api/stats/route.ts",
+    ];
+    const cores = copies.map((f) => core(read(f)));
+    for (const [i, c] of cores.entries()) {
+      assert.equal(
+        c,
+        cores[0],
+        `les mergeBySource de ${copies.join(" / ")} ont divergé (${copies[i]} ne colle plus) : ` +
+          `importer ` + "`mergeBySource`" + ` de @/lib/admin/aggregates`,
+      );
+    }
     assert.equal(
       core(mergeBySource.toString()),
-      a,
+      cores[0],
       "le miroir de mergeBySource n'est plus aligné sur src/ (les tests ci-dessus ne testent plus la production)",
     );
   });

@@ -13,6 +13,14 @@ import {
   CronHealthSection,
   EmailDeliverabilitySummary,
 } from "@/components/reboot/admin/dashboard";
+// D29 : les formes de reponse des sectionsetaient REDECLAREES ici, a
+// l'identique, alors que les composants qui les consomment les exportent deja.
+// Une redeclaration ne peut pas diverger silencieusement d'un `export interface`
+// qu'on ne recompile pas ensemble. On importe donc la definition, et il n'y a
+// plus qu'un endroit a corriger quand la forme change.
+import type { CronHealthItem } from "@/components/reboot/admin/dashboard/CronHealthSection";
+import type { EmailOpsData } from "@/components/reboot/admin/dashboard/EmailOpsSection";
+import type { DeliverabilityProviderSummary } from "@/components/reboot/admin/dashboard/EmailDeliverabilitySummary";
 import { fetchJson, isAbortError, withRetryAfter } from "@/components/reboot/admin/lib/fetchJson";
 import { AlertCircle, Clock, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -29,69 +37,14 @@ interface DashboardApiResponse {
   funnel: FunnelData | null;
   emailStats: EmailStatsData | null;
   emailDeliverability: {
-    ok: boolean;
     dateRange: { start: string; end: string };
-    summary: DeliverabilitySummary[];
+    summary: DeliverabilityProviderSummary[];
     chartData: unknown[];
   } | null;
-  emailOps: EmailOpsApiResponse | null;
+  emailOps: EmailOpsData | null;
   cronHealth: CronHealthItem[] | null;
   audience: AudienceSummary | null;
   errors?: Record<string, string>;
-}
-
-interface DeliverabilitySummary {
-  provider: string;
-  totals: {
-    sent: number;
-    delivered: number;
-    bounced: number;
-    complained: number;
-    unsubscribed: number;
-    opened: number;
-    clicked: number;
-    uniqueOpened: number;
-    uniqueClicked: number;
-  };
-  rates: {
-    deliveryRate: number;
-    openRate: number;
-    clickRate: number;
-    bounceRate: number;
-    complaintRate: number;
-  };
-  comparison: { volumeChange: number; deliveryChange: number };
-  daysWithData: number;
-}
-
-interface EmailOpsApiResponse {
-  ok: true;
-  generatedAt: string;
-  providers: Array<{
-    provider: string;
-    cap: number;
-    used: number;
-    attributed: number;
-    unattributed: number;
-    remaining: number;
-    ratio: number;
-    level: "ok" | "warn" | "critical" | "blocked";
-    resetsAt: string;
-    remainingBatches: number;
-  }>;
-  throughput: { minutes: number; sent: number };
-  capacityBatchSize: number;
-  unattributed: number;
-  alerts: Array<{ level: string; provider?: string; message: string }>;
-}
-
-interface CronHealthItem {
-  key: string;
-  label: string;
-  expectedEveryH: number | null;
-  lastRun: string | null;
-  summary: string | null;
-  status: "ok" | "stale" | "never" | "manual";
 }
 
 interface AudienceSummary {
