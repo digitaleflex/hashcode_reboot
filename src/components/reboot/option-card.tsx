@@ -46,7 +46,7 @@ export function OptionCard({
         compact ? "p-3.5" : "p-4 sm:p-5",
       )}
     >
-      {/* Numeric shortcut hint (1-9) â€” desktop only, subtle */}
+      {/* Numeric shortcut hint (1-9) — desktop only, subtle */}
       {typeof index === "number" && index < 9 && (
         <span
           className={cn(

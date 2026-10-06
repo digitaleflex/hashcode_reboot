@@ -5,28 +5,28 @@ import { motion, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 /* ============================================================
-   HASHCODE REBOOT â€” Motion primitives
+   HASHCODE REBOOT — Motion primitives
    Un seul langage de motion pour toute l'interface.
 
-   RÃ¨gles (cf. audit motion) :
+   Règles (cf. audit motion) :
    - transform / opacity UNIQUEMENT (jamais de blur, filter ou
-     box-shadow animÃ©s : coÃ»t de paint trop Ã©levÃ© sur mobile).
-   - useReducedMotion() respectÃ© PAR PRIMITIVE, pas seulement via
+     box-shadow animés : coût de paint trop élevé sur mobile).
+   - useReducedMotion() respecté PAR PRIMITIVE, pas seulement via
      les classes `motion-reduce:` de globals.css (qui ne coverent
      pas les variants Framer Motion).
    - Amplitude faible. Le site doit rester professionnel, jamais
-     "dÃ©mo de librairie d'animations".
+     "démo de librairie d'animations".
    ============================================================ */
 
-/** Courbe maison â€” identique Ã  celle dÃ©jÃ  utilisÃ©e dans globals.css. */
+/** Courbe maison — identique à celle déjà utilisée dans globals.css. */
 export const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
 type Viewport = { once?: boolean; amount?: number };
 
 /**
- * Balises cibles. Utile quand l'animation enveloppe un Ã©lÃ©ment qui doit
+ * Balises cibles. Utile quand l'animation enveloppe un élément qui doit
  * respecter la structure du document : animer un `<li>` avec un `<div>`
- * intermÃ©diaire casserait la sÃ©mantique de `<ol>` / `<ul>`.
+ * intermédiaire casserait la sémantique de `<ol>` / `<ul>`.
  */
 export type MotionTag =
   | "div"
@@ -53,11 +53,11 @@ const MOTION_TAGS = {
   header: motion.header,
 } as const;
 
-/** Props HTML additionnelles acceptÃ©es par les primitives (`role`, `aria-*`â€¦). */
+/** Props HTML additionnelles acceptées par les primitives (`role`, `aria-*`…). */
 type RestProps = Omit<React.ComponentPropsWithoutRef<"div">, "children">;
 
 /* ------------------------------------------------------------------ */
-/* Reveal â€” entrÃ©e gÃ©nÃ©rique au scroll                                  */
+/* Reveal — entrée générique au scroll                                  */
 /* ------------------------------------------------------------------ */
 
 export function Reveal({
@@ -75,7 +75,7 @@ export function Reveal({
   as?: MotionTag;
   /** Retard en secondes. */
   delay?: number;
-  /** Distance verticale de dÃ©part, en px. */
+  /** Distance verticale de départ, en px. */
   y?: number;
   duration?: number;
   viewport?: Viewport;
@@ -84,7 +84,7 @@ export function Reveal({
   const { once = true, amount = 0.25 } = viewport ?? {};
   const Comp = MOTION_TAGS[as] as React.ElementType;
 
-  // reduced motion : on part directement de l'Ã©tat final, rien n'est masquÃ©.
+  // reduced motion : on part directement de l'état final, rien n'est masqué.
   if (reduced) {
     const Plain = as as React.ElementType;
     return (
@@ -109,7 +109,7 @@ export function Reveal({
 }
 
 /* ------------------------------------------------------------------ */
-/* Stagger + StaggerItem â€” cascade                                     */
+/* Stagger + StaggerItem — cascade                                     */
 /* ------------------------------------------------------------------ */
 
 export function Stagger({
@@ -199,7 +199,7 @@ export function StaggerItem({
 }
 
 /* ------------------------------------------------------------------ */
-/* Fade / Slide / Scale â€” Ã©lÃ©ments uniques                             */
+/* Fade / Slide / Scale — éléments uniques                             */
 /* ------------------------------------------------------------------ */
 
 export function Fade({
@@ -306,12 +306,12 @@ export function Scale({
 }
 
 /* ------------------------------------------------------------------ */
-/* Glow â€” respiration lime (opacity + scale uniquement)               */
+/* Glow — respiration lime (opacity + scale uniquement)               */
 /* ------------------------------------------------------------------ */
 
 export function Glow({
   className,
-  /** OpacitÃ© maximale. Garde â‰¤ 0.08 : au-delÃ  Ã§a devient du "vert partout". */
+  /** Opacité maximale. Garde ≤ 0.08 : au-delà ça devient du "vert partout". */
   intensity = 0.06,
   duration = 7,
   scale = 1.05,
@@ -345,7 +345,7 @@ export function Glow({
 }
 
 /* ------------------------------------------------------------------ */
-/* Float â€” micro flottement (Â± few px)                                */
+/* Float — micro flottement (± few px)                                */
 /* ------------------------------------------------------------------ */
 
 export function Float({
