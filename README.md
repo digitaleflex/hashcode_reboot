@@ -35,8 +35,7 @@ Noms lus par le code, dans l'ordre d'importance :
 |---|---|
 | `POSTGRES_PRISMA_URL` | Connexion poolée (runtime, fournie par l'intégration Vercel-Neon) |
 | `POSTGRES_URL_NON_POOLING` | Connexion directe (migrations CLI) |
-| `ADMIN_OPERATORS` | Emails admin (accès complet), séparés par des virgules. **Requis** : liste vide = aucun admin |
-| `ADMIN_VIEWERS` | Emails admin en lecture seule, séparés par des virgules |
+| `Member.adminRole` (en base) | Rôle admin : `operator` (accès complet), `viewer` (lecture seule), `null` = pas admin. **Fail-closed** : `null` = aucun accès. Posé via `scripts/seed-admin-role.ts` |
 | `NEXT_PUBLIC_WHATSAPP_URL` | Lien communauté WhatsApp côté client (requis, aucune valeur en dur) |
 | `WHATSAPP_URL` | Idem, côté serveur (prioritaire sur la précédente, aucune valeur en dur) |
 | `RESEND_API_KEY` / `EMAIL_FROM` | Envoi + vérification Resend |
@@ -66,7 +65,7 @@ Noms lus par le code, dans l'ordre d'importance :
 
 - `/` — tout le parcours utilisateur (landing → profiling → profil →
   bienvenue/branches). Admin intégrable via `?admin=1`.
-- `/admin` — dashboard admin (login passcode, même garde que `?admin=1`).
+- `/admin` — dashboard admin (connexion OTP via `/login?next=/admin`, même garde serveur que `?admin=1`).
 - `/api/health` — public : `{ status: ok|degraded|down, checks: {db, mail,
   routes} }`, 200 sauf DB down → 503.
 - `/api/cron/keepalive` — `SELECT 1` Neon, protégé par `CRON_SECRET`.
@@ -90,11 +89,12 @@ sur 429, exports plafonnés à 2000 lignes (`X-Export-Truncated`).
 
 ## Admin
 
-Connexion **email + mot de passe** (Better Auth) via `/?admin=1`, puis cookie de
-session `better-auth.session_token` HttpOnly. Accès déterminé par les listes
-blanches `ADMIN_OPERATORS` (accès complet) et `ADMIN_VIEWERS` (lecture seule),
-fail-closed : liste vide = aucun admin. Rôles `viewer`/`operator` (operator
-seul en écriture) + CSRF same-origin sur les mutations. Fonctionnalités : stats (+cohorte, funnel, engagement email),
+Connexion **par code OTP** (Better Auth `emailOTP`, `/login` → `/verify-otp`),
+puis cookie de session `better-auth.session_token` HttpOnly. Accès déterminé
+par la colonne `Member.adminRole` (`operator` = accès complet, `viewer` =
+lecture seule, `null` = pas admin), fail-closed : rôle absent ou inconnu =
+aucun accès. Rôle `operator` seul en écriture + CSRF same-origin sur les
+mutations. Fonctionnalités : stats (+cohorte, funnel, engagement email),
 recherche, filtres cliquables, notes internes, actions groupées
 (valider/inviter/waitlist/rejeter/supprimer), invitation (message copiable),
 import CSV, export CSV/JSON filtré (audité), blacklist (manuelle + auto via
@@ -154,7 +154,7 @@ avec les cold starts (~1 s au réveil).
 ## Déploiement Vercel
 
 1. Lier le projet à l'intégration Neon (injecte `POSTGRES_*` tout seul).
-2. Renseigner `ADMIN_OPERATORS` + `CRON_SECRET` dans les vars du projet.
+2. Poser le rôle admin en base (`Member.adminRole = "operator"`, voir `scripts/seed-admin-role.ts`) + renseigner `CRON_SECRET` dans les vars du projet.
 3. Push sur `main` : `vercel-build` migre (`migrate deploy`) puis build.
 4. Créer le job cron-job.org (section précédente).
 
@@ -185,8 +185,9 @@ Routes protégées : `events` (POST), `events/[id]` (PATCH, DELETE),
 
 ## Limites connues (V1)
 
-- Auth admin = passcode partagé + rôles `viewer`/`operator` (pas de comptes
-  nominatifs) — migrer vers NextAuth avant exposition large.
+- Auth admin = code OTP (Better Auth `emailOTP`) + rôle nominatif
+  `Member.adminRole` (`viewer`/`operator`) — pas de mot de passe, pas de
+  passcode partagé.
 - Rate-limit Upstash Redis + fallback mémoire (par isolate en dégradé).
 - Exports plafonnés (2000 lignes, `X-Export-Truncated`), sans streaming.
 - Notifications événement : email uniquement, ciblage domaine/niveau

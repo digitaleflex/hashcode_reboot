@@ -11,8 +11,8 @@ import { getAdminRoleFromRequestHeaders } from "@/lib/admin-auth";
  * cookie parfaitement valide et passait donc la porte du proxy.
  *
  * Cette garde ferme ce trou, côté runtime Node où `auth.api.getSession` est
- * disponible. Fail-closed : session illisible, en erreur, ou email absent de
- * `ADMIN_OPERATORS` / `ADMIN_VIEWERS` ⇒ redirection vers le parcours de
+ * disponible. Fail-closed : session illisible, en erreur, ou `Member.adminRole`
+ * absent de `"operator"` / `"viewer"` ⇒ redirection vers le parcours de
  * connexion, jamais un rendu de l'espace admin.
  */
 export default async function AdminLayout({

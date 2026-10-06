@@ -40,14 +40,15 @@
 
 ## 1. Parcours visiteur — page d'accueil `/`
 
-`src/app/page.tsx` est une **machine à 6 phases** (`page.tsx:38`) :
-`landing | profiling | submitting | result | admin-login | admin`.
+`src/app/[locale]/page.tsx` est une **machine à 5 phases** :
+`landing | profiling | submitting | result | admin` (la phase `admin` redirige
+vers `/admin` via `window.location.assign`, rendu `null`).
 
 ### 1.1 Entrées par paramètre d'URL (au montage, `page.tsx:66-89`)
 
 | Paramètre | Effet | Priorité |
 |---|---|---|
-| `?admin=1` | `GET /api/admin/verify` → phase `admin` (redirect `/admin`) ou `admin-login` | 1 |
+| `?admin=1` | redirect `/login?next=/admin` (parcours OTP, garde serveur du layout `/admin`) | 1 |
 | `?share=<id>` | `SharedProfileView` + `track reboot_page_view {ref:"shared-profile"}` | 2 |
 | `?resume=1` | phase `profiling` directe + `track profiling_resumed` | 3 |
 | — | landing + `track reboot_page_view` | 4 |
