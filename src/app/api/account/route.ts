@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
 import {
   getSession,
 } from "@/lib/account-auth";
@@ -8,6 +8,12 @@ import { blockIfTesting } from "@/lib/test-guard";
 import { bodyLimit } from "@/lib/body-limit";
 import { audit } from "@/lib/admin-audit";
 import { addToBlacklist } from "@/lib/blacklist";
+import {
+  AppError,
+  AuthError,
+  RateLimitError,
+  errorToResponse,
+} from "@/lib/errors";
 import {
   isDeleteConfirmed,
   DELETE_CONFIRM_WORD,
@@ -30,6 +36,7 @@ export const runtime = "nodejs";
  * Anti-abus : 5 suppressions / IP / 10 min.
  */
 export async function DELETE(req: NextRequest) {
+  try {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
   const tooLarge = bodyLimit(req);
@@ -40,18 +47,16 @@ export async function DELETE(req: NextRequest) {
     windowMs: 10 * 60 * 1000,
   });
   if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de requêtes. Réessaie dans quelques minutes.", code: "RATE_LIMITED" },
-      { status: 429, headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) } },
+    // D26 — 429 + `RATE_LIMITED` + `Retry-After` : rien ne change.
+    throw new RateLimitError(
+      "Trop de requêtes. Réessaie dans quelques minutes.",
+      rl.retryAfterMs,
     );
   }
 
   const session = await getSession(req);
   if (!session) {
-    return NextResponse.json(
-      { error: "Non authentifié.", code: "UNAUTHENTICATED" },
-      { status: 401 },
-    );
+    throw new AuthError("Non authentifié.", "UNAUTHENTICATED");
   }
 
   let body: unknown = null;
@@ -61,12 +66,9 @@ export async function DELETE(req: NextRequest) {
     body = null;
   }
   if (!isDeleteConfirmed(body)) {
-    return NextResponse.json(
-      {
-        error: `Confirmation requise : écris ${DELETE_CONFIRM_WORD} pour supprimer ton compte.`,
-        code: "CONFIRM_REQUIRED",
-      },
-      { status: 422 },
+    throw new AppError(
+      `Confirmation requise : écris ${DELETE_CONFIRM_WORD} pour supprimer ton compte.`,
+      { status: 422, code: "CONFIRM_REQUIRED" },
     );
   }
 
@@ -78,10 +80,7 @@ export async function DELETE(req: NextRequest) {
     select: { id: true, email: true, deletedAt: true },
   });
   if (!member || member.deletedAt) {
-    return NextResponse.json(
-      { error: "Non authentifié.", code: "UNAUTHENTICATED" },
-      { status: 401 },
-    );
+    throw new AuthError("Non authentifié.", "UNAUTHENTICATED");
   }
 
   await db.member.update({
@@ -128,4 +127,7 @@ export async function DELETE(req: NextRequest) {
     `hashcode_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Lax${process.env.NODE_ENV === "production" ? "; Secure" : ""}`,
   );
   return res;
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

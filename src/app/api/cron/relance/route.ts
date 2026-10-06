@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { sendRelanceEmail } from "@/lib/mail";
 import { logMemberEmail, memberIdsWithEmailLog } from "@/lib/member-email-log";
 import { planBatch } from "@/lib/email-budget";
+import { AppError, AuthError, errorToResponse } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -15,21 +16,23 @@ const RELANCE_30_JOURS_MS = 30 * 24 * 60 * 60 * 1000;
 
 /** GET /api/cron/relance — envoie les relances aux profils abandonnés (cron-job.org). */
 export async function GET(req: NextRequest) {
+  try {
   if (!process.env.CRON_SECRET) {
-    return NextResponse.json(
-      { ok: false, error: "relance non configuré (CRON_SECRET manquant)" },
-      { status: 401 },
+    // D26 — même 401 que `cron/collect-metrics`, seul `ok: false` disparaît.
+    throw new AuthError(
+      "relance non configuré (CRON_SECRET manquant)",
+      "UNAUTHORIZED",
     );
   }
   const authHeader = req.headers.get("authorization") || "";
   const expected = `Bearer ${process.env.CRON_SECRET}`;
   if (authHeader.length !== expected.length) {
-    return NextResponse.json({ ok: false }, { status: 401 });
+    throw new AuthError("Non autorisé.", "UNAUTHORIZED");
   }
   const a = Buffer.from(authHeader, "utf8");
   const b = Buffer.from(expected, "utf8");
   if (!timingSafeEqual(a, b)) {
-    return NextResponse.json({ ok: false }, { status: 401 });
+    throw new AuthError("Non autorisé.", "UNAUTHORIZED");
   }
 
   try {
@@ -170,9 +173,13 @@ export async function GET(req: NextRequest) {
       scanned: drafts.length,
     });
   } catch (err) {
-    return NextResponse.json(
-      { ok: false, error: err instanceof Error ? err.message : "erreur inconnue" },
-      { status: 500 },
-    );
+    // D26 — le 500 garde le message de l'erreur (utile en diagnostic cron).
+    throw new AppError(err instanceof Error ? err.message : "erreur inconnue", {
+      status: 500,
+      code: "INTERNAL_ERROR",
+    });
+  }
+  } catch (err) {
+    return errorToResponse(err);
   }
 }

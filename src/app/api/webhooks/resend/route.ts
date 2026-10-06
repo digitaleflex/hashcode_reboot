@@ -18,6 +18,12 @@ import {
 } from "@/lib/webhooks/email-event";
 import { createLogger, serializeError } from "@/lib/logging";
 import { headers } from "next/headers";
+import {
+  AppError,
+  AuthError,
+  InvalidJsonError,
+  errorToResponse,
+} from "@/lib/errors";
 
 export const runtime = "nodejs";
 
@@ -301,11 +307,19 @@ export async function POST(req: NextRequest) {
       const isValid = await verifyWebhookSignature(rawBody, signature, webhookSecret);
       if (!isValid) {
         logger.warn("Invalid webhook signature", { signature: signature ? "present" : "missing" });
-        return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+        // D26 — `errorToResponse` est appelé en `return` (et non `throw`) : le
+        // `catch` de ce handler est le journal du provider, il ne doit pas
+        // transformer un refus de signature en 500.
+        return errorToResponse(new AuthError("Invalid signature"));
       }
     } else if (process.env.NODE_ENV === "production") {
       logger.error("Webhook secret missing in production — rejecting");
-      return NextResponse.json({ error: "Webhook not configured" }, { status: 503 });
+      return errorToResponse(
+        new AppError("Webhook not configured", {
+          status: 503,
+          code: "SERVICE_UNAVAILABLE",
+        }),
+      );
     } else {
       logger.warn("Webhook secret not configured, skipping signature verification (dev only)");
     }
@@ -316,7 +330,7 @@ export async function POST(req: NextRequest) {
       event = JSON.parse(rawBody);
     } catch {
       logger.error("Invalid JSON payload");
-      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+      return errorToResponse(new InvalidJsonError("Invalid JSON"));
     }
 
     logger.info("Resend webhook received", { type: event.type, emailId: event.data.email_id });
@@ -349,6 +363,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
+    // D26 — le 500 garde son `catch` de journal (le provider ne doit pas
+    // rejouer l'événement), et donc son corps tel quel.
+    if (error instanceof AppError) return errorToResponse(error);
     const durationMs = Date.now() - startTime;
     logger.error("Webhook processing failed", {
       durationMs,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkDb, checkMail } from "@/lib/health";
-import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
+import { RateLimitError, errorToResponse } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -9,18 +10,18 @@ export const runtime = "nodejs";
  * Réponse identique pour public et admin : pas de fuite d'info infra
  * (DB latency, mail service, route manifest) — fix info disclosure. */
 export async function GET(req: NextRequest) {
+  try {
   // Anti-abus : 30 sondes par IP toutes les 10 minutes.
   const rl = await rateLimit(`health:${rateKey(req)}`, {
     capacity: 30,
     windowMs: 600000, // 10 minutes
   });
   if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de requêtes. Réessaie dans quelques minutes." },
-      {
-        status: 429,
-        headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) },
-      },
+    // D26 — 429 + Retry-After identiques. Le 503 « down » ci-dessous reste
+    // une charge utile de sonde, pas une erreur : il garde sa forme.
+    throw new RateLimitError(
+      "Trop de requêtes. Réessaie dans quelques minutes.",
+      rl.retryAfterMs,
     );
   }
   const started = Date.now();
@@ -39,4 +40,7 @@ export async function GET(req: NextRequest) {
       },
     },
   );
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
+import { NotFoundError, RateLimitError, errorToResponse } from "@/lib/errors";
 
 export const runtime = "nodejs";
 
@@ -20,18 +21,16 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  try {
   // Anti-abus : 30 partages par IP toutes les 10 minutes.
   const rl = await rateLimit(`share:${rateKey(req)}`, {
     capacity: 30,
     windowMs: 600000, // 10 minutes
   });
   if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de requêtes. Réessaie dans quelques minutes." },
-      {
-        status: 429,
-        headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) },
-      },
+    throw new RateLimitError(
+      "Trop de requêtes. Réessaie dans quelques minutes.",
+      rl.retryAfterMs,
     );
   }
   const { id } = await params;
@@ -50,7 +49,7 @@ export async function GET(
       tags: true,
     },
   });
-  if (!m) return NextResponse.json({ error: "Introuvable." }, { status: 404 });
+  if (!m) throw new NotFoundError("Introuvable.");
 
   const decode = <T,>(s: string, fallback: T): T => {
     try { return JSON.parse(s) as T; } catch { return fallback; }
@@ -69,4 +68,7 @@ export async function GET(
       tags: decode<string[]>(m.tags, []),
     },
   });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

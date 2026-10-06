@@ -1,10 +1,13 @@
 import { NextResponse, NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { isAdminAuthed } from "@/lib/admin-auth";
+import { AuthError, errorToResponse } from "@/lib/errors";
 
 export async function GET(request: NextRequest) {
+  try {
   if (!(await isAdminAuthed(request))) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // D26 — le refus garde son statut (401) et gagne le `code` du vocabulaire.
+    throw new AuthError("Unauthorized");
   }
 
   const rows = await db.$queryRaw<
@@ -62,4 +65,7 @@ export async function GET(request: NextRequest) {
       },
     },
   );
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

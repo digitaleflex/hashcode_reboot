@@ -4,10 +4,17 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { checkCSRF, requireAdmin, adminGuardResponse } from "@/lib/admin-auth";
 import { blockIfTesting } from "@/lib/test-guard";
-import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { sendDashboardInviteEmail } from "@/lib/mail";
 import { logMemberEmail } from "@/lib/member-email-log";
 import { planBatch } from "@/lib/email-budget";
+import {
+  AppError,
+  InvalidJsonError,
+  RateLimitError,
+  ValidationError,
+  errorToResponse,
+} from "@/lib/errors";
 
 export const runtime = "nodejs";
 
@@ -38,6 +45,7 @@ const bodySchema = z.object({
  *   Rappeler avec offset=nextOffset jusqu'à done=true.
  */
 export async function POST(req: NextRequest) {
+  try {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
 
@@ -46,10 +54,11 @@ export async function POST(req: NextRequest) {
   const adminGuard = await requireAdmin(req, "operator");
   if (!adminGuard.ok) return adminGuardResponse(adminGuard);
   if (!checkCSRF(req)) {
-    return NextResponse.json(
-      { error: "CSRF validation failed.", code: "CSRF_FAILED" },
-      { status: 403 },
-    );
+    // D26 — `CSRF_FAILED` était déjà le `code` de cette route : conservé.
+    throw new AppError("CSRF validation failed.", {
+      status: 403,
+      code: "CSRF_FAILED",
+    });
   }
 
   const rl = await rateLimit(`announce-dashboard:${rateKey(req)}`, {
@@ -57,27 +66,26 @@ export async function POST(req: NextRequest) {
     windowMs: 10 * 60 * 1000,
   });
   if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de demandes. Réessaie dans quelques minutes.", code: "RATE_LIMITED" },
-      { status: 429, headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) } },
+    throw new RateLimitError(
+      "Trop de demandes. Réessaie dans quelques minutes.",
+      rl.retryAfterMs,
     );
   }
 
   let body: unknown;
   try {
+    // D26 — inatteignable en pratique : le `.catch` ci-dessous neutralise
+    // déjà le rejet de `req.json()` (un corps illisible devient `{}`, les
+    // défauts du schéma s'appliquent). Conservé tel quel : le remplacer par
+    // `parseJsonBody` CHANGERAIT le comportement.
     body = await req.json().catch(() => ({}));
   } catch {
-    return NextResponse.json(
-      { error: "Corps de requête invalide.", code: "INVALID_JSON" },
-      { status: 400 },
-    );
+    // 400 `INVALID_JSON` d'origine, à l'identique (branche inatteignable).
+    throw new InvalidJsonError();
   }
   const parsed = bodySchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Paramètres invalides.", code: "INVALID_PAYLOAD" },
-      { status: 422 },
-    );
+    throw new ValidationError("Paramètres invalides.");
   }
   const { confirm, limit } = parsed.data;
 
@@ -172,4 +180,7 @@ export async function POST(req: NextRequest) {
     nextOffset,
     done: remaining === 0,
   });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

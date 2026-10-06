@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { NotFoundError, errorToResponse } from "@/lib/errors";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  try {
   const { id } = await params;
 
   const m = await db.member.findUnique({
@@ -26,7 +28,8 @@ export async function GET(
   });
 
   if (!m) {
-    return NextResponse.json({ error: "Profil introuvable." }, { status: 404 });
+    // D26 — 404 conservé tel quel, seul le `code` est ajouté.
+    throw new NotFoundError("Profil introuvable.");
   }
 
   const decode = <T,>(s: string | null, fallback: T): T => {
@@ -48,4 +51,7 @@ export async function GET(
       tags: decode<string[]>(m.tags, []),
     },
   });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

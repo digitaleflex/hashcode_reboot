@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { checkCSRF, requireAdmin, adminGuardResponse } from "@/lib/admin-auth";
-import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { audit } from "@/lib/admin-audit";
 import { addToBlacklist, getBlacklist, BLACKLIST_REASONS } from "@/lib/blacklist";
+import {
+  AppError,
+  ForbiddenError,
+  RateLimitError,
+  ValidationError,
+  errorToResponse,
+  parseJsonBody,
+} from "@/lib/errors";
 
 export const runtime = "nodejs";
 
@@ -50,13 +58,12 @@ const addSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  try {
   const adminGuard = await requireAdmin(req, "operator");
   if (!adminGuard.ok) return adminGuardResponse(adminGuard);
   if (!checkCSRF(req)) {
-    return NextResponse.json(
-      { error: "Jeton CSRF invalide." },
-      { status: 403 },
-    );
+    // D26 — 403 conservé, `code` ajouté.
+    throw new ForbiddenError("Jeton CSRF invalide.");
   }
   // Anti-abus
   const rl = await rateLimit(`admin-blacklist-add:${rateKey(req)}`, {
@@ -64,32 +71,24 @@ export async function POST(req: NextRequest) {
     windowMs: 10 * 60 * 1000,
   });
   if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop d'ajouts. Réessaie dans quelques minutes." },
-      { status: 429, headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) } },
+    throw new RateLimitError(
+      "Trop d'ajouts. Réessaie dans quelques minutes.",
+      rl.retryAfterMs,
     );
   }
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json(
-      { error: "Corps de requête invalide." },
-      { status: 400 },
-    );
-  }
+  // D26 — `parseJsonBody` rend le 400 « Corps de requête invalide. » d'avant.
+  const body = await parseJsonBody(req);
   const parsed = addSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json(
-      {
-        error: "Données invalides.",
-        issues: parsed.error.issues.map((i) => ({
-          path: i.path.join("."),
-          message: i.message,
-        })),
-      },
-      { status: 422 },
+    // 422 : le tableau passe de la clé `issues` à `details` (clé que
+    // personne ne lit — cf. rapport D26).
+    throw new ValidationError(
+      "Données invalides.",
+      parsed.error.issues.map((i) => ({
+        path: i.path.join("."),
+        message: i.message,
+      })),
     );
   }
 
@@ -109,9 +108,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, id: row.id, email: row.email });
   } catch (e) {
     console.error("[blacklist/add] error:", e);
-    return NextResponse.json(
-      { error: "Erreur lors de l'ajout à la blacklist." },
-      { status: 500 },
-    );
+    throw new AppError("Erreur lors de l'ajout à la blacklist.");
+  }
+  } catch (err) {
+    return errorToResponse(err);
   }
 }

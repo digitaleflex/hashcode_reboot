@@ -20,6 +20,13 @@ import { db } from "@/lib/db";
 import { createLogger, serializeError } from "@/lib/logging";
 import { sendBouncedNotificationEmail } from "@/lib/mail";
 import {
+  AppError,
+  InvalidJsonError,
+  NotFoundError,
+  ValidationError,
+  errorToResponse,
+} from "@/lib/errors";
+import {
   findMember,
   recordEmailEvent,
   blacklistEmail,
@@ -243,7 +250,10 @@ export async function POST(req: NextRequest) {
         provided: secret ? "present" : "missing",
       });
       // 404 plutôt que 401 pour ne pas révéler l'existence du endpoint.
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
+      // D26 — `errorToResponse` est appelé en `return` (et non `throw`) : le
+      // `catch` de ce handler est le journal du provider, il ne doit pas
+      // transformer un refus en 500.
+      return errorToResponse(new NotFoundError("Not found"));
     }
 
     let event: BrevoWebhookEvent;
@@ -251,12 +261,13 @@ export async function POST(req: NextRequest) {
       event = (await req.json()) as BrevoWebhookEvent;
     } catch {
       logger.error("Invalid JSON payload");
-      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+      return errorToResponse(new InvalidJsonError("Invalid JSON"));
     }
 
     if (!event?.event || !event?.email) {
       logger.warn("Brevo webhook missing event/email");
-      return NextResponse.json({ error: "Bad payload" }, { status: 422 });
+      // D26 — 422 conservé (et non 400).
+      return errorToResponse(new ValidationError("Bad payload"));
     }
 
     logger.info("Brevo webhook received", {
@@ -312,6 +323,9 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json({ ok: true });
   } catch (error) {
+    // D26 — le 500 garde son `catch` de journal (le provider ne doit pas
+    // rejouer l'événement), et donc son corps tel quel.
+    if (error instanceof AppError) return errorToResponse(error);
     logger.error("Brevo webhook failed", {
       durationMs: Date.now() - startTime,
       error: serializeError(error),

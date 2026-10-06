@@ -2,8 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { checkCSRF, requireAdmin, adminGuardResponse } from "@/lib/admin-auth";
 import { blockIfTesting } from "@/lib/test-guard";
-import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { sendInvitationEmail, sendWelcomeEmail } from "@/lib/mail";
+import {
+  ForbiddenError,
+  RateLimitError,
+  ValidationError,
+  errorToResponse,
+  parseJsonBody,
+} from "@/lib/errors";
 
 export const runtime = "nodejs";
 
@@ -14,6 +21,7 @@ const testEmailSchema = z.object({
 
 /** POST /api/admin/test-email — envoi réel de test (admin-operator only). */
 export async function POST(req: NextRequest) {
+  try {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
 
@@ -21,7 +29,8 @@ export async function POST(req: NextRequest) {
   if (!adminGuard.ok) return adminGuardResponse(adminGuard);
   // CSRF protection: ensure same-origin request
   if (!checkCSRF(req)) {
-    return NextResponse.json({ error: "CSRF validation failed." }, { status: 403 });
+    // D26 — 403 conservé, `code` ajouté.
+    throw new ForbiddenError("CSRF validation failed.");
   }
   // Anti-abus : 5 envois de test par IP toutes les 10 minutes.
   const rl = await rateLimit(`admin-test-email:${rateKey(req)}`, {
@@ -29,36 +38,23 @@ export async function POST(req: NextRequest) {
     windowMs: 600000, // 10 minutes
   });
   if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de requêtes. Réessaie dans quelques minutes." },
-      {
-        status: 429,
-        headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) },
-      },
+    throw new RateLimitError(
+      "Trop de requêtes. Réessaie dans quelques minutes.",
+      rl.retryAfterMs,
     );
   }
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json(
-      { error: "Corps de requête invalide." },
-      { status: 400 },
-    );
-  }
+  const body = await parseJsonBody(req);
 
   const parsed = testEmailSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json(
-      {
-        error: "Données invalides.",
-        issues: parsed.error.issues.map((i) => ({
-          path: i.path.join("."),
-          message: i.message,
-        })),
-      },
-      { status: 422 },
+    // D26 — 422 : clé `issues` renommée `details` (personne ne la lit).
+    throw new ValidationError(
+      "Données invalides.",
+      parsed.error.issues.map((i) => ({
+        path: i.path.join("."),
+        message: i.message,
+      })),
     );
   }
   const { email, kind } = parsed.data;
@@ -90,4 +86,7 @@ export async function POST(req: NextRequest) {
   // Traçabilité d'usage sans PII : kind + résultat uniquement, jamais l'email.
   console.log(`[admin-test-email] kind=${kind} ok=${ok}`);
   return NextResponse.json({ ok, sent });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

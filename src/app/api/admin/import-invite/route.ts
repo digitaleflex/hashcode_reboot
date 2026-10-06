@@ -2,11 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { checkCSRF, requireAdmin, adminGuardResponse } from "@/lib/admin-auth";
-import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
 import { sendRejoinEmail } from "@/lib/mail";
 import { logMemberEmail, memberIdsWithEmailLog } from "@/lib/member-email-log";
 import { planBatch } from "@/lib/email-budget";
+import {
+  AppError,
+  RateLimitError,
+  ValidationError,
+  errorToResponse,
+} from "@/lib/errors";
 
 export const runtime = "nodejs";
 
@@ -130,6 +136,7 @@ interface ImportError {
  * - Envoi : { confirm: true } → crée les membres + envoie les emails.
  */
 export async function POST(req: NextRequest) {
+  try {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
 
@@ -137,10 +144,11 @@ export async function POST(req: NextRequest) {
   const adminGuard = await requireAdmin(req, "operator");
   if (!adminGuard.ok) return adminGuardResponse(adminGuard);
   if (!checkCSRF(req)) {
-    return NextResponse.json(
-      { error: "CSRF validation failed.", code: "CSRF_FAILED" },
-      { status: 403 },
-    );
+    // D26 — `CSRF_FAILED` était déjà le `code` de cette route : conservé.
+    throw new AppError("CSRF validation failed.", {
+      status: 403,
+      code: "CSRF_FAILED",
+    });
   }
 
   const rl = await rateLimit(`import-invite:${rateKey(req)}`, {
@@ -148,9 +156,10 @@ export async function POST(req: NextRequest) {
     windowMs: 10 * 60 * 1000,
   });
   if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de demandes. Réessaie dans quelques minutes.", code: "RATE_LIMITED" },
-      { status: 429, headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) } },
+    // `RATE_LIMITED` + `Retry-After` : rien ne change.
+    throw new RateLimitError(
+      "Trop de demandes. Réessaie dans quelques minutes.",
+      rl.retryAfterMs,
     );
   }
 
@@ -158,18 +167,15 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json(
-      { error: "JSON invalide.", code: "BAD_REQUEST" },
-      { status: 400 },
-    );
+    // D26 — `BAD_REQUEST` était déjà le `code` : il ne devient PAS
+    // `INVALID_JSON` (ce serait un changement de contrat).
+    throw new AppError("JSON invalide.", { status: 400, code: "BAD_REQUEST" });
   }
 
   const parsed = bodySchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Paramètres invalides.", code: "INVALID_PAYLOAD", details: parsed.error.flatten() },
-      { status: 422 },
-    );
+    // `INVALID_PAYLOAD` + `details` : identiques.
+    throw new ValidationError("Paramètres invalides.", parsed.error.flatten());
   }
 
   const { csvText, confirm } = parsed.data;
@@ -181,10 +187,10 @@ export async function POST(req: NextRequest) {
     .filter((l) => l.length > 0);
 
   if (lines.length === 0) {
-    return NextResponse.json(
-      { error: "Aucune ligne trouvée.", code: "EMPTY_CSV" },
-      { status: 422 },
-    );
+    throw new AppError("Aucune ligne trouvée.", {
+      status: 422,
+      code: "EMPTY_CSV",
+    });
   }
 
   const sep = detectSeparator(lines.slice(0, 5));
@@ -256,17 +262,20 @@ export async function POST(req: NextRequest) {
   }
 
   if (errors.length > 0) {
-    return NextResponse.json(
-      { error: "Erreurs de validation.", code: "VALIDATION_ERROR", errors, totalRows: dataLines.length },
-      { status: 422 },
-    );
+    // D26 — `VALIDATION_ERROR` + 422 conservés. `errors` et `totalRows`
+    // passent sous `details`, comme sur la route jumelle /api/members/import.
+    throw new AppError("Erreurs de validation.", {
+      status: 422,
+      code: "VALIDATION_ERROR",
+      details: { errors, totalRows: dataLines.length },
+    });
   }
 
   if (validRows.length === 0) {
-    return NextResponse.json(
-      { error: "Aucun email valide trouvé.", code: "NO_VALID_ROWS" },
-      { status: 422 },
-    );
+    throw new AppError("Aucun email valide trouvé.", {
+      status: 422,
+      code: "NO_VALID_ROWS",
+    });
   }
 
   // ── Dry-run ─────────────────────────────────────────────────────────────
@@ -433,10 +442,11 @@ export async function POST(req: NextRequest) {
     }
   } catch (err) {
     console.error("Import-invite error:", err);
-    return NextResponse.json(
-      { error: "Erreur interne.", code: "INTERNAL_ERROR" },
-      { status: 500 },
-    );
+    // D26 — 500 + `INTERNAL_ERROR` conservés.
+    throw new AppError("Erreur interne.", {
+      status: 500,
+      code: "INTERNAL_ERROR",
+    });
   }
 
   // Audit log
@@ -462,4 +472,7 @@ export async function POST(req: NextRequest) {
     skippedAlreadyExist: skipped.length,
     skippedEmails: skipped.map((r) => r.email),
   });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

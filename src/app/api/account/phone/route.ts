@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
 import { bodyLimit } from "@/lib/body-limit";
+import {
+  RateLimitError,
+  ValidationError,
+  errorToResponse,
+  parseJsonBody,
+} from "@/lib/errors";
 import {
   verifyPhoneFillTicket,
   readPhoneFillTicket,
@@ -45,6 +51,7 @@ const phoneFillSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  try {
   const blocked = blockIfTesting();
   if (blocked) return blocked;
   const tooLarge = bodyLimit(req);
@@ -54,30 +61,21 @@ export async function POST(req: NextRequest) {
     windowMs: 10 * 60 * 1000,
   });
   if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de tentatives. Réessaie dans quelques minutes." },
-      {
-        status: 429,
-        headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) },
-      },
+    throw new RateLimitError(
+      "Trop de tentatives. Réessaie dans quelques minutes.",
+      rl.retryAfterMs,
     );
   }
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json(
-      { error: "Corps de requête invalide." },
-      { status: 400 },
-    );
-  }
+  // D26 — `parseJsonBody` renvoie exactement le 400 « Corps de requête
+  // invalide. » d'avant, avec le `code` du vocabulaire.
+  const body = await parseJsonBody(req);
 
   const parsed = phoneFillSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.issues[0]?.message ?? "Données invalides." },
-      { status: 422 },
+    // 422 + message de la première issue : identiques à l'ancienne réponse.
+    throw new ValidationError(
+      parsed.error.issues[0]?.message ?? "Données invalides.",
     );
   }
 
@@ -106,4 +104,7 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ ok: true });
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { rateLimit, rateKey } from "@/lib/rate-limit";
+import { RateLimitError, errorToResponse } from "@/lib/errors";
 
 export const runtime = "nodejs";
 
@@ -10,6 +11,7 @@ export const runtime = "nodejs";
  * proof. No auth required (the count alone is not sensitive).
  */
 export async function GET(req: NextRequest) {
+  try {
   // Anti-abus : 30 lectures par IP toutes les 10 minutes.
   // refillPerSec = 1/20 req/sec = 3 req/min = 30 req/10min (window)
   const rl = await rateLimit(`community-count:${rateKey(req)}`, {
@@ -17,12 +19,10 @@ export async function GET(req: NextRequest) {
     windowMs: 600000, // 10 minutes
   });
   if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Trop de requêtes. Réessaie dans quelques minutes." },
-      {
-        status: 429,
-        headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) },
-      },
+    // D26 — 429 + Retry-After identiques, corps construit par `errors.ts`.
+    throw new RateLimitError(
+      "Trop de requêtes. Réessaie dans quelques minutes.",
+      rl.retryAfterMs,
     );
   }
   // Compteur public de preuve sociale : uniquement les vrais inscrits
@@ -42,4 +42,7 @@ export async function GET(req: NextRequest) {
       },
     },
   );
+  } catch (err) {
+    return errorToResponse(err);
+  }
 }

@@ -5,6 +5,7 @@ import { sendEventReminderEmail } from "@/lib/mail";
 import { logMemberEmail, memberIdsWithEmailLog } from "@/lib/member-email-log";
 import { planBatch } from "@/lib/email-budget";
 import { zoneForCountry } from "@/lib/events-timezone";
+import { AuthError, errorToResponse } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -36,21 +37,23 @@ const OFFSETS = [
 ] as const;
 
 export async function GET(req: NextRequest) {
+  try {
   if (!process.env.CRON_SECRET) {
-    return NextResponse.json(
-      { ok: false, error: "event-reminders non configuré (CRON_SECRET manquant)" },
-      { status: 401 },
+    // D26 — même 401 que `cron/collect-metrics`, seul `ok: false` disparaît.
+    throw new AuthError(
+      "event-reminders non configuré (CRON_SECRET manquant)",
+      "UNAUTHORIZED",
     );
   }
   const authHeader = req.headers.get("authorization") || "";
   const expected = `Bearer ${process.env.CRON_SECRET}`;
   if (authHeader.length !== expected.length) {
-    return NextResponse.json({ ok: false }, { status: 401 });
+    throw new AuthError("Non autorisé.", "UNAUTHORIZED");
   }
   const a = Buffer.from(authHeader, "utf8");
   const b = Buffer.from(expected, "utf8");
   if (!timingSafeEqual(a, b)) {
-    return NextResponse.json({ ok: false }, { status: 401 });
+    throw new AuthError("Non autorisé.", "UNAUTHORIZED");
   }
 
   const now = new Date();
@@ -214,4 +217,9 @@ export async function GET(req: NextRequest) {
     membersTotal,
     sentTotal,
   });
+  } catch (err) {
+    // D26 — la route n'avait AUCUN filet d'erreur : une exception remontait en
+    // 500 HTML de Next. Elle renvoie désormais le corps JSON commun.
+    return errorToResponse(err);
+  }
 }
