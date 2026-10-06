@@ -88,7 +88,6 @@ export function OtpForm({
     if (secondsLeft !== 0) return;
     setDigits(emptyDigits());
     setError(t("errors.codeExpired"));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [secondsLeft]);
 
   const expired = secondsLeft <= 0;
@@ -248,7 +247,7 @@ export function OtpForm({
             if (info) setInfo(null);
           }}
           onComplete={handleComplete}
-          disabled={loading || success}
+          disabled={loading || success || expired}
           invalid={error !== null}
           labelId={CODE_LABEL_ID}
           describedBy={[error ? CODE_ERROR_ID : null, CODE_HINT_ID].filter(Boolean).join(" ")}
