@@ -41,6 +41,26 @@ type FooterColumn = { title: string; links: Array<{ t: string; a: string }> };
  * à trancher.
  */
 
+/**
+ * Pages légales — D21 les rend, D43 les rend ACCESSIBLES.
+ *
+ * `LEGAL_HREF` était un objet vide derrière un commentaire qui affirmait que le
+ * namespace `legal.*` était absent de `messages/{fr,en}.json`. C'était faux :
+ * `npm run check:i18n` comptait 2 494 chaînes par locale. Les 4 pages ont donc
+ * été câblées sans qu'aucun lien n'existe vers elles — une politique de
+ * confidentialité introuvable n'est pas un trou d'ergonomie, c'est un problème
+ * de conformité.
+ *
+ * La grille du footer est déjà en `sm:grid-cols-4` pour 3 colonnes : la
+ * colonne « Légal » comble l'espace prévu, sans modifier le layout.
+ */
+const LEGAL_HREF: Record<string, string> = {
+  cgu: "/cgu",
+  confidentialite: "/confidentialite",
+  mentions: "/mentions-legales",
+  cookies: "/cookies",
+};
+
 /** ancres de la landing (cf. ids structurels dans les sections). */
 const ANCHOR: Record<string, string> = {
   axes: "axes",
@@ -119,6 +139,13 @@ export function SiteFooter({
     // Aucun cas lien légal ici : la branche LEGAL_HREF a été retirée avec la
     // constante, elle était inatteignable (voir le commentaire de tête de
     // fichier). Reste le cas par défaut : "events" et tout cas inconnu.
+    if (LEGAL_HREF[action]) {
+      return (
+        <I18nLink href={LEGAL_HREF[action]} className={LINK_CLS}>
+          {label}
+        </I18nLink>
+      );
+    }
     return (
       <I18nLink href="/evenements" className={LINK_CLS}>
         {label}

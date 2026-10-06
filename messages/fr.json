@@ -424,6 +424,27 @@
               "a": "account"
             }
           ]
+        },
+        {
+          "title": "Légal",
+          "links": [
+            {
+              "t": "Conditions générales",
+              "a": "cgu"
+            },
+            {
+              "t": "Confidentialité",
+              "a": "confidentialite"
+            },
+            {
+              "t": "Mentions légales",
+              "a": "mentions"
+            },
+            {
+              "t": "Cookies",
+              "a": "cookies"
+            }
+          ]
         }
       ],
       "privacyTitle": "Confidentialité",
