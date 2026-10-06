@@ -1328,7 +1328,8 @@
       },
       "sentToLabel": "Code sent to",
       "codeHint": "The code is valid for 15 minutes. The same email includes a 1-click link.",
-      "backLinkLong": "Use another email"
+      "backLinkLong": "Use another email",
+      "countdown": "This code expires in {time}."
     },
     "verifyEmail": {
       "verifyingTitle": "Verifying…",

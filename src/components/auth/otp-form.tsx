@@ -17,6 +17,16 @@ export { OTP_LENGTH };
 /** 60 s : mêmes 60 s que le cooldown déjà présent, et que `info.resent` annonce. */
 const RESEND_COOLDOWN_SEC = 60;
 
+/** TTL du code OTP : le mail annonce « expire in 15 minutes ». */
+const OTP_TTL_SEC = 15 * 60;
+
+/** Formate des secondes en `mm:ss`. */
+function formatMmSs(total: number): string {
+  const m = String(Math.floor(total / 60)).padStart(2, "0");
+  const s = String(total % 60).padStart(2, "0");
+  return `${m}:${s}`;
+}
+
 /** Confirmation de succès affichée avant la redirection vers `next`. */
 const SUCCESS_MS = 650;
 
@@ -61,8 +71,27 @@ export function OtpForm({
   const [success, setSuccess] = React.useState(false);
   const [cooldown, setCooldown] = React.useState(RESEND_COOLDOWN_SEC);
   const [resending, setResending] = React.useState(false);
+  const [secondsLeft, setSecondsLeft] = React.useState(OTP_TTL_SEC);
   const firstInputRef = React.useRef<HTMLInputElement | null>(null);
   const autoSubmittedRef = React.useRef(false);
+
+  // Compte à rebours d'expiration : le code à 6 chiffres expire après
+  // OTP_TTL_SEC (aligné sur le mail). Relancé au resend, arrêté au succès.
+  React.useEffect(() => {
+    if (success || secondsLeft <= 0) return;
+    const timer = setTimeout(() => setSecondsLeft((s) => Math.max(s - 1, 0)), 1000);
+    return () => clearTimeout(timer);
+  }, [secondsLeft, success]);
+
+  // À l'expiration, on vide la saisie et on affiche le message dédié.
+  React.useEffect(() => {
+    if (secondsLeft !== 0) return;
+    setDigits(emptyDigits());
+    setError(t("errors.codeExpired"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [secondsLeft]);
+
+  const expired = secondsLeft <= 0;
 
   // Le compte à rebours est honnête : le contrôle est réellement désactivé
   // pendant le décompte, et repart à 60 s après chaque renvoi effectif.
@@ -183,6 +212,7 @@ export function OtpForm({
       }
       setInfo(t("info.resent"));
       setCooldown(RESEND_COOLDOWN_SEC);
+      setSecondsLeft(OTP_TTL_SEC);
       clearCode();
     } catch {
       setError(messageFor("network"));
@@ -191,7 +221,7 @@ export function OtpForm({
     }
   }
 
-  const canSubmit = digits.join("").length === OTP_LENGTH && !loading;
+  const canSubmit = digits.join("").length === OTP_LENGTH && !loading && !expired;
 
   return (
     <form
@@ -228,6 +258,10 @@ export function OtpForm({
 
         <p id={CODE_HINT_ID} className="mt-2.5 text-[13px] leading-relaxed text-muted-foreground">
           {t("codeHint")}
+        </p>
+
+        <p className="mt-1 text-[13px] text-muted-foreground" aria-live="polite">
+          {expired ? t("errors.codeExpired") : t("countdown", { time: formatMmSs(secondsLeft) })}
         </p>
       </div>
 
