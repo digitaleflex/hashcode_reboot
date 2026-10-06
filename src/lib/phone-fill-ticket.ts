@@ -17,10 +17,25 @@ import { createHmac, timingSafeEqual } from "node:crypto";
  * possession du navigateur d'inscription — sans session, sans nouveau
  * secret obligatoire, sans changement d'UX.
  *
- * Clé HMAC : PHONE_FILL_SECRET si définie, sinon DATABASE_URL (serveur
- * uniquement, forte entropie, toujours présente), avec séparation de
- * domaine "phone-fill-v1:". Sans les deux → aucun ticket émis et aucune
- * écriture (fail-closed).
+ * Clé HMAC, par ordre de préférence :
+ *   1. PHONE_FILL_SECRET        — dedicated, si l'exploitant en fournit une
+ *   2. POSTGRES_PRISMA_URL      — l'URL de la base réellement configurée
+ *   3. DATABASE_URL             — convention usuelle, absente de ce dépôt
+ *
+ * avec séparation de domaine "phone-fill-v1:". Sans aucune → aucun ticket
+ * émis et aucune écriture (fail-closed).
+ *
+ * ─── Bug corrigé (audit 2026-10-06) ───────────────────────────────────────────
+ * La chaîne ne portait que `PHONE_FILL_SECRET || DATABASE_URL`. Or le
+ * datasource Prisma de ce dépôt lit `POSTGRES_PRISMA_URL`
+ * (prisma/schema.prisma:11-12) et `DATABASE_URL` n'est définie nulle part :
+ * ni dans `.env`, ni dans `.env.example`, ni dans la CI. `getKey()`
+ * renvoyait donc systématiquement `null`, aucun ticket n'était jamais émis,
+ * et POST /api/account/phone ne pouvait écrire aucun numéro — la feature était
+ * câblée des deux côtés et inopérante.
+ *
+ * Le fail-closed était donc involontairement permanent plutôt que-defense en
+ * profondeur : ce n'est pas la même chose que de ne pas avoir de clé.
  *
  * Limites assumées : le ticket n'est pas à usage unique, mais rejouer un
  * ticket volé n'écrit que sur le même membre (lié au memberId) et seulement
@@ -33,8 +48,14 @@ const TICKET_TTL_MS = 15 * 60 * 1000;
 const COOKIE_MAX_AGE_S = 15 * 60;
 
 function getKey(): Buffer | null {
+  // Voir l'en-tête pour l'ordre de préférence et le raison du correctif.
+  // Les URL de base NE doivent pas être journalisées : on ne les retourne
+  // qu'au module crypto.
   const raw =
-    process.env.PHONE_FILL_SECRET || process.env.DATABASE_URL || "";
+    process.env.PHONE_FILL_SECRET ||
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.DATABASE_URL ||
+    "";
   if (!raw) return null;
   return Buffer.from(`phone-fill-v1:${raw}`, "utf8");
 }
