@@ -5,7 +5,6 @@ import { Logo } from "@/components/brand/logo";
 import { RebootButton } from "../shared";
 import { AdminSidebar } from "./AdminSidebar";
 import { CommandPalette } from "./CommandPalette";
-import { SessionReminder } from "@/app/[locale]/admin/session-reminder";
 import { adminMono, adminSans } from "@/app/[locale]/admin/fonts";
 import { LogOut, Command } from "lucide-react";
 import { useRouter, usePathname } from "@/i18n/routing";
@@ -153,7 +152,6 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
       </div>
       <MobileBottomNav />
 
-      <SessionReminder />
       <CommandPalette
         open={isPaletteOpen}
         onOpenChange={closePalette}
