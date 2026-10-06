@@ -26,6 +26,11 @@ Preuve (`git ls-tree security/email-enum`) : `src/app/login/page.tsx`,
 sur `development` (voir §2) ; le reste (rewrite `admin-auth` DB-backed
 `ed44382`, PR #54) est obsolète face à l'architecture actuelle, jugée saine.
 
+*(2026-10-06 : ces quatre chemins ont de nouveau bougé depuis — les pages sont
+sous `src/app/[locale]/`, `src/middleware.ts` s'appelle `src/proxy.ts`, et
+`src/lib/account-auth.ts` existe toujours. Les conclusions de la section
+tiennent ; seuls les noms de fichiers sont périmés.)*
+
 ## 1. Findings et statut
 
 | # | Gravité | Finding | Statut |
@@ -102,8 +107,8 @@ publique.
 | `5305ece` | Lot B — ticket HMAC `memberId.expiry.signature` (cookie httpOnly 15 min, clé `PHONE_FILL_SECRET` sinon `DATABASE_URL`, fail-closed), posé à la création fraîche uniquement ; capture masquée sur doublons ; `memberId` arbitraire réservé aux admins | ✅ 205/205 |
 | `e0cb7ed` | Lot C — `escapeHtml()` location/description ; draft strict (record ≤60 clés, string≤1000 / string[]≤20 / number / boolean / null, JSON ≤32 Ko) + `bodyLimit` | ✅ 205/205 |
 | `63f6b9f` | Lot D — check-email constante ; `accessLane` retiré (API + type) ; `memberId` analytics = session | ✅ 231/231 |
-| `10df577` | Lot E/1 — suppression `next-auth` (zéro usage prouvé par grep) + resync `bun.lock` périmé | ⚠️ gate bloqué par le chantier workshop d'une autre session, puis vert |
-| `9446146` | Lot E/2 — `uuid` 11.1.0 → 11.1.1 via bun | ✅ 247/247 |
+| `10df577` | Lot E/1 — suppression `next-auth` (zéro usage prouvé par grep) + resync du lockfile | ⚠️ gate bloqué par le chantier workshop d'une autre session, puis vert |
+| `9446146` | Lot E/2 — `uuid` 11.1.0 → 11.1.1 | ✅ 247/247 |
 
 Décisions de design notables :
 - **Pas de session exigée sur `account/phone`** : elle casserait l'écran de
@@ -111,8 +116,12 @@ Décisions de design notables :
   navigateur d'inscription sans session, sans secret obligatoire, sans
   changement d'UX.
 - **Pas de `npm audit fix` global** : il brasserait 96 paquets sur
-  `package-lock.json` alors que `bun.lock` fait foi, pendant qu'une autre
-  session travaille. Correctifs chirurgicaux uniquement.
+  `package-lock.json` pendant qu'une autre session travaille. Correctifs
+  chirurgicaux uniquement.
+  *(Note D42, 2026-10-06 : cette justification citait `bun.lock` comme
+  lockfile de référence. C'est faux — la CI fait `npm ci`, donc
+  `package-lock.json` est le lockfile qui fait foi. Le `bun.lock` est un
+  doublon à supprimer.)*
 - **`check-email` neutralisée plutôt que supprimée** : aucun appelant UI
   (reprise via `?resume=1`), seul le manifeste de santé la référence.
 
@@ -127,8 +136,9 @@ Décisions de design notables :
    désormais sur Better Auth OTP, cf. `bc3e449`) ; appliquer la blacklist
    dans `getSession` — **déjà fait** : `databaseHooks.session.create.before`
    (`src/lib/auth/index.ts:53-60`) coupe la création de session, et
-   `src/lib/account-auth.ts:53` re-vérifie à chaque lecture.
-   `destroyAllSessions` n'existe plus (0 appelant) — à supprimer en D17.
+   `src/lib/account-auth.ts` re-vérifie à chaque lecture.
+   `destroyAllSessions` n'existe plus : **0 occurrence dans `src/`** au
+   2026-10-06, la référence est donc close.
 4. **Svix** : le fix `a29d11f` (bien écrit) cible l'ancien webhook de
    ~100 lignes ; le webhook actuel (437+ l.) vérifie déjà une signature
    HMAC en fail-closed — lecture comparée avant toute ré-implémentation.
@@ -146,15 +156,23 @@ sur JSON-LD statique) · render templates email (`escapeHtml` + `sandbox=""`) ·
 webhooks (signatures vérifiées) · crons (`Bearer` + `timingSafeEqual`) ·
 `logout` (révocation base + cookie) · `verify-otp` (anti-énumération, usage
 unique) · `test-guard` (fail-closed) · 27 handlers admin/members/export/stats
-(tous avec `isAdminAuthed`/`requireAdminRole`) · secrets (aucun en clair,
+(à l'audit, tous avec `isAdminAuthed`/`requireAdminRole` — **`requireAdminRole`
+n'existe plus** : D24 l'a remplacé par `requireAdmin` / `requireAdminOrThrow`
+avec le contrat 401 `AUTH_REQUIRED` / 403 `FORBIDDEN` ; `isAdminAuthed` est
+toujours exporté) · secrets (aucun en clair,
 `.env` ignorés) · SSRF (aucun fetch sur entrée utilisateur) · open redirect
 (`next` validé) · `/api/public/events`, `/api/community/count` (pas de PII).
 
 ## 5. Références
 
-- `src/app/api/invite/accept|refuse/route.ts`, `src/app/api/account/phone/route.ts`,
-  `src/lib/phone-fill-ticket.ts`, `src/app/api/profiling/draft/route.ts`,
-  `src/lib/mail.ts:1423-1424`, `src/app/api/events/route.ts:36-42`,
-  `src/app/api/check-email/route.ts`, `src/app/api/profile/[id]/route.ts`,
+> Chemins de l'audit, annotés de leur état au 2026-10-06 :
+> `invite/accept` et `invite/refuse` ont été **supprimés** (voir §1.1) ;
+> `api/check-email` **existe toujours** ; `src/lib/mail.ts:1423-1424` a été
+> déplacé (le fichier fait aujourd'hui ~1 440 lignes).
+
+- `src/app/api/account/phone/route.ts`, `src/lib/phone-fill-ticket.ts`,
+  `src/app/api/profiling/draft/route.ts`, `src/lib/mail.ts`,
+  `src/app/api/events/route.ts`, `src/app/api/check-email/route.ts`,
+  `src/app/api/profile/[id]/route.ts`,
   `src/app/api/members/[id]/share/route.ts`, `src/app/api/analytics/route.ts`.
 - `docs/interface-utilisateur.md` (inventaire UI), `docs/espace-membre.md`.

@@ -1,5 +1,13 @@
 # Admin Improvements Implementation Plan
 
+> ⚠️ **Plan du 2026-09-05, largement caduc (annoté 2026-10-06).** Ce document
+> décrit un état du dépôt qui n'existe plus. `requireAdminRole()` a été remplacé
+> par `requireAdmin()`/`requireAdminOrThrow()` (D24), `POST /api/admin/keys` et
+> `admin-passcode.ts` ont été supprimés (l'admin passe par Better Auth email /
+> mot de passe), et les pages sont sous `src/app/[locale]/admin/*`. Les extraits
+> de code ci-dessous sont **à ne pas copier**. Voir `docs/superpowers/README.md`
+> pour la table des symboles périmés et ce qui fait foi.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use subagent-driven-development (recommended) to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Fix security issues, add audit trail, soft-delete, RBAC enforcement, keyboard shortcuts, dashboard UX improvements, and test coverage for the admin panel.

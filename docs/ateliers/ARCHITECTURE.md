@@ -6,28 +6,40 @@ Le module Ateliers permet de créer et gérer des programmes pédagogiques struc
 
 ## Architecture technique
 
+> **Vérifié 2026-10-06.** Les chemins sont sous `src/app/[locale]/` (migration
+> i18n). La structure des ateliers passe par des **seeds idempotents** : il
+> n'existe pas d'API d'écriture de la structure (ni `POST /workshops`, ni
+> `PUT`/`DELETE /workshops/[id]`, ni `/weeks`).
+
 ### Fichiers principaux
 
 | Fichier | Rôle | Lignes |
 |---------|------|--------|
-| `src/lib/workshop-validation.ts` | Validation pure du domaine | 616 |
-| `src/lib/workshop-progression.ts` | Progression & unlock | 158 |
-| `src/lib/workshop-quiz.ts` | Scoring serveur | 209 |
-| `src/lib/workshop-server.ts` | Glue DB → pure | 300 |
-| `src/lib/workshop-emails.ts` | Templates transactionnels (inscription, soumission, review, quiz) — `escapeHtml` systématique | 135 |
+| `src/lib/workshop-validation.ts` | Validation pure du domaine | 134 |
+| `src/lib/workshop-progression.ts` | Progression & unlock | 185 |
+| `src/lib/workshop-quiz.ts` | Scoring serveur | 191 |
+| `src/lib/workshop-server.ts` | Glue DB → pure | 304 |
+| `src/lib/workshop-emails.ts` | Templates transactionnels (inscription, soumission, review, quiz) — `escapeHtml` systématique | 144 |
 
 ### Routes API
 
 | Route | Méthode | Rôle |
 |-------|---------|------|
-| `/api/admin/workshops` | GET/POST | Lister/Créer un atelier |
-| `/api/admin/workshops/[id]` | GET/PUT/DELETE | Détail/Mettre à jour/Supprimer |
-| `/api/admin/workshops/[id]/weeks` | GET/POST | Gérer les semaines |
-| `/api/admin/workshops/[id]/quiz/[quizId]` | POST | Soumettre un quiz |
+| `/api/admin/workshops` | GET | Lister les ateliers — **pas de POST** : la structure passe par le seed |
+| `/api/admin/workshops/[id]` | GET | Détail d'un atelier — **pas de PUT/DELETE** |
+| `/api/admin/workshops/sessions/[id]` | GET/PATCH | Détail et mise à jour d'une séance |
+| `/api/admin/workshops/stats` | GET | Statistiques ateliers |
+| `/api/admin/workshops/submissions` | GET | Liste des soumissions |
 | `/api/admin/workshops/submissions/[id]/review` | POST | Review (Approuvé/Révision/Rejeté) + email membre |
+| `/api/workshops` | GET | Liste des ateliers publiés |
+| `/api/workshops/[slug]` | GET | Détail public d'un atelier |
 | `/api/workshops/[slug]/enroll` | POST | Inscription membre + email (fire-and-forget) |
+| `/api/workshops/sessions/[id]` | GET | Détail d'une séance |
 | `/api/workshops/sessions/[id]/submissions` | POST | Soumission livrable + email (fire-and-forget) |
 | `/api/workshops/quizzes/[id]/attempts` | POST | Tentative quiz + email résultat (fire-and-forget) |
+
+Les dossiers `src/app/api/workshops/quizzes/` et `src/app/api/workshops/sessions/`
+ne contiennent pas de route « liste » : seuls les segments `[id]` sont montés.
 
 ### Pages UI
 
@@ -40,18 +52,26 @@ Le module Ateliers permet de créer et gérer des programmes pédagogiques struc
 | `/admin/ateliers/[id]` | Détail atelier (admin) |
 | `/admin/ateliers/submissions` | Revue des soumissions (admin) |
 
+Fichiers : `src/app/[locale]/dashboard/ateliers/...` et
+`src/app/[locale]/admin/ateliers/...`.
+
 ### Composants membre (`_components/`)
 
 | Composant | Rôle |
 |-----------|------|
-| `EnrollButton.tsx` | Inscription (`POST enroll`, `focus-visible`, `aria-label`, spinner `motion-reduce`) |
-| `SessionDetailView.tsx` | Activités + soumission + quiz interactif |
-| `SessionStateBadge.tsx` | Badge verrouillée/débloquée/terminée |
+| `src/app/[locale]/dashboard/ateliers/_components/EnrollButton.tsx` | Inscription (`POST enroll`, `focus-visible`, `aria-label`, spinner `motion-reduce`) |
+| `src/app/[locale]/dashboard/ateliers/_components/SessionDetailView.tsx` | Activités + soumission + quiz interactif |
+| `src/app/[locale]/dashboard/ateliers/_components/SessionStateBadge.tsx` | Badge verrouillée/débloquée/terminée |
 
 ### Seed
 
-`scripts/seed-github-workshop.ts` (idempotent) : 1 Workshop, 4 semaines,
-12 séances, 33 activités, 12 livrables, 12 quizzes (36 questions).
+- `scripts/seed-workshops.ts` — seed générique des ateliers.
+- `scripts/seed-github-program.ts` — programme « Maîtrise GitHub ».
+- `scripts/seed-github-workshop.ts` — le seed de l'atelier GitHub au format
+  workshop structuré (idempotent).
+
+> Les trois scripts existent. Aucun n'est exposé comme `npm run db:seed` ; le
+> script npm correspondant est `npm run seed:workshops`.
 
 ## Domaine métier
 
@@ -69,13 +89,21 @@ Workshop (atelier)
 
 ### Statuts
 
-| Entité | Statuts possibles |
-|--------|-------------------|
-| Workshop | `draft`, `published`, `archived` |
-| Week | `locked`, `unlocked`, `completed` |
-| Session | `locked`, `unlocked`, `completed` |
-| Activity | `locked`, `unlocked`, `completed` |
-| Quiz | `locked`, `unlocked`, `completed`, `passed`, `failed` |
+Les statut sont des `String` (pas des `enum` Prisma) : la validation est faite
+par l'application.
+
+| Entité | Statuts possibles | Source |
+|--------|-------------------|--------|
+| Workshop | `draft` (défaut), `published`, `archived` | `schema.prisma:578` |
+| WorkshopSubmission | `PENDING`, `IN_REVIEW`, `APPROVED`, `REVISION`, `REJECTED` | `schema.prisma:706` |
+| WorkshopReview | `APPROVED`, `REVISION`, `REJECTED` (`decision`) | `schema.prisma:731` |
+| WorkshopEnrollment | `ACTIVE` (défaut), + `status` de l'inscription | `schema.prisma:809` |
+| Mentorship | `ACTIVE` (défaut) | `schema.prisma:826` |
+
+Les statuts `locked` / `unlocked` / `completed` / `passed` / `failed` ne sont
+**pas** persistés : la progression et le déblocage sont dérivés côté serveur par
+`src/lib/workshop-progression.ts` à partir des soumissions et des tentatives de
+quiz. C'est une décision d'architecture explicite (ADR-002), pas une omission.
 
 ### Progression
 
@@ -99,10 +127,14 @@ Le scoring est **exclusivement côté serveur** (voir ADR-003) :
 
 ## Tests
 
-- 271 unit tests (`npm run test:unit`) : validation, progression, quiz,
-  emails transactionnels (`workshop-emails`, XSS), gate Event
-  (`events-gate` : fuseaux + filtres publics)
-- Tous couvrent les cas limites et les erreurs
+- Les tests du domaine Atelier sont :
+  `workshop-validation`, `workshop-progression`, `workshop-quiz`,
+  `workshop-emails` (XSS), `events-gate` (fuseaux + filtres publics), et
+  `tests/e2e/workshop-gate.spec.ts` côté Playwright.
+- `npm run check:test-wiring` échoue si l'un de ces fichiers n'est branché dans
+  un script `package.json`.
+- Le nombre de tests évolue à chaque ajout : ne pas recopier un total dans la
+  doc. Mesurer avec `npm run test:unit` et lire les lignes `# tests` / `# suites`.
 
 ## Audits
 

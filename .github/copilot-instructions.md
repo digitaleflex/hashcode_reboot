@@ -16,13 +16,26 @@ HashCode Reboot is a production-oriented Next.js 16 + TypeScript + Prisma/Postgr
 - An issue is not complete merely because code compiles: validate acceptance criteria and behavior.
 
 ## Validation
-Use Bun. Run relevant checks, and when practical:
-- bun run typecheck
-- bun run lint
-- bun run test:unit
-- bun run test:e2e for user-facing flow changes
+Use npm (Node 22). The CI (`.github/workflows/ci.yml`) runs `npm ci` and decides
+whether the repo is green, so npm is the only package manager: never use bun and
+do not regenerate `bun.lock`. Run relevant checks, and when practical:
+- npm run typecheck
+- npm run lint
+- npm run check:test-wiring (every tests/*.cjs must be wired into a script)
+- npm run test:unit
+- npm run check:i18n after any change to messages/ or to a translation call
+- npm run test:e2e for user-facing flow changes
 
-If a check cannot run, state why in the PR.
+Before opening a PR, `npm run validate` (typecheck + lint + check:test-wiring +
+test:unit) must be green. If a check cannot run, state why in the PR.
+
+## Documentation
+Documentation is verified against the repository, never from memory: a file
+path, a route, a script name, an env var or a count stated in a doc must be
+confirmed by reading the code or running the command. If it cannot be verified,
+say so explicitly instead of guessing. When a change makes a doc statement
+false (deleted route, renamed file, new guard, changed count), fix the doc in
+the same change.
 
 ## PR contract
 Every PR must contain:

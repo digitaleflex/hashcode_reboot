@@ -2,6 +2,10 @@
 
 > Généré depuis l'audit complet. Chaque issue = **un commit/PR atomique**.
 > Labels : `p0-critical` | `p1-high` | `p2-medium` | `p3-low` | `a11y` | `nextjs` | `mobile` | `admin` | `landing` | `profiling`
+>
+> **Plan de septembre 2026, résidu racine à supprimer (D15).** Les 6 P0 sont
+> déjà corrigées. Les commandes citées ont été alignées sur `npm`, mais les
+> chemins de fichiers antérieurs à la migration i18n ne sont plus valides.
 
 ---
 
@@ -248,7 +252,7 @@
 **Fichiers :** `next.config.ts`
 **Critères d'acceptation :**
 - [ ] Ajouter `experimental: { turbo: { resolveAlias: { ... } } }`
-- [ ] Test `bun run build` → temps réduit
+- [ ] Test `npm run build` → temps réduit
 - [ ] Vérifier compatibilité `tailwindcss` v4 + `next-intl` futur
 **Effort :** 30min
 

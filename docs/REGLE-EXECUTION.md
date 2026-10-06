@@ -11,7 +11,7 @@
 git switch development && git pull
 git switch -c chore/audit-d01-disable-signup
 npm ci
-npm run validate        # typecheck + lint + test:unit — DOIT être verte
+npm run validate        # typecheck + lint + check:test-wiring + test:unit — DOIT être verte
 ```
 
 Si `npm run validate` est **rouge avant de commencer**, on ne commence pas.
@@ -27,7 +27,7 @@ confondue avec une régression qu'on vient d'introduire.
 2. Lit la section Dxx de docs/ROADMAP-SUR-INGENIERIE-2026.md
 3. Branche dédiée               →  chore/audit-dxx-<slug>
 4. Implémente
-5. npm run validate              →  typecheck + lint + tests
+5. npm run validate              →  typecheck + lint + check:test-wiring + tests
 6. Le "Vérifier" de la section Dxx →  preuve que le bug est corrigé
 7. git commit                    →  un seul commit, message conventionnel
 8. npm run roadmap:done D01      →  marque la tâche
@@ -75,6 +75,24 @@ toutes les dépendances sont `done`.
 | **5** (admin) | Ne commence pas avant D18 (tests fiables) et D25 (helper). Extraire avant de migrer. |
 | **6** (produit) | **Nécessite un arbitrage produit, pas technique.** Ne pas commencer sans validation explicite. |
 
+## 4 bis. Ce qui a changé depuis la rédaction (2026-10-06)
+
+Cette page a été écrite en septembre. Plusieurs de ses repères sont périmés. La
+feuille de route a gagné 4 tâches (jusqu'à `D42`) et `npm run validate` a
+évolué. **Vérifier avant d'appliquer littéralement** :
+
+| Énoncé de cette page | État réel au 2026-10-06 |
+|---|---|
+| `npm run validate` = typecheck + lint + test:unit | **+ `check:test-wiring`** entre les deux |
+| `npm run roadmap:done D01` | idem, toujours valide |
+| Les « 30 détections client `status === 401` » (phase 4) | contrat refait par D24 : `requireAdmin` distingue 401 `AUTH_REQUIRED` / 403 `FORBIDDEN` |
+| `admin-login.tsx` existe (401 l.) (§7.2) | **supprimé** par D33 |
+| `pending-document.tsx` (§7.1) | **supprimé** par D21, pages légales branchées |
+| §7.1 et §7.2 « à trancher » | **tranchés** |
+| Le dépôt utilise `node --test` (implicite) | toujours vrai — et **pas** Vitest, contrairement à `CONTRIBUTING.md` d'origine |
+| `src/middleware.ts` (implicite) | s'appelle **`src/proxy.ts`** (Next 16) |
+| `bun.lock` périmé (D15) | toujours présent, et **divergent** de `package-lock.json` — la CI fait `npm ci`, donc npm est la seule référence |
+
 ### Deux interdits absolus
 
 1. **D07 avant toute chose qui touche au schéma.** Les tables Better Auth n'ont
@@ -90,7 +108,7 @@ toutes les dépendances sont `done`.
 
 Une tâche n'est `done` que si **toutes** ces conditions sont réunies :
 
-- [ ] `npm run validate` passe (typecheck + lint + test:unit)
+- [ ] `npm run validate` passe (typecheck + lint + check:test-wiring + test:unit)
 - [ ] Le critère **« Vérifier »** de la section Dxx est **prouvé** (pas supposé)
 - [ ] `npm run build` passe si la tâche touche au routage, aux composants
       montés, ou à i18n
@@ -146,27 +164,30 @@ D25 ──▶ D32          le helper avant la migration
 Ce ne sont **pas** des décisions techniques. Les poser avant la phase 1
 évite du travail à refaire.
 
-### 7.1 `legal.*` — le contenu existe, les pages ne l'affichent pas
+### 7.1 `legal.*` — **tranché et fait (D21)**
 
-Le contenu légal **est** dans `messages/fr.json` et `en.json` (avec `metaTitle` et
-`metaDescription`). Mais le commentaire de `pending-document.tsx:31-32` affirme
-le contraire, et les 4 pages rendent toujours « document non publié » — même
-pour le SEO.
+Le point est clos : les 4 pages légales (`/cgu`, `/confidentialite`,
+`/mentions-legales`, `/cookies`) sont **branchées** sur `legal.*`, avec
+`generateMetadata`. `pending-document.tsx` n'existe plus — le rendu passe par
+`src/components/reboot/legal/legal-document.tsx` et `src/lib/legal-content.ts`
+(`LEGAL_DOCUMENTS`, `legalValueKey`, `resolveLegalNode`).
 
-- **Brancher** les 4 pages + `generateMetadata` → le contenu est visible et indexable
-- **Supprimer** le bloc `legal.*` → mais c'est du contenu produit, déjà payé et révisé
+Le contenu est verrouillé par `tests/legal-content.test.cjs` : il échoue si une
+clé disparaît, si une valeur `en` devient vide, ou si un placeholder ICU est
+oublié. **Ne pas purger `legal.*`.**
 
-**Décision attendue avant D21.** Ne pas purger `legal.*` par défaut.
+*(Cette section ne demandait plus de décision avant D21 ; elle est conservée
+pour la trace.)*
 
-### 7.2 `?admin=1` — deux chemins qui se redirigent mutuellement
+### 7.2 `?admin=1` — **tranché et fait (D33)**
 
-`admin-login.tsx` (401 l.) sert uniquement l'URL `?admin=1`, qui redirige ensuite vers
-`/admin` — une vraie route qui existe déjà, avec une garde serveur. Le formulaire
-n'existe que sur une URL sans raison d'exister.
+`admin-login.tsx` (402 l.) et la phase `admin-login` ont été **supprimés**.
+`?admin=1` est aujourd'hui un simple alias : `src/app/[locale]/page.tsx` met la
+phase `admin`, puis un `useEffect` fait `window.location.assign("/admin")` — une
+vraie route, gardée côté serveur par `admin/layout.tsx` (qui renvoie vers
+`/login?next=%2Fadmin` si la session n'est pas admin).
 
-Recommandation de l'audit : supprimer `admin-login.tsx` (D33, −330 l.), garder `/admin`.
-Mais c'est un choix produit : certaines personnes utilisent peut-être `?admin=1` comme
-raccourci depuis un bookmark.
+*(Section conservée pour la trace : la recommandation de l'audit a été suivie.)*
 
 ---
 

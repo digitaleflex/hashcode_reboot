@@ -3,6 +3,10 @@
 > **Source unique de vérité** pour le suivi.  
 > Colonnes style Kanban : **Backlog → Ready → In Progress → Review → Done**  
 > Mise à jour hebdomadaire (lundi).
+>
+> ⚠️ **Ne se met plus à jour (document de septembre 2026).** C'est un résidu
+> racine identifié à supprimer en D15. La roadmap qui fait foi est
+> `docs/ROADMAP-SUR-INGENIERIE-2026.md` + `npm run roadmap:status`.
 
 ---
 
@@ -77,7 +81,7 @@
 | Ven | #002 | MemberTable cartes mobile + skeleton | |
 
 **Definition of Done S1 :**
-- [ ] `bun run validate` passe (typecheck + lint + test:unit)
+- [ ] `npm run validate` passe (typecheck + lint + check:test-wiring + test:unit)
 - [ ] Test manuel mobile (Chrome DevTools device toolbar)
 - [ ] Test `prefers-reduced-motion` OS activé
 - [ ] Test lecteur d'écran (NVDA/VoiceOver) navigation principale

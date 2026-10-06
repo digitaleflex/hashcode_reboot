@@ -1,10 +1,15 @@
 # Audit UX — Ateliers (2026-09-18)
 
+> **Chemins corrigés le 2026-10-06** : les pages sont sous
+> `src/app/[locale]/dashboard/ateliers/`. Les numéros de ligne de l'audit
+> d'origine ne sont plus garantis — ils désignaient les fichiers avant la
+> migration i18n.
+
 ## Fichiers auditées
 
-- `src/app/dashboard/ateliers/page.tsx`
-- `src/app/dashboard/ateliers/[slug]/page.tsx`
-- `src/app/dashboard/ateliers/_components/SessionStateBadge.tsx`
+- `src/app/[locale]/dashboard/ateliers/page.tsx`
+- `src/app/[locale]/dashboard/ateliers/[slug]/page.tsx`
+- `src/app/[locale]/dashboard/ateliers/_components/SessionStateBadge.tsx`
 
 ## Conformité Web Interface Guidelines
 

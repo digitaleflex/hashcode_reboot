@@ -1,4 +1,11 @@
-> **REMARQUE (octobre 2026)** : Ce document décrit une version antérieure de l'interface. Le nouvel agencement « reboot » (src/components/reboot/) et l'ordre des sections ont évolué. Il est conservé à titre d'archive historique.\n\n# Interface utilisateur — inventaire exhaustif
+> **REMARQUE (octobre 2026)** : ce document décrit une version antérieure de
+> l'interface. L'agencement « reboot » (`src/components/reboot/`) et l'ordre des
+> sections ont évolué depuis l'inventaire du 2026-09-18. Il est conservé à titre
+> d'archive historique : les énoncés de fond (parcours, endpoints, garde-fous)
+> restent utilisables, les chemins de fichiers, routes et chiffres sont à
+> revérifier contre le dépôt avant de s'y fier.
+
+# Interface utilisateur — inventaire exhaustif
 
 > Description détaillée de **toutes les fonctionnalités visibles et actionnables**
 > par un utilisateur final (visiteur, prospect, membre) : écrans, textes, champs,
@@ -6,14 +13,15 @@
 > État du code au **2026-09-18**. L'interface **admin est exclue** du périmètre.
 >
 > Sources : lecture directe de `src/app/**`, `src/components/reboot/**`,
-> `src/lib/profiling/**`, `src/lib/account-*.ts`, `src/middleware.ts` et des
-> routes `src/app/api/**` consommées par l'UI.
+> `src/lib/profiling/**`, `src/lib/account-*.ts`, `src/proxy.ts` (ex
+> `src/middleware.ts`) et des routes `src/app/api/**` consommées par l'UI.
 
 ## 0. Cadre technique et périmètre
 
 - **Stack** : Next.js 16 App Router · TypeScript · Tailwind CSS 4 · shadcn/ui ·
-  Prisma 6 + Neon Postgres · Resend (fallback Brevo) · Zustand · TanStack Query · Zod.
-  Package manager **Bun** (`bun.lock`). Déploiement Vercel.
+  Prisma 6 + Neon Postgres · Resend (fallback Brevo) · TanStack Query · Zod.
+  Package manager **npm** (`package-lock.json`, cf. `.github/workflows/ci.yml`).
+  Déploiement Vercel.
 - **Thème** : sombre unique (`src/app/globals.css:55`), accent **lime**
   (`--primary`, ≈ `#C5F441`), `font-display` pour les titres, `mono-label` pour
   les libellés techniques, `focus-lime` (outline lime 2 px) sur tous les contrôles.
@@ -40,8 +48,11 @@
 
 ## 1. Parcours visiteur — page d'accueil `/`
 
-`src/app/page.tsx` est une **machine à 5 phases** (`page.tsx:38`) :
+`src/app/[locale]/page.tsx` est une **machine à 5 phases** :
 `landing | profiling | submitting | result | admin`.
+*(Corrigé 2026-10-06 : le chemin est `src/app/[locale]/page.tsx`, pas
+`src/app/page.tsx` — le fichier à la racine n'existe pas, et la référence de
+ligne `page.tsx:38` n'est plus garantie.)*
 
 > **D33** — la phase `admin-login` et `src/components/reboot/admin-login.tsx`
 > (402 l.) ont été supprimés. `?admin=1` est désormais un simple alias vers
@@ -508,16 +519,26 @@ rebours) → `POST /api/verify-email`, cooldown 60 s.
 - Erreurs : `INVALID_CODE` / `LOCKED` → **« Code invalide ou expiré. »** +
   vidage des 6 champs ; `RATE_LIMITED` → **« Trop de tentatives. Réessaie dans
   quelques minutes. »** ; réseau → **« Erreur réseau. Vérifie ta connexion. »**
-- **Règles serveur** : OTP 6 chiffres (`crypto.randomInt`), hash bcrypt 12,
-  **TTL 15 min**, **3 tentatives max** (puis session révoquée et code `LOCKED`),
-  rate-limit 10/IP/10 min, anti-énumération (membre absent → `INVALID_CODE`).
-  Le champ `remaining` renvoyé par l'API **n'est pas affiché**.
+- **Règles serveur** *(corrigé 2026-10-06)* : la validation OTP n'est plus
+  maison. C'est le plugin `email-otp` de Better Auth, configuré dans
+  `src/lib/auth/index.ts` : code 6 chiffres, `expiresIn: 900` s (**15 min**),
+  rate-limit inherited du plugin, anti-énumération (un membre absent et un email
+  blacklisté produisent le même traitement observable). Les anciens codes
+  d'erreur maison (`INVALID_CODE`, `LOCKED`, compteur `remaining`) sont mappés
+  côté UI par `src/lib/auth-ui.ts` depuis les codes Better Auth
+  (`INVALID_OTP`, `OTP_EXPIRED`, `TOO_MANY_ATTEMPTS`, `RATE_LIMITED`,
+  `USER_NOT_FOUND`). Aucune vérification côté client.
 
 ### 4.3 Session
 
-Cookie `hashcode_session` : httpOnly, Secure en prod, SameSite=Lax, **TTL 30 j
-glissant** (rafraîchi si `lastSeenAt > 1 h`), révoqué par
-`POST /api/auth/logout`.
+*(Corrigé 2026-10-06.)* La session est celle de **Better Auth** : cookie
+`better-auth.session_token`, httpOnly, `Secure` en prod, SameSite=Lax,
+`expiresIn` **30 j**, `updateAge` **1 h** (sliding window) + `cookieCache` 1 h.
+Révoquée par `POST /api/auth/logout`. Le nom du cookie est recopié en dur dans
+`src/proxy.ts`, `src/app/api/account/route.ts` et
+`src/app/api/auth/logout/route.ts` — `src/proxy.ts` s'exécute en Edge et ne doit
+pas tirer de module serveur. Le cookie `hashcode_session` et la table
+`MemberSession` comme source de session n'existent plus.
 
 ### 4.4 `/verify-email`
 
@@ -929,7 +950,7 @@ Défini mais **jamais appelé** : `community_cta_clicked`.
 
 - `docs/espace-membre.md` — fonctionnement complet de l'espace membre (état au
   2026-09-09).
-- `src/app/page.tsx` — machine à phases du parcours public.
+- `src/app/[locale]/page.tsx` — machine à phases du parcours public.
 - `src/components/reboot/profiling-flow.tsx` (orchestrateur) + `profiling/`
   (storage, use-debounce, draft, shell, resume-prompt, question-view, views,
   preview), `welcome.tsx`, `profile-card.tsx`,
@@ -940,9 +961,10 @@ Défini mais **jamais appelé** : `community_cta_clicked`.
   `public-events.tsx`, `profile/PublicProfileCard.tsx`.
 - `src/lib/profiling/questions.ts`, `engine.ts`, `validate.ts`, `auto-controls.ts`,
   `types.ts`, `labels.ts`.
-- `src/app/dashboard/**`, `src/app/account/**`, `src/middleware.ts`.
-- Ateliers : `src/app/dashboard/ateliers/**` (liste, détail, séance,
+- `src/app/[locale]/dashboard/**`, `src/app/[locale]/account/**`,
+  `src/proxy.ts` (ex-`src/middleware.ts`, renommé par la convention Next 16).
+- Ateliers : `src/app/[locale]/dashboard/ateliers/**` (liste, détail, séance,
   `_components/EnrollButton.tsx`, `SessionDetailView.tsx`,
-  `SessionStateBadge.tsx`), `src/app/admin/ateliers/**`,
+  `SessionStateBadge.tsx`), `src/app/[locale]/admin/ateliers/**`,
   `src/lib/workshop-*.ts`, `docs/ateliers/ARCHITECTURE.md`,
   `docs/ateliers/AUDIT-UX.md`, `docs/adr/ADR-001` à `ADR-004`.

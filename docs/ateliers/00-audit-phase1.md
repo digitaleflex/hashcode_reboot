@@ -1,5 +1,16 @@
 # RAPPORT PHASE 1 — AUDIT ATELIERS
 
+> ⚠️ **Lecture — instantané du 2026-09-18.** C'est un rapport d'audit, pas une
+> description du dépôt. Le domaine Atelier existe désormais (10 modèles
+> `Workshop*`/`Mentorship*`, routes `/api/admin/workshops/**`,
+> `/api/workshops/**`, pages `/dashboard/ateliers/**` et `/admin/ateliers/**`),
+> l'authentification est passée sur Better Auth, et la CI GitHub Actions existe.
+> Les constats marqués `[FACT]` ci-dessous décrivent l'état du 2026-09-18 : ils
+> ont été corrigés en ligne quand ils étaient devenus faux, mais les tableaux
+> de gaps, de risques et de recommandations sont conservés comme trace
+> historique du chantier. Les corrections inline sont signalées par `[FACT →
+> vérifié 2026-10-06]`.
+
 > **Statut** : terminé · **Branche** : `development` · **HEAD à l'audit** : `79f3779` · **Date** : 2026-09-18
 > **Méthode** : inspection read-only du dépôt (code = source de vérité). Aucun fichier modifié, aucune migration, aucun commit.
 > **Suivi** : milestone [ATELIERS — Parcours pédagogique (MVP)](https://github.com/digitaleflex/hashcode_reboot/milestone/5) · plan ordonné dans l'issue [EPIC #97](https://github.com/digitaleflex/hashcode_reboot/issues/97).
@@ -59,22 +70,22 @@
 |---|---|---|
 | Framework | Next.js `^16.1.1` App Router, React 19, React Compiler activé | `package.json`, `next.config.ts` |
 | Langage | TypeScript 5 strict, alias `@/*` → `./src/*` | `tsconfig.json` |
-| UI | Tailwind 4 + shadcn/ui (54 composants `src/components/ui/`) + Radix + lucide + framer-motion | `package.json`, `src/components/ui/` |
+| UI | Tailwind 4 + shadcn/ui (**13** composants dans `src/components/ui/`, pas 54) + Radix + lucide + framer-motion [FACT → vérifié 2026-10-06] | `package.json`, `src/components/ui/` |
 | ORM/DB | Prisma 6.11 → PostgreSQL (Neon), `POSTGRES_PRISMA_URL` + `POSTGRES_URL_NON_POOLING` | `prisma/schema.prisma` (provider `postgresql`), `.env.example` |
-| Auth membre | Maison : magic-link OTP + `MemberSession` DB + cookie `hashcode_session` 30 j sliding | `src/lib/account-auth.ts`, `src/lib/account-otp.ts` |
-| Auth admin | Maison : `ADMIN_PASSCODE` + token HMAC stateless + cookie `hashcode-admin` 12 h + rôles `viewer\|operator` | `src/lib/admin-auth.ts`, `src/lib/admin-roles.ts` |
+| Auth membre | Better Auth, plugin `emailOTP` (`expiresIn: 900` s = 15 min), cookie `better-auth.session_token` 30 j sliding, `updateAge` 1 h + `cookieCache` 1 h. `src/lib/account-otp.ts`, `MemberSession` comme source de session et `hashcode_session` n'existent plus [FACT → vérifié 2026-10-06] | `src/lib/auth/index.ts`, `src/lib/account-auth.ts` |
+| Auth admin | Listes blanches `ADMIN_OPERATORS`/`ADMIN_VIEWERS` (fail-closed) + Better Auth email/mot de passe + rôles `viewer\|operator` ; garde `requireAdmin(req, role)` (401 `AUTH_REQUIRED` / 403 `FORBIDDEN`). `src/lib/admin-roles.ts` n'existe pas [FACT → vérifié 2026-10-06] | `src/lib/admin-auth.ts` |
 | Validation | Validation manuelle + Zod (profilage) ; enums en **String + union TS**, listes en **JSON String** | `src/lib/events-validation.ts`, en-tête de `schema.prisma` |
 | Data fetching | Server Components + fetch client ; TanStack Query côté admin uniquement | `src/app/providers.tsx`, hooks admin |
-| Forms | react-hook-form + zod (profilage) ; formulaires admin = inputs Tailwind bruts + `fetchJson` | `src/components/reboot/profiling-flow.tsx`, `src/app/admin/events/page.tsx` |
+| Forms | profilage = état contrôlé + zod (`src/lib/profiling/validate.ts`, `crypto.randomUUID`) — **pas de `react-hook-form`**, qui n'est pas dans `package.json` ; formulaires admin = inputs Tailwind bruts + `fetchJson` | `src/lib/profiling/`, `src/components/reboot/profiling-flow.tsx`, `src/components/reboot/profiling/`, `src/app/[locale]/admin/events/page.tsx` |
 | Notifications | Emails Resend (transactionnel) + Brevo (marketing), fallback croisés ; templates DB activables | `src/lib/mail.ts`, `src/lib/email-templates/` |
 | Rate limit | Upstash Redis + fallback mémoire, `rateKey` par IP | `src/lib/rate-limit.ts` |
 | Monitoring | Sentry (source maps + tunnel `/monitoring`), Speed Insights | `next.config.ts` |
-| Tests | `node:test` (.cjs), 5 suites : unit, magic-link, event-validation, profiling, integration (read-only) | `tests/`, scripts `test:*` |
-| Package manager | **npm** (`package-lock.json` à jour 11/09) ; `bun.lock` obsolète (07/09) [DEBT] | racine |
-| Déploiement | Vercel — `vercel-build` = `prisma generate && prisma migrate deploy && next build` | `package.json` |
-| CI | **Aucune** : pas de dossier `.github/` ; gate = `npm run validate` (typecheck+lint+test:unit) [GAP] | `package.json`, racine |
+| Tests | `node --test` + `tsx`, fichiers `.cjs` : **24 fichiers**, dont `integration.test.cjs` read-only (exclu de `test:unit`, qui enchaîne les 23 autres) [FACT → vérifié 2026-10-06] | `tests/`, scripts `test:*` |
+| Package manager | **npm** — `package-lock.json`. La CI (`.github/workflows/ci.yml`) fait `npm ci` : elle fait autorité. Un `bun.lock` est toujours présent à la racine, en doublon et divergent (56 paquets transitifs divergents) : à supprimer, pas à maintenir [DEBT] | `.github/workflows/ci.yml`, racine |
+| Déploiement | Vercel — `vercel-build` = `prisma generate && prisma migrate deploy && next build && copy-standalone` | `package.json` |
+| CI | GitHub Actions : `.github/workflows/ci.yml` (typecheck + lint + test:unit + `check-messages`, puis job `e2e` Playwright conditionné au secret `DATABASE_URL`) + `copilot-setup-steps.yml`. Le gate « pas de CI » est levé [GAP → vérifié 2026-10-06] | `.github/workflows/` |
 
-**Dépendances mortes** (présentes mais jamais importées dans `src/`) [RISK/DEBT] : `next-auth`, `next-intl`, `zustand`, `resend` (SDK — mail.ts utilise `fetch`), probablement d'autres (le prune knip existe sur `main`, pas sur `development`).
+**Dépendances mortes** (présentes mais jamais importées dans `src/`) [RISK/DEBT, instantané 2026-09-18] : `next-auth` (supprimé depuis), `next-intl`, `zustand`, `resend` (SDK — `mail.ts` utilise `fetch`), probablement d'autres. **Corrigé depuis** : `next-intl` est massivement utilisé (99 occurrences de `next-intl` dans `src/`), `next-auth` a été retiré, et `zustand` n'est plus dans `package.json` du tout [FACT → vérifié 2026-10-06].
 
 ---
 
@@ -82,9 +93,9 @@
 
 - **Routage** : App Router, une seule app `src/app`. Pages publiques : `/`, `/evenements`, `/login`, `/verify-otp`, `/profile/[id]`, `/sitemap.ts`. Espace membre : `/dashboard/*` (+ `/account` redirigé). Admin : `/admin/*`.
 - **API** : `src/app/api/**` — convention `route.ts` avec `export const runtime = "nodejs"` quand accès DB. Deux familles : membre (`/api/account/*`, `/api/events*`) et admin (`/api/admin/*`), plus des routes publiques (`/api/public/events`, `/api/health`, `/api/community/count`).
-- **Middleware** (`src/middleware.ts`) : Edge, vérifie **uniquement la présence du cookie** `hashcode_session` sur `/account/*`, `/dashboard/*`, `/api/account/*` → redirect `/login` ou 401. La vraie validation (`getSession`) se fait dans les layouts/route handlers [FACT].
+- **Middleware** : le fichier s'appelle `src/proxy.ts` (convention Next 16 ; le nom `middleware.ts` a été renommé). Il délègue au middleware `next-intl` pour la réécriture `/fr/…` et redirige vers `/{locale}/login` quand la session manque sur `/account/*` et `/dashboard/*`. La vraie validation (`getSession`) se fait dans les layouts/route handlers [FACT → vérifié 2026-10-06].
 - **Composants transverses** : `src/components/reboot/shared.tsx` (`RebootButton`, `MonoLabel`), `src/components/reboot/mobile-bottom-nav.tsx` (nav mobile membre **et** admin), `src/components/brand/logo.tsx`.
-- **DB singleton** : `src/lib/db.ts` (PrismaClient, log opt-in). Pas d'extension d'erreurs/retry : `src/lib/prisma-extensions.ts` (code mort non branché) a été supprimé, le retry passe par `@/lib/errors.ts` (`AppError` + `errorToResponse`). Soft-delete géré par convention `where: { deletedAt: null }`, pas par extension [FACT].
+- **DB singleton** : `src/lib/db.ts` (PrismaClient, log opt-in). Pas d'extension d'erreurs/retry : `src/lib/prisma-extensions.ts` (code mort non branché) a été supprimé, le retry passe par `@/lib/errors.ts` (`AppError` + `errorToResponse`). Soft-delete géré par convention `where: { deletedAt: null }`, pas par extension [FACT]. **Confirmé en 2026-10-06** : le fichier n'existe plus, `src/lib/db.ts` et `src/lib/errors.ts` sont bien en place.
 - **Documentation interne** : `docs/interface-utilisateur.md` (inventaire UI exhaustif + §14 anomalies), `docs/espace-membre.md`, `docs/plan-invitation.md`.
 
 ---
@@ -101,32 +112,39 @@ PUBLIC (anonyme)                MEMBRE CONNECTÉ (/dashboard/*)
 /account → redirect settings
 ```
 
-- **Layout** : `src/app/dashboard/layout.tsx` — garde `getSession()` + redirect, top bar, `DashboardSidebar` (desktop pliable + drawer mobile), `MobileBottomNav`.
-- **Navigation** : `DashboardSidebar.NAV_ITEMS` = Vue d'ensemble, Agenda, Mon profil, Paramètres [FACT] — **point d'ajout « Ateliers »**. `MobileBottomNav.DASHBOARD_ITEMS` = Accueil, Agenda, Profil, Paramètres — à considérer pour l'ajout (4 items actuels).
-- **Dashboard** : `WelcomeCard`, `StatusCard`, `ProfileSummary`, `NextSteps` (étapes par archétype — préfiguration naturelle d'une « prochaine étape Atelier »), `QuickActions`, `AgendaCard` (5 prochains events).
-- **Agenda** : `src/app/dashboard/agenda/page.tsx` (client) — fetch `/api/events?limit=50&memberId=me`, groupage par date, filtres type/domaine, RSVP optimiste (**bug documenté** : `res.ok` non testé, doc §14.1).
+- **Layout** : `src/app/[locale]/dashboard/layout.tsx` (le chemin `src/app/dashboard/layout.tsx` n'existe plus depuis la migration i18n) — garde `getSession()` + redirect, top bar, `DashboardSidebar` (desktop pliable + drawer mobile), `MobileBottomNav`.
+- **Navigation** : `DashboardSidebar.NAV_ITEMS` = Vue d'ensemble, Agenda, Mon profil, Paramètres [FACT à l'audit] — le point d'ajout « Ateliers » **a été fait** : `/dashboard/ateliers` et `/dashboard/ateliers/[slug]/sessions/[sessionId]` existent, ainsi que `/dashboard/mentoring`. [FACT → vérifié 2026-10-06]
+- **Dashboard** : `WelcomeCard`, `StatusCard`, `ProfileSummary`, `NextSteps` (étapes par archétype), `QuickActions`, `AgendaCard` (5 prochains events) — dans `src/app/[locale]/dashboard/_components/`.
+- **Agenda** : `src/app/[locale]/dashboard/agenda/page.tsx` (client) — fetch `/api/events?limit=50&memberId=me`, groupage par date, filtres type/domaine, RSVP optimiste (**bug documenté** : `res.ok` non testé, doc §14.1).
 - **États** : loading/error/empty présents dans l'agenda ; skeletons admin dans `src/components/reboot/admin/skeletons/`.
 
 ---
 
 ## 6. Architecture admin
 
-- **Layout** : `src/app/admin/layout.tsx` (client) — header, `AdminSidebar`, `CommandPalette` (Ctrl+K), `SessionReminder`, `ChangePasscodeDialog`, `MobileBottomNav` (variante admin).
-- **Navigation** : `AdminSidebar` — 12 sections : stats, members, invitations, marketing, email-deliverability, events, email-templates, activity, exports, blacklist, audit-log, settings [FACT]. Ajout Atelier = `NAV_ITEMS` + `SECTION_MAP`/`routeMap` (layout) + entrée palette + `ADMIN_ITEMS` mobile.
-- **Pages** : ~15 pages `src/app/admin/*/page.tsx`. Patterns : page client + `fetchJson` (`src/components/reboot/admin/lib/fetchJson.ts`, gère 429 + Retry-After) + `useToast` + invalidation TanStack Query.
-- **Formulaire de référence** : `src/app/admin/events/page.tsx` — champs contrôlés maison, conversion `datetime-local → ISO`, compteur pré-envoi `notify-count` débouncé 300 ms, feedback succès/erreur, reset partiel.
-- **Liste de référence** : `AdminEventList.tsx` — actions statut (PATCH), renotify (PATCH `{notify:true}`), édition inline, suppression (DELETE) + toasts.
+> Les chemins de cette section ont changé avec la migration i18n : les pages
+> vivent sous `src/app/[locale]/admin/`. Le layout est `src/app/[locale]/admin/layout.tsx`.
+> `ChangePasscodeDialog` n'existe plus (le mot de passe admin passe par Better
+> Auth). Le reste de la description vaut toujours [FACT → vérifié 2026-10-06].
+
+- **Layout** : `src/app/[locale]/admin/layout.tsx` (client) — header, `AdminSidebar`, `CommandPalette` (Ctrl+K), `SessionReminder`, `MobileBottomNav` (variante admin).
+- **Navigation** : `AdminSidebar` — sections stats, members, invitations, marketing, email-deliverability, events, email-templates, activity, exports, blacklist, audit-log, settings [FACT à l'audit]. Ajout Atelier = `NAV_ITEMS` + `SECTION_MAP`/`routeMap` (layout) + entrée palette + `ADMIN_ITEMS` mobile. **Fait** : `/admin/ateliers` existe désormais.
+- **Pages** : `src/app/[locale]/admin/*/page.tsx` — dashboard, members, events, ateliers (+ `ateliers/[id]`, `ateliers/submissions`), stats, settings, mentoring, marketing, invitations, exports, blacklist, audit-log, activity, email-templates, email-deliverability. Patterns : page client + `fetchJson` (`src/components/reboot/admin/lib/fetchJson.ts`, gère 429 + Retry-After) + `useToast` + invalidation TanStack Query.
+- **Formulaire de référence** : `src/app/[locale]/admin/events/page.tsx` (le chemin `src/app/admin/events/page.tsx` n'existe pas) — champs contrôlés maison, conversion `datetime-local → ISO`, compteur pré-envoi `notify-count` débouncé 300 ms, feedback succès/erreur, reset partiel.
+- **Liste de référence** : `src/app/[locale]/admin/events/_components/AdminEventList.tsx` — actions statut (PATCH), renotify (PATCH `{notify:true}`), édition inline, suppression (DELETE) + toasts.
 - **Philosophie admin constatée** : mutations = `requireAdminOrThrow(req, "operator")` + `checkCSRF` + rate-limit + `audit()` ; lecture = `requireAdminOrThrow(req, "viewer")`. Depuis D24, le refus sans session est un 401 et le refus de rôle un 403 — le contrat que l'admin Atelier adopte déjà via `requireAdmin()`.
 
 ---
 
 ## 7. Authentification
 
-**Membre** [FACT] :
-- OTP magic-link : `src/lib/account-otp.ts` (code 6 chiffres, hash bcrypt, 15 min, 3 essais), vérification `verify-otp`, puis `createSession()` → cookie `hashcode_session` httpOnly/SameSite=Lax/30 j, sliding window rafraîchie > 1 h.
-- `getSession(req?)` : lit cookie → `MemberSession` → vérifie révocation, expiration, `otpHash=null`, `member.deletedAt` → retourne `session.member`.
-- Logout : `POST /api/auth/logout` (soft-revoke).
-- WIP en cours : sonde client `/api/auth/session` + hook `useMemberSession` (préserve).
+**Membre** [FACT, re-vérifié 2026-10-06] :
+- OTP magic-link : plugin `emailOTP` de Better Auth, code 6 chiffres, `expiresIn: 900` s (**15 min**), montage dans `src/lib/auth/index.ts`. La page `/verify-otp` consomme le lien 1-clic qui porte déjà le code. `src/lib/account-otp.ts` (hash bcrypt maison, compteur d'essais) a été **supprimé**.
+- Session : cookie `better-auth.session_token` httpOnly, `expiresIn` 30 j, `updateAge` 1 h (sliding window) + `cookieCache` 1 h. Le nom du cookie est recopié en dur dans `src/proxy.ts`, `src/app/api/account/route.ts` et `src/app/api/auth/logout/route.ts` (contrainte Edge).
+- `getSession(req?)` (`src/lib/account-auth.ts`) : interroge Better Auth, résout le `Member` par email, rejette `member.deletedAt` et les emails blacklistés (fail-closed), puis retourne un objet à la forme historique `{ member, memberId, … }` pour ne pas casser les appelants.
+- Coupe-circuit au niveau base : `databaseHooks.session.create.before` dans `src/lib/auth/index.ts` refuse de créer une session pour un email blacklisté.
+- Logout : `POST /api/auth/logout` (révoque la session + expire le cookie).
+- Sonde client `/api/auth/session` + hook `useMemberSession` : livrés (le WIP est passé).
 
 **Admin** [FACT] :
 - Passcode unique `ADMIN_PASSCODE` (≥ 16 chars en prod, fail-closed au boot) → login `POST /api/admin/login` (CSRF + rate-limit 10/10 s) → token `exp.role[.identity].sig` HMAC-SHA256, cookie `hashcode-admin` 12 h.
@@ -153,7 +171,9 @@ PUBLIC (anonyme)                MEMBRE CONNECTÉ (/dashboard/*)
 
 ## 9. Database
 
-**Modèles existants** (13) [FACT] : `Member`, `AdminKey`, `AuditLog`, `AnalyticsEvent`, `EmailEvent`, `MemberEmailLog`, `ProfilingDraft`, `MemberSession`, `MemberBlacklist`, `Event`, `EventRsvp`, `EmailProviderMetric`, `EmailTemplate`.
+**Modèles au moment de l'audit** (13) [FACT → vérifié 2026-10-06] : `Member`, `AdminKey`, `AuditLog`, `AnalyticsEvent`, `EmailEvent`, `MemberEmailLog`, `ProfilingDraft`, `MemberSession`, `MemberBlacklist`, `Event`, `EventRsvp`, `EmailProviderMetric`, `EmailTemplate`.
+
+**Modèles aujourd'hui** (32) : les 13 ci-dessus, moins aucun, plus `User`, `Session`, `Account`, `Verification`, `RateLimit`, `EventReminderLog`, et les 11 modèles `Workshop*` (`Workshop`, `WorkshopWeek`, `WorkshopSession`, `WorkshopActivity`, `WorkshopDeliverable`, `WorkshopSubmission`, `WorkshopReview`, `WorkshopQuiz`, `WorkshopQuestion`, `WorkshopQuizAttempt`, `WorkshopEnrollment`) ainsi que `Mentorship` et `MentorshipSession`. `AdminKey`, `RateLimit` et `MemberSession` sont toujours dans le schéma ; `MemberSession` a 2 lecteurs applicatifs (`admin/activity-logins`, `account/export`) et plus aucun créateur. Leur suppression est prévue en D36.
 
 **Recherche des concepts Atelier** :
 
@@ -238,7 +258,7 @@ Le payload du protocole §6 est **valide** contre le code réel. Différences co
 ## 14. CI/CD
 
 - **[GAP]** Aucun pipeline GitHub Actions (`.github/` absent).
-- Gate manuel : `npm run validate` = `typecheck && lint && test:unit` [FACT].
+- Gate manuel : `npm run validate` = `typecheck && lint && check:test-wiring && test:unit` [FACT].
 - **[DOC/RISK]** Le manifeste global `AGENTS.md` référence `npm run verify` / `verify:fast` (« sondes HTTP live + E2E ») : **ces scripts n'existent pas dans ce repo**. Le gate réel est `validate` (+ `test:integration` manuel).
 - Déploiement Vercel : `vercel-build` exécute `prisma migrate deploy` → les migrations suivent la branche déployée. **[INFERENCE]** branche prod probablement `main` — à confirmer (voir Gate 1).
 - `next.config.ts` : headers sécurité (CSP, HSTS, X-Frame-Options…), Sentry branché, `output: standalone` hors Vercel.
@@ -305,10 +325,12 @@ Le payload du protocole §6 est **valide** contre le code réel. Différences co
 
 ## 19. Dette technique pertinente
 
-- Dépendances mortes (`next-auth`, `next-intl`, `zustand`, SDK `resend`) — le prune knip n'existe que sur `main` [FACT].
-- `bun.lock` obsolète vs `package-lock.json` actif.
-- En-tête de `prisma/schema.prisma` : « SQLite datasource » alors que le provider est `postgresql` (commentaire périmé).
-- Commentaire de `src/lib/admin-roles.ts` décrivant un format de token obsolète.
+État au 2026-09-18, annoté de l'état vérifié le 2026-10-06 :
+
+- Dépendances mortes : `next-auth` supprimé, `next-intl` en usage réel, `zustand` retiré de `package.json`. Reste le SDK `resend` (non installé — `mail.ts` utilise `fetch`) [FACT → vérifié 2026-10-06].
+- `bun.lock` toujours présent en doublon de `package-lock.json`, et divergent (56 paquets transitifs). La CI fait `npm ci` : le lockfile de référence est `package-lock.json`, `bun.lock` doit être supprimé [DEBT, ouvert].
+- En-tête de `prisma/schema.prisma` : le commentaire annonce encore « SQLite datasource » alors que le provider est `postgresql` [DEBT, ouvert].
+- Commentaire de `src/lib/admin-roles.ts` : **sans objet**, le fichier n'existe plus (l'admin est sur `src/lib/admin-auth.ts`) [FACT → vérifié 2026-10-06].
 - `docs/interface-utilisateur.md` §14 : 15 anomalies documentées non corrigées (dont RSVP optimiste — pertinent Event).
 - Scripts `import-*.mjs` historiques à la racine de `scripts/`.
 - Pas de script `verify` malgré la doc globale.

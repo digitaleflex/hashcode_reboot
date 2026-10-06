@@ -4,6 +4,21 @@
 **Statut** : Accepté
 **Auteurs** : Équipe HASHCODE REBOOT
 
+> **Addendum 2026-10-06** — un ADR enregistre une décision, il ne se réécrit pas
+> quand le code avance. Trois points du texte ci-dessous ne reflètent plus le
+> dépôt ; ils sont signalés ici plutôt que corrigés dans le corps du document :
+>
+> - « `next-intl` v3 » → c'est **v4** (`package.json`: `next-intl: ^4.3.4`,
+>   installé en 4.7.0). L'option a été retenue, la version a monté.
+> - `src/middleware.ts` → le fichier s'appelle **`src/proxy.ts`** (convention
+>   Next 16). Il porte à la fois la garde d'auth et la réécriture de locale, et
+>   il exporte `proxy()` — pas un `middleware` séparé.
+> - « 1695 clés » → ce nombre est périmé **au sens où il est figé** : le volume
+>   de clés a changé plusieurs fois depuis. Mesurer avec `npm run check:i18n`.
+> - La validation continue est réelle : `check-messages.mjs` tourne dans
+>   `.github/workflows/ci.yml` (étape « Validate translation keys »). Le build
+>   n'est, lui, pas exécuté par le job `validate` mais par le job `e2e`.
+
 ## Contexte
 
 HASHCODE REBOOT vise une communauté tech francophone (Bénin, Afrique francophone) avec ouverture internationale. L'anglais est la seconde langue naturelle pour l'expansion.

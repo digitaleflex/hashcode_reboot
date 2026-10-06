@@ -1,7 +1,14 @@
 # 📋 Plan d'intégration — HASHCODE REBOOT
 
-> Liste ordonnée, dédoublonnée, avec dépendances explicites.  
-> Chaque tâche = **un commit/PR atomique** (conventional commits).
+> **Plan de septembre 2026 (annoté le 2026-10-06).** Liste ordonnée,
+> dédoublonnée, avec dépendances explicites. Chaque tâche = **un
+> commit/PR atomique** (conventional commits). La plupart de ces tâches sont
+> livrées ; les listes de fichiers et de commandes ci-dessous ont été alignées
+> sur le dépôt (`npm` et non `bun`), mais les noms de fichiers cités
+> antérieurs à la migration i18n (`src/app/admin/*`, `src/middleware.ts`) sont
+> périmés. Ce fichier est identifié comme résidu racine à supprimer (D15 dans
+> `docs/ROADMAP-SUR-INGENIERIE-2026.md`) : s'y référer pour l'historique, pas
+> pour l'état courant.
 
 ---
 
@@ -143,7 +150,11 @@
 
 ### T15 — CI GitHub Actions
 **Fichier :** `.github/workflows/e2e.yml`  
-**Spéc :** `bun install` → `bun run build` → `bun run dev` (background) → `playwright test` → upload report
+**Spéc :** `npm ci` → `npm run build` → `npm run start` (background) → `playwright test` → upload report
+
+> **Réalisé, mais dans un seul workflow** : `.github/workflows/ci.yml` porte
+> aujourd'hui les deux jobs (`validate` puis `e2e`), et installe avec
+> `npm ci` + `cache: npm`. Il n'y a pas de `e2e.yml` séparé.
 
 ---
 
@@ -189,10 +200,10 @@ P5:  T17 (ultérieur)
 ## ✅ Definition of Done par tâche
 
 - [ ] Code + types TypeScript stricts (`tsc --noEmit` passe)
-- [ ] ESLint vert (`bun run lint`)
-- [ ] Tests unitaires si logique métier (`bun run test:unit`)
-- [ ] Test intégration read-only si API (`bun run test:integration`)
-- [ ] Build réussi (`bun run build`)
+- [ ] ESLint vert (`npm run lint`)
+- [ ] Tests unitaires si logique métier (`npm run test:unit`)
+- [ ] Test intégration read-only si API (`npm run test:integration`)
+- [ ] Build réussi (`npm run build`)
 - [ ] Pas de régression visuelle (vérif manuelle ou Playwright)
 - [ ] Commit message conventional : `feat(scope): ...` / `fix(scope): ...` / `docs: ...`
 
@@ -217,16 +228,16 @@ P5:  T17 (ultérieur)
 
 ```bash
 # Vérif complète avant push
-bun run validate          # typecheck + lint + test:unit
+npm run validate          # typecheck + lint + check:test-wiring + test:unit
 
 # Tests intégration (read-only, safe prod DB)
-bun run test:integration
+npm run test:integration
 
 # Build production (Vercel)
-bun run vercel-build
+npm run vercel-build
 
 # Dev local
-bun run dev
+npm run dev
 ```
 
 ---

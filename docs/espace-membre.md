@@ -2,7 +2,11 @@
 
 > Oui : après une inscription validée, le membre est invité à se connecter à
 > son espace (`/dashboard`). Ce document décrit **comment il y entre** et
-> **tout ce qu'il peut y faire** (état du code au 2026-09-09).
+> **tout ce qu'il peut y faire**. Inventaire initial au 2026-09-09, **mis à jour
+> le 2026-10-06** : les énoncés devenus faux ont été corrigés (chemins,
+> session, OTP). L'espace a gagné depuis deux sections — **Ateliers**
+> (`/dashboard/ateliers`) et **Mentoring** (`/dashboard/mentoring`) — qui ne
+> sont pas décrites ici.
 
 ## 1. Comment le membre est invité à se connecter
 
@@ -10,8 +14,8 @@ Quatre chemins mènent à l'espace, selon la situation :
 
 | # | Chemin | Déclencheur | Contenu de l'invitation | Validité |
 |---|---|---|---|---|
-| 1 | Self-service | Le membre va sur `/login` et saisit son email | Email « Ton code de connexion HASHCODE » : **code à 6 chiffres + bouton 1-clic** (`/verify-otp?email=…&code=…&next=/dashboard`) | 15 min, 3 essais max |
-| 2 | Après vérification | Code correct sur `/verify-otp` | Réponse API `{ ok: true, redirect: "/dashboard" }` + cookie `hashcode_session` 30 j (sliding window) | Session 30 j |
+| 1 | Self-service | Le membre va sur `/login` et saisit son email | Email « Ton code de connexion HASHCODE » : **code à 6 chiffres + bouton 1-clic** (`/verify-otp?email=…&code=…&next=/dashboard`) | 15 min (`expiresIn: 900` s) |
+| 2 | Après vérification | Code correct sur `/verify-otp` | Session Better Auth créée, cookie `better-auth.session_token` HttpOnly | 30 j, sliding window `updateAge` 1 h |
 | 3 | Validation admin | Passage `PENDING → APPROVED` par un admin | Email « Tu es validé dans HASHCODE » : **lien direct WhatsApp + encadré « Nouveau : ton espace membre » → bouton « Voir mon dashboard »** (`/login`) + lien vers `/account` | Liens permanents (pas d'OTP) |
 | 4 | Campagne de rattrapage | Admin lance `POST /api/admin/announce-dashboard` (dry-run par défaut, lots de 15-25, 250 ms entre envois) | Email « Nouveau : ton espace membre HASHCODE est en ligne » : **lien magique 1-clic** (`/verify-otp?...&next=/dashboard`), repli `/login` si expiré | 72 h |
 
@@ -82,10 +86,23 @@ désormais sur `/dashboard` (Vue d'ensemble). Les emails pointant encore vers
 - Créer des événements (réservé admin `operator`).
 
 ## 5. Références code
-- Auth : `src/lib/account-auth.ts` (session 30 j), `src/lib/account-otp.ts`
-  (OTP 15 min), `src/middleware.ts`, `src/app/dashboard/layout.tsx`.
+
+> Les chemins ci-dessous ont été corrigés le 2026-10-06 : les pages vivent sous
+> `src/app/[locale]/` (migration i18n) et l'authentification est celle de Better
+> Auth. `src/lib/account-otp.ts` et le cookie `hashcode_session` n'existent plus.
+
+- Auth : `src/lib/auth/index.ts` (config Better Auth, plugin `emailOTP`,
+  `expiresIn: 900`), `src/lib/auth/client.ts`, `src/lib/account-auth.ts`
+  (`getSession()`, wrapper de compatibilité), `src/lib/use-member-session.ts`
+  (sonde client), `src/lib/blacklist.ts`. Garde de session :
+  `src/proxy.ts` (ex-`middleware.ts`, convention Next 16).
+  Layouts : `src/app/[locale]/dashboard/layout.tsx`,
+  `src/app/[locale]/account/page.tsx`.
 - Invitations : `src/lib/mail.ts` (`sendMagicLinkEmail`, `sendStatusChangeEmail`,
-  `sendDashboardInviteEmail`), `src/app/api/admin/announce-dashboard/route.ts`.
-- UI : `src/app/dashboard/_components/*`, `src/app/dashboard/{agenda,profile,settings}/page.tsx`,
-  `src/app/account/_components/ContactForm.tsx`.
-- APIs : `src/app/api/auth/*`, `src/app/api/account/*`, `src/app/api/events*`.
+  `sendDashboardInviteEmail`, `sendInviteRelanceEmail`),
+  `src/app/api/admin/announce-dashboard/route.ts`, `src/app/api/invite/relance/route.ts`.
+- UI : `src/app/[locale]/dashboard/_components/*`,
+  `src/app/[locale]/dashboard/{agenda,profile,profile-complet,settings}/page.tsx`,
+  `src/app/[locale]/account/_components/ContactForm.tsx`.
+- APIs : `src/app/api/auth/*` (dont `[...betterAuth]` pour l'OTP),
+  `src/app/api/account/*`, `src/app/api/events*`.
