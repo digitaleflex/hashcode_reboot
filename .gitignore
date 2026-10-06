@@ -80,3 +80,6 @@ test-results/
 # Outillage d'agents local (non versionné)
 .kilo/
 .mimocode/
+# Cache d'analyse i18n : regenere par `node scripts/analyze-i18n.mjs --json`,
+# dont depend `scripts/purge-i18n.mjs`. Artefact local, pas une source.
+scripts/.i18n-report.json
