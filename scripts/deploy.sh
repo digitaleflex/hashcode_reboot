@@ -30,7 +30,9 @@ ok()   { printf '\033[0;32m✔\033[0m %s\n' "$*"; }
 warn() { printf '\033[0;33m!\033[0m %s\n' "$*"; }
 die()  { printf '\033[0;31m✖ %s\033[0m\n' "$*" >&2; exit 1; }
 
-[ -f .env ] || die ".env absent — faire : cp .env.example .env puis le remplir"
+# Fichier d'envdistinct par stack : prod → .env.prod, dev → .env.dev.
+envfile() { [ "$1" = dev ] && echo ".env.dev" || echo ".env.prod"; }
+[ -f "$(envfile "${1:-prod}")" ] || die "fichier $(envfile "${1:-prod}") absent — copier .env.example"
 
 # Fichier temporaire dupliqué avec le projet forcé. `mktemp` évite d'écrire
 # dans le dépôt.
@@ -63,7 +65,7 @@ dc() {
   # shellcheck disable=SC2064
   trap "rm -f '$f'" RETURN
   docker compose -p "$( [ "$env" = dev ] && echo "$DEV_PROJECT" || echo "$PROD_PROJECT" )" \
-                 -f "$f" "$@"
+                 --env-file "$(envfile "$env")" -f "$f" "$@"
 }
 
 wait_healthy() {

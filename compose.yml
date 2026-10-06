@@ -25,9 +25,12 @@ services:
     # BETTER_AUTH_SECRET et les clés d'email pour rien. Les valeurs viennent
     # quand même du .env, par interpolation.
     environment:
-      # `TZ` et `initdb` sont des options du conteneur, pas des variables
-      # applicatives : elles restent ici car elles n'ont pas leur place dans
-      # un .env partagé avec le local.
+      # Identifiants nécessaires à l'initialisation du conteneur postgres.
+      # Surtout : POSTGRES_PASSWORD absent = Postgres refuse toute connexion
+      # ou échoue à créer la base, sans message clair.
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER est obligatoire}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB est obligatoire}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD est obligatoire}
       TZ: Africa/Porto-novo
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=fr_FR.UTF-8"
     volumes:
@@ -117,7 +120,7 @@ services:
   web:
     image: hashcode-reboot:local
     restart: unless-stopped
-    env_file: .env
+    env_file: .env.prod
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
       # Les trois variables d'URL doivent désigner le MÊME domaine public :
