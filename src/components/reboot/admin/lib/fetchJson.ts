@@ -1,8 +1,14 @@
 "use client";
 
+import { appendRetryAfter } from "@/lib/admin-client";
+
 /* Centralized fetch wrapper (Phase 2 P0) : standardise 401/429/500 backend
  * {error, code} + Retry-After, sans changer les succès.
- * Extraction telle quelle depuis admin-dashboard.tsx 52-85 (Phase 3 split). */
+ * Extraction telle quelle depuis admin-dashboard.tsx 52-85 (Phase 3 split).
+ *
+ * D25 : `fetchJson` reste le TRANSPORT. La décision (401 -> connexion,
+ * 403 -> refus affiché, 429 -> Retry-After) est dans `src/lib/admin-client.ts`
+ * et passe par `adminRequest` / `useAdminQuery`. Ce fichier n'en sait plus. */
 export async function fetchJson(
   url: string,
   init?: RequestInit,
@@ -33,11 +39,10 @@ export function isAbortError(e: unknown): boolean {
   return e instanceof DOMException && e.name === "AbortError";
 }
 
+/** D25 : délègue à la source unique. Conservé pour ses 9 appelants. */
 export function withRetryAfter(
   base: string,
   retryAfterSec: number | null,
 ): string {
-  if (retryAfterSec !== null)
-    return `${base} Réessaie dans ${retryAfterSec}s.`;
-  return base;
+  return appendRetryAfter(base, retryAfterSec);
 }
