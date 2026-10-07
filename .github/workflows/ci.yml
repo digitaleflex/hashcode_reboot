@@ -28,6 +28,7 @@ jobs:
       - run: npm run test:unit
       - run: npm run test:orientation-hardening
       - run: npm run test:recommendation-presentation
+      - run: npm run test:orientation-catalogue
       - name: Validate translation keys
         run: node scripts/check-messages.mjs
 
