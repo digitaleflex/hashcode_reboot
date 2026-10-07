@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { createProfileSchema, answersToCreatePayload } from "@/lib/profiling/validate";
 import { runAutoControls } from "@/lib/profiling/auto-controls";
 import { generateProfile } from "@/lib/profiling/engine";
+import { orientationEngine } from "@/lib/orientation/engine";
+import type { OrientationResult } from "@/lib/orientation/types";
 import { sendInvitationEmail, sendWelcomeEmail, sendWaitlistEmail, sendVerificationLinkEmail } from "@/lib/email/builders";
 import { requestEmailLink, buildVerifyUrl } from "@/lib/verify-email";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
@@ -98,6 +100,19 @@ export async function POST(req: NextRequest) {
   // Strategic branching: automatic controls.
   const controls = runAutoControls(data);
   const generated = generateProfile(data);
+
+  // Orientation engine (M3) : pure, déterministe, jamais bloquant.
+  // Seuls nextBestAction + orientationStatus sont exposés au client —
+  // jamais les scores bruts ni la confiance (usage interne).
+  let nextBestAction: OrientationResult["nextBestAction"] = null;
+  let orientationStatus: OrientationResult["status"] = "NO_MATCH";
+  try {
+    const orientation = orientationEngine.evaluate(data);
+    nextBestAction = orientation.nextBestAction;
+    orientationStatus = orientation.status;
+  } catch {
+    /* l'orientation ne doit jamais casser l'inscription */
+  }
 
   const created = await db.member
     .create({
@@ -220,6 +235,8 @@ export async function POST(req: NextRequest) {
       communityStatus: created.communityStatus,
       reasons: controls.reasons,
       profile: generated,
+      nextBestAction,
+      orientationStatus,
     },
     { status: 201 },
   );

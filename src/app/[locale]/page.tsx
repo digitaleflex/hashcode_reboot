@@ -13,6 +13,8 @@ import { AlertCircle } from "lucide-react";
 import type { ProfileAnswers } from "@/lib/profiling/types";
 import { generateProfile } from "@/lib/profiling/engine";
 import { runAutoControls } from "@/lib/profiling/auto-controls";
+import { orientationEngine } from "@/lib/orientation/engine";
+import type { OrientationResult } from "@/lib/orientation/types";
 import { track, getSource } from "@/lib/analytics";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/routing";
@@ -47,8 +49,27 @@ interface SubmitResponse {
   communityStatus?: string;
   reasons?: string[];
   profile?: ReturnType<typeof generateProfile>;
+  nextBestAction?: OrientationResult["nextBestAction"];
+  orientationStatus?: OrientationResult["status"];
   error?: string;
   message?: string;
+}
+
+/**
+ * Orientation côté client (repli local) : le moteur est pur et déterministe,
+ * il peut être évalué dans le navigateur quand la réponse serveur est
+ * absente (soft-fail, doublon) ou incomplète. Ne casse jamais le parcours.
+ */
+function localOrientation(answers: ProfileAnswers): {
+  nextBestAction: OrientationResult["nextBestAction"];
+  orientationStatus: OrientationResult["status"];
+} {
+  try {
+    const r = orientationEngine.evaluate(answers);
+    return { nextBestAction: r.nextBestAction, orientationStatus: r.status };
+  } catch {
+    return { nextBestAction: null, orientationStatus: "NO_MATCH" };
+  }
 }
 
 export default function Home() {
@@ -128,6 +149,7 @@ export default function Home() {
         // Soft-fail: still show a welcome with pending lane if we have a profile.
         const gen = generateProfile(finalAnswers);
         const controls = runAutoControls(finalAnswers);
+        const fallback = localOrientation(finalAnswers);
         setResult({
           memberId: data.memberId ?? "local",
           accessLane: controls.accessLane,
@@ -135,6 +157,8 @@ export default function Home() {
           communityStatus: controls.communityStatus,
           reasons: controls.reasons,
           profile: gen,
+          nextBestAction: fallback.nextBestAction,
+          orientationStatus: fallback.orientationStatus,
         });
         if (data.error) setSubmitError(data.error);
         setPhase("result");
@@ -146,6 +170,7 @@ export default function Home() {
       if (data.duplicate) {
         const gen = generateProfile(finalAnswers);
         const controls = runAutoControls(finalAnswers);
+        const fallback = localOrientation(finalAnswers);
         setResult({
           memberId: "local",
           accessLane: controls.accessLane,
@@ -154,6 +179,8 @@ export default function Home() {
           reasons: controls.reasons,
           profile: gen,
           duplicate: true,
+          nextBestAction: fallback.nextBestAction,
+          orientationStatus: fallback.orientationStatus,
         });
         setPhase("result");
         return;
@@ -165,11 +192,14 @@ export default function Home() {
         communityStatus: data.communityStatus ?? "NOT_INVITED",
         reasons: data.reasons ?? [],
         profile: data.profile ?? generateProfile(finalAnswers),
+        nextBestAction: data.nextBestAction ?? localOrientation(finalAnswers).nextBestAction,
+        orientationStatus: data.orientationStatus ?? localOrientation(finalAnswers).orientationStatus,
       });
       setPhase("result");
     } catch (err) {
       const gen = generateProfile(finalAnswers);
       const controls = runAutoControls(finalAnswers);
+      const fallback = localOrientation(finalAnswers);
       setResult({
         memberId: "local",
         accessLane: controls.accessLane,
@@ -177,6 +207,8 @@ export default function Home() {
         communityStatus: controls.communityStatus,
         reasons: controls.reasons,
         profile: gen,
+        nextBestAction: fallback.nextBestAction,
+        orientationStatus: fallback.orientationStatus,
       });
       setRetryAnswers(finalAnswers);
       setSubmitError(
@@ -205,6 +237,7 @@ export default function Home() {
       if (data.duplicate) {
         const gen = generateProfile(retryAnswers);
         const controls = runAutoControls(retryAnswers);
+        const fallback = localOrientation(retryAnswers);
         setResult({
           memberId: "local",
           accessLane: controls.accessLane,
@@ -213,6 +246,8 @@ export default function Home() {
           reasons: controls.reasons,
           profile: gen,
           duplicate: true,
+          nextBestAction: fallback.nextBestAction,
+          orientationStatus: fallback.orientationStatus,
         });
         setRetryAnswers(null);
         setPhase("result");
@@ -225,6 +260,8 @@ export default function Home() {
         communityStatus: data.communityStatus ?? "NOT_INVITED",
         reasons: data.reasons ?? [],
         profile: data.profile ?? generateProfile(retryAnswers),
+        nextBestAction: data.nextBestAction ?? localOrientation(retryAnswers).nextBestAction,
+        orientationStatus: data.orientationStatus ?? localOrientation(retryAnswers).orientationStatus,
       });
       setRetryAnswers(null);
       setPhase("result");
