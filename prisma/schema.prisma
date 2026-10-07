@@ -115,6 +115,8 @@ model Member {
   @@index([communityStatus])
   @@index([createdAt])
   @@index([deletedAt])
+  // Cron event-reminders : filtre (profileStatus, deletedAt) en une passe.
+  @@index([profileStatus, deletedAt])
 }
 
 /// Better Auth tables for authentication
@@ -327,6 +329,9 @@ model ProfilingDraft {
   @@index([createdAt])
   @@index([completedAt])
   @@index([relanceSentAt])
+  // Cron relance : filtre J+7 (completedAt NULL, relanceSentAt NULL,
+  // createdAt <= J-7) trié par ancienneté en une passe.
+  @@index([completedAt, relanceSentAt, createdAt])
 }
 
 /// Member auth sessions (magic link via OTP).
@@ -430,6 +435,8 @@ model Event {
   @@index([status])
   @@index([type])
   @@index([recurrenceId])
+  // Cron event-reminders : filtre (startsAt, status, notifiedAt) en une passe.
+  @@index([startsAt, status, notifiedAt])
 }
 
 /// RSVP — inscription aux événements

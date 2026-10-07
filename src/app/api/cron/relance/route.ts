@@ -34,11 +34,17 @@ export async function GET(req: NextRequest) {
 
   try {
     const now = new Date();
+    const relanceCutoff = new Date(now.getTime() - RELANCE_7_JOURS_MS);
 
+    // J+7 éligibles filtrés en base : les plus anciens d'abord (batch).
+    // Avant : take 50 sur tous les brouillons puis filtre JS → les vieux
+    // au-delà de 50 n'étaient jamais relancés quand le backlog grossissait.
     const drafts = await db.profilingDraft.findMany({
       where: {
         completedAt: null,
         email: { not: "" },
+        relanceSentAt: null,
+        createdAt: { lte: relanceCutoff },
       },
       take: 50,
       orderBy: { createdAt: "asc" },
@@ -54,10 +60,8 @@ export async function GET(req: NextRequest) {
     });
 
     // J+7 : envois réels (reprise du profil). J+15/J+30 : estimations.
-    const targets7 = drafts.filter((d) => {
-      const ageMs = now.getTime() - d.createdAt.getTime();
-      return ageMs >= RELANCE_7_JOURS_MS && !d.relanceSentAt;
-    });
+    // Déjà filtré en base (createdAt <= J-7, relanceSentAt NULL).
+    const targets7 = drafts;
 
     // Anti-doublon : membres déjà relancés (log d'envoi).
     const memberByEmail = new Map(
