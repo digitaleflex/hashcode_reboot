@@ -125,6 +125,80 @@ const PACING: Record<BudgetLevel, { batchSize: number; delayMs: number }> = {
   blocked: { batchSize: 0, delayMs: 0 },
 };
 
+/**
+ * Cache mémoire des budgets (Perf-5).
+ *
+ * POURQUOI : `getAllBudgets` appelait `getBudget` deux fois, et chaque
+ * `getBudget` émettait 2 `count` (attribués + non attribués) → 4 requêtes
+ * par lecture de budgets, rejouées à chaque appel (dashboard admin,
+ * email-ops, crons). Le quota a une granularité journalière : une mesure
+ * vieille de quelques secondes reste une bonne décision.
+ *
+ * Clé = provider + début du jour UTC (le changement de jour invalide
+ * naturellement l'entrée) ; TTL = 30 s (fraîcheur suffisante, pression DB
+ * divisée sur les pages qui polluent).
+ */
+const BUDGET_CACHE_TTL_MS = 30_000;
+
+interface CachedBudget {
+  budget: EmailBudget;
+  expiresAt: number;
+}
+
+const budgetCache = new Map<string, CachedBudget>();
+
+function budgetCacheKey(provider: EmailProvider, now: Date): string {
+  return `${provider}:${startOfUtcDay(now).toISOString()}`;
+}
+
+function readBudgetCache(provider: EmailProvider, now: Date): EmailBudget | undefined {
+  const entry = budgetCache.get(budgetCacheKey(provider, now));
+  if (!entry) return undefined;
+  if (Date.now() > entry.expiresAt) {
+    budgetCache.delete(budgetCacheKey(provider, now));
+    return undefined;
+  }
+  return entry.budget;
+}
+
+function writeBudgetCache(provider: EmailProvider, now: Date, budget: EmailBudget): void {
+  budgetCache.set(budgetCacheKey(provider, now), {
+    budget,
+    expiresAt: Date.now() + BUDGET_CACHE_TTL_MS,
+  });
+}
+
+/** Vide le cache des budgets (tests, ou forçage admin après un envoi massif). */
+export function clearBudgetCache(): void {
+  budgetCache.clear();
+}
+
+/** Construit un budget à partir des compteurs déjà mesurés (aucune requête). */
+function buildBudget(
+  provider: EmailProvider,
+  now: Date,
+  attributed: number,
+  unattributed: number,
+): EmailBudget {
+  const cap = capFor(provider);
+  // Conservateur : un envoi non attribué est imputé à chaque provider, car il
+  // a pu passer par celui-ci. Sous-compter reviendrait à laisser le garde-fou
+  // franchir la limite qu'il est censé protéger.
+  const used = attributed + unattributed;
+  const remaining = Math.max(0, cap - used);
+  return {
+    provider,
+    cap,
+    used,
+    attributed,
+    unattributed,
+    remaining,
+    ratio: cap > 0 ? Math.min(1, used / cap) : 1,
+    level: levelFor(used, cap),
+    resetsAt: nextUtcMidnight(now).toISOString(),
+  };
+}
+
 /** Envois du jour sans provider identifié (lignes antérieures à la colonne). */
 export async function countUnattributed(now = new Date()): Promise<number> {
   try {
@@ -145,8 +219,10 @@ export async function getBudget(
   provider: EmailProvider,
   now = new Date(),
 ): Promise<EmailBudget> {
+  const cached = readBudgetCache(provider, now);
+  if (cached) return cached;
+
   const start = startOfUtcDay(now);
-  const cap = capFor(provider);
 
   let attributed = 0;
   let unattributed = 0;
@@ -165,22 +241,9 @@ export async function getBudget(
     unattributed = 0;
   }
 
-  // Conservateur : un envoi non attribué est imputé à chaque provider, car il
-  // a pu passer par celui-ci. Sous-compter reviendrait à laisser le garde-fou
-  // franchir la limite qu'il est censé protéger.
-  const used = attributed + unattributed;
-  const remaining = Math.max(0, cap - used);
-  return {
-    provider,
-    cap,
-    used,
-    attributed,
-    unattributed,
-    remaining,
-    ratio: cap > 0 ? Math.min(1, used / cap) : 1,
-    level: levelFor(used, cap),
-    resetsAt: nextUtcMidnight(now).toISOString(),
-  };
+  const budget = buildBudget(provider, now, attributed, unattributed);
+  writeBudgetCache(provider, now, budget);
+  return budget;
 }
 
 /** Budgets des deux providers + envois non attribuables (lignes historiques). */
@@ -188,12 +251,41 @@ export async function getAllBudgets(now = new Date()): Promise<{
   budgets: EmailBudget[];
   unattributed: number;
 }> {
-  const [resend, brevo] = await Promise.all([
-    getBudget("resend", now),
-    getBudget("brevo", now),
-  ]);
+  const cachedResend = readBudgetCache("resend", now);
+  const cachedBrevo = readBudgetCache("brevo", now);
+  if (cachedResend && cachedBrevo) {
+    // Les deux budgets portent la même valeur : on en expose une seule.
+    return { budgets: [cachedResend, cachedBrevo], unattributed: cachedResend.unattributed };
+  }
+
+  // Une seule mesure partagée : les `countUnattributed` redondants de
+  // l'ancien double appel à getBudget sont fusionnés en une requête, et les
+  // deux budgets partagent le même `unattributed` (invariant conservateur).
+  // 3 requêtes max, résultat remis en cache pour les deux providers.
+  const start = startOfUtcDay(now);
+  let resendAttributed = 0;
+  let brevoAttributed = 0;
+  let unattributed = 0;
+  try {
+    [unattributed, resendAttributed, brevoAttributed] = await Promise.all([
+      countUnattributed(now),
+      db.emailEvent.count({
+        where: { type: "email.sent", provider: "resend", createdAt: { gte: start } },
+      }),
+      db.emailEvent.count({
+        where: { type: "email.sent", provider: "brevo", createdAt: { gte: start } },
+      }),
+    ]);
+  } catch {
+    unattributed = 0;
+  }
+
+  const resend = buildBudget("resend", now, resendAttributed, unattributed);
+  const brevo = buildBudget("brevo", now, brevoAttributed, unattributed);
+  writeBudgetCache("resend", now, resend);
+  writeBudgetCache("brevo", now, brevo);
   // Les deux budgets portent la même valeur : on en expose une seule.
-  return { budgets: [resend, brevo], unattributed: resend.unattributed };
+  return { budgets: [resend, brevo], unattributed };
 }
 
 /**
@@ -229,24 +321,32 @@ export async function planBatch(input: {
   requested: number;
   provider?: EmailProvider;
   now?: Date;
+  /**
+   * Budgets pré-chargés (cache par run de cron) : si le budget du provider
+   * ciblé est fourni, aucune requête de mesure n'est émise. Absent → mesure
+   * en direct comme avant (comportement inchangé).
+   */
+  budgets?: Partial<Record<EmailProvider, EmailBudget>>;
 }): Promise<BatchPlan> {
   const provider =
     input.provider ?? providerForBatch(input.category, input.requested);
   const requested = Math.max(0, Math.floor(input.requested));
 
-  let budget: EmailBudget;
-  try {
-    budget = await getBudget(provider, input.now ?? new Date());
-  } catch {
-    const pacing = PACING.ok;
-    return {
-      provider,
-      level: "ok",
-      allowed: requested,
-      deferred: 0,
-      batchSize: pacing.batchSize,
-      delayMs: pacing.delayMs,
-    };
+  let budget: EmailBudget | undefined = input.budgets?.[provider];
+  if (!budget) {
+    try {
+      budget = await getBudget(provider, input.now ?? new Date());
+    } catch {
+      const pacing = PACING.ok;
+      return {
+        provider,
+        level: "ok",
+        allowed: requested,
+        deferred: 0,
+        batchSize: pacing.batchSize,
+        delayMs: pacing.delayMs,
+      };
+    }
   }
 
   const pacing = PACING[budget.level];

@@ -178,11 +178,11 @@ async function fetchFunnel() {
 }
 
 async function fetchEmailEngagement() {
-  const [allEvents, byCategory, draftStats, relanceDraftIds] = await Promise.all([
-    db.emailEvent.findMany({
-      select: { email: true, type: true, category: true, createdAt: true },
-      orderBy: { createdAt: "asc" },
-      take: 20000,
+  const [byType, byCategory, draftStats, relanceOpened, relanceClicked] = await Promise.all([
+    db.emailEvent.groupBy({
+      by: ["type"],
+      _count: true,
+      where: { type: { in: ["email.sent", "email.opened", "email.clicked"] } },
     }),
     (async () => {
       const rows = await db.emailEvent.groupBy({ by: ["category", "type"], _count: true });
@@ -205,32 +205,28 @@ async function fetchEmailEngagement() {
       ]);
       return { drafts, relanceSent, recovered };
     })(),
-    db.emailEvent.findMany({
-      where: { type: "email.sent", category: "relance" },
-      select: { email: true },
-      take: 10000,
-    }),
+    db.emailEvent.count({ where: { category: "relance", type: "email.opened" } }),
+    db.emailEvent.count({ where: { category: "relance", type: "email.clicked" } }),
   ]);
 
-  const relanceEmails = new Set(relanceDraftIds.map((r) => r.email.toLowerCase()));
-  const categories = Object.keys(byCategory).filter((c) => byCategory[c].sent > 0);
+  const countOf = (type: string): number =>
+    byType.find((r) => r.type === type)?._count ?? 0;
 
-  const countByTypeAndEmails = (type: string): number =>
-    allEvents.filter((e) => e.type === type && relanceEmails.has(e.email.toLowerCase())).length;
+  const categories = Object.keys(byCategory).filter((c) => byCategory[c].sent > 0);
 
   return {
     summary: {
-      totalSent: allEvents.filter((e) => e.type === "email.sent").length,
-      totalOpened: allEvents.filter((e) => e.type === "email.opened").length,
-      totalClicked: allEvents.filter((e) => e.type === "email.clicked").length,
+      totalSent: countOf("email.sent"),
+      totalOpened: countOf("email.opened"),
+      totalClicked: countOf("email.clicked"),
     },
     byCategory,
     categories,
     relance: {
       drafts: draftStats.drafts,
       relanceSent: draftStats.relanceSent,
-      relanceOpened: countByTypeAndEmails("email.opened"),
-      relanceClicked: countByTypeAndEmails("email.clicked"),
+      relanceOpened,
+      relanceClicked,
       recovered: draftStats.recovered,
     },
   };
