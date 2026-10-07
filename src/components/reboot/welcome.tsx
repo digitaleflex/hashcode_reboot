@@ -41,6 +41,7 @@ export interface WelcomeResult {
   duplicate?: boolean;
   nextBestAction?: OrientationResult["nextBestAction"];
   orientationStatus?: OrientationResult["status"];
+  orientationSource?: "server" | "local";
 }
 
 const WHATSAPP_URL = (() => {
