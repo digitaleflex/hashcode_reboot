@@ -5,7 +5,7 @@ import { checkCSRF } from "@/lib/admin-auth";
 import { rateLimit } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
 import { sendEmail } from "@/lib/email/transport";
-import { enrollmentEmail } from "@/lib/workshop-emails";
+import { enrollmentEmail } from "@/lib/workshops/emails";
 import {
   AuthError,
   ForbiddenError,

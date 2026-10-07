@@ -4,10 +4,10 @@ import { getSession } from "@/lib/account-auth";
 import { checkCSRF } from "@/lib/admin-auth";
 import { rateLimit } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
-import { validateSubmission } from "@/lib/workshop-validation";
-import { getSessionAccess, type SessionAccessCode } from "@/lib/workshop-server";
+import { validateSubmission } from "@/lib/workshops/validation";
+import { getSessionAccess, type SessionAccessCode } from "@/lib/workshops/service";
 import { sendEmail } from "@/lib/email/transport";
-import { submissionEmail } from "@/lib/workshop-emails";
+import { submissionEmail } from "@/lib/workshops/emails";
 import {
   AuthError,
   ConflictError,
@@ -42,7 +42,7 @@ function accessError(code: SessionAccessCode): Error {
  * AUTH   : session membre (401) + CSRF (403) + enrollment actif (403) +
  *          séance débloquée (403).
  * INPUT  : { content } — validé selon le type du livrable (URL http(s)
- *          obligatoire pour les types URL, cf. workshop-validation).
+ *          obligatoire pour les types URL, cf. workshops/validation).
  * OUTPUT : 201 { ok, submission } — append-only : chaque resoumission crée
  *          une NOUVELLE ligne (attempt n+1), l'historique est conservé
  *          (protocole §15).

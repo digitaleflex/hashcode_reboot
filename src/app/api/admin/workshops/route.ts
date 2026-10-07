@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAdminRole } from "@/lib/admin-auth";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
-import { WORKSHOP_STATUSES } from "@/lib/workshop-validation";
+import { WORKSHOP_STATUSES } from "@/lib/workshops/validation";
 import {
   AppError,
   ForbiddenError,

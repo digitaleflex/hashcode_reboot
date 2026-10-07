@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
  * Badge d'état d'une séance Atelier — purement présentatif (server-safe).
  *
  * Les états VIENNENT DU SERVEUR (GET /api/workshops*, dérivés par
- * workshop-progression.ts) : ce composant n'affiche jamais un état
+ * workshops/service) : ce composant n'affiche jamais un état
  * calculé côté client.
  */
 

@@ -3,7 +3,7 @@ import { unstable_cache } from "next/cache";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/account-auth";
 import { rateLimit } from "@/lib/rate-limit";
-import { loadWorkshopForMember } from "@/lib/workshop-server";
+import { loadWorkshopForMember } from "@/lib/workshops/service";
 import { AuthError, RateLimitError, errorToResponse } from "@/lib/errors";
 
 export const runtime = "nodejs";

@@ -21,8 +21,8 @@
  *   options ≥2, réponses correctes bornées aux options
  * - parseAnswers : forme des réponses de quiz (array de number|number[])
  *
- * NOTE : le scoring et la progression sont dans workshop-quiz.ts et
- * workshop-progression.ts (issues #82/#83), pas ici.
+ * NOTE : le scoring et la progression sont dans ./service.ts (sections 1-2),
+ * pas ici.
  */
 
 import { EVENT_DOMAINS, EVENT_LEVELS } from "./events-validation";
@@ -585,7 +585,7 @@ export function validateQuestionUpsert(
   };
 }
 
-// ── Réponses de quiz (forme seulement — le scoring est dans workshop-quiz.ts) ─
+// ── Réponses de quiz (forme seulement — le scoring est dans ./service.ts) ─
 
 /**
  * Forme attendue de `answers` : tableau aligné sur les questions, chaque

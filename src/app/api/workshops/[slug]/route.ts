@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/account-auth";
 import { rateLimit } from "@/lib/rate-limit";
-import { loadWorkshopForMember, type SessionStateView } from "@/lib/workshop-server";
+import { loadWorkshopForMember, type SessionStateView } from "@/lib/workshops/service";
 import { AuthError, NotFoundError, RateLimitError, errorToResponse } from "@/lib/errors";
 
 export const runtime = "nodejs";

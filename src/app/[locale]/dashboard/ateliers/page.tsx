@@ -9,14 +9,14 @@ import { cn } from "@/lib/utils";
 /**
  * /dashboard/ateliers — liste des ateliers publiés avec la progression du
  * membre. Client Component : consomme GET /api/workshops (les états sont
- * dérivés CÔTÉ SERVEUR par workshop-progression.ts — le client n'en calcule
+ * dérivés CÔTÉ SERVEUR par workshops/service — le client n'en calcule
  * ni n'en modifie aucun).
  *
  * L'auth est garantie par le layout /dashboard/* (redirect login) : une
  * réponse 401 de l'API est traitée comme une erreur de chargement.
  */
 
-/** États réels d'une séance (workshop-progression.ts) — 8 états, pas 4. */
+/** États réels d'une séance (workshops/service) — 8 états, pas 4. */
 type SessionState =
   | "LOCKED"
   | "NOT_STARTED"

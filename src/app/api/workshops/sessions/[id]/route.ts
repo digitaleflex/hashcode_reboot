@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/account-auth";
 import { rateLimit } from "@/lib/rate-limit";
-import { getSessionAccess, type SessionAccessCode } from "@/lib/workshop-server";
-import { canAttempt, publicQuestions } from "@/lib/workshop-quiz";
+import { getSessionAccess, type SessionAccessCode } from "@/lib/workshops/service";
+import { canAttempt, publicQuestions } from "@/lib/workshops/service";
 import {
   AuthError,
   ForbiddenError,

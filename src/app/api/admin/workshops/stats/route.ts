@@ -5,7 +5,7 @@ import { rateLimit, rateKey } from "@/lib/rate-limit";
 import {
   SUBMISSION_STATUSES,
   ENROLLMENT_STATUSES,
-} from "@/lib/workshop-validation";
+} from "@/lib/workshops/validation";
 import {
   ForbiddenError,
   RateLimitError,

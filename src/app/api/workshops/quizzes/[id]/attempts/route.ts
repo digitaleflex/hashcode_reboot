@@ -4,11 +4,11 @@ import { getSession } from "@/lib/account-auth";
 import { checkCSRF } from "@/lib/admin-auth";
 import { rateLimit } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
-import { parseAnswers } from "@/lib/workshop-validation";
-import { canAttempt, scoreAttempt } from "@/lib/workshop-quiz";
-import { getSessionAccess, type SessionAccessCode } from "@/lib/workshop-server";
+import { parseAnswers } from "@/lib/workshops/validation";
+import { canAttempt, scoreAttempt } from "@/lib/workshops/service";
+import { getSessionAccess, type SessionAccessCode } from "@/lib/workshops/service";
 import { sendEmail } from "@/lib/email/transport";
-import { quizEmail } from "@/lib/workshop-emails";
+import { quizEmail } from "@/lib/workshops/emails";
 import {
   AuthError,
   ConflictError,
@@ -43,7 +43,7 @@ function accessError(code: SessionAccessCode): Error {
  * AUTH   : session membre (401) + CSRF (403) + enrollment actif (403) +
  *          séance débloquée (403).
  * INPUT  : { answers: (number|number[])[] } — forme validée par
- *          parseAnswers(), SCORING 100% serveur (workshop-quiz).
+ *          parseAnswers(), SCORING 100% serveur (workshops/service).
  * OUTPUT : 201 { ok, attempt: { id, score, total, percent, passed } } —
  *          le détail perQuestion est volontairement ABSENT : il révélerait
  *          quelles questions sont ratées et rétrécit l'espace de recherche
@@ -51,7 +51,7 @@ function accessError(code: SessionAccessCode): Error {
  * ERRORS : 401, 403, 404 (quiz inexistant), 409 (maxAttempts atteint),
  *          422 (réponses invalides ou désalignées), 429.
  * GUARDS : blockIfTesting.
- * SECRETS: correctJson ne quitte jamais le serveur (cf. workshop-quiz.ts,
+ * SECRETS: correctJson ne quitte jamais le serveur (cf. workshops/service.ts,
  *          tests de non-fuite).
  */
 export async function POST(req: NextRequest, { params }: Params) {
