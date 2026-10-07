@@ -104,6 +104,17 @@ export const CRON_JOBS: readonly CronJob[] = [
     expectedEveryH: null,
     eventKey: null,
   },
+  {
+    slug: "health-alert",
+    label: "Alerte santé (Discord)",
+    // Vérifie la santé de l'app (DB + mail) et notifie Discord si l'état
+    // est `degraded` ou `down`. Même cadence que keepalive, sans heartbeat :
+    // invisible au tableau de santé (eventKey null). La route est silencieuse
+    // quand tout est OK — aucun spam Discord.
+    schedule: "*/10 * * * *",
+    expectedEveryH: null,
+    eventKey: null,
+  },
 ];
 
 /**

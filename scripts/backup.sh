@@ -63,6 +63,44 @@ db_exec() {
 # Extrait une valeur d'un JSON ; '' si absente ou illisible (jamais bloquant).
 jqf() { printf '%s' "$1" | jq -r "${2} // empty" 2>/dev/null || true; }
 
+# ── Notifications Discord — curl pur, comme le reste de cette section ───────
+# L'URL du webhook EST un secret : jamais journalisée, jamais dans une erreur.
+# Sans DISCORD_WEBHOOK_URL configured, tout est silencieusement ignoré — la
+# sauvegarde ne doit dépendre d'aucun service externe pour réussir.
+# discord_notify <titre> <couleur> <description> [nom_champ] [valeur_champ]
+discord_notify() {
+  local title="$1" color="$2" description="$3" fname="${4:-}" fvalue="${5:-}"
+  local url payload rc=0
+  url="$(env_get DISCORD_WEBHOOK_URL)"
+  [ -n "$url" ] || return 0
+
+  # Payload construit par jq : les accents et guillemets des messages ne
+  # peuvent pas casser le JSON.
+  if [ -n "$fname" ]; then
+    payload="$(jq -n --arg t "$title" --arg d "$description" --argjson c "$color" \
+      --arg fn "$fname" --arg fv "$fvalue" \
+      '{content:null,embeds:[{title:$t,description:$d,color:$c,timestamp:(now|todateiso8601),fields:[{name:$fn,value:$fv,inline:true}]}]}')" || return 0
+  else
+    payload="$(jq -n --arg t "$title" --arg d "$description" --argjson c "$color" \
+      '{content:null,embeds:[{title:$t,description:$d,color:$c,timestamp:(now|todateiso8601)}]}')" || return 0
+  fi
+
+  # JAMAIS bloquant : une alerte perdue ne doit jamais faire échouer un backup
+  # qui, lui, a réussi. L'URL est dans la commande curl mais jamais dans le
+  # message d'erreur.
+  curl -fsS -m 10 -X POST -H 'Content-Type: application/json' \
+    -d "$payload" "$url" > /dev/null 2>&1 || rc=$?
+  if [ "$rc" -ne 0 ]; then
+    warn "Discord : envoi de l'alerte impossible (curl rc=$rc) — sauvegarde non affectée"
+  fi
+  return 0
+}
+
+# Couleurs en DÉCIMAL : jq refuse l'hexadécimal (--argjson n'accepte que du
+# JSON valide). Les valeurs entre parenthèses sont la notation Discord usuelle.
+DISCORD_COLOR_OK=3066993       # 0x2ecc71 vert
+DISCORD_COLOR_ERROR=15158332   # 0xe74c3c rouge
+
 # Envoie <fichier.dump> vers B2 puis applique la rétention distante.
 # Retour 0 = envoyé (ou B2 non configuré), 1 = échec signalé.
 b2_upload() {
@@ -196,6 +234,9 @@ do_backup() {
   local tmp="$f.partial"
   if ! db_exec -Fc > "$tmp"; then
     rm -f "$tmp"
+    discord_notify "🚨 Sauvegarde ÉCHOUÉE" "$DISCORD_COLOR_ERROR" \
+      "pg_dump a échoué : aucune sauvegarde écrite pour le $(date +%Y-%m-%d)." \
+      "Étape" "pg_dump"
     die "pg_dump a échoué — aucune sauvegarde écrite"
   fi
 
@@ -205,11 +246,16 @@ do_backup() {
   if ! "${COMPOSE[@]}" exec -T postgres \
        pg_restore --list < "$tmp" > /dev/null 2>&1; then
     rm -f "$tmp"
+    discord_notify "🚨 Sauvegarde ÉCHOUÉE" "$DISCORD_COLOR_ERROR" \
+      "Dump corrompu (pg_restore --list échoue) : le fichier partiel a été supprimé." \
+      "Étape" "contrôle d'intégrité"
     die "sauvegarde corrompue (pg_restore --list échoue) — fichier supprimé"
   fi
 
   mv "$tmp" "$f"
-  info "OK — $(du -h "$f" | cut -f1)"
+  local size
+  size="$(du -h "$f" | cut -f1)"
+  info "OK — $size"
 
   # Rotation.
   find "$BACKUP_DIR" -name '*.dump' -type f -mtime "+$RETENTION_DAYS" -print -delete \
@@ -217,7 +263,20 @@ do_backup() {
   info "rétention : $RETENTION_DAYS jours"
 
   # Copie hors-site B2 (best-effort : n'échoue jamais la sauvegarde locale).
-  b2_upload "$f" || true
+  # Le code de retour est capté pour l'alerte : B2 en échec = sauvegarde locale
+  # saine mais AUCUNE copie hors-site, ce qui mérite un canal différent du
+  # succès complet — sans jamais faire échouer la sauvegarde locale.
+  local b2rc=0
+  b2_upload "$f" || b2rc=$?
+  if [ "$b2rc" -ne 0 ]; then
+    discord_notify "⚠️ Sauvegarde locale OK, copie B2 ÉCHOUÉE" "$DISCORD_COLOR_ERROR" \
+      "Le dump est sain et conservé dans $BACKUP_DIR/, mais l'envoi Backblaze B2 a échoué : aucune copie hors-site n'est garantie." \
+      "Dump" "$(basename "$f") · $size"
+    return 0
+  fi
+  discord_notify "✅ Sauvegarde OK — $ENV_FILE" "$DISCORD_COLOR_OK" \
+    "Dump $size créé et copié hors-site sur B2." \
+    "Rétention locale" "$RETENTION_DAYS jours"
 }
 
 do_restore() {
