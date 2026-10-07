@@ -8,6 +8,7 @@
  */
 
 import type { Domain } from "@/lib/profiling/types";
+import type { AvailableActivity } from "./features";
 
 /** Clés des quatre archétypes HashCode. */
 export type ArchetypeKey = "builder" | "strategist" | "creator" | "catalyst";
@@ -39,6 +40,8 @@ export interface ActivityRecommendation {
   score: number;
   /** Raisons lisibles (codes stables côté moteur). */
   reasons: string[];
+  /** Métadonnées publiques de l'activité réellement matchée, utiles au client pour présenter et router les recommandations live. */
+  activity?: AvailableActivity;
 }
 
 /** Action unique et actionnable. `null` si le moteur manque de données. */

@@ -102,11 +102,12 @@ export async function POST(req: NextRequest) {
   const generated = generateProfile(data);
 
   // Orientation engine (M3/M4) : pure, déterministe, jamais bloquant.
-  // Catalogue réel (DB) avec repli seed ; seuls nextBestAction +
-  // orientationStatus sont exposés au client — jamais les scores bruts
-  // ni la confiance (usage interne).
+  // Catalogue réel (DB) avec repli seed. Les recommandations exposent
+  // uniquement des métadonnées d'activités déjà validées par le catalogue ;
+  // les scores/confiance globaux restent internes.
   let nextBestAction: OrientationResult["nextBestAction"] = null;
   let orientationStatus: OrientationResult["status"] = "NO_MATCH";
+  let orientationRecommendations: OrientationResult["recommendations"] = [];
   try {
     const live = await loadPublishedActivitiesWithTimeout(1500).catch(
       () => null,
@@ -117,6 +118,7 @@ export async function POST(req: NextRequest) {
         : orientationEngine.evaluate(data);
     nextBestAction = orientation.nextBestAction;
     orientationStatus = orientation.status;
+    orientationRecommendations = orientation.recommendations;
   } catch {
     /* l'orientation ne doit jamais casser l'inscription */
   }
@@ -217,6 +219,7 @@ export async function POST(req: NextRequest) {
       profile: generated,
       nextBestAction,
       orientationStatus,
+      orientationRecommendations,
     },
     { status: 201 },
   );

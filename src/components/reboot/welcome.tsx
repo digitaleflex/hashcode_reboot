@@ -10,7 +10,6 @@ import {
   ExternalCta,
 } from "./shared";
 import { ProfileCard } from "./profile-card";
-import { NextBestActionCard } from "./next-best-action-card";
 import type { GeneratedProfile, ProfileAnswers } from "@/lib/profiling/types";
 import type { OrientationResult } from "@/lib/orientation/types";
 import { getReasonLabels } from "@/lib/profiling/auto-controls";
@@ -30,7 +29,7 @@ import {
 } from "lucide-react";
 import { EmailVerificationNudge } from "./email-verify-card";
 import { useTranslations } from "next-intl";
-import { resolveActivityDestination } from "@/lib/orientation/destination";
+import { RecommendationExperience } from "./recommendation/recommendation-experience";
 
 export interface WelcomeResult {
   memberId: string;
@@ -43,6 +42,7 @@ export interface WelcomeResult {
   nextBestAction?: OrientationResult["nextBestAction"];
   orientationStatus?: OrientationResult["status"];
   orientationSource?: "server" | "local";
+  orientationRecommendations?: OrientationResult["recommendations"];
 }
 
 const WHATSAPP_URL = (() => {
@@ -244,11 +244,11 @@ export function Welcome({
 
             <div className="min-w-0">
               {(result.nextBestAction || result.orientationStatus) ? (
-                <NextBestActionCard
+                <RecommendationExperience
                   action={result.nextBestAction ?? null}
                   status={result.orientationStatus ?? "NO_MATCH"}
+                  recommendations={result.orientationRecommendations ?? []}
                   className="h-full"
-                  href={result.nextBestAction ? resolveActivityDestination(result.nextBestAction.id) : undefined}
                   onCompleteProfile={handleCompleteProfile}
                   onActionClick={handleNextBestActionClick}
                 />

@@ -31,7 +31,8 @@
     "test:e2e:report": "playwright show-report",
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:headed": "playwright test --headed",
-    "test:orientation-hardening": "tsx --test tests/orientation-hardening.test.ts"
+    "test:orientation-hardening": "tsx --test tests/orientation-hardening.test.ts",
+    "test:recommendation-presentation": "tsx --test tests/recommendation-presentation.test.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
