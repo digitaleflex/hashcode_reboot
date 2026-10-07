@@ -473,15 +473,11 @@ function ImmediateBranch({
         <ExternalCta
           href={WHATSAPP_URL}
           size="lg"
-          className="mt-6 w-full sm:w-auto"
+          className="mt-6"
+          onClick={onWhatsAppClick}
         >
-          <span
-            className="inline-flex items-center gap-2"
-            onClick={onWhatsAppClick}
-          >
-            <MessageCircle className="size-4" />
-            Rejoindre HASHCODE sur WhatsApp
-          </span>
+          <MessageCircle className="size-4" />
+          Rejoindre HASHCODE sur WhatsApp
         </ExternalCta>
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2">

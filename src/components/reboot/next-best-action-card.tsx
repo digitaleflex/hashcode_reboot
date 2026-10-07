@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
+import { Link } from "@/i18n/routing";
 import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MonoLabel, RebootButton, CtaArrow } from "./shared";
@@ -101,12 +101,10 @@ export function NextBestActionCard({
             </p>
             <Link
               href={target}
-              className="group mt-5 inline-flex min-h-[44px] w-full sm:w-auto"
+              className="group mt-5 inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-md border border-transparent bg-lime px-6 text-base font-medium text-black transition-colors hover:bg-lime/90 focus-lime sm:w-auto"
             >
-              <RebootButton size="lg" className="w-full sm:w-auto">
-                Commencer
-                <CtaArrow />
-              </RebootButton>
+              Commencer
+              <CtaArrow />
             </Link>
           </div>
         ) : status === "INSUFFICIENT_DATA" ? (
@@ -142,12 +140,10 @@ export function NextBestActionCard({
             </p>
             <Link
               href={target}
-              className="group mt-5 inline-flex min-h-[44px] w-full sm:w-auto"
+              className="group mt-5 inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-md border border-border bg-transparent px-6 text-base text-foreground transition-colors hover:border-lime/60 hover:text-lime focus-lime sm:w-auto"
             >
-              <RebootButton size="lg" variant="outline" className="w-full sm:w-auto">
-                Voir les événements
-                <CtaArrow />
-              </RebootButton>
+              Voir les événements
+              <CtaArrow />
             </Link>
           </div>
         )}
