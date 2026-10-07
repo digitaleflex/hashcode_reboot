@@ -83,7 +83,13 @@ export function proxy(req: NextRequest) {
   // redirigeait `/admin` vers la landing : les deux affirmations étaient
   // fausses depuis la refonte du parcours OTP.
   if (unprefixed.startsWith("/account") || unprefixed.startsWith("/dashboard") || unprefixed.startsWith("/admin")) {
-    const hasCookie = req.cookies.get(BETTER_AUTH_SESSION_COOKIE);
+    // En HTTPS (prod), Better Auth préfixe le cookie de `__Secure-` ; ne
+    // vérifier que la forme nue ferait boucler les pages protégées vers
+    // /login alors même que la session existe (cf. get-session qui, lui,
+    // gère les deux variantes). On couvre donc les deux noms, comme l'API.
+    const hasCookie =
+      req.cookies.get(BETTER_AUTH_SESSION_COOKIE) ||
+      req.cookies.get("__Secure-" + BETTER_AUTH_SESSION_COOKIE);
     if (!hasCookie) {
       const url = req.nextUrl.clone();
       url.pathname = `${localePrefix}/login`;
