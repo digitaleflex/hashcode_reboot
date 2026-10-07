@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireAdminRole, checkCSRF } from "@/lib/admin-auth";
@@ -338,6 +339,8 @@ export async function POST(req: NextRequest) {
             communityStatus: "NOT_INVITED",
             invitationStatus: "INVITED",
             invitedAt: new Date(),
+            // Token single-use vérifié sur /api/invite/accept et /api/invite/refuse.
+            invitationToken: randomBytes(32).toString("hex"),
             accessLane: "pending",
             country: row.country,
             availability: "5-10h",
@@ -425,7 +428,14 @@ export async function POST(req: NextRequest) {
           });
           await db.member.update({
             where: { id: member.id },
-            data: { invitedAt: new Date() },
+            // Les existants pré-migration peuvent avoir un token null :
+            // (ré)émettre un token single-use à chaque (ré)envoi réussi.
+            // Pas de log "invite" existant ici (filtré plus haut) donc
+            // aucun ancien lien valide n'est invalidé.
+            data: {
+              invitedAt: new Date(),
+              invitationToken: randomBytes(32).toString("hex"),
+            },
           });
         } else {
           failedEmails.push(member.email);

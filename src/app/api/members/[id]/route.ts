@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { isAdminAuthed, requireAdminRole, getAdminRole } from "@/lib/admin-auth";
+import { isAdminAuthed, requireAdminRole, getAdminRole, checkCSRF } from "@/lib/admin-auth";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { audit } from "@/lib/admin-audit";
 import { sendStatusChangeEmail, type StatusChangeType } from "@/lib/mail";
@@ -76,6 +76,10 @@ export async function PATCH(
     if (blocked) return blocked;
     if (!(await requireAdminRole(req, "operator"))) {
       throw new ForbiddenError("Opérateur requis.");
+    }
+    // CSRF protection
+    if (!checkCSRF(req)) {
+      throw new ForbiddenError("CSRF validation failed.");
     }
     // Anti-abus : 20 mises à jour par IP toutes les 10 minutes.
     const rlPatch = await rateLimit(`admin-member-write:${rateKey(req)}`, {
@@ -205,6 +209,10 @@ export async function DELETE(
     if (blocked) return blocked;
     if (!(await requireAdminRole(req, "operator"))) {
       throw new ForbiddenError("Opérateur requis.");
+    }
+    // CSRF protection
+    if (!checkCSRF(req)) {
+      throw new ForbiddenError("CSRF validation failed.");
     }
     // Anti-abus : 20 suppressions par IP toutes les 10 minutes.
     const rlDelete = await rateLimit(`admin-member-delete:${rateKey(req)}`, {

@@ -42,7 +42,9 @@ export function proxy(req: NextRequest) {
 
   // 1. API : auth seule, pas d'i18n.
   if (pathname.startsWith("/api/account/")) {
-    const hasCookie = req.cookies.get(BETTER_AUTH_SESSION_COOKIE);
+    const hasCookie =
+      req.cookies.get(BETTER_AUTH_SESSION_COOKIE) ||
+      req.cookies.get("__Secure-" + BETTER_AUTH_SESSION_COOKIE);
     if (!hasCookie) {
       return NextResponse.json(
         { error: "Non authentifié.", code: "UNAUTHENTICATED" },

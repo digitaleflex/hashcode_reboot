@@ -11,8 +11,8 @@ Sentry.init({
 
   tracesSampleRate: process.env.NODE_ENV === "development" ? 1.0 : 0.1,
 
-  // Attach local variable values to stack frames (server only)
-  includeLocalVariables: true,
+  // Do NOT attach local variable values to stack frames (prevents PII/OTP leakage)
+  includeLocalVariables: false,
 
   // Enable Sentry Logs
   enableLogs: true,
@@ -44,11 +44,29 @@ Sentry.init({
 
       // Redact body
       if (event.request.data && typeof event.request.data === "object") {
-        const sensitiveFields = ["password", "passcode", "token", "secret", "apiKey", "otp"];
+        const sensitiveFields = ["password", "passcode", "token", "secret", "apiKey", "otp", "code", "email", "phone"];
         for (const field of sensitiveFields) {
           if (field in event.request.data) {
             (event.request.data as Record<string, unknown>)[field] = "[REDACTED]";
           }
+        }
+      }
+
+      // Redact URL and query string (they may contain email, code, token, etc.)
+      if (event.request.url) {
+        try {
+          const url = new URL(event.request.url);
+          // Redact query parameters that may contain sensitive data
+          url.searchParams.forEach((value, key) => {
+            const lowerKey = key.toLowerCase();
+            if (["email", "code", "token", "otp", "password", "passcode", "secret", "apiKey"].includes(lowerKey)) {
+              url.searchParams.set(key, "[REDACTED]");
+            }
+          });
+          event.request.url = url.toString();
+        } catch {
+          // If URL parsing fails, fallback to redacting the whole URL as a last resort
+          event.request.url = "[REDACTED URL]";
         }
       }
     }

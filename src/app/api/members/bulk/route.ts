@@ -3,11 +3,11 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireAdminRole } from "@/lib/admin-auth";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
-import { audit } from "@/lib/admin-audit";
 import { blockIfTesting } from "@/lib/test-guard";
 import {
   AppError,
   ForbiddenError,
+  NotFoundError,
   RateLimitError,
   ValidationError,
   errorToResponse,
@@ -27,108 +27,110 @@ const bulkSchema = z.object({
  */
 export async function POST(req: NextRequest) {
   try {
-  const blocked = blockIfTesting();
-  if (blocked) return blocked;
-  if (!(await requireAdminRole(req, "operator"))) {
-    throw new ForbiddenError("Opérateur requis.");
-  }
-  // Anti-abus : 20 actions bulk par IP toutes les 10 minutes.
-  const rl = await rateLimit(`admin-bulk:${rateKey(req)}`, {
-    capacity: 20,
-    windowMs: 600000, // 10 minutes
-  });
-  if (!rl.ok) {
-    throw new RateLimitError(
-      "Trop de requêtes. Réessaie dans quelques minutes.",
-      rl.retryAfterMs,
-    );
-  }
-  const body = await parseJsonBody(req);
-  const parsed = bulkSchema.safeParse(body);
-  if (!parsed.success) {
-    throw new ValidationError("Données invalides.", parsed.error.flatten());
-  }
-  const { ids, action } = parsed.data;
-
-  try {
-    let affected = 0;
-    if (action === "delete") {
-      // Soft delete : marque les membres plutôt que suppression physique.
-      const result = await db.member.updateMany({
-        where: { id: { in: ids } },
-        data: { deletedAt: new Date() },
-      });
-      affected = result.count;
-    } else {
-      const data: Record<string, string> = {};
-      if (action === "approve") {
-        data.profileStatus = "APPROVED";
-        data.communityStatus = "INVITED";
-        data.accessLane = "immediate";
-      } else if (action === "invite") {
-        data.communityStatus = "INVITED";
-      } else if (action === "waitlist") {
-        data.profileStatus = "WAITLIST";
-      } else if (action === "reject") {
-        data.profileStatus = "REJECTED";
-      }
-      const r = await db.member.updateMany({
-        where: { id: { in: ids } },
-        data,
-      });
-      affected = r.count;
-      if (action === "approve") {
-        // Horodate la validation (uniquement les vrais changements).
-        await db.member.updateMany({
-          where: { id: { in: ids }, profileStatus: "APPROVED", approvedAt: null },
-          data: { approvedAt: new Date() },
-        });
-      }
-      if (action === "invite") {
-        // Ne pas écraser ACCEPTED/REFUSED/BOUNCED/EXPIRED : seuls les
-        // NOT_INVITED deviennent INVITED côté suivi d'invitation.
-        await db.member.updateMany({
-          where: { id: { in: ids }, invitationStatus: "NOT_INVITED" },
-          data: { invitationStatus: "INVITED", invitedAt: new Date() },
-        });
-      }
+    const blocked = blockIfTesting();
+    if (blocked) return blocked;
+    if (!(await requireAdminRole(req, "operator"))) {
+      throw new ForbiddenError("Opérateur requis.");
     }
-
-    await audit(`member.bulk-${action}`, "member", ids.join(","), {
-      count: affected,
-      action,
+    // Anti-abus : 20 actions bulk par IP toutes les 10 minutes.
+    const rl = await rateLimit(`admin-bulk:${rateKey(req)}`, {
+      capacity: 20,
+      windowMs: 600000, // 10 minutes
     });
-
-    // Audit event.
-    try {
-      await db.analyticsEvent.create({
-        data: {
-          type: "admin_bulk_action",
-          ref: `${action}/${affected}`,
-        },
-      });
-    } catch {
-      /* ignore */
+    if (!rl.ok) {
+      throw new RateLimitError(
+        "Trop de requêtes. Réessaie dans quelques minutes.",
+        rl.retryAfterMs,
+      );
     }
+    const body = await parseJsonBody(req);
+    const parsed = bulkSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new ValidationError("Données invalides.", parsed.error.flatten());
+    }
+    const { ids, action } = parsed.data;
 
-    // Erreur partielle explicite : certains ids demandés n'existaient pas.
-    if (affected < ids.length) {
+    try {
+      let affected = 0;
+      if (action === "delete") {
+        // Soft delete : marque les membres plutôt que suppression physique.
+        const result = await db.member.updateMany({
+          where: { id: { in: ids } },
+          data: { deletedAt: new Date() },
+        });
+        affected = result.count;
+      } else {
+        const data: Record<string, string> = {};
+        if (action === "approve") {
+          data.profileStatus = "APPROVED";
+          data.communityStatus = "INVITED";
+          data.accessLane = "immediate";
+        } else if (action === "invite") {
+          data.communityStatus = "INVITED";
+        } else if (action === "waitlist") {
+          data.profileStatus = "WAITLIST";
+        } else if (action === "reject") {
+          data.profileStatus = "REJECTED";
+        }
+        const r = await db.member.updateMany({
+          where: { id: { in: ids } },
+          data,
+        });
+        affected = r.count;
+        if (action === "approve") {
+          // Horodate la validation (uniquement les vrais changements).
+          await db.member.updateMany({
+            where: { id: { in: ids }, profileStatus: "APPROVED", approvedAt: null },
+            data: { approvedAt: new Date() },
+          });
+        }
+        if (action === "invite") {
+          // Ne pas écraser ACCEPTED/REFUSED/BOUNCED/EXPIRED : seuls les
+          // NOT_INVITED deviennent INVITED côté suivi d'invitation.
+          await db.member.updateMany({
+            where: { id: { in: ids }, invitationStatus: "NOT_INVITED" },
+            data: {
+              invitedAt: new Date(),
+            },
+          });
+        }
+      }
+
+      await audit(`member.bulk-${action}`, "member", ids.join(","), {
+        count: affected,
+        action,
+      });
+
+      // Audit event.
+      try {
+        await db.analyticsEvent.create({
+          data: {
+            type: "admin_bulk_action",
+            ref: `${action}/${affected}`,
+          },
+        });
+      } catch {
+        /* ignore */
+      }
+
+      // Erreur partielle explicite : certains ids demandés n'existaient pas.
+      if (affected < ids.length) {
+        return NextResponse.json({
+          ok: true,
+          message: `Partial success: ${affected}/${ids.length} processed.`,
+          affected,
+          requested: ids.length,
+        });
+      }
+
       return NextResponse.json({
         ok: true,
-        action,
+        message: `Successfully processed ${affected} members.`,
         affected,
-        ids,
-        partial: true,
-        missing: ids.length - affected,
-        warning: `Action partielle : ${affected} sur ${ids.length} membres demandés. Certains ids sont introuvables.`,
       });
+    } catch (err) {
+      throw errorToResponse(err);
     }
-
-    return NextResponse.json({ ok: true, action, affected, ids });
-  } catch (err) {
-    if (err instanceof AppError) throw err;
-    throw new AppError("Erreur interne.", { status: 500, code: "INTERNAL_ERROR" });
-  }
   } catch (err) {
     return errorToResponse(err);
   }

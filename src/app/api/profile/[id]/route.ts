@@ -1,10 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  // Anti-abus : 30 requêtes par IP toutes les 10 minutes.
+  const rl = await rateLimit(`profile:${rateKey(req)}`, {
+    capacity: 30,
+    windowMs: 600000, // 10 minutes
+  });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Trop de requêtes. Réessaie dans quelques minutes." },
+      {
+        status: 429,
+        headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) },
+      },
+    );
+  }
+
   const { id } = await params;
 
   const m = await db.member.findUnique({

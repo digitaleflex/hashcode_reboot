@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { sendInviteRelanceEmail } from "@/lib/mail";
@@ -114,12 +115,14 @@ export async function POST(req: NextRequest) {
           provider: res.provider,
           providerId: res.id,
         });
-        // Mettre à jour le statut
+        // Mettre à jour le statut + émettre un nouveau token single-use
+        // (vérifié sur /api/invite/accept et /api/invite/refuse).
         await db.member.update({
           where: { id: member.id },
           data: {
             invitationStatus: "INVITED",
             invitedAt: new Date(),
+            invitationToken: randomBytes(32).toString("hex"),
           },
         });
       } else {

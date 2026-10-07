@@ -5,7 +5,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
  * phone-fill-ticket.ts — ticket de remplissage WhatsApp post-inscription.
  *
  * Contexte (S3) : POST /api/account/phone est volontairement appelable SANS
- * session — le membre vient de s'inscrire (écran de résultat) et n'est pas
+ * session — le membre vient de s'inscrit (écran de résultat) et n'est pas
  * encore connecté. Sans garde, n'importe qui pouvait écrire le téléphone de
  * n'importe quel membre (memberId passé dans le body, IDs exposés par les
  * profils publics). Exiger une session casserait le flux d'inscription.
@@ -17,10 +17,10 @@ import { createHmac, timingSafeEqual } from "node:crypto";
  * possession du navigateur d'inscription — sans session, sans nouveau
  * secret obligatoire, sans changement d'UX.
  *
- * Clé HMAC : PHONE_FILL_SECRET si définie, sinon DATABASE_URL (serveur
+ * Clé HMAC : PHONE_FILL_SECRET si définie, sinon en dev DATABASE_URL (serveur
  * uniquement, forte entropie, toujours présente), avec séparation de
- * domaine "phone-fill-v1:". Sans les deux → aucun ticket émis et aucune
- * écriture (fail-closed).
+ * domaine "phone-fill-v1:". En prod, PHONE_FILL_SECRET est requise ; en son
+ * absence, aucun ticket n'est émis (fail-closed).
  *
  * Limites assumées : le ticket n'est pas à usage unique, mais rejouer un
  * ticket volé n'écrit que sur le même membre (lié au memberId) et seulement
@@ -33,10 +33,20 @@ const TICKET_TTL_MS = 15 * 60 * 1000;
 const COOKIE_MAX_AGE_S = 15 * 60;
 
 function getKey(): Buffer | null {
-  const raw =
-    process.env.PHONE_FILL_SECRET || process.env.DATABASE_URL || "";
-  if (!raw) return null;
-  return Buffer.from(`phone-fill-v1:${raw}`, "utf8");
+  const isProd = process.env.NODE_ENV === "production";
+  const secret = process.env.PHONE_FILL_SECRET;
+  if (secret) {
+    return Buffer.from(`phone-fill-v1:${secret}`, "utf8");
+  }
+  // In dev, allow fallback to DATABASE_URL for convenience, but only if not prod.
+  if (!isProd) {
+    const fallback = process.env.DATABASE_URL || "";
+    if (fallback) {
+      return Buffer.from(`phone-fill-v1:${fallback}`, "utf8");
+    }
+  }
+  // In prod, missing secret -> fail closed (return null).
+  return null;
 }
 
 /** Émet un ticket pour memberId. Appelé à la création du membre uniquement. */
