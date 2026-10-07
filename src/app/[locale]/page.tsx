@@ -293,6 +293,7 @@ export default function Home() {
         <ProfilingFlow
           onComplete={handleSubmit}
           onBack={handleBackToLanding}
+          initialValues={answers ?? undefined}
         />
         <PrivacyModal open={privacyOpen} onClose={() => setPrivacyOpen(false)} />
       </>
@@ -322,6 +323,7 @@ export default function Home() {
           result={result}
           onReset={reset}
           onOpenPrivacy={() => setPrivacyOpen(true)}
+          onCompleteProfile={() => setPhase("profiling")}
         />
         <PrivacyModal open={privacyOpen} onClose={() => setPrivacyOpen(false)} />
       </>
