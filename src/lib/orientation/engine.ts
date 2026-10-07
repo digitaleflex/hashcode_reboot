@@ -20,6 +20,8 @@ import type { OrientationResult, Scores } from "./types";
 import { computeScores, dominantArchetype, rankedArchetypes } from "./scoring";
 import { computeConfidence, missingFields } from "./confidence";
 import { matchActivities, topMatches, type ActivityMatch } from "./matching";
+import { matchActivityList } from "./matching";
+import type { AvailableActivity } from "./features";
 import { generateRecommendations } from "./recommendationEngine";
 
 /** Version courante du moteur (à incrémenter lors d'un changement de règles). */
@@ -30,6 +32,16 @@ export const orientationEngine = {
   /** Évalue un profil et produit le résultat d'orientation complet. */
   evaluate(profile: ProfileAnswers): OrientationResult {
     const matches = matchActivities(profile);
+    const result = generateRecommendations(profile, matches);
+    return { ...result, engineVersion: ORIENTATION_ENGINE_VERSION };
+  },
+
+  /** Évalue avec un catalogue injecté (DB réelle ou seed). */
+  evaluateWithActivities(
+    profile: ProfileAnswers,
+    activities: AvailableActivity[],
+  ): OrientationResult {
+    const matches = matchActivityList(profile, activities);
     const result = generateRecommendations(profile, matches);
     return { ...result, engineVersion: ORIENTATION_ENGINE_VERSION };
   },

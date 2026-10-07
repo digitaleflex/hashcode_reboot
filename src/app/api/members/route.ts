@@ -6,6 +6,7 @@ import { createProfileSchema, answersToCreatePayload } from "@/lib/profiling/val
 import { runAutoControls } from "@/lib/profiling/auto-controls";
 import { generateProfile } from "@/lib/profiling/engine";
 import { orientationEngine } from "@/lib/orientation/engine";
+import { loadPublishedActivitiesWithTimeout } from "@/lib/orientation/activities";
 import type { OrientationResult } from "@/lib/orientation/types";
 import { sendInvitationEmail, sendWelcomeEmail, sendWaitlistEmail, sendVerificationLinkEmail } from "@/lib/email/builders";
 import { requestEmailLink, buildVerifyUrl } from "@/lib/verify-email";
@@ -101,13 +102,20 @@ export async function POST(req: NextRequest) {
   const controls = runAutoControls(data);
   const generated = generateProfile(data);
 
-  // Orientation engine (M3) : pure, déterministe, jamais bloquant.
-  // Seuls nextBestAction + orientationStatus sont exposés au client —
-  // jamais les scores bruts ni la confiance (usage interne).
+  // Orientation engine (M3/M4) : pure, déterministe, jamais bloquant.
+  // Catalogue réel (DB) avec repli seed ; seuls nextBestAction +
+  // orientationStatus sont exposés au client — jamais les scores bruts
+  // ni la confiance (usage interne).
   let nextBestAction: OrientationResult["nextBestAction"] = null;
   let orientationStatus: OrientationResult["status"] = "NO_MATCH";
   try {
-    const orientation = orientationEngine.evaluate(data);
+    const live = await loadPublishedActivitiesWithTimeout(1500).catch(
+      () => null,
+    );
+    const orientation =
+      live && live.length > 0
+        ? orientationEngine.evaluateWithActivities(data, live)
+        : orientationEngine.evaluate(data);
     nextBestAction = orientation.nextBestAction;
     orientationStatus = orientation.status;
   } catch {

@@ -144,6 +144,34 @@ export function matchActivities(a: ProfileAnswers): ActivityMatch[] {
     .sort((x, y) => y.score - x.score);
 }
 
+/** Matche une liste d'activités injectée (catalogue DB ou seed). */
+export function matchActivityList(
+  a: ProfileAnswers,
+  activities: AvailableActivity[],
+): ActivityMatch[] {
+  const scores = computeScores(a);
+  return activities
+    .filter((activity) => activity.status === "published")
+    .map((activity) => scoreActivity(a, scores, activity))
+    .sort((x, y) => y.score - x.score);
+}
+
+/** Sens inverse : classe des profils pour UNE activité (activity → members). */
+export function rankMembersForActivity(
+  activity: AvailableActivity,
+  profiles: { id: string; answers: ProfileAnswers }[],
+  limit = 10,
+): { id: string; score: number; reasons: string[] }[] {
+  if (activity.status !== "published") return [];
+  return profiles
+    .map((p) => {
+      const m = scoreActivity(p.answers, computeScores(p.answers), activity);
+      return { id: p.id, score: m.score, reasons: m.reasons };
+    })
+    .sort((x, y) => y.score - x.score)
+    .slice(0, Math.max(1, limit));
+}
+
 /** Retourne le top N des matches (par défaut 5). */
 export function topMatches(a: ProfileAnswers, limit = 5): ActivityMatch[] {
   return matchActivities(a).slice(0, Math.max(1, limit));
