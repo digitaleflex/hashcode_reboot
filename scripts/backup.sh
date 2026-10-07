@@ -98,7 +98,7 @@ b2_upload() {
   # 2) bucketId par nom, sauf si la clé est déjà restreinte à un bucket.
   if [ -z "$bucket_id" ]; then
     local buckets
-    if ! buckets="$(curl -fsS -H "Authorization: Bearer $token" \
+    if ! buckets="$(curl -fsS -H "Authorization: $token" \
           "$api_url/b2api/v2/b2_list_buckets?accountId=$account_id" 2>/dev/null)"; then
       warn "B2 : listing des buckets impossible — copie locale conservée dans $BACKUP_DIR/"
       return 1
@@ -112,7 +112,7 @@ b2_upload() {
 
   # 3) URL d'upload dédiée.
   local up upload_url upload_token
-  if ! up="$(curl -fsS -H "Authorization: Bearer $token" \
+  if ! up="$(curl -fsS -H "Authorization: $token" \
         -d "{\"bucketId\":\"$bucket_id\"}" \
         "$api_url/b2api/v2/b2_get_upload_url" 2>/dev/null)"; then
     warn "B2 : URL d'upload indisponible — copie locale conservée dans $BACKUP_DIR/"
@@ -129,7 +129,7 @@ b2_upload() {
   local response http_code body sha1 rc=0
   sha1="$(sha1sum "$dump" | cut -d' ' -f1)"
   response="$(curl -sS -X POST "$upload_url" \
-      -H "Authorization: Bearer $upload_token" \
+      -H "Authorization: $upload_token" \
       -H "X-Bz-File-Name: $name" \
       -H "X-Bz-Content-Sha1: $sha1" \
       -H "Content-Type: application/octet-stream" \
@@ -158,7 +158,7 @@ b2_upload() {
 # (basename produit par do_backup) et plus vieux que $RETENTION_DAYS.
 b2_prune() {
   local api_url="$1" token="$2" bucket_id="$3" listing cutoff n id ts
-  if ! listing="$(curl -fsS -H "Authorization: Bearer $token" \
+  if ! listing="$(curl -fsS -H "Authorization: $token" \
         "$api_url/b2api/v2/b2_list_file_names?bucketId=$bucket_id&maxFileCount=1000" 2>/dev/null)"; then
     warn "B2 : listing des fichiers impossible — rétention distante ignorée (aucune suppression)"
     return 0
@@ -173,7 +173,7 @@ b2_prune() {
     esac
     ts="${n:0:8}${n:9:6}"
     [ "$ts" \< "$cutoff" ] || continue
-    if curl -fsS -X POST -H "Authorization: Bearer $token" \
+    if curl -fsS -X POST -H "Authorization: $token" \
         -d "{\"fileName\":\"$n\",\"fileId\":\"$id\"}" \
         "$api_url/b2api/v2/b2_delete_file_version" > /dev/null 2>&1; then
       info "B2 : supprimé (rétention) $n"
