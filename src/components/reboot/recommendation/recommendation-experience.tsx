@@ -6,13 +6,11 @@ import { ArrowRight, ChevronDown, Clock, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MonoLabel, RebootButton, CtaArrow } from "../shared";
 import { resolveActivityDestination } from "@/lib/orientation/destination";
-import { AVAILABLE_ACTIVITIES } from "@/lib/orientation/features";
+import { getActivityPresentation } from "@/lib/orientation/presentation";
 import type { ActivityRecommendation, NextBestAction, OrientationResult } from "@/lib/orientation/types";
 import { track } from "@/lib/analytics";
 
 type Status = OrientationResult["status"];
-type Activity = (typeof AVAILABLE_ACTIVITIES)[number];
-
 const TYPE_LABELS: Record<string, string> = {
   challenge: "Défi",
   workshop: "Atelier",
@@ -35,12 +33,6 @@ const REASON_LABELS: Record<string, string> = {
   "creator-activity-fit": "Ton profil Creator",
   "catalyst-activity-fit": "Ton profil Catalyst",
 };
-
-const ACTIVITY_BY_ID = new Map(AVAILABLE_ACTIVITIES.map((activity) => [activity.id, activity]));
-
-function activityFor(id: string): Activity | undefined {
-  return ACTIVITY_BY_ID.get(id);
-}
 
 function reasonLabels(reasons: string[]): string[] {
   return reasons.map((reason) => REASON_LABELS[reason] ?? reason).slice(0, 4);
@@ -77,7 +69,7 @@ export function RecommendationExperience({
   }, [recommendations]);
 
   const primary = recommendations[0];
-  const primaryActivity = primary ? activityFor(primary.id) : undefined;
+  const primaryActivity = primary ? getActivityPresentation(primary.id) : undefined;
   const target = action ? (href ?? resolveActivityDestination(action.id)) : "/evenements";
   const alternatives = recommendations.slice(1, 4);
 
@@ -214,7 +206,7 @@ function AlternativeList({
   return (
     <div className="mt-5 space-y-2 border-t border-border/70 pt-4" aria-label="Alternatives recommandées">
       {recommendations.map((recommendation) => {
-        const activity = activityFor(recommendation.id);
+        const activity = getActivityPresentation(recommendation.id);
         const href = resolveActivityDestination(recommendation.id);
         return (
           <Link
