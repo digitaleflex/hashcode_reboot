@@ -18,8 +18,15 @@ import { computeConfidence, missingFields } from "./confidence";
 /** Seuil minimal de pertinence pour retenir une recommandation. */
 export const RECOMMENDATION_MIN_SCORE = 0.3;
 
-/** Seuil minimal de confiance pour proposer une Next Best Action. */
-export const NEXT_ACTION_CONFIDENCE_THRESHOLD = 0.4;
+/**
+ * Seuil minimal de confiance pour proposer une Next Best Action.
+ *
+ * Le plancher de confiance est de 0.5 dès que les champs structurants sont
+ * complets. Un seuil à 0.4 rendrait donc l’état `OK` sans action impossible.
+ * 0.9 conserve une action immédiate pour les profils très solides tout en laissant
+ * exister un état intermédiaire exploitable par l’UX.
+ */
+export const NEXT_ACTION_CONFIDENCE_THRESHOLD = 0.9;
 
 /** Nombre maximal de recommandations retournées. */
 export const MAX_RECOMMENDATIONS = 5;
