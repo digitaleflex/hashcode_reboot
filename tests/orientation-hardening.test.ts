@@ -8,6 +8,7 @@ import { AVAILABLE_ACTIVITIES } from "../src/lib/orientation/features";
 import { createActivityCatalogue } from "../src/lib/orientation/destination";
 import { profileSchema } from "../src/lib/profiling/validate";
 import type { ProfileAnswers } from "../src/lib/profiling/types";
+import type { AvailableActivity } from "../src/lib/orientation/features";
 
 function profile(overrides: Partial<ProfileAnswers> = {}): ProfileAnswers {
   return {
@@ -68,6 +69,26 @@ describe("phase 6 — orientation states", () => {
     assert.ok(result.missing?.includes("primaryDomain"));
   });
 
+  test("les recommandations embarquent les métadonnées du catalogue live", () => {
+    const liveActivity: AvailableActivity = {
+      id: "event:live-42",
+      type: "event",
+      title: "Session Live Web",
+      description: "Une session réellement publiée en base.",
+      domains: ["web"],
+      levels: ["beginner"],
+      goals: ["project"],
+      status: "published",
+      url: "/evenements/live-42",
+    };
+    const result = orientationEngine.evaluateWithActivities(profile(), [liveActivity]);
+
+    assert.equal(result.status, "OK");
+    assert.equal(result.recommendations[0]?.id, liveActivity.id);
+    assert.equal(result.recommendations[0]?.activity?.title, liveActivity.title);
+    assert.equal(result.recommendations[0]?.activity?.url, liveActivity.url);
+  });
+
   test("NO_MATCH", () => {
     const result = orientationEngine.evaluateWithActivities(profile(), []);
 
@@ -101,6 +122,21 @@ describe("phase 6 — destination hardening", () => {
     assert.equal(
       resolveActivityDestination("activity-that-does-not-exist"),
       "/evenements",
+    );
+  });
+
+  test("un catalogue injecté permet de résoudre une destination live publiée", () => {
+    const liveActivity: AvailableActivity = {
+      id: "event:live-42",
+      type: "event",
+      title: "Session Live Web",
+      description: "Une session réellement publiée en base.",
+      status: "published",
+      url: "/evenements/live-42",
+    };
+    assert.equal(
+      resolveActivityDestination(liveActivity.id, "/evenements", createActivityCatalogue([liveActivity])),
+      liveActivity.url,
     );
   });
 
