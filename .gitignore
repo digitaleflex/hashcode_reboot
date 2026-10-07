@@ -65,5 +65,10 @@ db/*.db
 *.xlsx
 *.xls
 
+# Struct-6: single agent system (.slim) — ignore local agent state + removed systems
+.slim/
+.codex/
+.agents/
+
 # outillage local opencode (plugin better-compact + node_modules propres)
 /.opencode/
