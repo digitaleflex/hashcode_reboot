@@ -6,7 +6,10 @@ import { routing } from "./i18n/routing";
 // /dashboard → /fr/dashboard en interne (locale par défaut sans préfixe).
 const intlMiddleware = createMiddleware(routing);
 
-/** Retire un éventuel préfixe de locale (/fr, /en) pour les règles métier. */
+/** Retire un éventuel préfixe de locale (/fr, /en) pour les règles métier.
+ * FR-only temporaire 2026-10-07 : le cas `/fr` reste utile (compat), le cas
+ * `/en` est conservé par compatibilité mais devient inatteignable — `/en/*`
+ * est redirigé (301) vers la version FR en tête de `proxy()` ci-dessous. */
 function stripLocalePrefix(pathname: string): { unprefixed: string; localePrefix: string } {
   const match = /^\/(fr|en)(\/|$)/.exec(pathname);
   if (!match) return { unprefixed: pathname, localePrefix: "" };
@@ -39,6 +42,17 @@ const BETTER_AUTH_SESSION_COOKIE = "better-auth.session_token";
 
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+  // FR-only temporaire 2026-10-07 (réversible) : `/en` et `/en/*` redirigés
+  // (301) vers l'équivalent FR. Placé AVANT tout (y compris l'auth) pour que
+  // les vieux bookmarks / liens d'emails /en/* atterrissent sur la page FR.
+  // Le `search` est conservé par `clone()` (seul `pathname` est réécrit).
+  if (pathname === "/en" || pathname.startsWith("/en/")) {
+    const url = req.nextUrl.clone();
+    const rest = pathname === "/en" ? "" : pathname.slice("/en".length);
+    url.pathname = rest || "/";
+    return NextResponse.redirect(url, 301);
+  }
 
   // 1. API : auth seule, pas d'i18n.
   if (pathname.startsWith("/api/account/")) {

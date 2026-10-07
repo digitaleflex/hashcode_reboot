@@ -1,5 +1,10 @@
 # ADR 0003 — Internationalisation avec next-intl
 
+> **FR-only temporaire 2026-10-07** : site servi en français seul (`locales: ["fr"]`
+> dans `src/i18n/routing.ts`, `messages/en.json` archivé en
+> `messages/en.json.archived-2026-10-07`, `/en/*` → 301 vers FR via `src/proxy.ts`).
+> Le contenu ci-dessous décrit l'état bilingue fr/en à restaurer pour réactiver l'anglais.
+
 **Date** : 2026-10-02
 **Statut** : Accepté
 **Auteurs** : Équipe HASHCODE REBOOT

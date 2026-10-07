@@ -3,8 +3,30 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
-const fr = JSON.parse(fs.readFileSync(path.join(dir, "..", "messages", "fr.json"), "utf8"));
-const en = JSON.parse(fs.readFileSync(path.join(dir, "..", "messages", "en.json"), "utf8"));
+const frPath = path.join(dir, "..", "messages", "fr.json");
+const enPath = path.join(dir, "..", "messages", "en.json");
+
+// FR-only temporaire 2026-10-07 (réversible) : si en.json est archivé,
+// le contrôle de parité fr/en est sans objet — on valide fr seul.
+if (!fs.existsSync(enPath)) {
+  const archived = fs
+    .readdirSync(path.join(dir, "..", "messages"))
+    .filter((f) => f.startsWith("en.json.archived-"));
+  if (archived.length > 0) {
+    const frOnly = JSON.parse(fs.readFileSync(frPath, "utf8"));
+    const countOnly = (m) =>
+      [...flatten(frOnly).values()].filter((v) => typeof v === "string").length;
+    console.info(
+      `FR-only temporaire (${archived.join(", ")}) — parité fr/en ignorée, fr strings: ${countOnly()}.`
+    );
+    process.exit(0);
+  }
+  console.error(`MISSING messages/en.json et aucune archive trouvée.`);
+  process.exit(1);
+}
+
+const fr = JSON.parse(fs.readFileSync(frPath, "utf8"));
+const en = JSON.parse(fs.readFileSync(enPath, "utf8"));
 
 /** Flatten nested messages to dot-paths. Arrays indexed numerically. */
 function flatten(obj, prefix = "", out = new Map()) {

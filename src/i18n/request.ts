@@ -5,9 +5,9 @@ import { routing } from "./routing";
 /**
  * T08 — Configuration de requête next-intl.
  *
- * Charge les messages de la locale demandée. Les fichiers complets
- * (extraction de tout le contenu FR/EN) sont l'objet de T09 ; ici on
- * charge le namespace minimal `common` + `notFound` déjà présent.
+ * FR-only temporaire 2026-10-07 (réversible) : locale `fr` seule.
+ * `messages/en.json` est archivé, tout `requestLocale` non-`fr` retombe sur
+ * `fr` (fallback inchangé via `hasLocale` + `defaultLocale`).
  */
 export default getRequestConfig(async ({ requestLocale }) => {
   const requested = await requestLocale;

@@ -45,14 +45,19 @@ const organizationJsonLd = {
 /**
  * T08 — Layout [locale] (next-intl).
  *
+ * FR-only temporaire 2026-10-07 (réversible) : `generateStaticParams`
+ * ne pré-génère que `fr`, `canonical` vaut `"/"` sans `languages.en` ni
+ * `x-default`, `openGraph.locale` vaut `fr_FR` uniquement. Le garde
+ * `hasLocale` est conservé (toute locale non-fr → 404).
+ *
  * Porte désormais `<html>`/`<body>` afin que `lang` reflète la locale servie.
  * Les métadonnées et le `viewport` y ont été déplacés pour pouvoir être
- * localisés, avec des alternances `hreflang` fr/en + x-default.
+ * localisés.
  *
  * Valide la locale (404 sinon) et fournit les messages au client.
  */
 export function generateStaticParams() {
-  return routing.locales.map((locale) => ({ locale }));
+  return [{ locale: "fr" }];
 }
 
 export async function generateMetadata({
@@ -64,8 +69,8 @@ export async function generateMetadata({
   if (!hasLocale(routing.locales, locale)) return {};
 
   const t = await getTranslations({ locale, namespace: "landing.meta" });
-  const isFr = locale === routing.defaultLocale;
-  const path = isFr ? "/" : `/${locale}`;
+  // FR-only temporaire 2026-10-07 : chemin canonique unique, pas d'alternates EN.
+  const path = "/";
 
   return {
     metadataBase: new URL(SITE_URL),
@@ -86,8 +91,6 @@ export async function generateMetadata({
       canonical: path,
       languages: {
         fr: "/",
-        en: "/en",
-        "x-default": "/",
       },
     },
     openGraph: {
@@ -95,7 +98,7 @@ export async function generateMetadata({
       description: t("ogDescription"),
       siteName: "HASHCODE REBOOT",
       type: "website",
-      locale: isFr ? "fr_FR" : "en_US",
+      locale: "fr_FR",
       url: path,
       images: [
         {

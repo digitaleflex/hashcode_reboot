@@ -4,17 +4,22 @@ import { createNavigation } from "next-intl/navigation";
 /**
  * T08 — Routage i18n (next-intl).
  *
+ * FR-only temporaire 2026-10-07 (réversible) : `locales: ["fr"]` seule.
+ * Le fichier `messages/en.json` est archivé (`messages/en.json.archived-2026-10-07`)
+ * et `/en/*` redirige (301) vers la version FR via `src/proxy.ts`.
+ * Pour restaurer EN : remettre `"en"` dans `locales`, restaurer le fichier
+ * archivé, et retirer la redirection `/en` du proxy.
+ *
  * - `fr` = locale par défaut, SANS préfixe d'URL (`localePrefix: "as-needed"`).
  *   Toutes les URLs existantes (/dashboard, /login, …) continuent de
  *   fonctionner telles quelles — le middleware les réécrit en interne
  *   vers /fr/….
- * - `en` = seconde locale, servie SOUS préfixe (/en/…).
  *
  * T09 extraira les messages complets, T10 migrera les composants vers
  * useTranslations(). Ici : infra de routage uniquement.
  */
 export const routing = defineRouting({
-  locales: ["fr", "en"],
+  locales: ["fr"],
   defaultLocale: "fr",
   localePrefix: "as-needed",
   /**
