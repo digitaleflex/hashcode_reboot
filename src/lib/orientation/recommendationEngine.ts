@@ -111,6 +111,7 @@ export function generateRecommendations(
       id: m.activity.id,
       score: m.score,
       reasons: m.reasons,
+      activity: m.activity,
     }));
 
   // 3. Aucun match pertinent → NO_MATCH (résultat valide, non inventé).
