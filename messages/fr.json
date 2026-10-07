@@ -2121,6 +2121,22 @@
         "empty": "Aucun tag libre.",
         "errorTooMany": "20 tags libres maximum.",
         "errorTooLong": "Chaque tag est limité à 40 caractères."
+      },
+      "notes": {
+        "title": "Notes datées",
+        "inputPlaceholder": "Ajouter une note datée…",
+        "inputAria": "Nouvelle note",
+        "add": "Ajouter la note",
+        "saving": "Enregistrement…",
+        "saved": "Enregistré",
+        "loading": "Chargement des notes…",
+        "empty": "Aucune note pour ce membre.",
+        "removeAria": "Supprimer la note de {author}",
+        "deleteConfirm": "Supprimer cette note ?",
+        "confirm": "Confirmer",
+        "cancel": "Annuler",
+        "deleting": "Suppression…",
+        "errorTooLong": "Note trop longue (max 2000 caractères)."
       }
     },
     "invitations": {

@@ -112,6 +112,7 @@ model Member {
   sessions  MemberSession[]
   rsvps     EventRsvp[]
   emailLogs MemberEmailLog[]
+  notes     MemberNote[]
 
   // Ateliers (domaine pédagogique — cf. docs/ateliers/)
   workshopSubmissions  WorkshopSubmission[]
@@ -327,6 +328,27 @@ model MemberEmailLog {
   @@index([memberId])
   @@index([kind])
   @@index([memberId, kind])
+  @@index([createdAt])
+}
+
+/// Notes datées posées par les admins sur un membre (#100).
+/// Contrairement à Member.adminNote (singleton écrasé, conservé tel quel),
+/// chaque note est une ligne horodatée avec son auteur : historique complet,
+/// jamais écrasé. Suppression en cascade avec le membre.
+model MemberNote {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  memberId String
+  member   Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  /// Identité admin au moment de la création (email via getAdminIdentity).
+  author String
+  /// Contenu libre, borné côté API (1-2000 caractères après trim).
+  content String
+
+  @@index([memberId])
+  @@index([memberId, createdAt])
   @@index([createdAt])
 }
 

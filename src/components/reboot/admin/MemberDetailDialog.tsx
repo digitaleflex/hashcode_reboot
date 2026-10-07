@@ -15,6 +15,7 @@ import { countryFlag, countryName } from "@/lib/profiling/countries";
 import { Check, Copy, Trash2, ExternalLink, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { fetchJson, isAbortError, withRetryAfter } from "./lib/fetchJson";
+import { MemberNotes } from "./MemberNotes";
 
 const DOMAIN_LABEL: Record<string, string> = {
   web: "Web",
@@ -918,6 +919,9 @@ function MemberDetail({
             <p className="mt-2 text-xs text-amber-200" role="alert">{copyError}</p>
           )}
         </div>
+
+        {/* Notes datées (#100) — historique append-only, à côté du singleton adminNote ci-dessus (inchangé). */}
+        <MemberNotes memberId={m.id} />
 
         <p className="text-xs text-muted-foreground">
           Valider un profil invite automatiquement à la communauté.
