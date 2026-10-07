@@ -58,11 +58,13 @@ export function Welcome({
   result,
   onReset,
   onOpenPrivacy,
+  onCompleteProfile,
 }: {
   answers: ProfileAnswers;
   result: WelcomeResult;
   onReset: () => void;
   onOpenPrivacy?: () => void;
+  onCompleteProfile?: () => void;
 }) {
   const t = useTranslations("profiling");
   const isImmediate = result.accessLane === "immediate";
@@ -196,6 +198,7 @@ export function Welcome({
                   action={result.nextBestAction ?? null}
                   status={result.orientationStatus ?? "NO_MATCH"}
                   className="h-full"
+                  onCompleteProfile={onCompleteProfile}
                 />
               ) : (
                 <div className="h-full rounded-xl border border-border bg-card/35 p-6">
