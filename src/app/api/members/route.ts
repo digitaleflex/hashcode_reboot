@@ -107,6 +107,7 @@ export async function POST(req: NextRequest) {
   // ni la confiance (usage interne).
   let nextBestAction: OrientationResult["nextBestAction"] = null;
   let orientationStatus: OrientationResult["status"] = "NO_MATCH";
+  let orientationRecommendations: OrientationResult["recommendations"] = [];
   try {
     const live = await loadPublishedActivitiesWithTimeout(1500).catch(
       () => null,
@@ -117,6 +118,7 @@ export async function POST(req: NextRequest) {
         : orientationEngine.evaluate(data);
     nextBestAction = orientation.nextBestAction;
     orientationStatus = orientation.status;
+    orientationRecommendations = orientation.recommendations;
   } catch {
     /* l'orientation ne doit jamais casser l'inscription */
   }
@@ -217,6 +219,7 @@ export async function POST(req: NextRequest) {
       profile: generated,
       nextBestAction,
       orientationStatus,
+      orientationRecommendations,
     },
     { status: 201 },
   );
