@@ -33,8 +33,7 @@ Noms lus par le code, dans l'ordre d'importance :
 
 | Variable | Usage |
 |---|---|
-| `POSTGRES_PRISMA_URL` | Connexion poolée (runtime, fournie par la stack Docker) |
-| `POSTGRES_URL_NON_POOLING` | Connexion directe (migrations CLI) |
+| `DATABASE_URL` | Connexion Postgres (runtime et migrations CLI). Fournie par la stack Docker, à partir de `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` |
 | `Member.adminRole` (en base) | Rôle admin : `operator` (accès complet), `viewer` (lecture seule), `null` = pas admin. **Fail-closed** : `null` = aucun accès. Posé via `scripts/ensure-admin.ts` |
 | `NEXT_PUBLIC_WHATSAPP_URL` | Lien communauté WhatsApp côté client (requis, aucune valeur en dur) |
 | `WHATSAPP_URL` | Idem, côté serveur (prioritaire sur la précédente, aucune valeur en dur) |

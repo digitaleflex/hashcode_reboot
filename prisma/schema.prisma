@@ -7,9 +7,16 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("POSTGRES_PRISMA_URL")
-  directUrl = env("POSTGRES_URL_NON_POOLING")
+  provider = "postgresql"
+  // `DATABASE_URL` et non les noms de l'ère Neon (POSTGRES_PRISMA_URL /
+  // POSTGRES_URL_NON_POOLING) : ce sont ceux qu'injectent compose.yml et
+  // compose.dev.yml, et les seuls que la stack connaît. La distinction
+  // poolé/direct n'a pas de sens ici — il n'y a pas de pooler devant le
+  // Postgres, donc pas de `directUrl` à distinguer de `url`.
+  // Le build local ne voyait pas l'erreur : `prisma generate` ne résout pas
+  // l'URL, seule la commande `migrate` le fait — le décalage n'apparaissait
+  // qu'au premier `migrate deploy` en conteneur.
+  url = env("DATABASE_URL")
 }
 
 model Member {

@@ -11,7 +11,7 @@
  * Environment variables required:
  *   - RESEND_API_KEY
  *   - BREVO_API_KEY (or SENDINBLUE_API_KEY)
- *   - POSTGRES_PRISMA_URL (or DATABASE_URL)
+ *   - DATABASE_URL
  *
  * Note : la même logique est exposée en HTTP via GET /api/cron/collect-metrics
  * pour cron-job.org (qui ne peut appeler que des URLs).
