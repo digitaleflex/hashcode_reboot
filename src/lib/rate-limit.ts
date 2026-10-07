@@ -11,37 +11,20 @@
 
 import { rateKey } from "./rate-limit-key";
 import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
-
-// Redis client lazy (évite le crash à l'import si les vars sont absentes —
-// le fallback mémoire prend alors le relais via le catch de rateLimit()).
-let cachedRedis: Redis | null | undefined;
-function getRedis(): Redis {
-  if (cachedRedis !== undefined) {
-    if (cachedRedis === null) throw new Error("Redis not configured");
-    return cachedRedis;
-  }
-  const url = process.env.KV_REST_API_URL;
-  const token = process.env.KV_REST_API_TOKEN;
-  if (!url || !token) {
-    cachedRedis = null;
-    throw new Error("Redis not configured");
-  }
-  cachedRedis = new Redis({ url, token });
-  return cachedRedis;
-}
+import type { Redis } from "@upstash/redis";
+import { getKv, withMemoryFallback } from "./kv";
 
 // Singletons Ratelimit par (capacité, fenêtre) — évite new Ratelimit + new Map
 // à chaque requête. ephemeralCache partagé : utile uniquement s'il survit
 // entre les appels.
 const limiterCache = new Map<string, Ratelimit>();
 const sharedEphemeralCache = new Map();
-function getLimiter(capacity: number, windowSec: number): Ratelimit {
+function getLimiter(redis: Redis, capacity: number, windowSec: number): Ratelimit {
   const cacheKey = `${capacity}:${windowSec}`;
   const cached = limiterCache.get(cacheKey);
   if (cached) return cached;
   const limiter = new Ratelimit({
-    redis: getRedis(),
+    redis,
     limiter: Ratelimit.slidingWindow(capacity, `${Math.max(1, windowSec)} s`),
     ephemeralCache: sharedEphemeralCache,
   });
@@ -107,13 +90,26 @@ function memoryRateLimit(key: string, config: RateLimitConfig): RateLimitResult 
 }
 
 /**
- * Redis-backed rate limiter.
+ * Redis-backed rate limiter (throws when KV is unavailable so callers can
+ * fall back to in-memory via `withMemoryFallback`).
  * @param key - Rate-limit key (IP or IP-passcode).
  * @param config - Capacity and window configuration.
  */
 export async function redisRateLimit(key: string, config: RateLimitConfig): Promise<RateLimitResult> {
+  const kv = getKv();
+  if (!kv) throw new Error("Redis not configured");
+  return redisRateLimitWith(kv, key, config);
+}
+
+/** Redis-backed rate limiter against an explicit client. */
+async function redisRateLimitWith(
+  kv: Redis,
+  key: string,
+  config: RateLimitConfig,
+): Promise<RateLimitResult> {
   // Singleton par (capacité, fenêtre) — pas d'alloc par requête.
   const limiter = getLimiter(
+    kv,
     config.capacity,
     Math.max(1, Math.ceil(config.windowMs / 1000)),
   );
@@ -135,13 +131,14 @@ export async function rateLimit(
   key: string,
   config: RateLimitConfig,
 ): Promise<RateLimitResult> {
-  try {
-    return await redisRateLimit(key, config);
-  } catch (error) {
-    // Fallback to in-memory if Redis fails
-    console.warn("Redis rate limit failed, falling back to in-memory:", error);
-    return memoryRateLimit(key, config);
-  }
+  return withMemoryFallback(
+    (kv) => redisRateLimitWith(kv, key, config),
+    () => memoryRateLimit(key, config),
+    (error) => {
+      // Fallback to in-memory if Redis fails
+      console.warn("Redis rate limit failed, falling back to in-memory:", error);
+    },
+  );
 }
 
 /** Build a valid HTTP `Retry-After` header value (seconds).

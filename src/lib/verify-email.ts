@@ -9,23 +9,12 @@
  * - Flag vérifié : TTL 30 jours (couvre la fin du flow + login ultérieur).
  */
 
-import { Redis } from "@upstash/redis";
+import { getKv, withMemoryFallback } from "./kv";
 import { randomBytes } from "node:crypto";
 
 const LINK_TTL_SEC = 24 * 60 * 60;
 const VERIFIED_TTL_SEC = 30 * 24 * 60 * 60;
 const RESEND_COOLDOWN_SEC = 60;
-
-function getRedis(): Redis | null {
-  try {
-    const url = process.env.KV_REST_API_URL;
-    const token = process.env.KV_REST_API_TOKEN;
-    if (!url || !token) return null;
-    return new Redis({ url, token });
-  } catch {
-    return null;
-  }
-}
 
 /* --- Fallback mémoire (dev / Redis indisponible) --- */
 interface LinkEntry {
@@ -62,11 +51,10 @@ export async function requestEmailLink(
   email: string,
 ): Promise<{ ok: boolean; token: string; cooldownSec?: number }> {
   const norm = email.trim().toLowerCase();
-  const redis = getRedis();
   const now = Date.now();
 
-  if (redis) {
-    try {
+  return withMemoryFallback(
+    async (redis) => {
       // Cooldown 60 s par email (clé dédiée, pas écrasée par les tentatives).
       const cd = await redis.get<unknown>(cooldownKey(norm));
       if (cd != null) {
@@ -93,27 +81,26 @@ export async function requestEmailLink(
       await redis.set(emailLinkKey(norm), token, { ex: LINK_TTL_SEC });
       await redis.set(cooldownKey(norm), "1", { ex: RESEND_COOLDOWN_SEC });
       return { ok: true, token };
-    } catch {
-      /* tombe sur le fallback mémoire */
-    }
-  }
-
-  const last = memLastSent.get(norm) ?? 0;
-  const ageSec = Math.floor((now - last) / 1000);
-  if (last && ageSec < RESEND_COOLDOWN_SEC) {
-    return { ok: false, token: "", cooldownSec: RESEND_COOLDOWN_SEC - ageSec };
-  }
-  // Invalider l'ancien lien mémoire.
-  const old = memEmailToToken.get(norm);
-  if (old) memLinks.delete(old);
-  const token = makeToken();
-  memLinks.set(token, {
-    entry: { email: norm, createdAt: now },
-    expiresAt: now + LINK_TTL_SEC * 1000,
-  });
-  memEmailToToken.set(norm, token);
-  memLastSent.set(norm, now);
-  return { ok: true, token };
+    },
+    async () => {
+      const last = memLastSent.get(norm) ?? 0;
+      const ageSec = Math.floor((now - last) / 1000);
+      if (last && ageSec < RESEND_COOLDOWN_SEC) {
+        return { ok: false, token: "", cooldownSec: RESEND_COOLDOWN_SEC - ageSec };
+      }
+      // Invalider l'ancien lien mémoire.
+      const old = memEmailToToken.get(norm);
+      if (old) memLinks.delete(old);
+      const token = makeToken();
+      memLinks.set(token, {
+        entry: { email: norm, createdAt: now },
+        expiresAt: now + LINK_TTL_SEC * 1000,
+      });
+      memEmailToToken.set(norm, token);
+      memLastSent.set(norm, now);
+      return { ok: true, token };
+    },
+  );
 }
 
 export type ConfirmLinkResult = { ok: true; email: string } | { ok: false; reason: "expired" | "invalid" };
@@ -151,11 +138,10 @@ function parseLinkEntry(raw: unknown): LinkEntry | null {
 export async function confirmEmailLink(token: string): Promise<ConfirmLinkResult> {
   const clean = (token || "").trim();
   if (!clean || clean.length < 16) return { ok: false, reason: "invalid" };
-  const redis = getRedis();
   const now = Date.now();
 
-  if (redis) {
-    try {
+  return withMemoryFallback(
+    async (redis) => {
       const raw = await redis.get<unknown>(linkKey(clean));
       const entry = parseLinkEntry(raw);
       if (!entry) return { ok: false, reason: "expired" };
@@ -170,26 +156,27 @@ export async function confirmEmailLink(token: string): Promise<ConfirmLinkResult
       }
       await redis.set(verifiedKey(entry.email), "1", { ex: VERIFIED_TTL_SEC });
       return { ok: true, email: entry.email };
-    } catch {
-      /* fallback mémoire */
-    }
-  }
-
-  const mem = memLinks.get(clean);
-  if (!mem || mem.expiresAt <= now) {
-    memLinks.delete(clean);
-    return { ok: false, reason: "expired" };
-  }
-  memLinks.delete(clean);
-  const mapped = memEmailToToken.get(mem.entry.email);
-  if (mapped === clean) memEmailToToken.delete(mem.entry.email);
-  memVerified.set(mem.entry.email, now + VERIFIED_TTL_SEC * 1000);
-  return { ok: true, email: mem.entry.email };
+    },
+    async () => {
+      const mem = memLinks.get(clean);
+      if (!mem || mem.expiresAt <= now) {
+        memLinks.delete(clean);
+        return { ok: false, reason: "expired" };
+      }
+      memLinks.delete(clean);
+      const mapped = memEmailToToken.get(mem.entry.email);
+      if (mapped === clean) memEmailToToken.delete(mem.entry.email);
+      memVerified.set(mem.entry.email, now + VERIFIED_TTL_SEC * 1000);
+      return { ok: true, email: mem.entry.email };
+    },
+  );
 }
 
 export async function isEmailVerified(email: string): Promise<boolean> {
   const norm = email.trim().toLowerCase();
-  const redis = getRedis();
+  // NB : pas de withMemoryFallback ici — un "miss" Redis (clé absente) doit
+  // quand même consulter le store mémoire, pas seulement les erreurs Redis.
+  const redis = getKv();
   if (redis) {
     try {
       // Upstash peut retourner "1" (string) ou 1 (number via JSON.parse("1")) → test truthy.
