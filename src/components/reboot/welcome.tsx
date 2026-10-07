@@ -111,7 +111,7 @@ export function Welcome({
         </div>
       </header>
 
-      <main className="relative overflow-hidden">
+      <main className="relative overflow-hidden" aria-labelledby="welcome-title">
         <div
           className="pointer-events-none absolute inset-x-0 top-0 h-[520px] opacity-70"
           aria-hidden
@@ -130,7 +130,7 @@ export function Welcome({
                 <MonoLabel className="text-lime">Profil reconnu</MonoLabel>
               </div>
 
-              <h1 className="mt-6 max-w-3xl font-display text-[clamp(2.6rem,6vw,5rem)] font-extrabold italic leading-[0.92] tracking-[-0.045em] text-balance">
+              <h1 id="welcome-title" className="mt-6 max-w-3xl font-display text-[clamp(2.6rem,6vw,5rem)] font-extrabold italic leading-[0.92] tracking-[-0.045em] text-balance">
                 Bienvenue dans le Reboot,
                 <span className="text-lime text-glow-lime"> {answers.firstName}.</span>
               </h1>
@@ -178,7 +178,7 @@ export function Welcome({
           </section>
 
           {/* Primary actions */}
-          <section className="mt-10 grid gap-5 lg:grid-cols-2">
+          <section className="mt-10 grid gap-5 lg:grid-cols-2" aria-label="Prochaine action">
             {isImmediate ? (
               <ImmediateBranch
                 answers={answers}
@@ -215,7 +215,7 @@ export function Welcome({
           </section>
 
           {/* Secondary information */}
-          <section className="mt-5 grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
+          <section className="mt-5 grid gap-5 lg:grid-cols-[1.05fr_0.95fr]" aria-label="Informations du profil et actions secondaires">
             <div>
               <div className="mb-3 flex items-center justify-between">
                 <MonoLabel className="text-muted-foreground">Ton profil</MonoLabel>
@@ -366,7 +366,7 @@ function WhatsAppCapture({ memberId }: { memberId: string }) {
 
   if (state === "saved") {
     return (
-      <div className="rounded-xl border border-lime/35 bg-lime/[0.04] px-4 py-4 text-sm text-foreground">
+      <div className="rounded-xl border border-lime/35 bg-lime/[0.04] px-4 py-4 text-sm text-foreground" role="status">
         <div className="flex items-center gap-2">
           <Check className="size-4 shrink-0 text-lime" />
           {t("welcome.addedToWhatsApp")}
@@ -421,7 +421,7 @@ function WhatsAppCapture({ memberId }: { memberId: string }) {
             </button>
           </div>
 
-          {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
+          {error && <p className="mt-2 text-xs text-red-400" role="alert">{error}</p>}
           <p className="mt-3 text-[11px] leading-5 text-muted-foreground">
             Ton numéro reste privé et n’est pas affiché publiquement.
           </p>
