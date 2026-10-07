@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { ArrowRight } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -137,24 +136,36 @@ export function ExternalCta({
   children,
   className,
   size = "lg",
+  onClick,
 }: {
   href: string;
   children: React.ReactNode;
   className?: string;
   size?: "sm" | "md" | "lg";
+  onClick?: () => void;
 }) {
+  const sizes = {
+    sm: "min-h-[44px] h-11 px-4 text-sm",
+    md: "min-h-[44px] h-11 px-5 text-sm",
+    lg: "min-h-[48px] h-12 px-6 text-base",
+  };
+
   return (
-    <Link
+    <a
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className={cn("group", className)}
+      onClick={onClick}
+      className={cn(
+        "group inline-flex items-center justify-center gap-2 rounded-md transition-colors duration-200 focus-lime bg-lime text-black hover:bg-lime/90 font-medium border border-transparent cursor-pointer",
+        sizes[size],
+        "w-full sm:w-auto",
+        className,
+      )}
     >
-      <RebootButton size={size} className="w-full sm:w-auto">
-        {children}
-        <CtaArrow />
-      </RebootButton>
-    </Link>
+      {children}
+      <CtaArrow />
+    </a>
   );
 }
 
