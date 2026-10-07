@@ -106,6 +106,16 @@ wait_healthy() {
 }
 
 do_backup() {
+  # Premier déploiement : la stack prod n'existe pas encore, donc postgres
+  # tourne dans le vide — une base jamais créée ne peut pas être perdue.
+  # Sauvegarder ici serait un échec technique, pas une protection.
+  local pg state
+  pg="$(dc prod ps -q postgres 2>/dev/null || true)"
+  state="$([ -n "$pg" ] && docker inspect --format '{{.State.Running}}' "$pg" 2>/dev/null || echo absent)"
+  if [ "$state" != "true" ]; then
+    warn "stack prod non démarrée (postgres: $state) — aucune sauvegarde à faire"
+    return 0
+  fi
   info "sauvegarde avant déploiement…"
   ./scripts/backup.sh || die "sauvegarde impossible — déploiement annulé"
 }
