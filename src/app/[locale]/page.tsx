@@ -52,6 +52,7 @@ interface SubmitResponse {
   nextBestAction?: OrientationResult["nextBestAction"];
   orientationStatus?: OrientationResult["status"];
   orientationSource?: "server" | "local";
+  orientationRecommendations?: OrientationResult["recommendations"];
   error?: string;
   message?: string;
 }
@@ -64,12 +65,17 @@ interface SubmitResponse {
 function localOrientation(answers: ProfileAnswers): {
   nextBestAction: OrientationResult["nextBestAction"];
   orientationStatus: OrientationResult["status"];
+  recommendations: OrientationResult["recommendations"];
 } {
   try {
     const r = orientationEngine.evaluate(answers);
-    return { nextBestAction: r.nextBestAction, orientationStatus: r.status };
+    return {
+      nextBestAction: r.nextBestAction,
+      orientationStatus: r.status,
+      recommendations: r.recommendations,
+    };
   } catch {
-    return { nextBestAction: null, orientationStatus: "NO_MATCH" };
+    return { nextBestAction: null, orientationStatus: "NO_MATCH", recommendations: [] };
   }
 }
 
@@ -160,6 +166,7 @@ export default function Home() {
           profile: gen,
           nextBestAction: fallback.nextBestAction,
           orientationStatus: fallback.orientationStatus,
+          orientationRecommendations: fallback.recommendations,
           orientationSource: "local",
         });
         if (data.error) setSubmitError(data.error);
@@ -183,6 +190,7 @@ export default function Home() {
           duplicate: true,
           nextBestAction: fallback.nextBestAction,
           orientationStatus: fallback.orientationStatus,
+          orientationRecommendations: fallback.recommendations,
           orientationSource: "local",
         });
         setPhase("result");
@@ -197,6 +205,7 @@ export default function Home() {
         profile: data.profile ?? generateProfile(finalAnswers),
         nextBestAction: data.nextBestAction ?? localOrientation(finalAnswers).nextBestAction,
         orientationStatus: data.orientationStatus ?? localOrientation(finalAnswers).orientationStatus,
+        orientationRecommendations: data.orientationRecommendations ?? localOrientation(finalAnswers).recommendations,
         orientationSource: data.orientationStatus ? "server" : "local",
       });
       setPhase("result");
@@ -268,6 +277,7 @@ export default function Home() {
         profile: data.profile ?? generateProfile(retryAnswers),
         nextBestAction: data.nextBestAction ?? localOrientation(retryAnswers).nextBestAction,
         orientationStatus: data.orientationStatus ?? localOrientation(retryAnswers).orientationStatus,
+        orientationRecommendations: data.orientationRecommendations ?? localOrientation(retryAnswers).recommendations,
         orientationSource: data.orientationStatus ? "server" : "local",
       });
       setRetryAnswers(null);
