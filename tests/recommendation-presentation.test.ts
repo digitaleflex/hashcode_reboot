@@ -1,14 +1,15 @@
-import { describe, expect, it } from "vitest";
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
 import { getActivityPresentation } from "../src/lib/orientation/presentation";
 
 describe("recommendation presentation", () => {
   it("resolves published activities by stable id", () => {
     const activity = getActivityPresentation("challenge-git-essentials");
-    expect(activity?.title).toBe("Challenge Git Essentials");
-    expect(activity?.status).toBe("published");
+    assert.equal(activity?.title, "Challenge Git Essentials");
+    assert.equal(activity?.status, "published");
   });
 
   it("returns null for an unknown recommendation id", () => {
-    expect(getActivityPresentation("unknown-activity")).toBeNull();
+    assert.equal(getActivityPresentation("unknown-activity"), null);
   });
 });
