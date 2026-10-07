@@ -54,7 +54,7 @@ export type CronHealthRow = {
 
 /**
  * Ce qui est RÉELLEMENT planifié (jobs HTTP).
- * Ordre = ordre d'affichage du dashboard pour les 4 lignes santé.
+ * Ordre = ordre d'affichage du dashboard pour les 5 lignes santé.
  */
 export const CRON_JOBS: readonly CronJob[] = [
   {
@@ -72,6 +72,15 @@ export const CRON_JOBS: readonly CronJob[] = [
     schedule: "30 6 * * *",
     expectedEveryH: 24,
     eventKey: "cron_email_alerts",
+  },
+  {
+    slug: "admin-alerts",
+    label: "Alertes admin (Discord)",
+    // Quotidien 7h45, après relance (7h00) et email-alerts (6h30) : les
+    // vérifications portent sur les dernières 24h glissantes.
+    schedule: "45 7 * * *",
+    expectedEveryH: 25,
+    eventKey: "cron_admin_alerts",
   },
   {
     slug: "collect-metrics",
@@ -146,10 +155,11 @@ export const CRON_MANUAL: readonly CronHealthRow[] = [
 ];
 
 /**
- * Ce que le dashboard affiche : les 4 premières lignes sont DÉRIVÉES de
+ * Ce que le dashboard affiche : les 5 premières lignes sont DÉRIVÉES de
  * `CRON_JOBS` via `eventKey` (jobs avec heartbeat), suivies des actions
  * manuelles. Ordre figé (l'UI admin en dépend) :
- * relance, email_alerts, collect_metrics, event_reminders, puis les 3 manuels.
+ * relance, email_alerts, admin_alerts, collect_metrics, event_reminders,
+ * puis les 3 manuels.
  */
 export const CRON_HEALTH: readonly CronHealthRow[] = [
   ...CRON_JOBS.flatMap((j) =>

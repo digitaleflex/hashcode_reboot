@@ -37,6 +37,7 @@ interface DashboardApiResponse {
   emailOps: EmailOpsApiResponse | null;
   cronHealth: CronHealthItem[] | null;
   audience: AudienceSummary | null;
+  adminAlerts: { generatedAt: string; alerts: Array<{ level: string; message: string }> } | null;
   errors?: Record<string, string>;
 }
 
@@ -320,6 +321,7 @@ export default function AdminDashboardPage() {
         cronHealth={data?.cronHealth ?? null}
         emailOpsAlerts={data?.emailOps?.alerts ?? null}
         deliverabilityAlerts={deliverabilityAlerts}
+        adminAlerts={data?.adminAlerts?.alerts ?? null}
         onQueueClick={() => router.push("/admin/members?status=PENDING")}
         onCronsClick={() => {}}
       />

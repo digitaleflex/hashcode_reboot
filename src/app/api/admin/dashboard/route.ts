@@ -30,7 +30,7 @@ const querySchema = z.object({
 
 // Liste des crons suivis : voir le registre unique (supprime la duplication
 // dashboard/route.ts <> cron-health/route.ts — ajouter un cron = le registre).
-// `CRON_HEALTH` reproduit exactement les 7 lignes historiques, dans le même ordre.
+// `CRON_HEALTH` reproduit exactement les 8 lignes historiques, dans le même ordre.
 
 const CATEGORIES = ["welcome", "waitlist", "engagement", "relance", "other"] as const;
 
@@ -384,6 +384,17 @@ async function fetchEmailOps(batchSize: number, minutes: number) {
   };
 }
 
+async function fetchAdminAlerts() {
+  // Affichage seul : checkAdminAlerts() ne notifie jamais (pas de Discord
+  // depuis le dashboard). Même format que fetchEmailOps.alerts ci-dessus.
+  const { checkAdminAlerts } = await import("@/lib/admin-alerts");
+  const alerts = await checkAdminAlerts();
+  return {
+    generatedAt: new Date().toISOString(),
+    alerts: alerts.map((a) => ({ level: "warn" as const, message: `${a.title} — ${a.detail}` })),
+  };
+}
+
 async function fetchCronHealth() {
   const now = Date.now();
   return Promise.all(
@@ -460,7 +471,7 @@ export async function GET(req: NextRequest) {
   // ── Fetch ALL data sources in parallel ──────────────────────────────
   const [
     stats, funnel, emailStats, emailDeliverability,
-    emailOps, cronHealth, audience,
+    emailOps, cronHealth, audience, adminAlerts,
   ] = await Promise.all([
     fetchStats().catch((e) => ({ _error: e instanceof Error ? e.message : String(e) })),
     fetchFunnel().catch((e) => ({ _error: e instanceof Error ? e.message : String(e) })),
@@ -469,6 +480,7 @@ export async function GET(req: NextRequest) {
     fetchEmailOps(batchSize, throughputMinutes).catch((e) => ({ _error: e instanceof Error ? e.message : String(e) })),
     fetchCronHealth().catch((e) => [{ _error: e instanceof Error ? e.message : String(e) }]),
     fetchEmailAudience().catch((e) => ({ _error: e instanceof Error ? e.message : String(e) })),
+    fetchAdminAlerts().catch((e) => ({ _error: e instanceof Error ? e.message : String(e) })),
   ]);
 
   const hasStatsError = "_error" in stats;
@@ -478,6 +490,7 @@ export async function GET(req: NextRequest) {
   const hasOpsError = "_error" in emailOps;
   const hasCronError = "_error" in (cronHealth[0] ?? {});
   const hasAudienceError = "_error" in audience;
+  const hasAdminAlertsError = "_error" in adminAlerts;
 
   const errors: Record<string, string> = {};
   if (hasStatsError) errors.stats = (stats as { _error: string })._error;
@@ -487,6 +500,7 @@ export async function GET(req: NextRequest) {
   if (hasOpsError) errors.emailOps = (emailOps as { _error: string })._error;
   if (hasCronError) errors.cronHealth = (cronHealth[0] as { _error?: string })._error ?? "Erreur inconnue";
   if (hasAudienceError) errors.audience = (audience as { _error: string })._error;
+  if (hasAdminAlertsError) errors.adminAlerts = (adminAlerts as { _error: string })._error;
 
   return NextResponse.json({
     ok: Object.keys(errors).length === 0,
@@ -498,6 +512,7 @@ export async function GET(req: NextRequest) {
     emailOps: hasOpsError ? null : emailOps,
     cronHealth: hasCronError ? null : cronHealth,
     audience: hasAudienceError ? null : audience,
+    adminAlerts: hasAdminAlertsError ? null : adminAlerts,
     errors: Object.keys(errors).length > 0 ? errors : undefined,
   });
   } catch (err) {

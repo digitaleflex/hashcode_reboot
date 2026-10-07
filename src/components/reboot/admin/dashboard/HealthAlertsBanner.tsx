@@ -24,6 +24,7 @@ interface HealthAlertsBannerProps {
   cronHealth: CronHealthItem[] | null;
   emailOpsAlerts: EmailOpsAlert[] | null;
   deliverabilityAlerts: { provider: string; bounceRate: number; complaintRate: number }[];
+  adminAlerts?: AdminAlertItem[] | null;
   onQueueClick?: () => void;
   onCronsClick?: () => void;
 }
@@ -40,6 +41,11 @@ interface EmailOpsAlert {
   message: string;
 }
 
+interface AdminAlertItem {
+  level: string;
+  message: string;
+}
+
 function formatNumber(value: number): string {
   return new Intl.NumberFormat("fr-FR").format(value);
 }
@@ -53,6 +59,7 @@ export function HealthAlertsBanner({
   cronHealth,
   emailOpsAlerts,
   deliverabilityAlerts,
+  adminAlerts,
   onQueueClick,
   onCronsClick,
 }: HealthAlertsBannerProps) {
@@ -106,6 +113,16 @@ export function HealthAlertsBanner({
         });
       }
     }
+  }
+
+  // 5. Alertes admin (#119 : pic d'inscriptions, exports tronqués) — un seul
+  // item générique, le détail vit dans la section dédiée / le cron Discord.
+  if (adminAlerts && adminAlerts.length > 0) {
+    alerts.push({
+      level: "warn",
+      icon: <AlertTriangle className="size-4 shrink-0 text-amber-400" />,
+      message: `${adminAlerts.length} alerte${adminAlerts.length > 1 ? "s" : ""} admin : ${adminAlerts[0].message}`,
+    });
   }
 
   if (alerts.length === 0) {
