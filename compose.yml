@@ -199,6 +199,23 @@ services:
     build:
       context: .
       target: cron
+      # OBLIGATOIRE, même si la cible `cron` part de postgres:16-alpine :
+      # son stage fait `COPY --from=builder` (Dockerfile l.83-86), donc
+      # BuildKit est FORCÉ de construire l'étape builder — et donc
+      # `npm run build`, qui throw au chargement de src/lib/profiling/
+      # auto-controls.ts si NEXT_PUBLIC_WHATSAPP_URL manque. Sans ces args,
+      # ce build cron échoue en « Failed to collect page data ».
+      # Les mêmes 7 variables que build_image() passe en --build-arg ;
+      # scripts/deploy.sh les exporte pour que cette interpolation Compose
+      # résolve les alias dérivés de PUBLIC_URL et le sha de version.
+      args:
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-}
+        NEXT_PUBLIC_URL: ${NEXT_PUBLIC_URL:-}
+        NEXT_PUBLIC_APP_VERSION: ${NEXT_PUBLIC_APP_VERSION:-}
+        NEXT_PUBLIC_WHATSAPP_URL: ${NEXT_PUBLIC_WHATSAPP_URL:-}
+        NEXT_PUBLIC_MEET_URL: ${NEXT_PUBLIC_MEET_URL:-}
+        NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+        NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${NEXT_PUBLIC_TURNSTILE_SITE_KEY:-}
     image: hashcode-reboot-cron:local
     restart: unless-stopped
     # Le crontab n'appelle que http://web:3000 en interne : `service_started`

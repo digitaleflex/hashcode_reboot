@@ -146,6 +146,19 @@ build_image() {
     ''|'$'*) NEXT_PUBLIC_APP_VERSION="$(git rev-parse --short HEAD 2>/dev/null || echo dev)" ;;
   esac
 
+  # EXPORT obligatoire : le build de l'image `cron` est déclenché par Compose
+  # (compose.yml), pas par le docker build ci-dessous. Compose interpole ses
+  # `args:` depuis l'environnement du shell AVANT le --env-file, donc ces
+  # valeurs dérivées — absentes de .env.prod — ne lui parviennent que si elles
+  # sont exportées. Sans export, le build cron repart sans NEXT_PUBLIC_* et
+  # échoue sur le throw de auto-controls.ts (Failed to collect page data).
+  local v
+  for v in NEXT_PUBLIC_SITE_URL NEXT_PUBLIC_URL NEXT_PUBLIC_APP_VERSION \
+           NEXT_PUBLIC_WHATSAPP_URL NEXT_PUBLIC_MEET_URL \
+           NEXT_PUBLIC_SENTRY_DSN NEXT_PUBLIC_TURNSTILE_SITE_KEY; do
+    export "$v=${!v:-}"
+  done
+
   # En prod, l'image courante est conservée sous :previous AVANT que le build
   # ne l'écrase : c'est la seule chose que do_rollback saura retrouver.
   if [ "$env" = prod ] && docker image inspect hashcode-reboot:local >/dev/null 2>&1; then
