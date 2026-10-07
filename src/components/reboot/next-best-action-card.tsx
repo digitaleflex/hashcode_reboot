@@ -107,6 +107,24 @@ export function NextBestActionCard({
               <CtaArrow />
             </Link>
           </div>
+        ) : status === "OK" ? (
+          <div className="mt-4">
+            <h3 className="font-display font-bold text-xl tracking-tight text-foreground">
+              Ton profil est prêt à explorer
+            </h3>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              Nous avons suffisamment d&apos;informations pour explorer les
+              activités, mais pas assez de confiance pour choisir une seule
+              prochaine action à ta place.
+            </p>
+            <Link
+              href={target}
+              className="group mt-5 inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-md border border-border bg-transparent px-6 text-base text-foreground transition-colors hover:border-lime/60 hover:text-lime focus-lime sm:w-auto"
+            >
+              Explorer les événements
+              <CtaArrow />
+            </Link>
+          </div>
         ) : status === "INSUFFICIENT_DATA" ? (
           <div className="mt-4">
             <h3 className="font-display font-bold text-xl tracking-tight text-foreground">
