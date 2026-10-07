@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireAdminRole, getAdminRole } from "@/lib/admin-auth";
+import { requireAdminRole, getAdminRole, checkCSRF } from "@/lib/admin-auth";
 import { audit } from "@/lib/admin-audit";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
@@ -82,7 +82,7 @@ export async function POST(
           memberId: id,
           ref: `member.invite:${id}`,
         },
-      );
+      });
     } catch {
       /* ignore */
     }

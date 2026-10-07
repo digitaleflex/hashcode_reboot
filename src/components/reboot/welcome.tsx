@@ -10,7 +10,9 @@ import {
   ExternalCta,
 } from "./shared";
 import { ProfileCard } from "./profile-card";
+import { NextBestActionCard } from "./next-best-action-card";
 import type { GeneratedProfile, ProfileAnswers } from "@/lib/profiling/types";
+import type { OrientationResult } from "@/lib/orientation/types";
 import { getReasonLabels } from "@/lib/profiling/auto-controls";
 import { countryName, countryFlag } from "@/lib/profiling/countries";
 import { track } from "@/lib/analytics";
@@ -26,6 +28,9 @@ export interface WelcomeResult {
   reasons: string[];
   profile: GeneratedProfile;
   duplicate?: boolean;
+  /** Sortie opérationnelle du moteur d'orientation (jamais les scores bruts). */
+  nextBestAction?: OrientationResult["nextBestAction"];
+  orientationStatus?: OrientationResult["status"];
 }
 
 /**
@@ -138,6 +143,16 @@ export function Welcome({
               <PendingBranch answers={answers} result={result} t={t} />
             )}
           </div>
+
+          {/* Next Best Action (moteur d'orientation) — les deux branches */}
+          {(result.nextBestAction || result.orientationStatus) && (
+            <div className="mt-7">
+              <NextBestActionCard
+                action={result.nextBestAction ?? null}
+                status={result.orientationStatus ?? "NO_MATCH"}
+              />
+            </div>
+          )}
 
           {/* Vérification email à la fin : lien magique 1-clic (2e email avec l'invitation) */}
           {!isDuplicate && (

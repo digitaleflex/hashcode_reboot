@@ -73,7 +73,7 @@ export function ProfilingShell({
           </div>
         </div>
         <div
-          className="h-0.5 bg-border"
+          className="h-2.5 bg-lime/20"
           role="progressbar"
           aria-valuenow={Math.round(progress * 100)}
           aria-valuemin={0}
