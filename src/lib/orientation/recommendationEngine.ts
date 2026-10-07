@@ -23,10 +23,10 @@ export const RECOMMENDATION_MIN_SCORE = 0.3;
  *
  * Le plancher de confiance est de 0.5 dès que les champs structurants sont
  * complets. Un seuil à 0.4 rendrait donc l’état `OK` sans action impossible.
- * 0.6 conserve une action immédiate pour les profils solides tout en laissant
+ * 0.9 conserve une action immédiate pour les profils très solides tout en laissant
  * exister un état intermédiaire exploitable par l’UX.
  */
-export const NEXT_ACTION_CONFIDENCE_THRESHOLD = 0.6;
+export const NEXT_ACTION_CONFIDENCE_THRESHOLD = 0.9;
 
 /** Nombre maximal de recommandations retournées. */
 export const MAX_RECOMMENDATIONS = 5;
