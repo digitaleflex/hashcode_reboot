@@ -213,6 +213,7 @@ export default function Home() {
         profile: gen,
         nextBestAction: fallback.nextBestAction,
         orientationStatus: fallback.orientationStatus,
+        orientationSource: "local",
       });
       setRetryAnswers(finalAnswers);
       setSubmitError(
