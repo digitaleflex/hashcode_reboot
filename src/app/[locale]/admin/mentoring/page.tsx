@@ -14,7 +14,7 @@ import {
 import { cn } from "@/lib/utils";
 import { fetchJson } from "@/components/reboot/admin/lib/fetchJson";
 
-// ── Types (miroir des routes /api/admin/mentoring/*) ───────────────────────
+// ── Types (miroir de la route /api/admin/mentoring) ──────────────────────────
 
 interface LeadMentorship {
   id: string;
@@ -95,8 +95,8 @@ export default function AdminMentoringPage() {
     setError(null);
     try {
       const [l, m] = await Promise.all([
-        fetchJson("/api/admin/mentoring/leads"),
-        fetchJson("/api/admin/mentoring/mentors"),
+        fetchJson("/api/admin/mentoring?view=leads"),
+        fetchJson("/api/admin/mentoring?view=mentors"),
       ]);
       if (l.error) throw new Error(l.error);
       if (m.error) throw new Error(m.error);
@@ -116,10 +116,10 @@ export default function AdminMentoringPage() {
   async function markContacted(id: string) {
     setActing(`contact-${id}`);
     try {
-      const { error: err } = await fetchJson("/api/admin/mentoring/contacted", {
+      const { error: err } = await fetchJson("/api/admin/mentoring", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ memberId: id }),
+        body: JSON.stringify({ action: "contacted", memberId: id }),
       });
       if (!err) await load();
     } finally {
@@ -136,7 +136,7 @@ export default function AdminMentoringPage() {
     setSuggesting(true);
     setSuggestions([]);
     try {
-      const { data } = await fetchJson(`/api/admin/mentoring/match?menteeId=${leadId}`);
+      const { data } = await fetchJson(`/api/admin/mentoring?view=match&menteeId=${leadId}`);
       setSuggestions(data?.suggestions ?? []);
     } finally {
       setSuggesting(false);
@@ -146,10 +146,10 @@ export default function AdminMentoringPage() {
   async function assign(mentorId: string, menteeId: string) {
     setActing(`assign-${mentorId}`);
     try {
-      const { error: err } = await fetchJson("/api/admin/mentoring/assign", {
+      const { error: err } = await fetchJson("/api/admin/mentoring", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mentorId, menteeId }),
+        body: JSON.stringify({ action: "assign", mentorId, menteeId }),
       });
       if (!err) {
         setExpandedLead(null);
