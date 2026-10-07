@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { EmailVerificationNudge } from "./email-verify-card";
 import { useTranslations } from "next-intl";
+import { resolveActivityDestination } from "@/lib/orientation/destination";
 
 export interface WelcomeResult {
   memberId: string;
@@ -72,6 +73,53 @@ export function Welcome({
   const isDuplicate = !!result.duplicate;
   const [shareState, setShareState] = React.useState<"idle" | "copied">("idle");
   const orientationTrackedRef = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    if (!result.orientationStatus) return;
+
+    const source = result.orientationSource ?? "server";
+    const state =
+      result.orientationStatus === "OK"
+        ? result.nextBestAction
+          ? "ok_with_action"
+          : "ok_without_action"
+        : result.orientationStatus === "INSUFFICIENT_DATA"
+          ? "insufficient_data"
+          : "no_match";
+    const key = `${result.memberId}:${state}:${source}`;
+    if (orientationTrackedRef.current === key) return;
+    orientationTrackedRef.current = key;
+
+    track({
+      type: "orientation_evaluated",
+      memberId: source === "server" ? result.memberId : undefined,
+      ref: `${state}:${source}`,
+      value: result.nextBestAction ? 1 : 0,
+    });
+  }, [
+    result.memberId,
+    result.nextBestAction,
+    result.orientationSource,
+    result.orientationStatus,
+  ]);
+
+  function handleNextBestActionClick() {
+    if (!result.nextBestAction) return;
+    track({
+      type: "next_best_action_clicked",
+      memberId: result.memberId,
+      ref: result.nextBestAction.id,
+    });
+  }
+
+  function handleCompleteProfile() {
+    track({
+      type: "profile_completion_cta_clicked",
+      memberId: result.memberId === "local" ? undefined : result.memberId,
+      ref: result.orientationStatus ?? "insufficient_data",
+    });
+    onCompleteProfile?.();
+  }
 
   function handleWhatsAppClick() {
     track({ type: "whatsapp_join_clicked", memberId: result.memberId });
