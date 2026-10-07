@@ -222,6 +222,7 @@ export default function Home() {
         profile: gen,
         nextBestAction: fallback.nextBestAction,
         orientationStatus: fallback.orientationStatus,
+        orientationRecommendations: fallback.recommendations,
         orientationSource: "local",
       });
       setRetryAnswers(finalAnswers);
@@ -262,6 +263,7 @@ export default function Home() {
           duplicate: true,
           nextBestAction: fallback.nextBestAction,
           orientationStatus: fallback.orientationStatus,
+          orientationRecommendations: fallback.recommendations,
           orientationSource: "local",
         });
         setRetryAnswers(null);
