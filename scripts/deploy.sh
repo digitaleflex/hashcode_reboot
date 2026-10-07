@@ -186,7 +186,12 @@ run_migrations() {
   local env="$1"
   info "application des migrations…"
   # Lance le service one-shot et relit son code de sortie.
-  dc "$env" up -d migrate >/dev/null 2>&1 || true
+  # --build est indispensable : c'est Compose qui construit l'image `migrate`
+  # (build.target), pas build_image() qui ne vise que la cible par défaut
+  # `runner` via `docker build -t hashcode-reboot:local .`. Sans ce drapeau,
+  # Compose réutilise une image migrate périmée et le déploiement échoue sur un
+  # bug déjà corrigé dans le dépôt.
+  dc "$env" up -d --build migrate >/dev/null 2>&1 || true
   local cid rc=0
   cid="$(dc "$env" ps -aq migrate | head -1)"
   [ -n "$cid" ] || die "aucun conteneur migrate dans la stack $env — migrations non lancées"
@@ -206,7 +211,9 @@ do_deploy_dev() {
 
   # Même chaîne que la prod : deploy → verify-schema → ensure-admin.
   run_migrations dev
-  dc dev up -d --remove-orphans
+  # --build : le service cron a son propre bloc build (target cron), comme
+  # migrate. Sans ce drapeau Compose ressuscite une image cron périmée.
+  dc dev up -d --build --remove-orphans
   wait_healthy dev postgres
   dc dev restart web >/dev/null 2>&1 || true
   wait_healthy dev web
@@ -237,7 +244,8 @@ do_deploy_prod() {
   # Le service `migrate` enchaîne deploy → verify-schema → ensure-admin.
   # Il suffit qu'une des trois échoue pour que web ne démarre pas.
   run_migrations prod
-  dc prod up -d --remove-orphans
+  # --build : idem dev, le service cron est construit par Compose.
+  dc prod up -d --build --remove-orphans
   wait_healthy prod postgres
   dc prod restart web >/dev/null 2>&1 || true
   wait_healthy prod web
