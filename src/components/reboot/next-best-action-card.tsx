@@ -40,6 +40,7 @@ export function NextBestActionCard({
   href,
   className,
   onCompleteProfile,
+  onActionClick,
 }: {
   action: NBA;
   status: NBAStatus;
@@ -48,6 +49,7 @@ export function NextBestActionCard({
   className?: string;
   /** Appelé pour "Compléter mon profil" (état INSUFFICIENT_DATA). */
   onCompleteProfile?: () => void;
+  onActionClick?: () => void;
 }) {
   const target = href ?? "/evenements";
 
@@ -101,6 +103,7 @@ export function NextBestActionCard({
             </p>
             <Link
               href={target}
+              onClick={onActionClick}
               className="group mt-5 inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-md border border-transparent bg-lime px-6 text-base font-medium text-black transition-colors hover:bg-lime/90 focus-lime sm:w-auto"
             >
               Commencer
