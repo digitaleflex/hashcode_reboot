@@ -198,7 +198,9 @@ export function Welcome({
                   action={result.nextBestAction ?? null}
                   status={result.orientationStatus ?? "NO_MATCH"}
                   className="h-full"
-                  onCompleteProfile={onCompleteProfile}
+                  href={result.nextBestAction ? resolveActivityDestination(result.nextBestAction.id) : undefined}
+                  onCompleteProfile={handleCompleteProfile}
+                  onActionClick={handleNextBestActionClick}
                 />
               ) : (
                 <div className="h-full rounded-xl border border-border bg-card/35 p-6">
