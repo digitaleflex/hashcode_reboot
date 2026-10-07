@@ -35,6 +35,17 @@ jobs:
           NEXT_PUBLIC_SITE_URL: https://example.com
           NEXT_PUBLIC_URL: https://example.com
           NEXT_PUBLIC_APP_VERSION: ci
+          # Indispensables : src/lib/profiling/auto-controls.ts:130 appelle
+          # getRequiredServerWhatsAppUrl() au chargement du module et THROW si
+          # la variable est absente. Sans WHATSAPP_URL, l'étape "Collecting
+          # page data" échoue sur toutes les routes qui importent le profiling
+          # (même piège que le build Compose de l'image cron, cf. Dockerfile).
+          NEXT_PUBLIC_WHATSAPP_URL: https://chat.whatsapp.com/IDcosEG4jjOK4mTAYsX92D
+          NEXT_PUBLIC_MEET_URL: https://meet.google.com/pdr-qjei-zkk
+          # BETTER_AUTH_SECRET : évite l'erreur "You are using the default
+          # secret" au chargement de l'Auth. Valeur factice : la CI ne sert
+          # aucune session, seul le build nous intéresse.
+          BETTER_AUTH_SECRET: ci-not-a-real-secret-only-for-build
           # Le client Prisma est généré mais ne se connecte pas à la build ;
           # une URL au bon format suffit pour passer l'étape prisma generate.
           DATABASE_URL: postgresql://user:pass@localhost:5432/db
