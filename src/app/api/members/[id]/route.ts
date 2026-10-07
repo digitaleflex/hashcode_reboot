@@ -32,6 +32,39 @@ const VALID_COMMUNITY_STATUS = new Set([
   "JOINED",
 ]);
 
+/** Bornes des tags libres (#102) — calées sur les skills ateliers
+ * (cf. lib/workshops/validation.ts validateSessionCreate). */
+const CUSTOM_TAGS_MAX = 20;
+const CUSTOM_TAG_MAX_LEN = 40;
+
+/**
+ * Normalise + valide les tags libres : trim, minuscules, vides retirés,
+ * dédupliqués, bornés (20 tags, 40 caractères chacun).
+ */
+function validateCustomTags(
+  v: unknown,
+): { ok: true; tags: string[] } | { ok: false; error: string } {
+  if (!Array.isArray(v)) {
+    return { ok: false, error: "customTags doit être un tableau de chaînes." };
+  }
+  const seen = new Set<string>();
+  const tags: string[] = [];
+  for (const raw of v) {
+    const t = String(raw).trim().toLowerCase();
+    if (!t) continue;
+    if (t.length > CUSTOM_TAG_MAX_LEN) {
+      return { ok: false, error: "Chaque tag est limité à 40 caractères." };
+    }
+    if (seen.has(t)) continue;
+    seen.add(t);
+    tags.push(t);
+  }
+  if (tags.length > CUSTOM_TAGS_MAX) {
+    return { ok: false, error: "20 tags libres maximum." };
+  }
+  return { ok: true, tags };
+}
+
 /** GET /api/members/[id] — full member detail (admin-only). */
 export async function GET(
   req: NextRequest,
@@ -59,6 +92,7 @@ export async function GET(
         domainSpecialty: decode<string[]>(member.domainSpecialty, []),
         mentoringTypes: decode<string[]>(member.mentoringTypes, []),
         tags: decode<string[]>(member.tags, []),
+        customTags: decode<string[]>(member.customTags, []),
       },
     });
   } catch (err) {
@@ -110,6 +144,14 @@ export async function PATCH(
       data.communityStatus = body.communityStatus;
     }
     if (typeof body.adminNote === "string") data.adminNote = body.adminNote;
+    // Tags libres (#102, operator uniquement — même garde-fous que le reste
+    // du PATCH : requireAdminRole + CSRF + rate-limit ci-dessus). Écrit la
+    // colonne customTags SANS toucher aux tags auto (`tags`, système).
+    if (body.customTags !== undefined) {
+      const checked = validateCustomTags(body.customTags);
+      if (!checked.ok) throw new ValidationError(checked.error);
+      data.customTags = JSON.stringify(checked.tags);
+    }
     if (typeof body.accessLane === "string") {
       if (body.accessLane !== "immediate" && body.accessLane !== "pending")
         throw new ValidationError("accessLane invalide.");

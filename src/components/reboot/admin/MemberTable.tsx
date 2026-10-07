@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import { countryFlag, countryName } from "@/lib/profiling/countries";
 import { DOMAIN_LABEL, LEVEL_LABEL, GOAL_LABEL, BUDGET_LABEL } from "@/lib/profiling/labels";
 import { StickyNote, UserX, MapPin, Target, BookOpen, Wallet, Tag as TagIcon } from "lucide-react";
@@ -263,6 +264,7 @@ export function MemberTable({
   const [advancedOpen, setAdvancedOpen] = React.useState(false);
   const ADVANCED_KEYS = ["lane", "mentoring", "budget"] as const;
   const activeAdvancedCount = ADVANCED_KEYS.filter((k) => filters[k]).length;
+  const tTags = useTranslations("admin.members.tags");
 
   return (
     <>
@@ -320,6 +322,25 @@ export function MemberTable({
               ["registered", "Inscrits réels"],
               ["invited", "Invités"],
             ]}
+          />
+          {/* Filtre tag libre (#102) : saisie libre + option "Tous" via le
+              FilterSelect local (l'option courante s'affiche quand un tag
+              est actif, "Tous" le réinitialise). */}
+          <FilterSelect
+            placeholder={tTags("filterPlaceholder")}
+            value={filters.tag ?? "all"}
+            onChange={(v) => onFilter("tag", v)}
+            options={filters.tag ? [[filters.tag, filters.tag]] : []}
+          />
+          <input
+            type="text"
+            value={filters.tag ?? ""}
+            onChange={(e) =>
+              onFilter("tag", e.target.value.trim() ? e.target.value : "all")
+            }
+            placeholder={tTags("filterInputPlaceholder")}
+            aria-label={tTags("filterInputAria")}
+            className="h-9 w-32 rounded-full border border-border bg-card px-3 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-lime focus:border-lime/60"
           />
           {/* Advanced filters — collapsed by default (progressive disclosure L2) */}
           {advancedOpen && (

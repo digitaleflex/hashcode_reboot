@@ -22,6 +22,7 @@ export interface MemberRow {
   source?: string | null;
   createdAt: string;
   adminNote?: string | null;
+  customTags?: string[];
 }
 
 export type SortKey =
@@ -48,6 +49,7 @@ const FILTER_KEYS = [
   "status",
   "lane",
   "type",
+  "tag",
 ] as const;
 
 function readInitialUrl(): {

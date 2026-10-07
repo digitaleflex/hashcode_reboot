@@ -67,7 +67,15 @@ model Member {
 
   // --- Profil généré ---
   profileArchetype String? // CYBER BUILDER | WEB BUILDER | AI EXPLORER | ...
-  tags             String  @default("[]") // JSON string[]
+  tags             String  @default("[]") // JSON string[] (tags AUTO du profiling engine.ts tagsFor)
+
+  // --- Tags libres (#102, admin uniquement) ---
+  // Tags posés à la main par l'équipe (PATCH /api/members/[id], operator).
+  // Séparés des tags AUTO de `tags` : le POST /api/members et
+  // complete-profile n'écrivent que `tags`, donc customTags n'est jamais
+  // écrasé par le système. Même convention : JSON string[], normalisés
+  // côté API (trim, minuscules, dédupliqués, max 20 tags, 40 car. chacun).
+  customTags String @default("[]") // JSON string[] (tags libres admin)
 
   // --- Acquisition ---
   source String? // utm_source/medium/campaign, e.g. "whatsapp/post?reboot" | "direct"

@@ -262,6 +262,7 @@ export async function GET(req: NextRequest) {
     const type = searchParams.get("type");
     const invitationStatus = searchParams.get("invitationStatus");
     const q = searchParams.get("q");
+    const tagParam = searchParams.get("tag");
 
     // --- Pagination : Zod strict, erreurs {error, code} façon Phase 1B ---
     const paginationSchema = z.object({
@@ -370,6 +371,17 @@ export async function GET(req: NextRequest) {
         ];
       }
     }
+    // Filtre tag libre (#102) : `?tag=mentor` ne matche que la colonne
+    // customTags (les tags auto restent hors périmètre de ce filtre).
+    // LIMITE documentée : `contains` sur la colonne JSON = substring match
+    // sans index (ex. tag=art matche "artisan" et "smart"). Les tags sont
+    // stockés en minuscules (PATCH normalise), le param est donc passé en
+    // minuscules pour un match exact-insensible à la casse côté écriture.
+    // `q` est volontairement inchangé : le param `tag` suffit.
+    const tag = tagParam?.trim().toLowerCase();
+    if (tag) {
+      where.customTags = { contains: tag };
+    }
 
     const [total, members] = await Promise.all([
       db.member.count({ where }),
@@ -396,11 +408,24 @@ export async function GET(req: NextRequest) {
           source: true,
           createdAt: true,
           adminNote: true,
+          customTags: true,
         },
       }),
     ]);
 
-    return NextResponse.json({ members, total, page, pageSize });
+    const decodeJson = <T,>(s: string, fallback: T): T => {
+      try {
+        return JSON.parse(s) as T;
+      } catch {
+        return fallback;
+      }
+    };
+    const membersWithTags = members.map((m) => ({
+      ...m,
+      customTags: decodeJson<string[]>(m.customTags, []),
+    }));
+
+    return NextResponse.json({ members: membersWithTags, total, page, pageSize });
   } catch (err) {
     if (err instanceof AppError) throw err;
     const t = await getTranslations("profiling");

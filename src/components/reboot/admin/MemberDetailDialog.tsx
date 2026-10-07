@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { countryFlag, countryName } from "@/lib/profiling/countries";
 import { Check, Copy, Trash2, ExternalLink, Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { fetchJson, isAbortError, withRetryAfter } from "./lib/fetchJson";
 
 const DOMAIN_LABEL: Record<string, string> = {
@@ -336,6 +337,7 @@ function MemberDetail({
     threeMonthGoal: string | null;
     profileArchetype: string | null;
     tags: string[];
+    customTags?: string[];
     profileStatus: string;
     communityStatus: string;
     accessLane: string;
@@ -362,6 +364,17 @@ function MemberDetail({
   const [deleting, setDeleting] = React.useState(false);
   const [copiedField, setCopiedField] = React.useState<string | null>(null);
   const [copyError, setCopyError] = React.useState<string | null>(null);
+  const tTags = useTranslations("admin.members.tags");
+
+  // Tags libres (#102) — état local calé sur le pattern noteDraft : brouillon
+  // éditable, save explicite via le patch() générique, resync après refresh.
+  const savedCustomTags = Array.isArray(m.customTags) ? m.customTags : [];
+  const [customTagsDraft, setCustomTagsDraft] =
+    React.useState<string[]>(savedCustomTags);
+  const [tagInput, setTagInput] = React.useState("");
+  const [tagError, setTagError] = React.useState<string | null>(null);
+  const [tagsSaving, setTagsSaving] = React.useState(false);
+  const [tagsSavedFlash, setTagsSavedFlash] = React.useState(false);
 
   // Sync note draft when member changes (e.g. after patch refresh).
   React.useEffect(() => {
@@ -369,6 +382,13 @@ function MemberDetail({
     setNoteSaved(false);
     setConfirmDelete(false);
   }, [m.id, m.adminNote]);
+
+  // Sync tags draft when member changes (e.g. after patch refresh).
+  React.useEffect(() => {
+    setCustomTagsDraft(Array.isArray(m.customTags) ? m.customTags : []);
+    setTagsSavedFlash(false);
+    setTagError(null);
+  }, [m.id, m.customTags]);
 
   async function copyField(field: string, value: string) {
     setCopyError(null);
@@ -442,6 +462,47 @@ function MemberDetail({
       setDeleting(false);
     }
   }
+
+  // Tags libres : ajout/suppression en brouillon (mêmes bornes que le PATCH :
+  // trim, minuscules, dédup, max 20 tags, 40 caractères chacun).
+  function addCustomTag() {
+    const t = tagInput.trim().toLowerCase();
+    setTagError(null);
+    if (!t) return;
+    if (t.length > 40) {
+      setTagError(tTags("errorTooLong"));
+      return;
+    }
+    if (customTagsDraft.includes(t)) {
+      setTagInput("");
+      return;
+    }
+    if (customTagsDraft.length >= 20) {
+      setTagError(tTags("errorTooMany"));
+      return;
+    }
+    setCustomTagsDraft((prev) => [...prev, t]);
+    setTagInput("");
+  }
+
+  function removeCustomTag(tag: string) {
+    setTagError(null);
+    setCustomTagsDraft((prev) => prev.filter((x) => x !== tag));
+  }
+
+  async function saveCustomTags() {
+    setTagsSaving(true);
+    setTagError(null);
+    const ok = await onPatch({ customTags: customTagsDraft });
+    setTagsSaving(false);
+    if (ok) {
+      setTagsSavedFlash(true);
+      setTimeout(() => setTagsSavedFlash(false), 2000);
+    }
+  }
+
+  const tagsDirty =
+    JSON.stringify(customTagsDraft) !== JSON.stringify(savedCustomTags);
 
   const savedNote = m.adminNote ?? "";
   const draftDirty = noteDraft.trim() !== savedNote.trim();
@@ -535,16 +596,96 @@ function MemberDetail({
         ))}
       </div>
 
-      {m.tags.length > 0 && (
-        <div>
-          <MonoLabel className="text-muted-foreground">Tags</MonoLabel>
+      {/* Tags : auto (profilage, read-only) vs libres (éditables, #102) */}
+      <div>
+        <MonoLabel className="text-muted-foreground">{tTags("autoLabel")}</MonoLabel>
+        {m.tags.length > 0 ? (
           <div className="mt-2 flex flex-wrap gap-1.5">
             {m.tags.map((t) => (
               <Tag key={t}>{t}</Tag>
             ))}
           </div>
+        ) : (
+          <p className="mt-1 text-xs text-muted-foreground">—</p>
+        )}
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between gap-2">
+          <MonoLabel className="text-muted-foreground">{tTags("customLabel")}</MonoLabel>
+          {tagsSavedFlash && (
+            <span className="mono-label text-lime" role="status">{tTags("saved")}</span>
+          )}
         </div>
-      )}
+        <p className="mt-1 text-xs text-muted-foreground">{tTags("customHint")}</p>
+        {customTagsDraft.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {customTagsDraft.map((t) => (
+              <span
+                key={t}
+                className="inline-flex items-center gap-1.5 rounded-sm border border-lime/50 bg-lime/5 px-2 py-0.5 text-xs text-lime"
+              >
+                {t}
+                <button
+                  type="button"
+                  onClick={() => removeCustomTag(t)}
+                  aria-label={tTags("removeAria", { tag: t })}
+                  className="inline-flex size-5 items-center justify-center rounded-sm text-lime/70 hover:text-lime hover:bg-lime/10 transition-colors focus-lime"
+                >
+                  ✕
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        {customTagsDraft.length === 0 && (
+          <p className="mt-2 text-xs text-muted-foreground">{tTags("empty")}</p>
+        )}
+        <div className="mt-2 flex gap-2">
+          <input
+            type="text"
+            value={tagInput}
+            onChange={(e) => setTagInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addCustomTag();
+              }
+            }}
+            placeholder={tTags("inputPlaceholder")}
+            aria-label={tTags("inputAria")}
+            maxLength={40}
+            className="h-9 flex-1 rounded-md border border-border bg-card px-3 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-lime focus:border-lime/60"
+          />
+          <RebootButton size="sm" variant="outline" onClick={addCustomTag}>
+            {tTags("add")}
+          </RebootButton>
+        </div>
+        {tagError && (
+          <p className="mt-2 text-xs text-amber-200" role="alert">{tagError}</p>
+        )}
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <RebootButton
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              void saveCustomTags();
+            }}
+            disabled={!tagsDirty || tagsSaving}
+          >
+            {tagsSaving ? tTags("saving") : tTags("save")}
+          </RebootButton>
+          {tagsDirty && savedCustomTags.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setCustomTagsDraft(savedCustomTags)}
+              className="min-h-[44px] px-2 text-xs text-muted-foreground hover:text-foreground transition-colors focus-lime mono-label"
+            >
+              {tTags("resetDraft")}
+            </button>
+          )}
+        </div>
+      </div>
 
       <MemberEmailHistory memberId={m.id} />
 

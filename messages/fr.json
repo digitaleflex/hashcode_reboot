@@ -2102,6 +2102,25 @@
         },
         "failedEmails": "Emails échoués : {list}",
         "alreadyExistEmails": "Déjà existants : {list}"
+      },
+      "tags": {
+        "filterPlaceholder": "Tag",
+        "filterInputPlaceholder": "Tag libre…",
+        "filterInputAria": "Filtrer par tag libre",
+        "autoLabel": "Tags auto (profilage)",
+        "customLabel": "Tags libres",
+        "customHint": "Tags posés à la main par l'équipe — jamais écrasés par le profilage.",
+        "inputPlaceholder": "Ajouter un tag libre…",
+        "inputAria": "Nouveau tag libre",
+        "add": "Ajouter",
+        "removeAria": "Retirer le tag {tag}",
+        "save": "Enregistrer les tags",
+        "saving": "Enregistrement…",
+        "saved": "Enregistré",
+        "resetDraft": "Réinitialiser",
+        "empty": "Aucun tag libre.",
+        "errorTooMany": "20 tags libres maximum.",
+        "errorTooLong": "Chaque tag est limité à 40 caractères."
       }
     },
     "invitations": {
