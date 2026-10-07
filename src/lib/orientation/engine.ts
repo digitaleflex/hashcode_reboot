@@ -25,7 +25,7 @@ import type { AvailableActivity } from "./features";
 import { generateRecommendations } from "./recommendationEngine";
 
 /** Version courante du moteur (à incrémenter lors d'un changement de règles). */
-export const ORIENTATION_ENGINE_VERSION = "1.0.0";
+export const ORIENTATION_ENGINE_VERSION = "1.1.0";
 
 /** API métier du moteur d'orientation. */
 export const orientationEngine = {
