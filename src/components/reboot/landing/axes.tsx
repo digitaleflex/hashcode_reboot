@@ -94,7 +94,6 @@ export function Axes({ onJoin }: { onJoin: (ref?: string) => void }) {
                 <div className="mt-auto pt-6">
                   <RebootButton
                     size="md"
-                    variant="outline"
                     onClick={() => onJoin(`axes-${a.id}`)}
                     className="group/btn w-full"
                   >

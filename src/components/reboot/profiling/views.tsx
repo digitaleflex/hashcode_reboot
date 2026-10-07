@@ -44,20 +44,34 @@ export function MultiChoiceView({
       <div className="flex items-center justify-between gap-3 pt-1">
         <span className="text-xs text-muted-foreground">
           {selected.length > 0
-            ? t("multiChoice.selectedCount", { selectedCount: selected.length })
+            ? t("multiChoice.selectedCount", {
+                selectedCount: selected.length,
+                plural: selected.length > 1 ? "s" : "",
+              })
             : required
             ? t("multiChoice.requiredHint")
             : t("multiChoice.optionalHint")}
         </span>
-        <RebootButton
-          size="md"
-          className="group"
-          onClick={onContinue}
-          disabled={required && selected.length === 0}
-        >
-          {selected.length > 0 || required ? t("multiChoice.continue") : t("multiChoice.skip")}
-          <CtaArrow />
-        </RebootButton>
+        <span className="flex items-center gap-3">
+          {!required && selected.length === 0 && (
+            <button
+              type="button"
+              onClick={onContinue}
+              className="inline-flex min-h-[44px] items-center text-xs text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground focus-lime"
+            >
+              {t("multiChoice.skip")}
+            </button>
+          )}
+          <RebootButton
+            size="md"
+            className="group"
+            onClick={onContinue}
+            disabled={selected.length === 0}
+          >
+            {t("multiChoice.continue")}
+            <CtaArrow />
+          </RebootButton>
+        </span>
       </div>
     </div>
   );
@@ -117,14 +131,26 @@ export function TextView({
       />
       {showError && <ErrorNote>{showError}</ErrorNote>}
       <div className="flex items-center justify-between gap-3">
-        {!required && <span className="text-xs text-muted-foreground">{t("textView.optional")}</span>}
+        {!required && !value.trim() ? (
+          <button
+            type="button"
+            onClick={onContinue}
+            className="inline-flex min-h-[44px] items-center text-xs text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground focus-lime"
+          >
+            {t("textView.skip")}
+          </button>
+        ) : (
+          <span className="text-xs text-muted-foreground">
+            {!required ? t("textView.optional") : ""}
+          </span>
+        )}
         <RebootButton
           size="lg"
-          className="group w-full"
+          className="group"
           onClick={onContinue}
-          disabled={required ? !value.trim() : false}
+          disabled={!value.trim()}
         >
-          {value.trim() || required ? t("textView.continue") : t("textView.skip")}
+          {t("textView.continue")}
           <CtaArrow />
         </RebootButton>
       </div>

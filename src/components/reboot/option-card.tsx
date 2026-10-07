@@ -95,20 +95,28 @@ export function OptionCard({
             </p>
           )}
         </div>
-        <span
-          className={cn(
-            "shrink-0 size-5 rounded-full border-2 transition-colors duration-200",
-            selected ? "border-lime bg-lime" : "border-border group-hover:border-lime/50",
-          )}
-          aria-hidden
-        >
-          {selected && (
-            <span className="block size-full rounded-full bg-black" />
-          )}
-        </span>
-        {isCheckbox && selected && (
-          <span className="shrink-0 size-5 rounded border-2 flex items-center justify-center border-lime bg-lime">
-            <Check className="size-3.5 text-black" strokeWidth={3} />
+        {!isCheckbox && (
+          <span
+            className={cn(
+              "shrink-0 size-5 rounded-full border-2 transition-colors duration-200",
+              selected ? "border-lime bg-lime" : "border-border group-hover:border-lime/50",
+            )}
+            aria-hidden
+          >
+            {selected && (
+              <span className="block size-full rounded-full bg-black" />
+            )}
+          </span>
+        )}
+        {isCheckbox && (
+          <span
+            className={cn(
+              "shrink-0 size-5 rounded border-2 flex items-center justify-center transition-colors duration-200",
+              selected ? "border-lime bg-lime" : "border-border group-hover:border-lime/50",
+            )}
+            aria-hidden
+          >
+            {selected && <Check className="size-3.5 text-black" strokeWidth={3} />}
           </span>
         )}
       </div>

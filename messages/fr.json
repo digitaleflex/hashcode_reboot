@@ -26,7 +26,7 @@
         "FAQ"
       ],
       "cta": "Construire mon profil",
-      "ctaMobile": "Rejoindre",
+      "ctaMobile": "Construire mon profil",
       "editionBadge": "Reboot · Édition 2026"
     },
     "hero": {
@@ -142,7 +142,7 @@
         }
       ],
       "cta": "Construire mon profil",
-      "mobileCta": "Rejoindre la communauté"
+      "mobileCta": "Construire mon profil"
     },
     "method": {
       "index": "03 · La méthode",
@@ -584,7 +584,9 @@
     "countrySelect": {
       "placeholder": "Sélectionne ton pays",
       "searchPlaceholder": "Rechercher un pays…",
-      "empty": "Aucun pays trouvé."
+      "empty": "Aucun pays trouvé.",
+      "selectCountry": "Sélectionne ton pays",
+      "noResults": "Aucun pays trouvé."
     },
     "finalizing": {
       "stepLabel": "Finalisation…",
@@ -1229,39 +1231,34 @@
       "bodyDuplicate": "Reprends là où tu en étais — on a retrouvé ton profil.",
       "bodyDraft": "Tu as déjà répondu à {answeredCount} question{plural}. Tu peux reprendre là où tu t'étais arrêté.",
       "resume": "Reprendre",
-      "restart": "Recommencer"
+      "restart": "Recommencer",
+      "title": "Ton profil HASHCODE",
+      "percent": "{percent}%",
+      "duplicateTitle": "Tu as déjà un compte HASHCODE.",
+      "draftTitle": "Tu avais un brouillon en cours.",
+      "duplicateBody": "Reprends là où tu en étais — on a retrouvé ton profil.",
+      "draftBody": "Tu as déjà répondu à {answeredCount} question{plural}. Tu peux reprendre là où tu t'étais arrêté."
     },
     "shell": {
       "back": "Retour",
-      "milestones": [
-        {
-          "key": "profil",
-          "label": "Profil"
-        },
-        {
-          "key": "objectifs",
-          "label": "Objectif"
-        },
-        {
-          "key": "rythme",
-          "label": "Rythme"
-        },
-        {
-          "key": "mentorat",
-          "label": "Mentorat"
-        },
-        {
-          "key": "vision",
-          "label": "Vision"
-        }
-      ],
+      "milestones": {
+        "profil": "Profil",
+        "objectifs": "Objectif",
+        "rythme": "Rythme",
+        "mentorat": "Mentorat",
+        "vision": "Vision"
+      },
       "stepCounter": "Question {currentStep} sur {totalSteps}",
       "timeRemaining": "~{minutes} min restantes",
       "percent": "{percent}%",
       "progressAriaLabel": "Progression du profilage",
       "footerNote": "Tes réponses servent à mieux comprendre ton profil.",
       "keyboardHint": "pour choisir",
-      "keyboardHintSeparator": "–"
+      "keyboardHintSeparator": "–",
+      "footer": {
+        "description": "Tes réponses servent à mieux comprendre ton profil.",
+        "keyboardHint": "pour choisir"
+      }
     },
     "textView": {
       "optional": "Facultatif",
@@ -1314,6 +1311,69 @@
       "secondaryDomainsMax": "Maximum 3 domaines secondaires.",
       "domainSpecialtyMax": "Maximum 6 spécialités.",
       "mentoringTypesMax": "Maximum 6 types de mentorat."
+    },
+    "longTextView": {
+      "hintRemaining": "Encore {remaining} caractères",
+      "hintDefault": "Une phrase suffit.",
+      "counter": "{len}/{maxChars}",
+      "continue": "Continuer"
+    },
+    "questionView": {
+      "continue": "Continuer"
+    },
+    "optionCard": {
+      "selected": "{label} — sélectionné"
+    },
+    "emailVerify": {
+      "title": "Vérifie ton email",
+      "description": "Un lien de vérification a été envoyé à {email}. Clique dessus pour confirmer ton adresse.",
+      "sent": "Lien renvoyé. Vérifie ta boîte mail.",
+      "cooldown": "Attends {seconds} s avant de renvoyer un lien.",
+      "sendFailed": "Impossible d'envoyer le lien. Réessaie.",
+      "networkError": "Pas de connexion. Vérifie ton réseau puis réessaie.",
+      "resend": "Renvoyer le lien",
+      "resendCooldown": "Renvoyer dans {seconds} s"
+    },
+    "welcome": {
+      "existingProfile": "Profil retrouvé",
+      "profileSaved": "Profil enregistré",
+      "alreadyStarted": "Tu avais déjà commencé.",
+      "profileFound": "On a retrouvé ton profil — reprends où tu t'étais arrêté.",
+      "rebootWelcome": "Bienvenue dans le Reboot.",
+      "immediateHero": "Ton profil est validé. Rejoins la communauté et commence avec ton premier challenge.",
+      "pendingHero": "Ton profil est bien enregistré. On te prépare une invitation personnalisée.",
+      "yourProfile": "Ton profil",
+      "joinCommunity": "Rejoindre la communauté",
+      "backToHashcode": "Retourner à HASHCODE",
+      "shareProfile": "Partager mon profil",
+      "linkCopied": "Lien copié",
+      "privacy": "Confidentialité",
+      "footer": "HASHCODE REBOOT — minimum nécessaire, zéro revente, zéro pub.",
+      "shareTitle": "Mon profil HASHCODE : {archetype}",
+      "shareText": "J'ai créé mon profil HASHCODE ({archetype}). Fais comme moi :",
+      "errorGeneric": "Une erreur est survenue. Réessaie.",
+      "errorNetwork": "Pas de connexion. Vérifie ton réseau puis réessaie.",
+      "addedToWhatsApp": "C'est noté, on t'ajoute au groupe WhatsApp.",
+      "addToWhatsApp": "Laisse ton numéro WhatsApp",
+      "addToWhatsAppHint": "Pour qu'on t'ajoute directement au groupe.",
+      "whatsappNumber": "Ton numéro WhatsApp",
+      "add": "Ajouter",
+      "immediateAccess": "Accès immédiat",
+      "joinNow": "Rejoins la communauté maintenant",
+      "immediateDescription": "Ton profil est compatible : ton invitation a été envoyée. Ouvre WhatsApp et présente-toi.",
+      "profileValidated": "Profil",
+      "approved": "Validé",
+      "invitation": "Invitation",
+      "sent": "Envoyée",
+      "now": "Reçu à {time}",
+      "localCommunity": "Tu rejoins la communauté {flag} {country}.",
+      "processing": "En cours",
+      "personalInvitation": "Invitation personnalisée en préparation",
+      "pendingDescription": "Ton profil est en revue. On te recontacte par email pour une invitation personnalisée. Zéro spam.",
+      "status": "Statut",
+      "pending": "En attente",
+      "contact": "Contact",
+      "estimatedDelay": "Délai estimé : 48 h ouvrées."
     }
   },
   "auth": {

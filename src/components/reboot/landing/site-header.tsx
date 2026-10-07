@@ -89,7 +89,6 @@ export function SiteHeader({ onJoin }: { onJoin: (ref?: string) => void }) {
           <AccountLink />
           <RebootButton
             size="md"
-            variant="outline"
             onClick={() => onJoin("header-mobile")}
           >
             {t("ctaMobile")}

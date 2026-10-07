@@ -52,7 +52,7 @@ export function ProfilingShell({
             aria-label={t("shell.back")}
           >
             <ArrowLeft className="size-4" />
-            <span className="hidden sm:inline">{t("shell.back")}</span>
+            <span>{t("shell.back")}</span>
           </button>
           <MonoLabel>{stepLabel}</MonoLabel>
           <div className="flex items-center gap-2">
@@ -66,7 +66,7 @@ export function ProfilingShell({
               </span>
             )}
             <span className="text-xs text-muted-foreground mono-label tabular-nums flex items-center gap-2" aria-live="polite" aria-atomic="true">
-              <span>{t("shell.timeRemaining", { minutes: Math.max(1, Math.round((1 - progress) * 120)) })}</span>
+              <span>{t("shell.timeRemaining", { minutes: Math.max(1, Math.round((1 - progress) * 2)) })}</span>
               <span className="text-border">·</span>
               <span>{t("shell.percent", { percent: Math.round(progress * 100) })}</span>
             </span>
