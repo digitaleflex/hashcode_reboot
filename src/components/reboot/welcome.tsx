@@ -70,6 +70,7 @@ export function Welcome({
   const isImmediate = result.accessLane === "immediate";
   const isDuplicate = !!result.duplicate;
   const [shareState, setShareState] = React.useState<"idle" | "copied">("idle");
+  const orientationTrackedRef = React.useRef<string | null>(null);
 
   function handleWhatsAppClick() {
     track({ type: "whatsapp_join_clicked", memberId: result.memberId });
