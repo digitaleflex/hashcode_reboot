@@ -1496,85 +1496,144 @@
   },
   "dashboard": {
     "home": {
-      "whatsappNudgeTitle": "Ajoute ton WhatsApp",
-      "whatsappNudgeText": "pour qu'on t'ajoute directement au groupe — 10 secondes dans tes paramètres.",
-      "greeting": "Bonjour {firstName}",
-      "profileGenerating": "Profil en cours de génération…",
-      "statusBadgeApproved": "Validé",
-      "statusBadgePending": "En attente",
-      "statusBadgeWaitlist": "Liste d'attente",
-      "statusBadgeRejected": "Non retenu",
-      "statusCardTitle": "Statut",
-      "statusProfile": "Profil",
-      "statusProfileApproved": "Validé",
-      "statusProfilePending": "En attente",
-      "statusProfileWaitlist": "Liste d'attente",
-      "statusProfileRejected": "Non retenu",
-      "statusCommunity": "Communauté",
-      "statusCommunityNotInvited": "Pas encore invité",
-      "statusCommunityInvited": "Invité",
-      "statusCommunityJoined": "Inscrit",
-      "statusAccess": "Accès",
-      "statusAccessImmediate": "Immédiat",
-      "statusAccessPending": "En attente",
-      "profileSummaryTitle": "Mon profil",
-      "profileDomain": "Domaine",
-      "profileLevel": "Niveau",
-      "profileGoal": "Objectif",
-      "profileAvailability": "Disponibilité",
-      "profileLocation": "Localisation",
-      "quickActionsTitle": "Actions rapides",
-      "quickWhatsappJoinedTitle": "Groupe WhatsApp",
-      "quickWhatsappJoinedSub": "Ouvre le groupe",
-      "quickWhatsappJoinTitle": "Rejoindre WhatsApp",
-      "quickWhatsappJoinSub": "Groupe officiel",
-      "quickEditTitle": "Modifier mon profil",
-      "quickEditSub": "Coordonnées & objectif",
-      "agendaCardTitle": "Agenda",
-      "agendaCardLoadError": "Impossible de charger l'agenda.",
-      "agendaCardEmpty": "Aucun événement à venir pour le moment.",
-      "agendaCardEmptySub": "Les prochaines sessions seront bientôt annoncées.",
-      "agendaOpenLinkTitle": "Ouvrir le lien",
-      "agendaLive": "EN DIRECT",
-      "agendaGoingCancel": "Inscrit · Annuler",
-      "agendaMaybeCancel": "Peut-être · Annuler",
-      "agendaGoing": "Je participe",
-      "agendaMaybe": "Peut-être",
-      "agendaToday": "Aujourd'hui à {timeStr}",
-      "agendaTomorrow": "Demain à {timeStr}",
-      "agendaDateTime": "{dateStr} à {timeStr}",
-      "typeSession": "Session",
-      "typeWorkshop": "Workshop",
-      "typeMeetup": "Meetup",
-      "typeWebinar": "Webinaire",
-      "typeOther": "Événement",
-      "domainWeb": "Web",
-      "domainCyber": "Cyber",
-      "domainAi": "AI",
-      "levelBeginner": "Débutant",
-      "levelPracticing": "Pratiquant",
-      "levelAutonomous": "Autonome",
-      "levelAdvanced": "Avancé",
-      "recurrenceWeekly": "Chaque semaine",
-      "recurrenceBiweekly": "Toutes les 2 semaines",
-      "recurrenceMonthly": "Chaque mois",
-      "mentoringTitle": "Votre mentorat",
-      "mentoringSub": "Suivi personnalisé et séances — bientôt disponible",
-      "mentoringWaiting": "Votre mentor vous attend — en cours de préparation…",
+      "whatsappNudge": {
+        "title": "Ajoute ton WhatsApp",
+        "description": "pour qu'on t'ajoute directement au groupe — 10 secondes dans tes paramètres."
+      },
+      "welcomeCard": {
+        "greeting": "Bonjour {firstName}",
+        "profileGenerating": "Profil en cours de génération…"
+      },
+      "statusCard": {
+        "title": "Statut",
+        "profile": {
+          "label": "Profil",
+          "approved": "Validé",
+          "pending": "En attente",
+          "waitlist": "Liste d'attente",
+          "rejected": "Non retenu"
+        },
+        "community": {
+          "label": "Communauté",
+          "notInvited": "Pas encore invité",
+          "invited": "Invité",
+          "joined": "Inscrit"
+        },
+        "access": {
+          "label": "Accès",
+          "immediate": "Immédiat",
+          "pending": "En attente"
+        },
+        "badge": {
+          "approved": "Validé",
+          "pending": "En attente",
+          "waitlist": "Liste d'attente",
+          "rejected": "Non retenu"
+        }
+      },
+      "profileSummary": {
+        "title": "Mon profil",
+        "generating": "Profil en cours de génération…",
+        "domainLabel": "Domaine",
+        "levelLabel": "Niveau",
+        "goalLabel": "Objectif",
+        "availabilityLabel": "Disponibilité",
+        "locationLabel": "Localisation"
+      },
+      "quickActions": {
+        "title": "Actions rapides",
+        "whatsapp": {
+          "joined": {
+            "title": "Groupe WhatsApp",
+            "description": "Ouvre le groupe"
+          },
+          "notJoined": {
+            "title": "Rejoindre WhatsApp",
+            "description": "Groupe officiel"
+          }
+        },
+        "editProfile": {
+          "title": "Modifier mon profil",
+          "description": "Coordonnées & objectif"
+        }
+      },
+      "agendaCard": {
+        "title": "Agenda",
+        "loadingAria": "Chargement du dashboard",
+        "error": {
+          "loading": "Impossible de charger l'agenda."
+        },
+        "empty": {
+          "title": "Aucun événement à venir pour le moment.",
+          "description": "Les prochaines sessions seront bientôt annoncées."
+        },
+        "openLinkTitle": "Ouvrir le lien",
+        "status": {
+          "live": "EN DIRECT"
+        },
+        "date": {
+          "today": "Aujourd'hui à {timeStr}",
+          "tomorrow": "Demain à {timeStr}",
+          "thisWeek": "{dateStr} à {timeStr}"
+        },
+        "type": {
+          "session": "Session",
+          "workshop": "Workshop",
+          "meetup": "Meetup",
+          "webinar": "Webinaire",
+          "other": "Événement"
+        },
+        "domain": {
+          "web": "Web",
+          "cybersecurity": "Cyber",
+          "ai": "AI"
+        },
+        "level": {
+          "beginner": "Débutant",
+          "practicing": "Pratiquant",
+          "autonomous": "Autonome",
+          "advanced": "Avancé"
+        },
+        "recurrence": {
+          "weekly": "Chaque semaine",
+          "biweekly": "Toutes les 2 semaines",
+          "monthly": "Chaque mois"
+        },
+        "rsvp": {
+          "going": {
+            "join": "Je participe",
+            "cancel": "Inscrit · Annuler"
+          },
+          "maybe": {
+            "join": "Peut-être",
+            "cancel": "Peut-être · Annuler"
+          }
+        }
+      },
+      "mentoring": {
+        "title": "Votre mentorat",
+        "subtitle": "Suivi personnalisé et séances — bientôt disponible",
+        "description": "Votre mentor vous attend — en cours de préparation…"
+      },
       "memberSince": "Membre depuis {date}",
-      "loadingAria": "Chargement du dashboard",
-      "sidebarOverview": "Vue d'ensemble",
-      "sidebarAteliers": "Ateliers",
-      "sidebarAgenda": "Agenda",
-      "sidebarProfile": "Mon profil",
-      "sidebarSettings": "Paramètres",
-      "sidebarWhatsapp": "WhatsApp",
-      "sidebarLogout": "Déconnexion",
-      "sidebarOpenMenu": "Ouvrir le menu",
-      "sidebarCloseMenu": "Fermer le menu",
-      "sidebarExpand": "Déplier la sidebar",
-      "sidebarCollapse": "Replier la sidebar",
-      "sidebarCollapseShort": "Replier"
+      "sidebar": {
+        "nav": {
+          "overview": "Vue d'ensemble",
+          "ateliers": "Ateliers",
+          "agenda": "Agenda",
+          "profile": "Mon profil",
+          "settings": "Paramètres",
+          "whatsapp": "WhatsApp",
+          "logout": "Déconnexion"
+        },
+        "sidebar": {
+          "openAria": "Ouvrir le menu",
+          "closeAria": "Fermer le menu",
+          "expand": "Déplier la sidebar",
+          "collapse": "Replier la sidebar"
+        },
+        "collapseShort": "Replier"
+      }
     },
     "agenda": {
       "title": "Agenda",
@@ -1779,7 +1838,37 @@
       "goalSave": "Enregistrer",
       "shareView": "Voir mon profil public",
       "shareCopy": "Copier le lien",
-      "shareCopied": "Copié !"
+      "shareCopied": "Copié !",
+      "profileSummary": {
+        "title": "Mon profil",
+        "generating": "Profil en cours de génération…",
+        "domainLabel": "Domaine",
+        "levelLabel": "Niveau",
+        "goalLabel": "Objectif",
+        "availabilityLabel": "Disponibilité",
+        "locationLabel": "Localisation"
+      },
+      "statusCard": {
+        "title": "Statut",
+        "profile": {
+          "label": "Profil",
+          "approved": "Validé",
+          "pending": "En attente",
+          "waitlist": "Liste d'attente",
+          "rejected": "Non retenu"
+        },
+        "community": {
+          "label": "Communauté",
+          "notInvited": "Pas encore invité",
+          "invited": "Invité",
+          "joined": "Inscrit"
+        },
+        "access": {
+          "label": "Accès",
+          "immediate": "Immédiat",
+          "pending": "En attente"
+        }
+      }
     },
     "profileComplet": {
       "eyebrow": "INVITATION ACCEPTÉE",
