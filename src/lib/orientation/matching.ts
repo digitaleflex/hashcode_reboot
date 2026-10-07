@@ -14,7 +14,7 @@
 import type { ProfileAnswers } from "@/lib/profiling/types";
 import type { ActivityType, Scores } from "./types";
 import type { AvailableActivity } from "./features";
-import { publishedActivities } from "./features";
+import { getPublishedActivities, getActivityCatalogue, type ActivityCatalogue } from "./catalogue";
 import { computeScores, dominantArchetype } from "./scoring";
 
 /** Résultat de matching pour une activité donnée. */
@@ -137,11 +137,11 @@ function availabilityFits(availability: string, timeCommitment: string): boolean
 }
 
 /** Matche toutes les activités publiées, triées par pertinence décroissante. */
-export function matchActivities(a: ProfileAnswers): ActivityMatch[] {
-  const scores = computeScores(a);
-  return publishedActivities()
-    .map((activity) => scoreActivity(a, scores, activity))
-    .sort((x, y) => y.score - x.score);
+export function matchActivities(
+  a: ProfileAnswers,
+  catalogue: ActivityCatalogue = getActivityCatalogue(),
+): ActivityMatch[] {
+  return matchActivityList(a, getPublishedActivities(catalogue));
 }
 
 /** Matche une liste d'activités injectée (catalogue DB ou seed). */
@@ -173,6 +173,10 @@ export function rankMembersForActivity(
 }
 
 /** Retourne le top N des matches (par défaut 5). */
-export function topMatches(a: ProfileAnswers, limit = 5): ActivityMatch[] {
-  return matchActivities(a).slice(0, Math.max(1, limit));
+export function topMatches(
+  a: ProfileAnswers,
+  limit = 5,
+  catalogue: ActivityCatalogue = getActivityCatalogue(),
+): ActivityMatch[] {
+  return matchActivities(a, catalogue).slice(0, Math.max(1, limit));
 }
