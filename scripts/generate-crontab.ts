@@ -17,13 +17,16 @@
  * octet pour octet le même fichier, sinon `--check` serait inutilisable.
  */
 
-import {
-  dirname,
-  mkdirSync,
-  readFileSync,
-  renderCrontab,
-  writeFileSync,
-} from "./migrate";
+// Import direct du registre, PAS via `./migrate` : ce script tourne dans
+// l'image `cron` dont la base est `postgres:16-alpine`, où il n'y a ni
+// `@prisma/client` ni le reste de `src/lib`. `./migrate` ré-exporte
+// `PrismaClient` et `src/lib/db`, donc l'importer ici faisait échouer le
+// conteneur au boot sur « Cannot find module '@prisma/client' » — pour rien,
+// car `renderCrontab` est une fonction pure et n'a besoin d'aucune base.
+// `registry.ts` n'a lui-même aucun import.
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
+import { renderCrontab } from "../src/lib/cron/registry";
 
 function usage(): never {
   console.error(
