@@ -82,6 +82,14 @@ RUN apk add --no-cache tzdata nodejs su-exec \
 # boot sur un import introuvable. Même trio que `runner`, plus le registre.
 COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/tsx ./node_modules/tsx
+# `tsx` n'embarque PAS esbuild : son package.json le déclare en dependency, et
+# son `files` ne publie que `dist/`. Copier tsx seul donne donc une image où le
+# générateur du crontab meurt au boot sur ERR_MODULE_NOT_FOUND, en boucle de
+# restart, sans cause lisible dans les logs. D'où ces deux COPY, indispensables
+# au boot : le paquet esbuild, puis son binaire natif (@esbuild/linux-x64,
+# liaison statique, il tourne donc sans libc6-compat).
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/esbuild ./node_modules/esbuild
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@esbuild ./node_modules/@esbuild
 COPY --from=builder --chown=nextjs:nodejs /app/tsconfig.json ./tsconfig.json
 COPY --from=builder --chown=nextjs:nodejs /app/src/lib/cron ./src/lib/cron
 
