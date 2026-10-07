@@ -19,7 +19,7 @@
  *   node --env-file=.env --import tsx scripts/ensure-admin.ts
  */
 
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "./migrate";
 
 const ADMIN_ROLE = "operator";
 

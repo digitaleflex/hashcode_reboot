@@ -17,13 +17,13 @@
  * pour cron-job.org (qui ne peut appeler que des URLs).
  */
 
-import { PrismaClient } from '@prisma/client';
 import {
+  PrismaClient,
   collectMetrics,
   formatDateForApi,
   yesterdayUTC,
   type MetricsProvider,
-} from '../src/lib/email-metrics';
+} from './migrate';
 
 const prisma = new PrismaClient();
 

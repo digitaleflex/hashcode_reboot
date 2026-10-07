@@ -20,9 +20,7 @@
  *   node --import tsx scripts/verify-schema.ts
  */
 
-import { readFileSync } from "node:fs";
-import path from "node:path";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, path, readFileSync } from "./migrate";
 
 /** Modèles Prisma qui doivent exister comme tables. */
 function expectedModels(): string[] {

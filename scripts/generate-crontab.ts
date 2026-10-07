@@ -17,9 +17,13 @@
  * octet pour octet le même fichier, sinon `--check` serait inutilisable.
  */
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
-import { renderCrontab } from "../src/lib/cron/registry";
+import {
+  dirname,
+  mkdirSync,
+  readFileSync,
+  renderCrontab,
+  writeFileSync,
+} from "./migrate";
 
 function usage(): never {
   console.error(
