@@ -11,6 +11,7 @@
 
 import { getKv, withMemoryFallback } from "./kv";
 import { randomBytes } from "node:crypto";
+import { sendVerificationLinkEmail } from "./email/builders";
 
 const LINK_TTL_SEC = 24 * 60 * 60;
 const VERIFIED_TTL_SEC = 30 * 24 * 60 * 60;
@@ -190,4 +191,58 @@ export async function isEmailVerified(email: string): Promise<boolean> {
   if (exp && exp > Date.now()) return true;
   if (exp) memVerified.delete(norm);
   return false;
+}
+
+/* ── Envoi mutualisé du lien de vérification ───────────────────────────── */
+
+export type VerificationLinkOutcome =
+  | { ok: true }
+  | { ok: false; reason: "cooldown"; cooldownSec: number }
+  | { ok: false; reason: "send_failed" };
+
+/**
+ * Émet un lien magique puis l'envoie par email (requestEmailLink +
+ * buildVerifyUrl + sendVerificationLinkEmail en un seul appel).
+ *
+ * Mutualise la séquence dupliquée entre POST /api/members (onboarding) et
+ * POST /api/verify-email (renvoi). Ne lève jamais : tout échec est journalisé
+ * et retourné dans `VerificationLinkOutcome` (le cooldown 60 s reste géré par
+ * `requestEmailLink`, l'appelant décide — 429 côté /api/verify-email, silencieux
+ * côté onboarding).
+ */
+export async function sendVerificationLink(
+  email: string,
+  firstName: string,
+): Promise<VerificationLinkOutcome> {
+  const name = (firstName || "").trim() || "toi";
+  let link: { ok: boolean; token: string; cooldownSec?: number };
+  try {
+    link = await requestEmailLink(email);
+  } catch (err) {
+    console.error("[sendVerificationLink] requestEmailLink : exception", err);
+    return { ok: false, reason: "send_failed" };
+  }
+  if (!link.ok) {
+    return { ok: false, reason: "cooldown", cooldownSec: link.cooldownSec ?? 60 };
+  }
+  try {
+    const result = await sendVerificationLinkEmail({
+      to: email,
+      firstName: name,
+      url: buildVerifyUrl(link.token),
+    });
+    if (!result.ok) {
+      console.warn("[sendVerificationLink] envoi du lien échoué", {
+        provider: result.provider,
+        status: result.status,
+        error: result.error,
+        email,
+      });
+      return { ok: false, reason: "send_failed" };
+    }
+    return { ok: true };
+  } catch (err) {
+    console.error("[sendVerificationLink] envoi du lien : exception", err);
+    return { ok: false, reason: "send_failed" };
+  }
 }

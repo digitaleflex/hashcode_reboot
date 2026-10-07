@@ -8,8 +8,7 @@ import { generateProfile } from "@/lib/profiling/engine";
 import { orientationEngine } from "@/lib/orientation/engine";
 import { loadPublishedActivitiesWithTimeout } from "@/lib/orientation/activities";
 import type { OrientationResult } from "@/lib/orientation/types";
-import { sendInvitationEmail, sendWelcomeEmail, sendWaitlistEmail, sendVerificationLinkEmail } from "@/lib/email/builders";
-import { requestEmailLink, buildVerifyUrl } from "@/lib/verify-email";
+import { sendOnboardingEmails } from "@/lib/onboarding-emails";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { isAdminAuthed } from "@/lib/admin-auth";
 import { isEmailBlacklisted } from "@/lib/blacklist";
@@ -197,70 +196,14 @@ export async function POST(req: NextRequest) {
 
   // Emails en arrière-plan : on répond 201 sans attendre les providers
   // (chaque envoi a son timeout 8s — les await séquentiels coûtaient jusqu'à 24s de TTFB).
+  // Orchestration dans src/lib/onboarding-emails.ts (lien de vérification
+  // + welcome/invitation ou waitlist selon la lane, idempotence 24 h,
+  // garde budget fail-open). La décision de lane reste ici.
   const email = data.email;
   const firstName = data.firstName;
   const archetype = generated.archetype;
   const lane = created.accessLane;
-  void (async () => {
-    try {
-      const link = await requestEmailLink(email);
-      if (link.ok) {
-        const result = await sendVerificationLinkEmail({
-          to: email,
-          firstName,
-          url: buildVerifyUrl(link.token),
-        });
-        if (!result.ok) {
-          console.warn("[members] envoi du lien de vérification échoué", {
-            provider: result.provider,
-            status: result.status,
-            error: result.error,
-            email,
-          });
-        }
-      }
-    } catch (err) {
-      console.error("[members] envoi du lien de vérification : exception", err);
-    }
-    if (lane === "immediate") {
-      const siteBase =
-        process.env.NEXT_PUBLIC_SITE_URL ||
-        process.env.NEXT_PUBLIC_URL ||
-        "https://reboot.joinhashcode.com";
-      const dashboardUrl = `${siteBase.replace(/\/$/, "")}/dashboard`;
-      const results = await Promise.allSettled([
-        sendWelcomeEmail({ to: email, firstName, archetype }),
-        sendInvitationEmail({ to: email, firstName, dashboardUrl }),
-      ]);
-      const labels = ["welcome", "invitation"] as const;
-      results.forEach((r, i) => {
-        if (r.status === "rejected") {
-          console.error(`[members] envoi ${labels[i]} : exception`, r.reason);
-        } else if (!r.value.ok) {
-          console.warn(`[members] envoi ${labels[i]} échoué`, {
-            provider: r.value.provider,
-            status: r.value.status,
-            error: r.value.error,
-            email,
-          });
-        }
-      });
-    } else {
-      try {
-        const result = await sendWaitlistEmail({ to: email, firstName });
-        if (!result.ok) {
-          console.warn("[members] envoi waitlist échoué", {
-            provider: result.provider,
-            status: result.status,
-            error: result.error,
-            email,
-          });
-        }
-      } catch (err) {
-        console.error("[members] envoi waitlist : exception", err);
-      }
-    }
-  })();
+  void sendOnboardingEmails({ id: created.id, email, firstName, archetype }, lane);
 
   const res = NextResponse.json(
     {

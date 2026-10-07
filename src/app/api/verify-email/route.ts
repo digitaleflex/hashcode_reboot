@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
-import { requestEmailLink, confirmEmailLink, buildVerifyUrl } from "@/lib/verify-email";
-import { sendVerificationLinkEmail } from "@/lib/email/builders";
+import { confirmEmailLink, sendVerificationLink } from "@/lib/verify-email";
 import {
   AppError,
   RateLimitError,
@@ -41,38 +40,21 @@ export async function POST(req: NextRequest) {
     }
     const { email, firstName } = parsed.data;
 
-    const requested = await requestEmailLink(email);
-    if (!requested.ok) {
+    const requested = await sendVerificationLink(email, firstName);
+    if (!requested.ok && requested.reason === "cooldown") {
       throw new AppError(
-        `Lien déjà envoyé. Réessaie dans ${requested.cooldownSec ?? 60} secondes.`,
+        `Lien déjà envoyé. Réessaie dans ${requested.cooldownSec} secondes.`,
         {
           status: 429,
           code: "COOLDOWN",
-          details: { retryInSec: requested.cooldownSec ?? 60 },
+          details: { retryInSec: requested.cooldownSec },
         },
       );
     }
 
-    // Envoi fire-and-forget : on répond ok même si Resend échoue,
-    // le client pourra redemander après le cooldown. Le résultat est
-    // inspecté uniquement pour rendre l'échec visible dans les logs.
-    try {
-      const result = await sendVerificationLinkEmail({
-        to: email,
-        firstName: firstName || "toi",
-        url: buildVerifyUrl(requested.token),
-      });
-      if (!result.ok) {
-        console.warn("[verify-email] envoi du lien échoué", {
-          provider: result.provider,
-          status: result.status,
-          error: result.error,
-          email,
-        });
-      }
-    } catch (err) {
-      console.error("[verify-email] envoi du lien : exception", err);
-    }
+    // Envoi fire-and-forget : on répond ok même si Resend échoue
+    // (reason "send_failed", déjà journalisé dans sendVerificationLink),
+    // le client pourra redemander après le cooldown.
 
     return NextResponse.json({ ok: true, message: "Lien envoyé. Vérifie ta boîte mail (1 clic)." });
   } catch (err) {
