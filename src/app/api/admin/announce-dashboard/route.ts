@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { requireAdminRole, checkCSRF } from "@/lib/admin-auth";
 import { blockIfTesting } from "@/lib/test-guard";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
-import { sendDashboardInviteEmail } from "@/lib/mail";
+import { sendDashboardInviteEmail } from "@/lib/email/builders";
 import { logMemberEmail } from "@/lib/member-email-log";
 import { planBatch } from "@/lib/email-budget";
 

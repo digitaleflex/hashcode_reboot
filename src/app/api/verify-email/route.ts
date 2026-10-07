@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { requestEmailLink, confirmEmailLink, buildVerifyUrl } from "@/lib/verify-email";
-import { sendVerificationLinkEmail } from "@/lib/mail";
+import { sendVerificationLinkEmail } from "@/lib/email/builders";
 import {
   AppError,
   RateLimitError,

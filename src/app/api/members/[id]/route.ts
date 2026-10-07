@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { isAdminAuthed, requireAdminRole, getAdminRole, checkCSRF } from "@/lib/admin-auth";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { audit } from "@/lib/admin-audit";
-import { sendStatusChangeEmail, type StatusChangeType } from "@/lib/mail";
+import { sendStatusChangeEmail, type StatusChangeType } from "@/lib/email/builders";
 import { addToBlacklist } from "@/lib/blacklist";
 import { blockIfTesting } from "@/lib/test-guard";
 import {

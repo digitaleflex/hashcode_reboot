@@ -6,7 +6,7 @@
  */
 
 import { db } from '@/lib/db';
-import { sendEmail } from '@/lib/mail';
+import { sendEmail } from '@/lib/email/transport';
 
 const prisma = db;
 

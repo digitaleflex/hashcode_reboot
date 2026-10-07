@@ -5,7 +5,7 @@ import { requireAdminRole, checkCSRF, getAdminIdentity } from "@/lib/admin-auth"
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { audit } from "@/lib/admin-audit";
 import { REVIEW_DECISIONS } from "@/lib/workshop-validation";
-import { sendEmail } from "@/lib/mail";
+import { sendEmail } from "@/lib/email/transport";
 import { reviewEmail } from "@/lib/workshop-emails";
 import {
   ForbiddenError,

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { sendInviteRelanceEmail } from "@/lib/mail";
+import { sendInviteRelanceEmail } from "@/lib/email/builders";
 import { isAdminAuthed } from "@/lib/admin-auth";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";

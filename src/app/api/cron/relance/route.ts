@@ -2,7 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { withPrismaRetry } from "@/lib/prisma-extensions";
-import { sendRelanceEmail } from "@/lib/mail";
+import { sendRelanceEmail } from "@/lib/email/builders";
 import { logMemberEmail, memberIdsWithEmailLog } from "@/lib/member-email-log";
 import { planBatch } from "@/lib/email-budget";
 

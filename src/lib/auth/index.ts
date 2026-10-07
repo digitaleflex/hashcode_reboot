@@ -3,7 +3,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { emailOTP } from "better-auth/plugins";
 import { db } from "@/lib/db";
 import { isEmailBlacklisted } from "@/lib/blacklist";
-import { sendMagicLinkEmail } from "@/lib/mail";
+import { sendMagicLinkEmail } from "@/lib/email/builders";
 
 export async function requestSignInOtp(email: string): Promise<void> {
   try {

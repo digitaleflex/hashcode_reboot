@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/account-auth";
 import { requireAdminRole, checkCSRF, getAdminRole } from "@/lib/admin-auth";
-import { sendEventNotificationEmail } from "@/lib/mail";
+import { sendEventNotificationEmail } from "@/lib/email/builders";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { validateEventPatch, notifyWhere, parseNotify } from "@/lib/events-validation";
 import { zoneForCountry } from "@/lib/events-timezone";

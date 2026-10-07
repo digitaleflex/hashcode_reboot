@@ -7,7 +7,7 @@ import { blockIfTesting } from "@/lib/test-guard";
 import { parseAnswers } from "@/lib/workshop-validation";
 import { canAttempt, scoreAttempt } from "@/lib/workshop-quiz";
 import { getSessionAccess, type SessionAccessCode } from "@/lib/workshop-server";
-import { sendEmail } from "@/lib/mail";
+import { sendEmail } from "@/lib/email/transport";
 import { quizEmail } from "@/lib/workshop-emails";
 import {
   AuthError,

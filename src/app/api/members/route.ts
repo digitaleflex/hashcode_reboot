@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { createProfileSchema, answersToCreatePayload } from "@/lib/profiling/validate";
 import { runAutoControls } from "@/lib/profiling/auto-controls";
 import { generateProfile } from "@/lib/profiling/engine";
-import { sendInvitationEmail, sendWelcomeEmail, sendWaitlistEmail, sendVerificationLinkEmail } from "@/lib/mail";
+import { sendInvitationEmail, sendWelcomeEmail, sendWaitlistEmail, sendVerificationLinkEmail } from "@/lib/email/builders";
 import { requestEmailLink, buildVerifyUrl } from "@/lib/verify-email";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { isAdminAuthed } from "@/lib/admin-auth";

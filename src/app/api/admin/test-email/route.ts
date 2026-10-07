@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireAdminRole, checkCSRF } from "@/lib/admin-auth";
 import { blockIfTesting } from "@/lib/test-guard";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
-import { sendInvitationEmail, sendWelcomeEmail } from "@/lib/mail";
+import { sendInvitationEmail, sendWelcomeEmail } from "@/lib/email/builders";
 
 export const runtime = "nodejs";
 

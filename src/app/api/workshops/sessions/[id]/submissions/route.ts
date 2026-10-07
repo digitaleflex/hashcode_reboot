@@ -6,7 +6,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
 import { validateSubmission } from "@/lib/workshop-validation";
 import { getSessionAccess, type SessionAccessCode } from "@/lib/workshop-server";
-import { sendEmail } from "@/lib/mail";
+import { sendEmail } from "@/lib/email/transport";
 import { submissionEmail } from "@/lib/workshop-emails";
 import {
   AuthError,

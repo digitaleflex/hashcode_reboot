@@ -18,7 +18,7 @@ import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { createLogger, serializeError } from "@/lib/logging";
-import { sendBouncedNotificationEmail } from "@/lib/mail";
+import { sendBouncedNotificationEmail } from "@/lib/email/builders";
 
 export const runtime = "nodejs";
 
