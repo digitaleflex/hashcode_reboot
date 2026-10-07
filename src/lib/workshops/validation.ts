@@ -25,7 +25,7 @@
  * pas ici.
  */
 
-import { EVENT_DOMAINS, EVENT_LEVELS } from "./events-validation";
+import { EVENT_DOMAINS, EVENT_LEVELS } from "../events-validation";
 
 // ── Unions fermées ──────────────────────────────────────────────────────────
 

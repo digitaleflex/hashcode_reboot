@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireAdminRole, checkCSRF } from "@/lib/admin-auth";
@@ -339,8 +338,6 @@ export async function POST(req: NextRequest) {
             communityStatus: "NOT_INVITED",
             invitationStatus: "INVITED",
             invitedAt: new Date(),
-            // Token single-use vérifié sur /api/invite/accept et /api/invite/refuse.
-            invitationToken: randomBytes(32).toString("hex"),
             accessLane: "pending",
             country: row.country,
             availability: "5-10h",
@@ -434,7 +431,6 @@ export async function POST(req: NextRequest) {
             // aucun ancien lien valide n'est invalidé.
             data: {
               invitedAt: new Date(),
-              invitationToken: randomBytes(32).toString("hex"),
             },
           });
         } else {

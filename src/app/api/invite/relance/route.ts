@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { sendInviteRelanceEmail } from "@/lib/email/builders";
@@ -122,7 +121,6 @@ export async function POST(req: NextRequest) {
           data: {
             invitationStatus: "INVITED",
             invitedAt: new Date(),
-            invitationToken: randomBytes(32).toString("hex"),
           },
         });
       } else {
