@@ -438,10 +438,12 @@ function ImmediateBranch({
   answers,
   result,
   t,
+  onWhatsAppClick,
 }: {
   answers: ProfileAnswers;
   result: WelcomeResult;
   t: ReturnType<typeof useTranslations>;
+  onWhatsAppClick: () => void;
 }) {
   return (
     <div className="relative h-full overflow-hidden rounded-xl border border-lime/40 bg-lime/[0.035] p-6 sm:p-7">
@@ -474,7 +476,7 @@ function ImmediateBranch({
         >
           <span
             className="inline-flex items-center gap-2"
-            onClick={handleWhatsAppClick}
+            onClick={onWhatsAppClick}
           >
             <MessageCircle className="size-4" />
             Rejoindre HASHCODE sur WhatsApp
