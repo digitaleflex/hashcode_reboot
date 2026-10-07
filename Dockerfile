@@ -216,6 +216,85 @@ RUN chmod 755 /usr/local/bin/cron-entrypoint
 USER root
 ENTRYPOINT ["/usr/local/bin/cron-entrypoint"]
 
+# ─── Étape migrate : application du schéma ─────────────────────────────────
+# Image DÉDIÉE pour le service `migrate`. Elle ne peut pas réutiliser `runner` :
+# le bundle standalone embarque @prisma/client (le runtime de l'app) mais PAS le
+# CLI `prisma`, qui est la seule chose capable d'appliquer prisma/migrations. Sans
+# lui, `npx` télécharge un prisma@8.0.0-rc arbitraire au premier appel, hors
+# lockfile, qui ne connaît plus la commande `migrate` — d'où un échec du
+# déploiement sans lien avec le code.
+#
+# Le coût est assumé : le CLI (67 Mo) + @prisma/engines (36 Mo) restent hors de
+# l'image de `web`. On paie un node_modules complet une fois, dans une image
+# jetable que le compose recrée et jette à chaque déploiement, au lieu de les
+# payer sur chaque requête servie par le site.
+#
+# DOIT rester ENTRE `cron` et `runner` : la cible par défaut du build
+# (`docker build -t hashcode-reboot:local .`, scripts/deploy.sh) est la
+# DERNIÈRE étape, et c'est `runner` qui doit le rester pour que l'image de
+# `web` ne change pas.
+FROM node:22-alpine AS migrate
+WORKDIR /app
+
+# libc6-compat : le moteur Prisma s'exécute dans un binaire ELF lié à glibc,
+# alors que musl ne fournit pas les symboles libc attendus. Sans ce paquet,
+# l'échec est un "not found" sur le moteur, sans rapport avec Prisma.
+RUN apk add --no-cache libc6-compat
+
+# Le node_modules COMPLET de `deps`, et non le Minimum de `runner` : il faut
+# le CLI `prisma` (absent de l'image de web, par choix) ET le client généré.
+COPY --from=deps /app/node_modules ./node_modules
+
+# `deps` a fait `npm ci --ignore-scripts` : le client n'est donc pas généré, on
+# le lance ici, après avoir posé le schéma.
+COPY prisma ./prisma
+RUN npx prisma generate
+
+# Les scripts de déploiement sont TRANSPILEES à l'exécution (tsx) dans cette
+# image, pas au build : ils lisent donc process.env au chargement de leurs
+# modules. On déclare donc les mêmes NEXT_PUBLIC_* que `builder`, dans le même
+# ordre et la même forme, pour qu'un module qui les lit au chargement trouve
+# une clé définie plutôt qu'un undefined qui remonterait plus tard, à l'étape
+# du job.
+ARG NEXT_PUBLIC_SITE_URL
+ARG NEXT_PUBLIC_URL
+ARG NEXT_PUBLIC_APP_VERSION
+ARG NEXT_PUBLIC_WHATSAPP_URL
+ARG NEXT_PUBLIC_MEET_URL
+ARG NEXT_PUBLIC_SENTRY_DSN
+ARG NEXT_PUBLIC_TURNSTILE_SITE_KEY
+ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL \
+    NEXT_PUBLIC_URL=$NEXT_PUBLIC_URL \
+    NEXT_PUBLIC_APP_VERSION=$NEXT_PUBLIC_APP_VERSION \
+    NEXT_PUBLIC_WHATSAPP_URL=$NEXT_PUBLIC_WHATSAPP_URL \
+    NEXT_PUBLIC_MEET_URL=$NEXT_PUBLIC_MEET_URL \
+    NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN \
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY=$NEXT_PUBLIC_TURNSTILE_SITE_KEY \
+    NEXT_TELEMETRY_DISABLED=1
+
+# `scripts/*.ts` n'est PAS autonome : scripts/migrate.ts ré-exporte
+# ../src/lib/db, ../src/lib/email-metrics et ../src/lib/cron/registry. Sans ce
+# COPY, `node --import tsx scripts/verify-schema.ts` crashe sur un module
+# introuvable — exactement le piège déjà payé sur l'étape `cron`.
+# On prend tout src/lib (596 Ko) plutôt que les trois fichiers un par un :
+# le graphe d'imports peut grandir, et une image jetable n'a pas à être
+# minimisée au ko.
+COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/src/lib ./src/lib
+COPY --from=builder /app/tsconfig.json ./tsconfig.json
+
+# Pas d'ENTRYPOINT ici : la chaîne migrate → verify-schema → ensure-admin vit
+# dans compose.yml, où elle est lisible sans avoir le Dockerfile ouvert (même
+# choix que le service `cron`, qui n'a pas non plus d'entrypoint côté compose).
+
+# USER VOLONTAIREMENT ABSENT, alors que `runner` et `cron` finissent en
+# non-root. Ce conteneur ne fait que lire le schéma et écrire en base : il ne
+# touche ni au système ni à un volume monté, donc root n'impose rien ici. Le
+# bénéfice concret est la lisibilité : pas de --chown à maintenir sur les COPY
+# depuis builder, et pas de volume dont le propriétaire doive être réparé au
+# boot. Si ce service devait un jour écrire sur disque, il faudrait alors
+# créer nextjs et repasser les COPY en --chown, comme `runner`.
+
 # ─── Étape 3 : runtime ────────────────────────────────────────────────────
 FROM node:22-alpine AS runner
 WORKDIR /app

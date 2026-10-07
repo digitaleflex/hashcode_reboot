@@ -70,7 +70,31 @@ services:
   # Applique les migrations, puis sort. L'app ne démarre qu'après son succès.
   # C'est le garde-fou contre un déploiement sur un schéma incohérent.
   migrate:
-    image: hashcode-reboot:local
+    # Construit depuis le même Dockerfile que `web`, cible `migrate` : elle
+    # embarque le CLI `prisma` (absent de l'image `runner`, qui ne contient que
+    # le bundle standalone), sinon `npx` télécharge un prisma hors lockfile qui
+    # ne connaît plus la commande `migrate`.
+    build:
+      context: .
+      target: migrate
+      # MÊME BLOQUE QUE `cron`, et pour la MÊME raison : cette cible fait
+      # `COPY --from=builder`, donc BuildKit doit construire l'étape builder —
+      # et donc `npm run build`, qui throw au chargement de
+      # src/lib/profiling/auto-controls.ts si NEXT_PUBLIC_WHATSAPP_URL manque.
+      # Sans ces args, un cache builder froid fait échouer le déploiement sur
+      # « Failed to collect page data », exactement comme c'est arrivé à `cron`.
+      # Les 7 variables sont exportées par build_image() dans
+      # scripts/deploy.sh pour que cette interpolation Compose résolve les
+      # alias dérivés de PUBLIC_URL et le sha de version.
+      args:
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-}
+        NEXT_PUBLIC_URL: ${NEXT_PUBLIC_URL:-}
+        NEXT_PUBLIC_APP_VERSION: ${NEXT_PUBLIC_APP_VERSION:-}
+        NEXT_PUBLIC_WHATSAPP_URL: ${NEXT_PUBLIC_WHATSAPP_URL:-}
+        NEXT_PUBLIC_MEET_URL: ${NEXT_PUBLIC_MEET_URL:-}
+        NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+        NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${NEXT_PUBLIC_TURNSTILE_SITE_KEY:-}
+    image: hashcode-reboot-migrate:local
     restart: "no"
     # Chaîne complète, en un seul passage et dans cet ordre :
     #   1. deploy  → applique les migrations de prisma/migrations
