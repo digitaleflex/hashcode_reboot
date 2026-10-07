@@ -5,7 +5,7 @@ import { Link } from "@/i18n/routing";
 import { ArrowRight, ChevronDown, Clock, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MonoLabel, RebootButton, CtaArrow } from "../shared";
-import { resolveActivityDestination } from "@/lib/orientation/destination";
+import { createActivityCatalogue, resolveActivityDestination } from "@/lib/orientation/destination";
 import { getActivityPresentation } from "@/lib/orientation/presentation";
 import type { ActivityRecommendation, NextBestAction, OrientationResult } from "@/lib/orientation/types";
 import { track } from "@/lib/analytics";
@@ -42,7 +42,6 @@ export function RecommendationExperience({
   action,
   status,
   recommendations,
-  href,
   className,
   onCompleteProfile,
   onActionClick,
@@ -50,7 +49,6 @@ export function RecommendationExperience({
   action: NextBestAction | null;
   status: Status;
   recommendations: ActivityRecommendation[];
-  href?: string;
   className?: string;
   onCompleteProfile?: () => void;
   onActionClick?: () => void;
@@ -69,8 +67,11 @@ export function RecommendationExperience({
   }, [recommendations]);
 
   const primary = recommendations[0];
-  const primaryActivity = primary ? getActivityPresentation(primary.id) : undefined;
-  const target = action ? (href ?? resolveActivityDestination(action.id)) : "/evenements";
+  const primaryActivity = primary?.activity ?? (primary ? getActivityPresentation(primary.id) : undefined);
+  const recommendationCatalogue = createActivityCatalogue(
+    recommendations.flatMap((recommendation) => recommendation.activity ? [recommendation.activity] : []),
+  );
+  const target = action ? resolveActivityDestination(action.id, "/evenements", recommendationCatalogue) : "/evenements";
   const alternatives = recommendations.slice(1, 4);
 
   function handlePrimaryClick() {
@@ -81,11 +82,9 @@ export function RecommendationExperience({
   }
 
   function handleExpand() {
-    setExpanded((value) => {
-      const next = !value;
-      if (next) track({ type: "recommendation_expanded", ref: primary?.id });
-      return next;
-    });
+    const next = !expanded;
+    setExpanded(next);
+    if (next) track({ type: "recommendation_expanded", ref: primary?.id });
   }
 
   if (status === "INSUFFICIENT_DATA") {
@@ -206,8 +205,8 @@ function AlternativeList({
   return (
     <div className="mt-5 space-y-2 border-t border-border/70 pt-4" aria-label="Alternatives recommandées">
       {recommendations.map((recommendation) => {
-        const activity = getActivityPresentation(recommendation.id);
-        const href = resolveActivityDestination(recommendation.id);
+        const activity = recommendation.activity ?? getActivityPresentation(recommendation.id);
+        const href = resolveActivityDestination(recommendation.id, "/evenements", recommendation.activity ? createActivityCatalogue([recommendation.activity]) : undefined);
         return (
           <Link
             key={recommendation.id}
@@ -219,6 +218,15 @@ function AlternativeList({
               <div className="min-w-0">
                 <p className="mono-label text-lime">{TYPE_LABELS[recommendation.type] ?? recommendation.type}</p>
                 <p className="mt-1 text-sm font-medium text-foreground">{activity?.title ?? recommendation.id}</p>
+                {reasonLabels(recommendation.reasons).length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {reasonLabels(recommendation.reasons).map((reason) => (
+                      <span key={reason} className="rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">
+                        {reason}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 {activity?.timeCommitment && (
                   <p className="mt-1 text-xs text-muted-foreground">{activity.timeCommitment}</p>
                 )}
