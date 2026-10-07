@@ -121,7 +121,7 @@ export function ProfileCard({
           </h3>
         </div>
 
-        <div className="mt-5 grid grid-cols-2 gap-x-5 gap-y-4">
+        <div className="mt-5 grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
           {rows.map((r) => (
             <div key={r.label}>
               <MonoLabel className="text-muted-foreground">{r.label}</MonoLabel>
