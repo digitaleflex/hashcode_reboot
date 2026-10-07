@@ -105,11 +105,17 @@ RUN cat > /usr/local/bin/call-cron <<'SCRIPT'
 #   1. Le secret vit dans /run/cron/secret (chmod 600), JAMAIS dans le
 #      crontab — `crontab -l` est lisible par tous les process du conteneur.
 #   2. busybox crond envoie la sortie des jobs par mail (sendmail absent :
-#      sortie PERDUE). On redirige donc explicitement vers /proc/1/fd/1 et
-#      /proc/1/fd/2 (stdout/stderr du conteneur, crond tournant en PID 1)
+#      sortie PERDUE). On redirige donc explicitement vers /run/cron/log, le
+#      FIFO que l'entrypoint ouvre et relaye vers le stdout du conteneur,
 #      pour que chaque passage soit visible dans `docker compose logs cron`.
 #      Sans ça, le service est muet et les échecs invisibles — c'est le
 #      piège principal de ce montage.
+#      POURQUOI un FIFO plutôt que /proc/1/fd/1 comme auparavant : rouvrir
+#      le fd de PID 1 exige les droits sur un process non-dumpable, et ça
+#      échoue en « Permission denied » pour nextjs — le repli >&2 partait
+#      ensuite à la poubelle, crond redirigeant la sortie des jobs vers
+#      /dev/null. Un processus enfant hérite en revanche du stdout du
+#      conteneur sans rien rouvrir.
 #   3. Timeout borné (wget -T --tries=1) : un `web` bloqué ne doit pas
 #      empiler les jobs.
 # Le secret passe en argument de wget (visible dans `ps` DU conteneur
@@ -119,8 +125,7 @@ slug="${1:?usage : call-cron <slug>}"
 : "${WEB_URL:=http://web:3000}"
 secret="$(cat /run/cron/secret 2>/dev/null || true)"
 if [ -z "$secret" ]; then
-  echo "[cron] $slug : secret introuvable (/run/cron/secret)" >> /proc/1/fd/2 2>/dev/null \
-    || echo "[cron] $slug : secret introuvable (/run/cron/secret)" >&2
+  echo "[cron] $slug : secret introuvable (/run/cron/secret)" >> /run/cron/log
   exit 1
 fi
 resp="$(wget -q -O - -T 25 --tries=1 --header="Authorization: Bearer $secret" "$WEB_URL/api/cron/$slug" 2>&1)"
@@ -129,10 +134,9 @@ rc=$?
 # dans les logs et évitent qu'un incident n'inonde le driver json-file.
 resp="$(printf '%.500s' "$resp")"
 if [ "$rc" -eq 0 ]; then
-  echo "[cron] $slug OK : $resp" >> /proc/1/fd/1 2>/dev/null || echo "[cron] $slug OK : $resp"
+  echo "[cron] $slug OK : $resp" >> /run/cron/log
 else
-  echo "[cron] $slug ECHEC (rc=$rc) : $resp" >> /proc/1/fd/2 2>/dev/null \
-    || echo "[cron] $slug ECHEC (rc=$rc) : $resp" >&2
+  echo "[cron] $slug ECHEC (rc=$rc) : $resp" >> /run/cron/log
 fi
 exit "$rc"
 SCRIPT
@@ -193,6 +197,19 @@ set -eu
 mkdir -p /run/cron /etc/crontabs "$BACKUP_DIR"
 chown nextjs:nodejs /run/cron /etc/crontabs "$BACKUP_DIR"
 chmod 700 /run/cron
+# FIFO de sortie, créé ici et relayé plus bas. C'est le relais qui rend les
+# logs des jobs visibles : `call-cron` y écrit, et le `cat` lancé en arrière-plan
+# en recopie le contenu sur le stdout HÉRITÉ du conteneur — donc dans
+# `docker compose logs cron`. On n'essaie pas de rouvrir /proc/1/fd/1 : PID 1
+# (crond) est non-dumpable, la réouverture est refusée à nextjs, et le repli
+# >&2 est perdu puisque crond envoie la sortie des jobs vers /dev/null.
+# `-p` : /run/cron est recréé à chaque boot, mais le test garde l'entrypoint
+# idempotent s'il est rejoué dans la même vie de conteneur.
+[ -p /run/cron/log ] || mkfifo /run/cron/log
+# À cet instant l'umask est encore celui du root : le FIFO naît root:root. On
+# le rend à nextjs, seul à écrire dedans comme dans les crons. (Le `chmod 600`
+# du secret plus bas ne l'atteint pas : le FIFO est créé avant.)
+chown nextjs:nodejs /run/cron/log
 # 1. Secret HORS du crontab, chmod 600. `set -u` fait échouer le boot si
 # CRON_SECRET est absent : un cron sans secret spammerait des 401 en silence.
 umask 077
@@ -209,11 +226,20 @@ chown nextjs:nodejs /etc/crontabs/nextjs
 chmod 600 /etc/crontabs/nextjs
 echo "[cron] crontab installé depuis le registre :"
 cat /etc/crontabs/nextjs
-# 4. crond au premier plan (PID 1 → Docker le supervise), logs propres vers
-# le stderr du conteneur (`docker compose logs cron`). `-c` explicite : le
-# répertoire par défaut de busybox varie selon la compilation, on ne devine
-# pas. Fichier nommé `nextjs` = l'utilisateur qui exécute les jobs.
-exec su-exec nextjs:nodejs crond -f -c /etc/crontabs -L /dev/stderr
+# 4. Crontab root parasite : Alpine en livre un par défaut, mode 600 root:root.
+# nextjs ne peut pas le lire, et crond le signale à chaque boot
+# (« root: Permission denied »). Il ne décrit aucun job voulu : on le supprime.
+rm -f /etc/crontabs/root
+# 5. Lecteur du FIFO, en arrière-plan (`&`) et NON en exec : crond doit rester
+# PID 1 pour que Docker le supervise. Le `&` sous `set -e` ne peut pas tuer
+# l'entrypoint — un job en arrière-plan ne fait pas remonter son statut.
+cat /run/cron/log &
+# 6. crond au premier plan (PID 1 → Docker le supervise). `-L` pointe sur le
+# FIFO : les logs propres de crond repassent par le même relais, donc ils
+# arrivent aussi dans `docker compose logs cron`. `-c` explicite : le répertoire
+# par défaut de busybox varie selon la compilation, on ne devine pas.
+# Fichier nommé `nextjs` = l'utilisateur qui exécute les jobs.
+exec su-exec nextjs:nodejs crond -f -c /etc/crontabs -L /run/cron/log
 SCRIPT
 RUN chmod 755 /usr/local/bin/cron-entrypoint
 
