@@ -9,33 +9,8 @@ import type { Domain, ProfileAnswers } from "./types";
  * The default export profileSchema uses French messages (backwards compatible).
  */
 
-const domainSchema = z.enum(["web", "cybersecurity", "ai"]);
-const levelSchema = z.enum(["beginner", "practicing", "autonomous", "advanced"]);
-const goalSchema = z.enum([
-  "project",
-  "employment",
-  "freelance",
-  "upskill",
-  "business",
-  "career",
-  "other",
-]);
-const availabilitySchema = z.enum(["<2h", "2-5h", "5-10h", "10-15h", "15h+"]);
-const learningSchema = z.enum(["practice", "path", "group", "mentor", "project"]);
-const mentoringSchema = z.enum(["no", "maybe", "yes"]);
-const budgetRangeSchema = z.enum([
-  "<2500",
-  "2500-5000",
-  "5000-10000",
-  "10000-20000",
-  "20000-30000",
-  ">30000",
-  "unknown",
-  "not_now",
-]);
-const genderSchema = z
-  .enum(["male", "female", "other", "prefer_not_say"])
-  .optional();
+// Les schémas d'énumération sont définis dans createProfileSchema() : leurs
+// messages d'erreur dépendent de la locale de la requête (msg.*).
 
 /** Translation function type for validation messages (compatible with next-intl/server). */
 export type ValidationTFunction = (key: string, vars?: Record<string, string | number>) => string;
@@ -45,6 +20,8 @@ const defaultMessages = {
   firstNameRequired: "Prénom requis",
   lastNameMax: "Nom trop long (max 60 caractères)",
   emailInvalid: "Email invalide",
+  emailRequired: "Adresse email requise",
+  invalidOption: "Option invalide",
   phoneInvalid: "Numéro WhatsApp invalide (format international : +229 ...)",
   phoneMax: "Numéro trop long (max 40 caractères)",
   countryRequired: "Pays requis",
@@ -79,6 +56,8 @@ function getMessages(t: ValidationTFunction) {
     firstNameRequired: () => t("validation.firstNameRequired"),
     lastNameMax: () => t("validation.lastNameMax"),
     emailInvalid: () => t("validation.emailInvalid"),
+    emailRequired: () => t("validation.emailRequired"),
+    invalidOption: () => t("validation.invalidOption"),
     phoneInvalid: () => t("validation.phoneInvalid"),
     phoneMax: () => t("validation.phoneMax"),
     countryRequired: () => t("validation.countryRequired"),
@@ -120,6 +99,8 @@ export function createProfileSchema(t?: ValidationTFunction) {
         firstNameRequired: () => defaultMessages.firstNameRequired,
         lastNameMax: () => defaultMessages.lastNameMax,
         emailInvalid: () => defaultMessages.emailInvalid,
+        emailRequired: () => defaultMessages.emailRequired,
+        invalidOption: () => defaultMessages.invalidOption,
         phoneInvalid: () => defaultMessages.phoneInvalid,
         phoneMax: () => defaultMessages.phoneMax,
         countryRequired: () => defaultMessages.countryRequired,
@@ -148,11 +129,72 @@ export function createProfileSchema(t?: ValidationTFunction) {
         mentoringTypesMax: () => defaultMessages.mentoringTypesMax,
       };
 
+  // Énumérations définies localement (et non au niveau module) : leurs
+  // messages d'erreur dépendent de la locale de la requête (msg.*).
+  const domainSchema = z.enum(["web", "cybersecurity", "ai"], {
+    error: msg.primaryDomainRequired(),
+  });
+  const levelSchema = z.enum(
+    ["beginner", "practicing", "autonomous", "advanced"],
+    { error: msg.levelRequired() },
+  );
+  const goalSchema = z.enum(
+    [
+      "project",
+      "employment",
+      "freelance",
+      "upskill",
+      "business",
+      "career",
+      "other",
+    ],
+    { error: msg.goalRequired() },
+  );
+  const availabilitySchema = z.enum(
+    ["<2h", "2-5h", "5-10h", "10-15h", "15h+"],
+    { error: msg.availabilityRequired() },
+  );
+  const learningSchema = z.enum(
+    ["practice", "path", "group", "mentor", "project"],
+    { error: msg.learningStyleRequired() },
+  );
+  const mentoringSchema = z.enum(["no", "maybe", "yes"], {
+    error: msg.mentoringInterestRequired(),
+  });
+  const budgetRangeSchema = z.enum(
+    [
+      "<2500",
+      "2500-5000",
+      "5000-10000",
+      "10000-20000",
+      "20000-30000",
+      ">30000",
+      "unknown",
+      "not_now",
+    ],
+    { error: msg.budgetRangeInvalid() },
+  );
+  // Champ optionnel : une valeur hors énumération doit donner un message
+  // traduit (« Option invalide. ») plutôt que l'anglais par défaut de Zod.
+  const genderSchema = z
+    .enum(["male", "female", "other", "prefer_not_say"], {
+      error: msg.invalidOption(),
+    })
+    .optional();
+
   const schema = z
     .object({
-      firstName: z.string().trim().min(1, msg.firstNameRequired()).max(40),
+      firstName: z
+        .string({ error: msg.firstNameRequired() })
+        .trim()
+        .min(1, msg.firstNameRequired())
+        .max(40),
       lastName: z.string().trim().max(60, msg.lastNameMax()).optional().default(""),
-      email: z.string().trim().toLowerCase().email(msg.emailInvalid()),
+      email: z
+        .string({ error: msg.emailRequired() })
+        .trim()
+        .toLowerCase()
+        .email(msg.emailInvalid()),
       phone: z
         .string()
         .trim()
@@ -163,12 +205,19 @@ export function createProfileSchema(t?: ValidationTFunction) {
         )
         .optional()
         .default(""),
-      country: z.string().trim().min(1, msg.countryRequired()).max(8, msg.countryMax()),
+      country: z
+        .string({ error: msg.countryRequired() })
+        .trim()
+        .min(1, msg.countryRequired())
+        .max(8, msg.countryMax()),
       city: z.string().trim().max(80, msg.cityMax()).optional().default(""),
       gender: genderSchema,
 
       primaryDomain: domainSchema,
-      secondaryDomains: z.array(domainSchema).max(3, msg.secondaryDomainsMax()).optional(),
+      secondaryDomains: z
+        .array(z.enum(["web", "cybersecurity", "ai"], { error: msg.invalidOption() }))
+        .max(3, msg.secondaryDomainsMax())
+        .optional(),
       domainSpecialty: z.array(z.string().max(40)).max(6, msg.domainSpecialtyMax()).optional(),
       level: levelSchema,
 
@@ -190,7 +239,7 @@ export function createProfileSchema(t?: ValidationTFunction) {
       budgetRange: budgetRangeSchema.optional(),
 
       threeMonthGoal: z
-        .string()
+        .string({ error: msg.threeMonthGoalRequired() })
         .trim()
         .min(4, msg.threeMonthGoalMin())
         .max(280, msg.threeMonthGoalMax()),
