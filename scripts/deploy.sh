@@ -84,7 +84,13 @@ dc() {
   local f; f="$(compose_file "$env")"
   # shellcheck disable=SC2064
   trap "rm -f '$f'" RETURN
+  # `--project-directory` est INDISPENSABLE : le fichier compose est dupliqué
+  # dans /tmp, or compose résout les chemins relatifs depuis le répertoire du
+  # fichier compose. Sans cette option, `env_file: .env.prod` et `context: .`
+  # seraient résolus depuis /tmp → « env file /tmp/.env.prod not found ».
+  # On les rebascule donc explicitement sur la racine du dépôt.
   docker compose -p "$( [ "$env" = dev ] && echo "$DEV_PROJECT" || echo "$PROD_PROJECT" )" \
+                 --project-directory "$PWD" \
                  --env-file "$(envfile "$env")" -f "$f" "$@"
 }
 
