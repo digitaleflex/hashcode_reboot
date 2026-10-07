@@ -565,6 +565,21 @@
     }
   },
   "profiling": {
+    "api": {
+      "alreadyCompleted": "Your profile is already completed.",
+      "duplicateProfile": "This profile has already been created.",
+      "internalError": "Something went wrong. Try again in a moment.",
+      "invalidData": "Some information is invalid. Check your answers and try again.",
+      "invalidJson": "The data sent is unreadable.",
+      "invalidPagination": "The pagination parameters are invalid.",
+      "invalidPayload": "The content sent is invalid.",
+      "invalidSort": "The requested sort is invalid.",
+      "memberNotFound": "Profile not found.",
+      "rateLimited": "Too many requests. Try again in a moment.",
+      "tooManySubmissions": "Too many requests. Try again in a few minutes.",
+      "unauthenticated": "You need to be signed in to continue.",
+      "unauthorized": "You are not allowed to perform this action."
+    },
     "countryContinue": "Continue",
     "countrySelect": {
       "placeholder": "Select your country",

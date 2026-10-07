@@ -565,6 +565,21 @@
     }
   },
   "profiling": {
+    "api": {
+      "alreadyCompleted": "Ton profil est déjà complété.",
+      "duplicateProfile": "Ce profil a déjà été créé.",
+      "internalError": "Une erreur est survenue. Réessaie dans un instant.",
+      "invalidData": "Certaines informations sont invalides. Vérifie tes réponses et réessaie.",
+      "invalidJson": "Les données envoyées sont illisibles.",
+      "invalidPagination": "Les paramètres de pagination sont invalides.",
+      "invalidPayload": "Le contenu envoyé est invalide.",
+      "invalidSort": "Le tri demandé est invalide.",
+      "memberNotFound": "Profil introuvable.",
+      "rateLimited": "Trop de demandes. Réessaie dans un instant.",
+      "tooManySubmissions": "Trop de demandes. Réessaie dans quelques minutes.",
+      "unauthenticated": "Tu dois être connecté pour continuer.",
+      "unauthorized": "Tu n'es pas autorisé à effectuer cette action."
+    },
     "countryContinue": "Continuer",
     "countrySelect": {
       "placeholder": "Sélectionne ton pays",
