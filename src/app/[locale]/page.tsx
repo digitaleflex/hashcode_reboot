@@ -51,6 +51,7 @@ interface SubmitResponse {
   profile?: ReturnType<typeof generateProfile>;
   nextBestAction?: OrientationResult["nextBestAction"];
   orientationStatus?: OrientationResult["status"];
+  orientationSource?: "server" | "local";
   error?: string;
   message?: string;
 }
@@ -159,6 +160,7 @@ export default function Home() {
           profile: gen,
           nextBestAction: fallback.nextBestAction,
           orientationStatus: fallback.orientationStatus,
+          orientationSource: "local",
         });
         if (data.error) setSubmitError(data.error);
         setPhase("result");
@@ -181,6 +183,7 @@ export default function Home() {
           duplicate: true,
           nextBestAction: fallback.nextBestAction,
           orientationStatus: fallback.orientationStatus,
+          orientationSource: "local",
         });
         setPhase("result");
         return;
@@ -194,6 +197,7 @@ export default function Home() {
         profile: data.profile ?? generateProfile(finalAnswers),
         nextBestAction: data.nextBestAction ?? localOrientation(finalAnswers).nextBestAction,
         orientationStatus: data.orientationStatus ?? localOrientation(finalAnswers).orientationStatus,
+        orientationSource: data.orientationStatus ? "server" : "local",
       });
       setPhase("result");
     } catch (err) {
@@ -248,6 +252,7 @@ export default function Home() {
           duplicate: true,
           nextBestAction: fallback.nextBestAction,
           orientationStatus: fallback.orientationStatus,
+          orientationSource: "local",
         });
         setRetryAnswers(null);
         setPhase("result");
@@ -262,6 +267,7 @@ export default function Home() {
         profile: data.profile ?? generateProfile(retryAnswers),
         nextBestAction: data.nextBestAction ?? localOrientation(retryAnswers).nextBestAction,
         orientationStatus: data.orientationStatus ?? localOrientation(retryAnswers).orientationStatus,
+        orientationSource: data.orientationStatus ? "server" : "local",
       });
       setRetryAnswers(null);
       setPhase("result");
