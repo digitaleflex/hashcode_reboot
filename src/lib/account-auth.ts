@@ -9,7 +9,7 @@
 
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { auth } from "@/lib/auth";
+import { auth, getMemberFromRequest } from "@/lib/auth";
 import { isEmailBlacklisted } from "@/lib/blacklist";
 
 export const SESSION_COOKIE_NAME = "better-auth.session_token";
@@ -21,16 +21,49 @@ export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 jours
  * avec l'ancien `MemberSession` quand la session est valide et le membre actif.
  */
 export async function getSession(req?: NextRequest) {
-  let headersObj: Record<string, string> = {};
+  // Fast path: resolve the member through the shared helper.
   if (req) {
-    headersObj = Object.fromEntries(req.headers.entries());
-  } else {
+    const member = await getMemberFromRequest(req);
+    if (!member || member.deletedAt) return null;
+
+    // Tue les sessions antérieures au blacklistage : un email blacklisté après
+    // connexion perd l'accès dès le prochain appel, même avec un cookie valide.
+    // Note perf assumée : getSession() est le chemin chaud de l'app (chaque
+    // page dashboard) — on ajoute 1 lecture point sur la colonne `email`
+    // @unique (indexée) de MemberBlacklist. Sécurité > micro-perf : ce coût
+    // est accepté tel quel, sans cache qui masquerait un déblacklistage.
+    // Fail-closed : en cas d'erreur DB, on refuse la session (doute = refus).
     try {
-      const { headers } = await import("next/headers");
-      headersObj = Object.fromEntries((await headers()).entries());
+      if (await isEmailBlacklisted(member.email)) return null;
     } catch {
       return null;
     }
+
+    // Session metadata (id, expiry, ip/UA) for the historical shape.
+    const authSession = await auth.api
+      .getSession({ headers: Object.fromEntries(req.headers.entries()) as any })
+      .catch(() => null);
+
+    return {
+      id: authSession?.session?.id ?? member.id,
+      memberId: member.id,
+      member,
+      createdAt: member.createdAt,
+      lastSeenAt: new Date(),
+      expiresAt: authSession?.session?.expiresAt ?? new Date(Date.now() + SESSION_TTL_MS),
+      revokedAt: null as Date | null,
+      otpHash: null as string | null,
+      ip: authSession?.session?.ipAddress ?? null,
+      userAgent: authSession?.session?.userAgent ?? null,
+    };
+  }
+
+  let headersObj: Record<string, string> = {};
+  try {
+    const { headers } = await import("next/headers");
+    headersObj = Object.fromEntries((await headers()).entries());
+  } catch {
+    return null;
   }
 
   const authSession = await auth.api

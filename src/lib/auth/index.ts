@@ -1,6 +1,8 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { emailOTP } from "better-auth/plugins";
+import type { NextRequest } from "next/server";
+import type { Member } from "@prisma/client";
 import { db } from "@/lib/db";
 import { isEmailBlacklisted } from "@/lib/blacklist";
 import { sendMagicLinkEmail } from "@/lib/email/builders";
@@ -96,6 +98,26 @@ export const auth = betterAuth({
 
   trustedOrigins: [process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"],
 });
+
+/**
+ * Common helper: resolve the `Member` for the current Better Auth session
+ * carried by `req` (cookie `better-auth.session_token`).
+ *
+ * Single source of truth for the session → email → member lookup previously
+ * duplicated in `account-auth.ts` and `admin-auth.ts`.
+ * Fail-closed: any error (session lookup, DB) yields `null`, never throws.
+ */
+export async function getMemberFromRequest(req: NextRequest): Promise<Member | null> {
+  try {
+    const session = await auth.api.getSession({
+      headers: Object.fromEntries(req.headers.entries()) as any,
+    });
+    if (!session?.user?.email) return null;
+    return await db.member.findUnique({ where: { email: session.user.email } });
+  } catch {
+    return null;
+  }
+}
 
 export type Session = typeof auth.$Infer.Session;
 export type User = typeof auth.$Infer.Session.user;

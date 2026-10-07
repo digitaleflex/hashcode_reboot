@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { auth } from "@/lib/auth";
+import { auth, getMemberFromRequest } from "@/lib/auth";
 import { db } from "@/lib/db";
 
 /** Check if the request origin matches the host (CSRF protection). */
@@ -53,7 +53,12 @@ async function resolveAdminSessionFromHeaders(headers: Record<string, string>) {
 }
 
 async function resolveAdminSession(req: NextRequest) {
-  return resolveAdminSessionFromHeaders(Object.fromEntries(req.headers));
+  const member = await getMemberFromRequest(req);
+  if (!member) return null;
+  const role = String(member.adminRole ?? "").trim().toLowerCase();
+  if (role === "operator") return { email: member.email, role: "operator" as const };
+  if (role === "viewer") return { email: member.email, role: "viewer" as const };
+  return null;
 }
 
 /**
