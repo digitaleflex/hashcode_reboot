@@ -5,6 +5,8 @@ import { orientationEngine, ORIENTATION_ENGINE_VERSION } from "../src/lib/orient
 import { NEXT_ACTION_CONFIDENCE_THRESHOLD } from "../src/lib/orientation/recommendationEngine";
 import { resolveActivityDestination } from "../src/lib/orientation/destination";
 import { AVAILABLE_ACTIVITIES } from "../src/lib/orientation/features";
+import { createActivityCatalogue } from "../src/lib/orientation/destination";
+import { profileSchema } from "../src/lib/profiling/validate";
 import type { ProfileAnswers } from "../src/lib/profiling/types";
 
 function profile(overrides: Partial<ProfileAnswers> = {}): ProfileAnswers {
@@ -40,16 +42,18 @@ describe("phase 6 — orientation states", () => {
   test("OK sans Next Best Action est atteignable avec un profil complet mais faible confiance", () => {
     const result = orientationEngine.evaluate(
       profile({
-        email: "not-an-email",
-        learningStyle: undefined,
-        mentoringInterest: undefined,
-        threeMonthGoal: "",
+        email: "ama@example.com",
+        learningStyle: "practice",
+        mentoringInterest: "no",
+        threeMonthGoal: "Test",
       }),
     );
 
     assert.equal(result.status, "OK");
     assert.ok(result.recommendations.length > 0);
     assert.equal(result.nextBestAction, null);
+    const parsed = profileSchema.safeParse(profile({ threeMonthGoal: "Test" }));
+    assert.equal(parsed.success, true);
     assert.ok(result.confidence < NEXT_ACTION_CONFIDENCE_THRESHOLD);
   });
 
