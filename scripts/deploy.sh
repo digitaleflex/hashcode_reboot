@@ -30,9 +30,29 @@ ok()   { printf '\033[0;32m✔\033[0m %s\n' "$*"; }
 warn() { printf '\033[0;33m!\033[0m %s\n' "$*"; }
 die()  { printf '\033[0;31m✖ %s\033[0m\n' "$*" >&2; exit 1; }
 
-# Fichier d'envdistinct par stack : prod → .env.prod, dev → .env.dev.
+# Fichier d'env distinct par stack : prod → .env.prod, dev → .env.dev.
 envfile() { [ "$1" = dev ] && echo ".env.dev" || echo ".env.prod"; }
 [ -f "$(envfile "${1:-prod}")" ] || die "fichier $(envfile "${1:-prod}") absent — copier .env.example"
+
+# Charge les variables d'un fichier d'env DANS le shell courant, sans
+# l'exécuter : ni `source` (un .env est une donnée, pas du code), ni `set -a`.
+# Indispensable pour build_image, dont les --build-arg sont lus par expansion
+# indirecte : sans cela les NEXT_PUBLIC_* seraient vides à chaque build.
+load_env_vars() {
+  local file; file="$(envfile "$1")"
+  [ -f "$file" ] || die "fichier $file absent"
+  local line k v
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in ''|'#'*) continue ;; esac
+    line="${line%$'\r'}"
+    case "$line" in *=*) ;; *) continue ;; esac
+    k="${line%%=*}"; v="${line#*=}"
+    # Les guillemets éventuels ne font pas partie de la valeur.
+    v="${v%\"}"; v="${v#\"}"; v="${v%\'}"; v="${v#\'}"
+    case "$k" in [A-Za-z_]*) ;; *) continue ;; esac
+    printf -v "$k" '%s' "$v"
+  done < "$file"
+}
 
 # Fichier temporaire dupliqué avec le projet forcé. `mktemp` évite d'écrire
 # dans le dépôt.
@@ -94,6 +114,29 @@ do_backup() {
 # Les NEXT_PUBLIC_* sont figées au build : --build-arg les transmet depuis le
 # .env, sans jamais les afficher.
 build_image() {
+  local env="${1:-prod}"
+  info "lecture de $(envfile "$env")…"
+  load_env_vars "$env"
+
+  # PUBLIC_URL est la seule URL garantie présente en prod : on en dérive les
+  # deux alias NEXT_PUBLIC_* si le .env ne les définit pas (jamais l'inverse).
+  if [ -n "${PUBLIC_URL:-}" ]; then
+    NEXT_PUBLIC_SITE_URL="${NEXT_PUBLIC_SITE_URL:-$PUBLIC_URL}"
+    NEXT_PUBLIC_URL="${NEXT_PUBLIC_URL:-$PUBLIC_URL}"
+  fi
+
+  # Version figée au build. Vide ou littéral non résolu (« $VERSION ») → sha.
+  case "${NEXT_PUBLIC_APP_VERSION:-}" in
+    ''|'$'*) NEXT_PUBLIC_APP_VERSION="$(git rev-parse --short HEAD 2>/dev/null || echo dev)" ;;
+  esac
+
+  # En prod, l'image courante est conservée sous :previous AVANT que le build
+  # ne l'écrase : c'est la seule chose que do_rollback saura retrouver.
+  if [ "$env" = prod ] && docker image inspect hashcode-reboot:local >/dev/null 2>&1; then
+    docker tag hashcode-reboot:local hashcode-reboot:previous
+    info "image précédente sauvegardée sous hashcode-reboot:previous"
+  fi
+
   info "construction de l'image…"
   local args=()
   local v
@@ -116,15 +159,10 @@ run_migrations() {
   # Lance le service one-shot et relit son code de sortie.
   dc "$env" up -d migrate >/dev/null 2>&1 || true
   local cid rc=0
-  cid="$(docker ps -aq --filter 'label=com.docker.compose.service=migrate' \
-         --filter "label=com.docker.compose.project=$([ "$env" = dev ] && echo "$DEV_PROJECT" || echo "$PROD_PROJECT")" \
-         | head -1)"
-  if [ -n "$cid" ]; then
-    wait "$cid" >/dev/null 2>&1 || true
-    rc="$(docker inspect --format '{{.State.ExitCode}}' "$cid" 2>/dev/null || echo 1)"
-  else
-    rc=1
-  fi
+  cid="$(dc "$env" ps -aq migrate | head -1)"
+  [ -n "$cid" ] || die "aucun conteneur migrate dans la stack $env — migrations non lancées"
+  wait "$cid" >/dev/null 2>&1 || true
+  rc="$(docker inspect --format '{{.State.ExitCode}}' "$cid" 2>/dev/null || echo 1)"
   if [ "$rc" != "0" ]; then
     warn "---- logs de migrate ----"
     dc "$env" logs --no-color --tail=30 migrate || true
@@ -135,7 +173,7 @@ run_migrations() {
 
 do_deploy_dev() {
   info "═══ DÉPLOIEMENT DEV ═══"
-  build_image
+  build_image dev
 
   # Même chaîne que la prod : deploy → verify-schema → ensure-admin.
   run_migrations dev
@@ -165,7 +203,7 @@ do_deploy_prod() {
   # moyen de revenir en arrière si les migrations cassent quelque chose.
   do_backup
 
-  build_image
+  build_image prod
 
   # Le service `migrate` enchaîne deploy → verify-schema → ensure-admin.
   # Il suffit qu'une des trois échoue pour que web ne démarre pas.
@@ -189,42 +227,89 @@ do_deploy_prod() {
   dc prod ps
 }
 
-# Requête publique : prouve que Traefik route, que l'app répond et que la
-# base est joignable. /api/health touche la base (cf. src/lib/health.ts).
+# Trois contrôles successifs, de portée croissante : l'app (bloquant), puis
+# Traefik à l'origine, puis la vue publique via Cloudflare. Seul le premier
+# est bloquant — un 526 de Cloudflare vient du certificat Let's Encrypt de
+# l'origine, pas du déploiement.
+# /api/health touche la base (cf. src/lib/health.ts).
 smoke_test_prod() {
+  local host="${PUBLIC_HOST:-}"
   local url="${PUBLIC_URL:-}"
-  [ -n "$url" ] || { warn "PUBLIC_URL absent du .env — test HTTP sauté"; return 0; }
+  [ -n "$url" ] || [ -n "$host" ] || {
+    warn "ni PUBLIC_URL ni PUBLIC_HOST dans le .env — contrôles publics sautés"
+    return 0
+  }
+  [ -n "$url" ] || url="https://${host}"
 
-  info "test HTTP sur ${url} …"
-  local code
-  code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "$url/" 2>/dev/null || echo 000)"
-  [ "$code" = "200" ] || { warn "GET ${url}/ → HTTP ${code} (attendu 200)"; return 1; }
+  # ── 1. BLOQUANT : santé de l'app et de la base, depuis le conteneur ──────
+  info "contrôle 1/3 — santé de l'app (interne au conteneur)…"
+  # wget sort en erreur dès que la route renvoie autre chose que 200 : c'est
+  # exactement le contrôle voulu (la route répond 503 si la base est coupée).
+  local health rc=0
+  health="$(dc prod exec -T web wget -qO- http://127.0.0.1:3000/api/health 2>/dev/null)" || rc=$?
+  local r1="ÉCHEC"
+  if [ "$rc" = 0 ] && [ -n "$health" ]; then
+    ok "contrôle 1/3 — /api/health → 200 : ${health}"
+    r1="OK"
+  else
+    warn "GET http://127.0.0.1:3000/api/health n'a pas renvoyé 200 (wget rc=$rc, corps='${health}')"
+    dc prod logs --no-color --tail=30 web || true
+    die "l'app ne répond pas depuis le conteneur — déploiement non validé"
+  fi
 
-  code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "${url}/api/health" 2>/dev/null || echo 000)"
-  [ "$code" = "200" ] || { warn "GET ${url}/api/health → HTTP ${code} (attendu 200)"; return 1; }
+  # ── 2. AVERTISSEMENT : routage Traefik à l'origine (IP publique) ──────────
+  local r2="SKIP" code
+  if [ -z "$host" ]; then
+    warn "contrôle 2/3 — PUBLIC_HOST absent du .env — routage origine non testé"
+  else
+    info "contrôle 2/3 — routage Traefik sur l'origine…"
+    local ip
+    ip="$(curl -fsS --max-time 5 https://api.ipify.org 2>/dev/null || echo '')"
+    if [ -z "$ip" ]; then
+      warn "contrôle 2/3 — IP publique inconnue — routage origine non testé"
+    else
+      code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 \
+              --resolve "${host}:443:${ip}" "https://${host}/" 2>/dev/null || echo 000)"
+      case "$code" in
+        200|301|302|401|403) ok "contrôle 2/3 — origine → HTTP $code" ; r2="OK ($code)" ;;
+        *) warn "contrôle 2/3 — origine → HTTP $code sur https://${host}/ (non bloquant)"
+           r2="HTTP $code" ;;
+      esac
+    fi
+  fi
 
-  info "GET / et /api/health → 200"
+  # ── 3. AVERTISSEMENT : vue publique via Cloudflare ────────────────────────
+  info "contrôle 3/3 — vue publique ${url} …"
+  local r3
+  code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 "${url}/" 2>/dev/null || echo 000)"
+  case "$code" in
+    526|495)
+      warn "Cloudflare signale une erreur TLS d'origine (526/495) : le certificat Let's Encrypt de ${host} n'est pas encore émis ou a échoué — ce n'est pas un échec de déploiement"
+      r3="TLS origine en attente (${code})" ;;
+    2??|3??|401|403) ok "contrôle 3/3 — public → HTTP $code" ; r3="OK ($code)" ;;
+    *) warn "contrôle 3/3 — GET ${url}/ → HTTP $code (non bloquant)" ; r3="HTTP $code" ;;
+  esac
+
+  echo
+  info "récapitulatif : app=[$r1] origine=[$r2] public=[$r3]"
   return 0
 }
 
 # ─── Rollback ─────────────────────────────────────────────────────────────
-# Ramène l'image précédente. Utile quand l'app démarre mais que quelque chose
-# ne va pas. Ne rejoue PAS les migrations dans l'autre sens : une migration
+# Ramène l'image précédente, celle que le build prod a sauvegardée sous
+# :previous. Ne rejoue PAS les migrations dans l'autre sens : une migration
 # appliquée est rarement réversible — c'est pourquoi la sauvegarde existe.
 do_rollback() {
   info "═══ ROLLBACK PROD ═══"
 
-  local previous
-  previous="$(docker images 'hashcode-reboot:local' --format '{{.CreatedAt}}' 2>/dev/null | wc -l | tr -d ' ')"
-  if [ "$previous" -lt 2 ]; then
-    die "pas d'image précédente en local — reconstruire ne suffit pas ici"
-  fi
+  docker image inspect hashcode-reboot:previous >/dev/null 2>&1 \
+    || die "aucune image précédente (hashcode-reboot:previous) : rien à rollbacker"
 
-  # Étiquette l'image courante avant de la remplacer, pour pouvoir revenir.
-  local current
-  current="$(docker images 'hashcode-reboot:local' --format '{{.ID}}' | head -1)"
-  docker tag "hashcode-reboot:local" "hashcode-reboot:previous"
-  warn "image précédente créée : hashcode-reboot:previous"
+  docker tag hashcode-reboot:previous hashcode-reboot:local
+  warn "hashcode-reboot:previous est redevenue l'image courante"
+
+  dc prod up -d --force-recreate web cron
+  dc prod ps
 
   warn "cette étape ne restaure PAS la base. Si les données sont le problème :"
   warn "    ./scripts/backup.sh list"
@@ -251,5 +336,18 @@ case "${1:-}" in
   logs)     dc prod logs -f --tail=100 web ;;
   rollback) do_rollback ;;
   down)   dc prod down; dc dev down; ok "arrêté — volumes conservés" ;;
-  *) die "usage : $0 {dev|prod|status|logs|rollback|down}" ;;
+  help|-h|--help)
+    cat <<EOF
+usage : $0 {dev|prod|status|logs|rollback|down|help}
+
+  dev        reconstruction de l'image + redémarrage de la stack dev
+  prod       sauvegarde, build, migrations et redémarrage de la prod
+  status     état des services, volumes et sauvegardes
+  logs       logs du conteneur web de la prod
+  rollback   redéploie l'image sauvegardée sous hashcode-reboot:previous
+  down       arrêt des deux stacks (volumes conservés)
+  help       cette aide
+EOF
+    ;;
+  *) die "usage : $0 {dev|prod|status|logs|rollback|down|help}" ;;
 esac

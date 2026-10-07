@@ -18,12 +18,22 @@ DB_USER="${POSTGRES_USER:-hashcode}"
 DB_NAME="${POSTGRES_DB:-hashcode_reboot}"
 COMPOSE_FILE="${COMPOSE_FILE:-compose.yml}"
 
+# Pile PROD, toujours explicitement. Sans -p ni --env-file, compose déduit la
+# pile du répertoire courant et du premier .env trouvé : on pourrait sauvegarder
+# la stack de dev en croyant écrire la prod (et avec le mauvais POSTGRES_DB).
+PROJECT="${COMPOSE_PROJECT_NAME:-hashcode-reboot}"
+ENV_FILE="${ENV_FILE:-.env.prod}"
+# Chemin résolu depuis la racine du dépôt : le script est appelé d'où qu'on soit.
+case "$ENV_FILE" in /*) ;; *) ENV_FILE="$(pwd)/$ENV_FILE" ;; esac
+
+COMPOSE=(docker compose -p "$PROJECT" --env-file "$ENV_FILE" -f "$COMPOSE_FILE")
+
 die() { echo "ERREUR: $*" >&2; exit 1; }
 info() { echo "[backup] $*"; }
 
 # pg_dump via le conteneur postgres : mêmes outils, même version que la base.
 db_exec() {
-  docker compose -f "$COMPOSE_FILE" exec -T postgres \
+  "${COMPOSE[@]}" exec -T postgres \
     pg_dump -U "$DB_USER" -d "$DB_NAME" "$@"
 }
 
@@ -46,7 +56,7 @@ do_backup() {
   # Contrôle d'intégrité AVANT de considérer la sauvegarde comme valide.
   # C'est le point que tout le monde oublie : un fichier vide ou tronqué
   # passe silencieusement jusqu'au jour de la restauration.
-  if ! docker compose -f "$COMPOSE_FILE" exec -T postgres \
+  if ! "${COMPOSE[@]}" exec -T postgres \
        pg_restore --list < "$tmp" > /dev/null 2>&1; then
     rm -f "$tmp"
     die "sauvegarde corrompue (pg_restore --list échoue) — fichier supprimé"
@@ -78,7 +88,7 @@ do_restore() {
   # anciennes tables non présentes dans la sauvegarde subsistent.
   info "restauration…"
   # shellcheck disable=SC2086
-  docker compose -f "$COMPOSE_FILE" exec -T postgres \
+  "${COMPOSE[@]}" exec -T postgres \
     pg_restore -U "$DB_USER" -d "$DB_NAME" \
       --clean --if-exists --no-owner --single-transaction < "$f"
   info "restauration terminée"
@@ -95,7 +105,7 @@ do_list() {
 do_verify() {
   local f="${1:?usage : backup.sh verify <fichier.dump>}"
   [ -f "$f" ] || die "fichier introuvable : $f"
-  if docker compose -f "$COMPOSE_FILE" exec -T postgres \
+  if "${COMPOSE[@]}" exec -T postgres \
        pg_restore --list < "$f" > /dev/null 2>&1; then
     info "intègre : $(du -h "$f" | cut -f1)"
   else
