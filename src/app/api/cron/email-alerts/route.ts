@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { withPrismaRetry } from "@/lib/prisma-extensions";
 import { runAlertCheck } from "@/lib/email-alerts";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +13,10 @@ export const runtime = "nodejs";
  * À appeler 1×/jour après le collecteur de métriques (cron-job.org).
  * Notifications via ALERT_EMAILS et/ou ALERT_SLACK_WEBHOOK.
  */
+
+/** Clé fixe de sérialisation des runs de ce cron (verrou consultatif Postgres). */
+const ADVISORY_LOCK_KEY = 123458;
+
 export async function GET(req: NextRequest) {
   if (!process.env.CRON_SECRET) {
     return NextResponse.json(
@@ -30,17 +35,26 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
 
+  // ── Sérialise les runs qui se chevauchent (même pattern que event-reminders)
+  // pg_advisory_xact_lock est libéré automatiquement en fin de transaction,
+  // y compris sur erreur. Le try/finally garantit le nettoyage best-effort
+  // restant (unlock explicite = no-op si déjà libéré).
+  await db.$executeRawUnsafe(
+    `SELECT pg_advisory_xact_lock(${ADVISORY_LOCK_KEY})`,
+  );
   try {
     const result = await runAlertCheck();
 
     try {
-      await db.analyticsEvent.create({
-        data: {
-          type: "cron_email_alerts",
-          ref: `alerts=${result.alerts.length} critical=${result.hasCritical}`,
-          value: result.alerts.length,
-        },
-      });
+      await withPrismaRetry(() =>
+        db.analyticsEvent.create({
+          data: {
+            type: "cron_email_alerts",
+            ref: `alerts=${result.alerts.length} critical=${result.hasCritical}`,
+            value: result.alerts.length,
+          },
+        }),
+      );
     } catch {
       /* ignore */
     }
@@ -56,5 +70,13 @@ export async function GET(req: NextRequest) {
       { ok: false, error: err instanceof Error ? err.message : "erreur inconnue" },
       { status: 500 },
     );
+  } finally {
+    try {
+      await db.$executeRawUnsafe(
+        `SELECT pg_advisory_unlock(${ADVISORY_LOCK_KEY})`,
+      );
+    } catch {
+      /* déjà libéré en fin de transaction — ignore */
+    }
   }
 }

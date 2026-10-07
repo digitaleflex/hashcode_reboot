@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { withPrismaRetry } from "@/lib/prisma-extensions";
 import { isAdminAuthed } from "@/lib/admin-auth";
 import {
   getAllBudgets,
@@ -50,6 +51,9 @@ function mergeBySource(entries: { source: string; count: number }[]): { source: 
 
 // ── Individual fetchers (each isolated — one failure won't block others) ─
 
+// Perf-7 : chaque requête est enveloppée dans withPrismaRetry (retry auto sur
+// erreurs transient : pool épuisé, timeout). Le retry est par requête — pas sur
+// tout le Promise.all — pour ne pas rejouer 20 requêtes après 1 seul échec.
 async function fetchStats() {
   const [
     total, approved, pending, waitlist, rejected,
@@ -58,26 +62,26 @@ async function fetchStats() {
     byCountry, byLevel, byAvailability, byBudget, byArchetype, bySource,
     emailSent, emailOpened, emailClicked,
   ] = await Promise.all([
-    db.member.count({ where: { deletedAt: null } }),
-    db.member.count({ where: { deletedAt: null, profileStatus: "APPROVED" } }),
-    db.member.count({ where: { deletedAt: null, profileStatus: "PENDING" } }),
-    db.member.count({ where: { deletedAt: null, profileStatus: "WAITLIST" } }),
-    db.member.count({ where: { deletedAt: null, profileStatus: "REJECTED" } }),
-    db.member.count({ where: { deletedAt: null, invitationStatus: "NOT_INVITED" } }),
-    db.member.count({ where: { deletedAt: null, invitationStatus: { not: "NOT_INVITED" } } }),
-    db.member.count({ where: { deletedAt: null, primaryDomain: "web" } }),
-    db.member.count({ where: { deletedAt: null, primaryDomain: "cybersecurity" } }),
-    db.member.count({ where: { deletedAt: null, primaryDomain: "ai" } }),
-    db.member.count({ where: { deletedAt: null, mentoringInterest: "yes" } }),
-    db.member.groupBy({ by: ["country"], _count: true, orderBy: { _count: { country: "desc" } }, take: 12, where: { deletedAt: null } }),
-    db.member.groupBy({ by: ["level"], _count: true, where: { deletedAt: null } }),
-    db.member.groupBy({ by: ["availability"], _count: true, where: { deletedAt: null } }),
-    db.member.groupBy({ by: ["budgetRange"], _count: true, where: { deletedAt: null } }),
-    db.member.groupBy({ by: ["profileArchetype"], _count: true, orderBy: { _count: { profileArchetype: "desc" } }, where: { deletedAt: null } }),
-    db.member.groupBy({ by: ["source"], _count: true, orderBy: { _count: { source: "desc" } }, take: 10, where: { deletedAt: null } }),
-    db.emailEvent.count({ where: { type: "email.sent" } }),
-    db.emailEvent.count({ where: { type: "email.opened" } }),
-    db.emailEvent.count({ where: { type: "email.clicked" } }),
+    withPrismaRetry(() => db.member.count({ where: { deletedAt: null } })),
+    withPrismaRetry(() => db.member.count({ where: { deletedAt: null, profileStatus: "APPROVED" } })),
+    withPrismaRetry(() => db.member.count({ where: { deletedAt: null, profileStatus: "PENDING" } })),
+    withPrismaRetry(() => db.member.count({ where: { deletedAt: null, profileStatus: "WAITLIST" } })),
+    withPrismaRetry(() => db.member.count({ where: { deletedAt: null, profileStatus: "REJECTED" } })),
+    withPrismaRetry(() => db.member.count({ where: { deletedAt: null, invitationStatus: "NOT_INVITED" } })),
+    withPrismaRetry(() => db.member.count({ where: { deletedAt: null, invitationStatus: { not: "NOT_INVITED" } } })),
+    withPrismaRetry(() => db.member.count({ where: { deletedAt: null, primaryDomain: "web" } })),
+    withPrismaRetry(() => db.member.count({ where: { deletedAt: null, primaryDomain: "cybersecurity" } })),
+    withPrismaRetry(() => db.member.count({ where: { deletedAt: null, primaryDomain: "ai" } })),
+    withPrismaRetry(() => db.member.count({ where: { deletedAt: null, mentoringInterest: "yes" } })),
+    withPrismaRetry(() => db.member.groupBy({ by: ["country"], _count: true, orderBy: { _count: { country: "desc" } }, take: 12, where: { deletedAt: null } })),
+    withPrismaRetry(() => db.member.groupBy({ by: ["level"], _count: true, where: { deletedAt: null } })),
+    withPrismaRetry(() => db.member.groupBy({ by: ["availability"], _count: true, where: { deletedAt: null } })),
+    withPrismaRetry(() => db.member.groupBy({ by: ["budgetRange"], _count: true, where: { deletedAt: null } })),
+    withPrismaRetry(() => db.member.groupBy({ by: ["profileArchetype"], _count: true, orderBy: { _count: { profileArchetype: "desc" } }, where: { deletedAt: null } })),
+    withPrismaRetry(() => db.member.groupBy({ by: ["source"], _count: true, orderBy: { _count: { source: "desc" } }, take: 10, where: { deletedAt: null } })),
+    withPrismaRetry(() => db.emailEvent.count({ where: { type: "email.sent" } })),
+    withPrismaRetry(() => db.emailEvent.count({ where: { type: "email.opened" } })),
+    withPrismaRetry(() => db.emailEvent.count({ where: { type: "email.clicked" } })),
   ]);
 
   return {
@@ -116,18 +120,18 @@ async function fetchFunnel() {
     rows, total, startedSessions, completedSessions, whatsappClicks,
     answeredRows, abandonedRows, timedRows,
   ] = await Promise.all([
-    db.analyticsEvent.groupBy({ by: ["type"], _count: true, orderBy: { _count: { type: "desc" } } }),
-    db.analyticsEvent.count(),
-    db.analyticsEvent.groupBy({ by: ["sessionId"], where: { type: "profiling_started" } }),
-    db.analyticsEvent.groupBy({ by: ["sessionId"], where: { type: "profiling_completed" } }),
-    db.analyticsEvent.count({ where: { type: "whatsapp_join_clicked" } }),
-    db.analyticsEvent.groupBy({ by: ["ref"], _count: true, where: { type: "profiling_question_answered", ref: { not: null } } }),
-    db.analyticsEvent.groupBy({ by: ["ref"], _count: true, where: { type: "profiling_abandoned", ref: { not: null } } }),
-    db.analyticsEvent.findMany({
+    withPrismaRetry(() => db.analyticsEvent.groupBy({ by: ["type"], _count: true, orderBy: { _count: { type: "desc" } } })),
+    withPrismaRetry(() => db.analyticsEvent.count()),
+    withPrismaRetry(() => db.analyticsEvent.groupBy({ by: ["sessionId"], where: { type: "profiling_started" } })),
+    withPrismaRetry(() => db.analyticsEvent.groupBy({ by: ["sessionId"], where: { type: "profiling_completed" } })),
+    withPrismaRetry(() => db.analyticsEvent.count({ where: { type: "whatsapp_join_clicked" } })),
+    withPrismaRetry(() => db.analyticsEvent.groupBy({ by: ["ref"], _count: true, where: { type: "profiling_question_answered", ref: { not: null } } })),
+    withPrismaRetry(() => db.analyticsEvent.groupBy({ by: ["ref"], _count: true, where: { type: "profiling_abandoned", ref: { not: null } } })),
+    withPrismaRetry(() => db.analyticsEvent.findMany({
       where: { type: "profiling_question_timed", ref: { not: null }, value: { not: null } },
       select: { ref: true, value: true },
       take: 5000,
-    }),
+    })),
   ]);
 
   // Drop-off
@@ -179,13 +183,13 @@ async function fetchFunnel() {
 
 async function fetchEmailEngagement() {
   const [byType, byCategory, draftStats, relanceOpened, relanceClicked] = await Promise.all([
-    db.emailEvent.groupBy({
+    withPrismaRetry(() => db.emailEvent.groupBy({
       by: ["type"],
       _count: true,
       where: { type: { in: ["email.sent", "email.opened", "email.clicked"] } },
-    }),
+    })),
     (async () => {
-      const rows = await db.emailEvent.groupBy({ by: ["category", "type"], _count: true });
+      const rows = await withPrismaRetry(() => db.emailEvent.groupBy({ by: ["category", "type"], _count: true }));
       const result: Record<string, { sent: number; opened: number; clicked: number }> = {};
       for (const cat of CATEGORIES) result[cat] = { sent: 0, opened: 0, clicked: 0 };
       for (const r of rows) {
@@ -199,14 +203,14 @@ async function fetchEmailEngagement() {
     })(),
     (async () => {
       const [drafts, relanceSent, recovered] = await Promise.all([
-        db.profilingDraft.count(),
-        db.profilingDraft.count({ where: { relanceSentAt: { not: null } } }),
-        db.profilingDraft.count({ where: { completedAt: { not: null } } }),
+        withPrismaRetry(() => db.profilingDraft.count()),
+        withPrismaRetry(() => db.profilingDraft.count({ where: { relanceSentAt: { not: null } } })),
+        withPrismaRetry(() => db.profilingDraft.count({ where: { completedAt: { not: null } } })),
       ]);
       return { drafts, relanceSent, recovered };
     })(),
-    db.emailEvent.count({ where: { category: "relance", type: "email.opened" } }),
-    db.emailEvent.count({ where: { category: "relance", type: "email.clicked" } }),
+    withPrismaRetry(() => db.emailEvent.count({ where: { category: "relance", type: "email.opened" } })),
+    withPrismaRetry(() => db.emailEvent.count({ where: { category: "relance", type: "email.clicked" } })),
   ]);
 
   const countOf = (type: string): number =>
@@ -242,10 +246,10 @@ async function fetchEmailDeliverability(days: number) {
   const metricsByProvider: Record<string, any[]> = {};
 
   for (const p of providers) {
-    const metrics = await db.emailProviderMetric.findMany({
+    const metrics = await withPrismaRetry(() => db.emailProviderMetric.findMany({
       where: { provider: p, date: { gte: start, lte: end } },
       orderBy: { date: "asc" },
-    });
+    }));
     metricsByProvider[p] = metrics;
   }
 
@@ -384,11 +388,11 @@ async function fetchCronHealth() {
   const now = Date.now();
   return Promise.all(
     CRON_HEALTH.map(async (c) => {
-      const last = await db.analyticsEvent.findFirst({
+      const last = await withPrismaRetry(() => db.analyticsEvent.findFirst({
         where: { type: c.key },
         orderBy: { createdAt: "desc" },
         select: { createdAt: true, ref: true },
-      });
+      }));
       const ageMs = last ? now - last.createdAt.getTime() : null;
       const status: "ok" | "stale" | "never" | "manual" = !last
         ? "never"
@@ -412,19 +416,19 @@ async function fetchCronHealth() {
 async function fetchEmailAudience() {
   const now = new Date();
   const [total, blacklisted, bounced, annonceSent, annonceRemaining] = await Promise.all([
-    db.member.count({ where: { deletedAt: null } }),
-    db.memberBlacklist.count({
+    withPrismaRetry(() => db.member.count({ where: { deletedAt: null } })),
+    withPrismaRetry(() => db.memberBlacklist.count({
       where: { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
-    }),
-    db.member.count({ where: { deletedAt: null, invitationStatus: "BOUNCED" } }),
-    db.memberEmailLog.count({ where: { kind: "annonce" } }),
-    db.member.count({
+    })),
+    withPrismaRetry(() => db.member.count({ where: { deletedAt: null, invitationStatus: "BOUNCED" } })),
+    withPrismaRetry(() => db.memberEmailLog.count({ where: { kind: "annonce" } })),
+    withPrismaRetry(() => db.member.count({
       where: {
         deletedAt: null,
         profileStatus: "APPROVED",
         NOT: { emailLogs: { some: { kind: "annonce" } } },
       },
-    }),
+    })),
   ]);
   return { total, blacklisted, bounced, annonceSent, annonceRemaining };
 }

@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { withPrismaRetry } from "@/lib/prisma-extensions";
 import { sendRelanceEmail } from "@/lib/mail";
 import { logMemberEmail, memberIdsWithEmailLog } from "@/lib/member-email-log";
 import { planBatch } from "@/lib/email-budget";
@@ -12,6 +13,9 @@ export const runtime = "nodejs";
 const RELANCE_7_JOURS_MS = 7 * 24 * 60 * 60 * 1000;
 const RELANCE_15_JOURS_MS = 15 * 24 * 60 * 60 * 1000;
 const RELANCE_30_JOURS_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** Clé fixe de sérialisation des runs de ce cron (verrou consultatif Postgres). */
+const ADVISORY_LOCK_KEY = 123457;
 
 /** GET /api/cron/relance — envoie les relances aux profils abandonnés (cron-job.org). */
 export async function GET(req: NextRequest) {
@@ -32,6 +36,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
 
+  // ── Sérialise les runs qui se chevauchent (même pattern que event-reminders)
+  // pg_advisory_xact_lock est libéré automatiquement en fin de transaction,
+  // y compris sur erreur. Le try/finally garantit le nettoyage best-effort
+  // restant (unlock explicite = no-op si déjà libéré).
+  await db.$executeRawUnsafe(
+    `SELECT pg_advisory_xact_lock(${ADVISORY_LOCK_KEY})`,
+  );
   try {
     const now = new Date();
     const relanceCutoff = new Date(now.getTime() - RELANCE_7_JOURS_MS);
@@ -39,25 +50,28 @@ export async function GET(req: NextRequest) {
     // J+7 éligibles filtrés en base : les plus anciens d'abord (batch).
     // Avant : take 50 sur tous les brouillons puis filtre JS → les vieux
     // au-delà de 50 n'étaient jamais relancés quand le backlog grossissait.
-    const drafts = await db.profilingDraft.findMany({
-      where: {
-        completedAt: null,
-        email: { not: "" },
-        relanceSentAt: null,
-        createdAt: { lte: relanceCutoff },
-      },
-      take: 50,
-      orderBy: { createdAt: "asc" },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        answers: true,
-        lastQuestionId: true,
-        createdAt: true,
-        relanceSentAt: true,
-      },
-    });
+    // Perf-7 : retry auto sur erreurs transient (pool épuisé, timeout).
+    const drafts = await withPrismaRetry(() =>
+      db.profilingDraft.findMany({
+        where: {
+          completedAt: null,
+          email: { not: "" },
+          relanceSentAt: null,
+          createdAt: { lte: relanceCutoff },
+        },
+        take: 50,
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          answers: true,
+          lastQuestionId: true,
+          createdAt: true,
+          relanceSentAt: true,
+        },
+      }),
+    );
 
     // J+7 : envois réels (reprise du profil). J+15/J+30 : estimations.
     // Déjà filtré en base (createdAt <= J-7, relanceSentAt NULL).
@@ -66,15 +80,19 @@ export async function GET(req: NextRequest) {
     // Anti-doublon : membres déjà relancés (log d'envoi).
     const memberByEmail = new Map(
       (
-        await db.member.findMany({
-          where: { email: { in: targets7.map((d) => d.email.toLowerCase()) } },
-          select: { id: true, email: true, firstName: true },
-        })
+        await withPrismaRetry(() =>
+          db.member.findMany({
+            where: { email: { in: targets7.map((d) => d.email.toLowerCase()) } },
+            select: { id: true, email: true, firstName: true },
+          }),
+        )
       ).map((m) => [m.email.toLowerCase(), m]),
     );
-    const loggedRelance = await memberIdsWithEmailLog(
-      [...memberByEmail.values()].map((m) => m.id),
-      "relance",
+    const loggedRelance = await withPrismaRetry(() =>
+      memberIdsWithEmailLog(
+        [...memberByEmail.values()].map((m) => m.id),
+        "relance",
+      ),
     );
 
     let sent7 = 0;
@@ -146,21 +164,25 @@ export async function GET(req: NextRequest) {
     }
 
     if (sentIds7.length) {
-      await db.profilingDraft.updateMany({
-        where: { id: { in: sentIds7 } },
-        data: { relanceSentAt: new Date() },
-      });
+      await withPrismaRetry(() =>
+        db.profilingDraft.updateMany({
+          where: { id: { in: sentIds7 } },
+          data: { relanceSentAt: new Date() },
+        }),
+      );
     }
 
     // Heartbeat : dernier passage visible au dashboard.
     try {
-      await db.analyticsEvent.create({
-        data: {
-          type: "cron_relance",
-          ref: `sent7=${sent7} errors=${errors} scanned=${drafts.length}`,
-          value: sent7,
-        },
-      });
+      await withPrismaRetry(() =>
+        db.analyticsEvent.create({
+          data: {
+            type: "cron_relance",
+            ref: `sent7=${sent7} errors=${errors} scanned=${drafts.length}`,
+            value: sent7,
+          },
+        }),
+      );
     } catch {
       /* ignore */
     }
@@ -178,5 +200,13 @@ export async function GET(req: NextRequest) {
       { ok: false, error: err instanceof Error ? err.message : "erreur inconnue" },
       { status: 500 },
     );
+  } finally {
+    try {
+      await db.$executeRawUnsafe(
+        `SELECT pg_advisory_unlock(${ADVISORY_LOCK_KEY})`,
+      );
+    } catch {
+      /* déjà libéré en fin de transaction — ignore */
+    }
   }
 }

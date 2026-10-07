@@ -5,10 +5,10 @@
  * Can be called from the collector script or run as a separate cron.
  */
 
-import { PrismaClient } from '@prisma/client';
+import { db } from '@/lib/db';
 import { sendEmail } from '@/lib/mail';
 
-const prisma = new PrismaClient();
+const prisma = db;
 
 // ─── Thresholds Configuration ─────────────────────────────────────────────
 

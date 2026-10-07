@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { withPrismaRetry } from "@/lib/prisma-extensions";
 import {
   collectMetrics,
   yesterdayUTC,
@@ -25,6 +26,10 @@ const querySchema = z.object({
  * (cron-job.org, 1×/jour). Même logique que `npm run collect:metrics`.
  * Défaut : jour précédent (UTC), tous les providers.
  */
+
+/** Clé fixe de sérialisation des runs de ce cron (verrou consultatif Postgres). */
+const ADVISORY_LOCK_KEY = 123459;
+
 export async function GET(req: NextRequest) {
   try {
   if (!process.env.CRON_SECRET) {
@@ -55,16 +60,25 @@ export async function GET(req: NextRequest) {
     : yesterdayUTC();
   const provider = parsed.data.provider as MetricsProvider;
 
+  // ── Sérialise les runs qui se chevauchent (même pattern que event-reminders)
+  // pg_advisory_xact_lock est libéré automatiquement en fin de transaction,
+  // y compris sur erreur. Le try/finally garantit le nettoyage best-effort
+  // restant (unlock explicite = no-op si déjà libéré).
+  await db.$executeRawUnsafe(
+    `SELECT pg_advisory_xact_lock(${ADVISORY_LOCK_KEY})`,
+  );
   try {
     const result = await collectMetrics(date, provider);
 
     try {
-      await db.analyticsEvent.create({
-        data: {
-          type: "cron_collect_metrics",
-          ref: `date=${date.toISOString().split("T")[0]} provider=${provider}`,
-        },
-      });
+      await withPrismaRetry(() =>
+        db.analyticsEvent.create({
+          data: {
+            type: "cron_collect_metrics",
+            ref: `date=${date.toISOString().split("T")[0]} provider=${provider}`,
+          },
+        }),
+      );
     } catch {
       /* ignore */
     }
@@ -76,6 +90,14 @@ export async function GET(req: NextRequest) {
       status: 500,
       code: "INTERNAL_ERROR",
     });
+  } finally {
+    try {
+      await db.$executeRawUnsafe(
+        `SELECT pg_advisory_unlock(${ADVISORY_LOCK_KEY})`,
+      );
+    } catch {
+      /* déjà libéré en fin de transaction — ignore */
+    }
   }
   } catch (err) {
     return errorToResponse(err);
