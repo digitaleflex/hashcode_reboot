@@ -210,7 +210,7 @@ src/lib/            db, admin-auth (+roles/CSRF), admin-audit, account-auth/otp/
                     events-validation (validateEventCreate/Patch + notifyWhere),
                     test-guard (blockIfTesting pour routes d'écriture)
 prisma/             schema.prisma (Postgres) + migrations/
-scripts/            copy-standalone.mjs, test-email-services.mjs,
+scripts/            test-email-services.mjs,
                     import-blacklist-from-soft-deleted.mjs
 tests/              unit.test.cjs (86), magic-link.test.cjs (17),
                     event-validation.test.cjs (17),
