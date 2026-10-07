@@ -23,30 +23,43 @@ import {
 } from "@/lib/storage-crypto";
 import { useTranslations } from "next-intl";
 
+function hasAnswer(value: unknown): boolean {
+  if (value === undefined || value === null) return false;
+  if (typeof value === "string") return value.trim().length > 0;
+  if (Array.isArray(value)) return value.length > 0;
+  return true;
+}
+
+function getAnsweredQuestionIds(answers: ProfileAnswers): string[] {
+  return getVisibleQuestions(answers)
+    .filter((q) => hasAnswer(answers[q.mapsTo]))
+    .map((q) => q.id);
+}
+
 export function ProfilingFlow({
   onComplete,
   onBack,
+  initialValues,
 }: {
   onComplete: (answers: ProfileAnswers) => void;
   onBack: () => void;
+  initialValues?: ProfileAnswers;
 }) {
   const t = useTranslations("profiling");
-  const [answers, setAnswers] = React.useState<ProfileAnswers>(initialAnswers);
+  const [answers, setAnswers] = React.useState<ProfileAnswers>(
+    () => initialValues ?? initialAnswers(),
+  );
   const [answeredIds, setAnsweredIds] = React.useState<string[]>([]);
-  const [step, setStep] = React.useState(0); // index into visible list
+  const [step, setStep] = React.useState(0);
   const [direction, setDirection] = React.useState(1);
   const [hydrated, setHydrated] = React.useState(false);
-  const [hasResume, setHasResume] = React.useState(false);
   const [showResumePrompt, setShowResumePrompt] = React.useState(false);
   const [phase, setPhase] = React.useState<"questions" | "preview">("questions");
   const [localError, setLocalError] = React.useState<string | null>(null);
   const [duplicate, setDuplicate] = React.useState(false);
-  // Vérification email : lien magique 1-clic envoyé à la fin (POST /api/members).
-  // L'email est collecté en Q2 sans bloquer — plus d'interruption OTP.
   const lastQuestionRef = React.useRef<string | null>(null);
   const reducedMotion = useReducedMotion();
 
-  // --- Hydrate from localStorage on mount (resume support) ---
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -58,22 +71,38 @@ export function ProfilingFlow({
             setAnswers(parsed.answers);
             setAnsweredIds(parsed.answeredIds);
             setStep(parsed.step ?? 0);
-            setHasResume(true);
             setShowResumePrompt(true);
             if (parsed.answers.email && parsed.answers.email.trim().length > 0) {
               setDuplicate(true);
             }
           }
+        } else if (initialValues && !cancelled) {
+          const visibleQuestions = getVisibleQuestions(initialValues);
+          const answered = getAnsweredQuestionIds(initialValues);
+          const firstUnansweredRequired = visibleQuestions.findIndex(
+            (q) => q.required && !answered.includes(q.id),
+          );
+          setAnsweredIds(answered);
+          setStep(firstUnansweredRequired >= 0 ? firstUnansweredRequired : 0);
         }
       } catch {
-        /* ignore corrupt storage */
+        if (initialValues && !cancelled) {
+          const visibleQuestions = getVisibleQuestions(initialValues);
+          const answered = getAnsweredQuestionIds(initialValues);
+          const firstUnansweredRequired = visibleQuestions.findIndex(
+            (q) => q.required && !answered.includes(q.id),
+          );
+          setAnsweredIds(answered);
+          setStep(firstUnansweredRequired >= 0 ? firstUnansweredRequired : 0);
+        }
       }
       if (!cancelled) setHydrated(true);
     })();
-    return () => { cancelled = true; };
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [initialValues]);
 
-  // --- Confirmation de sortie (beforeunload) + drop-off tracking ---
   React.useEffect(() => {
     if (!hydrated || answeredIds.length === 0) return;
     const handler = (e: BeforeUnloadEvent) => {
@@ -87,15 +116,13 @@ export function ProfilingFlow({
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
-  }, [hydrated, answeredIds.length, answers, lastQuestionRef, t]);
+  }, [hydrated, answeredIds.length, answers, t]);
 
-  // Track drop-off on visibility change (tab switch / mobile background)
   React.useEffect(() => {
     if (!hydrated || answeredIds.length === 0) return;
     let lastHiddenAt = 0;
     const handler = () => {
       if (document.visibilityState === "hidden" && lastQuestionRef.current) {
-        // Debounce: don't fire twice for a quick tab switch within 5s.
         const now = Date.now();
         if (now - lastHiddenAt > 5000) {
           lastHiddenAt = now;
@@ -106,9 +133,8 @@ export function ProfilingFlow({
     };
     document.addEventListener("visibilitychange", handler);
     return () => document.removeEventListener("visibilitychange", handler);
-  }, [hydrated, answeredIds.length, answers, lastQuestionRef]);
+  }, [hydrated, answeredIds.length, answers]);
 
-  // --- Persist to localStorage (encrypted, resume support) ---
   React.useEffect(() => {
     if (!hydrated) return;
     if (answeredIds.length === 0) {
@@ -119,22 +145,15 @@ export function ProfilingFlow({
     void setEncryptedItem(STORAGE_KEY, JSON.stringify(data));
   }, [answers, answeredIds, step, hydrated]);
 
-  const visible = React.useMemo(
-    () => getVisibleQuestions(answers),
-    [answers],
-  );
+  const visible = React.useMemo(() => getVisibleQuestions(answers), [answers]);
   const answeredSet = React.useMemo(() => new Set(answeredIds), [answeredIds]);
   const progress = React.useMemo(
     () => getProgress(answers, answeredSet),
     [answers, answeredSet],
   );
-
-  // Current question. When step >= visible.length, all questions are done → current is
-  // undefined, which the auto-finish effect uses to submit the profile.
   const current = step < visible.length ? visible[step] : undefined;
-
-  // Track the last question shown for drop-off analytics.
   const questionStartRef = React.useRef<number>(0);
+
   React.useEffect(() => {
     if (current) {
       lastQuestionRef.current = current.id;
@@ -155,24 +174,23 @@ export function ProfilingFlow({
     markAnswered(q);
     setLocalError(null);
 
-    // Time-per-question: report how long the user spent on THIS question.
-    // Capped at 10 min to ignore tabs left open in the background.
     if (questionStartRef.current > 0) {
       const durationMs = Date.now() - questionStartRef.current;
       if (durationMs > 0 && durationMs < 10 * 60 * 1000) {
-        track({ type: "profiling_question_timed", ref: q.id, value: Math.round(durationMs) });
+        track({
+          type: "profiling_question_timed",
+          ref: q.id,
+          value: Math.round(durationMs),
+        });
       }
     }
 
-    // Après l'email (Q2) → on avance direct, sans bloquer.
-    // La vérification se fait à la fin par lien magique 1-clic.
     if (q.id === "email") {
       setDirection(1);
       setStep((s) => Math.min(s + 1, visible.length));
       return;
     }
 
-    // Strategic interlude: after threeMonthGoal → show profile preview before contact.
     if (q.id === "threeMonthGoal") {
       setPhase("preview");
       return;
@@ -198,6 +216,7 @@ export function ProfilingFlow({
   function resume() {
     setShowResumePrompt(false);
   }
+
   function restart() {
     void removeEncryptedItem(STORAGE_KEY);
     setAnswers(initialAnswers());
@@ -205,43 +224,32 @@ export function ProfilingFlow({
     setStep(0);
     setPhase("questions");
     setShowResumePrompt(false);
-    setHasResume(false);
     setDuplicate(false);
   }
 
-  // --- Submit once all required visible questions are answered ---
-  // Plus de blocage OTP : on soumet direct, le lien magique part à la fin (POST /api/members).
   function maybeFinish() {
     const allRequiredAnswered = visible.every(
       (q) => !q.required || answeredSet.has(q.id),
     );
     if (allRequiredAnswered) {
-      // Clear local storage after successful completion.
       void removeEncryptedItem(STORAGE_KEY);
       onComplete(answers);
     } else {
-      // Some required question wasn't answered — find the first unanswered
-      // required question and jump back to it instead of staying stuck.
       const firstUnanswered = visible.find(
         (q) => q.required && !answeredSet.has(q.id),
       );
       if (firstUnanswered) {
-        const idx = visible.indexOf(firstUnanswered);
-        setStep(idx);
+        setStep(visible.indexOf(firstUnanswered));
       }
     }
   }
 
-  // Auto-finish if the last answer completed the flow.
   React.useEffect(() => {
     if (phase !== "questions") return;
     if (!hydrated || showResumePrompt) return;
-    if (!current) {
-      maybeFinish();
-    }
+    if (!current) maybeFinish();
   }, [current, phase, hydrated, showResumePrompt]);
 
-  // --- Resume prompt (first interaction) ---
   if (hydrated && showResumePrompt) {
     return (
       <ResumePrompt
@@ -254,7 +262,6 @@ export function ProfilingFlow({
     );
   }
 
-  // --- Profile preview interlude ---
   if (phase === "preview") {
     return (
       <ProfilePreview
@@ -262,9 +269,6 @@ export function ProfilingFlow({
         onFinalize={() => {
           setPhase("questions");
           setDirection(1);
-          // La partie Contact (WhatsApp) a été retirée de l'inscription :
-          // on défile au-delà de la dernière question, ce qui déclenche
-          // l'envoi du profil via l'effet d'auto-finalisation.
           setStep(visible.length);
         }}
         onEdit={goBack}
@@ -272,11 +276,7 @@ export function ProfilingFlow({
     );
   }
 
-  if (!current) {
-    // All done — show a transition state while maybeFinish fires.
-    // Previously returned null which caused a brief black screen.
-    return <FinalizingState onBack={goBack} />;
-  }
+  if (!current) return <FinalizingState onBack={goBack} />;
 
   return (
     <ProfilingShell
