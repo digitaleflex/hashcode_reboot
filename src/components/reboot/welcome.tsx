@@ -184,6 +184,7 @@ export function Welcome({
                 answers={answers}
                 result={result}
                 t={t}
+                onWhatsAppClick={handleWhatsAppClick}
               />
             ) : (
               <PendingBranch answers={answers} result={result} t={t} />
