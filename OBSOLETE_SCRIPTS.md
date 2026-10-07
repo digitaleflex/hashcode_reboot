@@ -27,7 +27,6 @@ Ces scripts créent des données de démonstration/test pour l'environnement de 
 ### 3. Scripts de Test et Validation Locaux
 Ces scripts sont utilisés pour le développement et les tests locaux, pas pour les opérations VPS en production.
 
-- `scripts/check-messages.mjs` - Vérifie la cohérence des messages FR/EN (développement)
 - `scripts/collect-email-metrics.ts` - Collecte des métriques d'emails (peut être utile mais principalement pour dev)
 - `scripts/copy-standalone.mjs` - Post-build pour le déploiement autonome local
 - `scripts/test-brevo-api.js` - Test de l'API Brevo (développement)
@@ -41,6 +40,7 @@ Ces scripts sont critiques pour le déploiement et les opérations sur VPS :
 - `scripts/deploy.sh` - Script principal de déploiement (dev/prod)
 - `scripts/backup.sh` - Sauvegarde/restauration (appelée par deploy.sh)
 - `scripts/generate-crontab.ts` - Génération de crontab pour les tâches cron VPS
+- `scripts/check-messages.mjs` - Vérifie la parité FR/EN et les placeholders ICU ; exécuté par la CI (`.github/workflows/ci.yml`, étape « Validate translation keys »)
 - `scripts/task-tracker.mjs` - Suivi des tâches (peut être utile pour la maintenance VPS)
 
 ## Notes
@@ -60,7 +60,7 @@ rm scripts/fix-membertable.mjs scripts/fix-prerender.mjs
 rm scripts/fix-prerender2.mjs scripts/fix-typo.mjs
 rm scripts/seed-email-templates.ts scripts/seed-github-program.ts
 rm scripts/seed-github-workshop.ts scripts/seed-workshops.ts
-rm scripts/check-messages.mjs scripts/copy-standalone.mjs
+rm scripts/copy-standalone.mjs
 rm scripts/test-brevo-api.js scripts/test-collector.ts
 rm scripts/test-email-services.mjs
 ```
