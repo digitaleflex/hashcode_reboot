@@ -205,14 +205,22 @@ export async function POST(req: NextRequest) {
     try {
       const link = await requestEmailLink(email);
       if (link.ok) {
-        await sendVerificationLinkEmail({
+        const result = await sendVerificationLinkEmail({
           to: email,
           firstName,
           url: buildVerifyUrl(link.token),
         });
+        if (!result.ok) {
+          console.warn("[members] envoi du lien de vérification échoué", {
+            provider: result.provider,
+            status: result.status,
+            error: result.error,
+            email,
+          });
+        }
       }
-    } catch {
-      /* email must never break the flow */
+    } catch (err) {
+      console.error("[members] envoi du lien de vérification : exception", err);
     }
     if (lane === "immediate") {
       const siteBase =
@@ -220,15 +228,36 @@ export async function POST(req: NextRequest) {
         process.env.NEXT_PUBLIC_URL ||
         "https://reboot.joinhashcode.com";
       const dashboardUrl = `${siteBase.replace(/\/$/, "")}/dashboard`;
-      await Promise.allSettled([
+      const results = await Promise.allSettled([
         sendWelcomeEmail({ to: email, firstName, archetype }),
         sendInvitationEmail({ to: email, firstName, dashboardUrl }),
       ]);
+      const labels = ["welcome", "invitation"] as const;
+      results.forEach((r, i) => {
+        if (r.status === "rejected") {
+          console.error(`[members] envoi ${labels[i]} : exception`, r.reason);
+        } else if (!r.value.ok) {
+          console.warn(`[members] envoi ${labels[i]} échoué`, {
+            provider: r.value.provider,
+            status: r.value.status,
+            error: r.value.error,
+            email,
+          });
+        }
+      });
     } else {
       try {
-        await sendWaitlistEmail({ to: email, firstName });
-      } catch {
-        /* email must never break the flow */
+        const result = await sendWaitlistEmail({ to: email, firstName });
+        if (!result.ok) {
+          console.warn("[members] envoi waitlist échoué", {
+            provider: result.provider,
+            status: result.status,
+            error: result.error,
+            email,
+          });
+        }
+      } catch (err) {
+        console.error("[members] envoi waitlist : exception", err);
       }
     }
   })();

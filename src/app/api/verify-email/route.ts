@@ -54,15 +54,24 @@ export async function POST(req: NextRequest) {
     }
 
     // Envoi fire-and-forget : on répond ok même si Resend échoue,
-    // le client pourra redemander après le cooldown.
+    // le client pourra redemander après le cooldown. Le résultat est
+    // inspecté uniquement pour rendre l'échec visible dans les logs.
     try {
-      await sendVerificationLinkEmail({
+      const result = await sendVerificationLinkEmail({
         to: email,
         firstName: firstName || "toi",
         url: buildVerifyUrl(requested.token),
       });
-    } catch {
-      /* email must never break the flow */
+      if (!result.ok) {
+        console.warn("[verify-email] envoi du lien échoué", {
+          provider: result.provider,
+          status: result.status,
+          error: result.error,
+          email,
+        });
+      }
+    } catch (err) {
+      console.error("[verify-email] envoi du lien : exception", err);
     }
 
     return NextResponse.json({ ok: true, message: "Lien envoyé. Vérifie ta boîte mail (1 clic)." });

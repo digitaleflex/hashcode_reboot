@@ -44,6 +44,30 @@ export interface SendEmailResult {
   ok: boolean;
   id?: string;
   provider?: "resend" | "brevo";
+  /**
+   * Diagnostic uniquement : statut HTTP renvoyé par le provider lors d'un
+   * échec (ex. 403 domaine non vérifié, 401 clé invalide). Absent en cas de
+   * succès ou d'erreur réseau (aucune réponse HTTP).
+   */
+  status?: number;
+  /**
+   * Diagnostic uniquement : message d'erreur court renvoyé par le provider
+   * (extrait tronqué du corps de réponse) ou cause locale (clé/expéditeur
+   * manquant, exception réseau). Jamais de secret.
+   */
+  error?: string;
+}
+
+/** Lit un extrait tronqué du corps d'une réponse provider en échec.
+ * Ne journalise ni n'expose jamais les en-têtes ni la clé API. */
+async function readErrorExcerpt(res: Response): Promise<string | undefined> {
+  try {
+    const text = (await res.text()).trim();
+    if (!text) return undefined;
+    return text.length > 300 ? `${text.slice(0, 300)}...` : text;
+  } catch {
+    return undefined;
+  }
 }
 
 /** Track email.sent in EmailEvent table (fire-and-forget). */
@@ -90,7 +114,7 @@ async function trackEmailSent(
 
 /**
  * POST https://api.resend.com/emails avec `Authorization: Bearer <RESEND_API_KEY>`.
- * Retourne { ok: false } en cas d'erreur.
+ * Retourne { ok: false } en cas d'erreur, avec status/error de diagnostic.
  */
 async function sendViaResend({
   to,
@@ -102,7 +126,14 @@ async function sendViaResend({
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.EMAIL_FROM;
   if (!apiKey || !from) {
-    return { ok: false };
+    const error = "RESEND_API_KEY ou EMAIL_FROM manquant";
+    console.error("[Email] resend a refusé l'envoi", {
+      status: undefined,
+      error,
+      to,
+      subject,
+    });
+    return { ok: false, provider: "resend", error };
   }
   try {
     const res = await fetch(RESEND_URL, {
@@ -124,7 +155,14 @@ async function sendViaResend({
       signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
     });
     if (!res.ok) {
-      return { ok: false, provider: "resend" };
+      const error = await readErrorExcerpt(res);
+      console.error("[Email] resend a refusé l'envoi", {
+        status: res.status,
+        error,
+        to,
+        subject,
+      });
+      return { ok: false, provider: "resend", status: res.status, error };
     }
     try {
       const payload = (await res.json()) as { id?: unknown };
@@ -135,14 +173,21 @@ async function sendViaResend({
       trackEmailSent(to, subject, "resend").catch(() => {});
       return { ok: true, provider: "resend" };
     }
-  } catch {
-    return { ok: false, provider: "resend" };
+  } catch (err) {
+    const error = err instanceof Error ? err.message : String(err);
+    console.error("[Email] resend a refusé l'envoi", {
+      status: undefined,
+      error,
+      to,
+      subject,
+    });
+    return { ok: false, provider: "resend", error };
   }
 }
 
 /**
  * POST https://api.brevo.com/v3/smtp/email avec `api-key: <BREVO_API_KEY>`.
- * Retourne { ok: false } en cas d'erreur.
+ * Retourne { ok: false } en cas d'erreur, avec status/error de diagnostic.
  */
 async function sendViaBrevo({
   to,
@@ -154,7 +199,14 @@ async function sendViaBrevo({
   const apiKey = process.env.BREVO_API_KEY;
   const from = process.env.BREVO_EMAIL_FROM;
   if (!apiKey || !from) {
-    return { ok: false };
+    const error = "BREVO_API_KEY ou BREVO_EMAIL_FROM manquant";
+    console.error("[Email] brevo a refusé l'envoi", {
+      status: undefined,
+      error,
+      to,
+      subject,
+    });
+    return { ok: false, provider: "brevo", error };
   }
   // Extraire l'email du format "Nom <email@domaine>"
   const emailMatch = from.match(/<([^>]+)>/);
@@ -179,7 +231,14 @@ async function sendViaBrevo({
       signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
     });
     if (!res.ok) {
-      return { ok: false, provider: "brevo" };
+      const error = await readErrorExcerpt(res);
+      console.error("[Email] brevo a refusé l'envoi", {
+        status: res.status,
+        error,
+        to,
+        subject,
+      });
+      return { ok: false, provider: "brevo", status: res.status, error };
     }
     try {
       const payload = (await res.json()) as { messageId?: unknown };
@@ -190,8 +249,15 @@ async function sendViaBrevo({
       trackEmailSent(to, subject, "brevo").catch(() => {});
       return { ok: true, provider: "brevo" };
     }
-  } catch {
-    return { ok: false, provider: "brevo" };
+  } catch (err) {
+    const error = err instanceof Error ? err.message : String(err);
+    console.error("[Email] brevo a refusé l'envoi", {
+      status: undefined,
+      error,
+      to,
+      subject,
+    });
+    return { ok: false, provider: "brevo", error };
   }
 }
 
@@ -201,7 +267,8 @@ async function sendViaBrevo({
  * - category="notification" / "code" → Resend (primary) ou Brevo si EMAIL_PROVIDER=brevo → fallback sur l'autre si BREVO_FALLBACK_ON_429=true
  * - category="transactional" / défaut → Resend (primary) → Brevo (fallback si BREVO_FALLBACK_ON_429=true)
  * - EMAIL_PROVIDER=brevo → Brevo prioritaire pour toutes les catégories (notification, code, transactional)
- * Ne lève jamais : toute erreur retourne { ok: false } silencieusement.
+ * Ne lève jamais : toute erreur retourne { ok: false } accompagné des
+ * diagnostics (status/error) et journalisée via console.error.
  */
 export async function sendEmail({
   to,
