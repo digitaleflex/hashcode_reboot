@@ -45,7 +45,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-local-*
+# Config locale à la RACINE seulement. Sans `/`, ce motif attrapait aussi
+# src/components/reboot/events/local-time-note.tsx : le fichier restait sur le
+# disque (build vert en local) mais n'était jamais commité → build cassé sur
+# le serveur et en CI.
+/local-*
 .claude
 .z-ai-config
 *.log
