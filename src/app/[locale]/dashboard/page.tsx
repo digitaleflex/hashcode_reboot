@@ -4,6 +4,7 @@ import { GraduationCap, ArrowRight } from "lucide-react";
 import { db } from "@/lib/db";
 import { buildAccountData } from "@/lib/account-data";
 import { WelcomeCard } from "./_components/WelcomeCard";
+import { OrientationSection } from "./_components/OrientationSection";
 import { StatusCard } from "./_components/StatusCard";
 import { QuickActions } from "./_components/QuickActions";
 import { ProfileSummary } from "./_components/ProfileSummary";
@@ -59,6 +60,8 @@ export default async function DashboardPage() {
         <StatusCard status={data.status} />
         <ProfileSummary profile={data.profile} member={data.member} />
       </div>
+
+      <OrientationSection memberId={session.member.id} member={member} />
 
       <NextSteps archetype={data.profile?.archetype ?? null} />
 

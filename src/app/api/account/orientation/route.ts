@@ -3,10 +3,11 @@ import { getSession } from "@/lib/account-auth";
 import { db } from "@/lib/db";
 import { AuthError, errorToResponse } from "@/lib/errors";
 import { memberToAnswers } from "@/lib/profiling/validate";
-import { buildLayeredProfile } from "@/lib/profiling/dynamicProfile";
 import { orientationEngine } from "@/lib/orientation/engine";
 import { loadPublishedActivitiesWithTimeout } from "@/lib/orientation/activities";
 import { loadObservedSignals } from "@/lib/orientation/observed";
+import { resolveOrientation } from "@/lib/orientation/resolve";
+import { buildSnapshotData, recordSnapshot } from "@/lib/orientation/snapshots";
 import { AVAILABLE_ACTIVITIES } from "@/lib/orientation/features";
 
 export const runtime = "nodejs";
@@ -68,13 +69,15 @@ export async function GET() {
     const declared = memberToAnswers(member);
     const catalogue =
       live && live.length > 0 ? live : AVAILABLE_ACTIVITIES;
-    const orientation = orientationEngine.evaluateWithActivities(
+
+    const { orientation, layered } = resolveOrientation(
       declared,
+      observed,
       catalogue,
     );
 
-    const layered =
-      observed !== null ? buildLayeredProfile(declared, observed) : null;
+    // Historique append-only, en arrière-plan (jamais bloquant).
+    void recordSnapshot(buildSnapshotData(memberId, orientation, layered));
 
     return NextResponse.json(
       {

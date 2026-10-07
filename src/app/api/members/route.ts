@@ -7,6 +7,8 @@ import { runAutoControls } from "@/lib/profiling/auto-controls";
 import { generateProfile } from "@/lib/profiling/engine";
 import { orientationEngine } from "@/lib/orientation/engine";
 import { loadPublishedActivitiesWithTimeout } from "@/lib/orientation/activities";
+import { buildSnapshotData, recordSnapshot } from "@/lib/orientation/snapshots";
+import { buildLayeredProfile } from "@/lib/profiling/dynamicProfile";
 import type { OrientationResult } from "@/lib/orientation/types";
 import { sendInvitationEmail, sendWelcomeEmail, sendWaitlistEmail, sendVerificationLinkEmail } from "@/lib/email/builders";
 import { requestEmailLink, buildVerifyUrl } from "@/lib/verify-email";
@@ -108,6 +110,7 @@ export async function POST(req: NextRequest) {
   // ni la confiance (usage interne).
   let nextBestAction: OrientationResult["nextBestAction"] = null;
   let orientationStatus: OrientationResult["status"] = "NO_MATCH";
+  let orientationForHistory: OrientationResult | null = null;
   try {
     const live = await loadPublishedActivitiesWithTimeout(1500).catch(
       () => null,
@@ -116,6 +119,7 @@ export async function POST(req: NextRequest) {
       live && live.length > 0
         ? orientationEngine.evaluateWithActivities(data, live)
         : orientationEngine.evaluate(data);
+    orientationForHistory = orientation;
     nextBestAction = orientation.nextBestAction;
     orientationStatus = orientation.status;
   } catch {
@@ -164,8 +168,21 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Écritures secondaires en parallèle (analytics + draft) — jamais bloquantes.
+  // Écritures secondaires en parallèle (analytics + draft + snapshot
+  // d'orientation) — jamais bloquantes (allSettled).
   const drafting = controls.profileStatus === "PENDING";
+  const signupLayered =
+    orientationForHistory !== null
+      ? buildLayeredProfile(data, {
+          workshopsStarted: 0,
+          workshopsCompleted: 0,
+          eventsJoined: 0,
+          mentoringRequested: false,
+          recosAccepted: 0,
+          recosIgnored: 0,
+          lastActivityAt: null,
+        })
+      : null;
   await Promise.allSettled([
     db.analyticsEvent.create({
       data: {
@@ -174,6 +191,13 @@ export async function POST(req: NextRequest) {
         ref: controls.accessLane,
       },
     }),
+    ...(orientationForHistory !== null && signupLayered !== null
+      ? [
+          recordSnapshot(
+            buildSnapshotData(created.id, orientationForHistory, signupLayered),
+          ),
+        ]
+      : []),
     ...(drafting
       ? [
           db.profilingDraft.upsert({

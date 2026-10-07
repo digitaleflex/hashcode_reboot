@@ -104,8 +104,9 @@ model Member {
   workshopEnrollments  WorkshopEnrollment[]
 
   // Mentorat (#61)
-  mentorshipsAsMentor Mentorship[] @relation("Mentor")
-  mentorshipsAsMentee Mentorship[] @relation("Mentee")
+  mentorshipsAsMentor Mentorship[]      @relation("Mentor")
+  mentorshipsAsMentee Mentorship[]      @relation("Mentee")
+  profileSnapshots    ProfileSnapshot[]
 
   @@index([email])
   @@index([country])
@@ -122,16 +123,16 @@ model Member {
 /// Better Auth tables for authentication
 /// These are managed by Better Auth and the Prisma adapter
 model User {
-  id            String    @id @default(cuid())
+  id            String   @id @default(cuid())
   name          String?
-  email         String    @unique
-  emailVerified Boolean   @default(false)
+  email         String   @unique
+  emailVerified Boolean  @default(false)
   image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // Link to our Member profile (via email lookup, no FK constraint)
-  memberEmail   String?   @unique
+  memberEmail String? @unique
 
   sessions      Session[]
   accounts      Account[]
@@ -142,35 +143,35 @@ model User {
 }
 
 model Session {
-  id           String   @id @default(cuid())
-  expiresAt    DateTime
-  token        String   @unique
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  ipAddress    String?
-  userAgent    String?
-  userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([token])
 }
 
 model Account {
-  id                String  @id @default(cuid())
-  accountId         String
-  providerId        String
-  userId            String
-  accessToken       String?
-  refreshToken      String?
-  idToken           String?
-  accessTokenExpiresAt DateTime?
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
   refreshTokenExpiresAt DateTime?
-  scope             String?
-  password          String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([providerId, accountId])
   @@index([userId])
@@ -191,11 +192,11 @@ model Verification {
 }
 
 model RateLimit {
-  id         String   @id @default(cuid())
-  key        String   @unique
-  count      Int
+  id          String   @id @default(cuid())
+  key         String   @unique
+  count       Int
   lastRequest BigInt
-  createdAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
 
   @@index([key])
 }
@@ -865,4 +866,37 @@ model MentorshipSession {
 
   @@index([mentorshipId])
   @@index([scheduledAt])
+}
+
+/// Historique des évaluations d'orientation (#155, #147).
+/// Append-only : une ligne par évaluation significative (inscription, re-score).
+/// Jamais mise à jour, jamais supprimée (traçabilité des recommandations passées).
+/// Les scores bruts restent internes (lus par l'admin agrégé, jamais exposés au membre).
+model ProfileSnapshot {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  memberId String
+  member   Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  /// Version du moteur ayant produit ce résultat (traçabilité des règles).
+  engineVersion  String
+  /// Version du profil dynamique (couches declared/inferred/observed).
+  dynamicVersion String
+
+  /// Scores d'archétype 0-1 (JSON : { builder, strategist, creator, catalyst }).
+  scoresJson       String
+  /// Confiance moteur 0-1 (distincte des scores).
+  confidence       Float
+  /// Archétype dominant (+ secondaire éventuel, JSON : { dominant, secondary }).
+  archetypesJson   String
+  /// Niveau effectif après fusion observed (peut différer du niveau déclaré).
+  effectiveLevel   String
+  /// Statut d'orientation : OK | INSUFFICIENT_DATA | NO_MATCH.
+  status           String
+  /// Id de la Next Best Action recommandée (null si aucune).
+  nextBestActionId String?
+
+  @@index([memberId, createdAt])
+  @@index([status])
 }

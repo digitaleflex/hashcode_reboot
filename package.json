@@ -17,6 +17,7 @@
     "test:orientation": "tsx --test tests/orientation.test.ts",
     "test:orientation-activities": "tsx --test tests/orientation-activities.test.ts",
     "test:orientation-observed": "tsx --test tests/orientation-observed.test.ts",
+    "test:profiling-finalization": "tsx --test tests/profiling-finalization.test.ts",
     "test:profiling-layers": "tsx --test tests/profiling-layers.test.ts",
     "test:magic-link": "node --test tests/magic-link.test.cjs",
     "test:events": "node --test tests/event-validation.test.cjs",
