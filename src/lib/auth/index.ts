@@ -77,7 +77,9 @@ export const auth = betterAuth({
         if (await isEmailBlacklisted(email)) return;
 
         const base = process.env.NEXT_PUBLIC_SITE_URL || "https://reboot.joinhashcode.com";
-        const url = `${base.replace(/\/$/, "")}/verify-otp?email=${encodeURIComponent(email)}&code=${encodeURIComponent(otp)}&next=${encodeURIComponent("/dashboard")}`;
+        // Pas de code dans l'URL : le code est envoyé dans le corps du mail,
+        // l'utilisateur le saisit manuellement sur /verify-otp (fail-safe).
+        const url = `${base.replace(/\/$/, "")}/verify-otp?email=${encodeURIComponent(email)}&next=${encodeURIComponent("/dashboard")}`;
 
         await sendMagicLinkEmail({
           to: email,
