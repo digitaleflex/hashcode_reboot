@@ -129,6 +129,7 @@ model Member {
   @@index([profileStatus])
   @@index([invitationStatus])
   @@index([communityStatus])
+  @@index([source])
   @@index([createdAt])
   @@index([deletedAt])
   // Cron event-reminders : filtre (profileStatus, deletedAt) en une passe.
@@ -359,6 +360,12 @@ model ProfilingDraft {
   firstName      String?
   answers        String // JSON of ProfileAnswers
   lastQuestionId String?
+  /// Session navigateur d'origine (même sens que AnalyticsEvent.sessionId) :
+  /// permet de rattacher un draft abandonné à son parcours (#210, phase 1).
+  sessionId      String?
+  /// UTM bruts capturés à l'entrée du parcours (redondance assumée avec
+  /// Member.source, qui n'existe qu'après complétion — #210, phase 1).
+  sourceUTM      String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   /// Set once the relance email has been sent (max 1 relance)
@@ -369,9 +376,68 @@ model ProfilingDraft {
   @@index([createdAt])
   @@index([completedAt])
   @@index([relanceSentAt])
+  @@index([sessionId])
   // Cron relance : filtre J+7 (completedAt NULL, relanceSentAt NULL,
   // createdAt <= J-7) trié par ancienneté en une passe.
   @@index([completedAt, relanceSentAt, createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONSENTEMENT & QUALIFICATION (#210, phase 1 — schéma seul, moteur en phase 2)
+//
+// Conventions maison : pas d'enums Prisma (purpose/choice/archetype = String
+// + unions TS/Zod côté applicatif), pas de FK dure vers Member (pattern
+// maison User.memberEmail : le consentement et la qualification peuvent
+// précéder/exister sans Member), historique append-only (createdAt seul,
+// jamais d'update), index sur les colonnes de filtre.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Consentements RGPD — historique append-only (#210, phase 1).
+/// Une ligne = un choix exprimé (granted | withdrawn) pour une finalité
+/// (cookies | contact | profiling | …) avec la version du texte présenté.
+/// Lecture du consentement courant : dernier createdAt pour (email, purpose).
+model Consent {
+  id String @id @default(cuid())
+
+  /// Lien Member SANS contrainte FK (pattern maison User.memberEmail) :
+  /// un consentement cookies peut exister avant toute inscription.
+  memberId String?
+  email    String
+  /// Finalité : cookies | contact | profiling (union TS/Zod, phase 2).
+  purpose String
+  /// Choix exprimé : granted | withdrawn (union TS/Zod, phase 2).
+  choice String
+  /// Version du texte / bandeau présenté (ex "cookies-v1").
+  textVersion String
+  /// Contexte de preuve (page, userAgent, …).
+  proof Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([email, purpose, createdAt])
+}
+
+/// Résultats du moteur de profiling — historique append-only (#210, phase 1).
+/// Plusieurs lignes par membre possibles (recalcul à chaque complétion) :
+/// JAMAIS @unique sur memberId — le courant = dernier createdAt.
+/// Écrit par le moteur uniquement, SANS FK dure (même pattern que Consent).
+model Qualification {
+  id String @id @default(cuid())
+
+  memberId String
+  /// Archétype calculé (ex CYBER BUILDER — union TS/Zod, phase 2).
+  archetype String?
+  /// Scores bruts du moteur par axe.
+  scores Json?
+  confidence Float?
+  /// Motifs / explications du score.
+  reasons Json?
+  /// Version du moteur ayant produit la ligne (traçabilité des recalculs).
+  engineVersion String
+
+  createdAt DateTime @default(now())
+
+  @@index([memberId, createdAt])
 }
 
 /// Member auth sessions (magic link via OTP).
