@@ -116,15 +116,20 @@ export function Activity() {
 
         {/* États de chargement / vide / erreur — jamais de données factices. */}
         {events === null && !failed ? (
-          <ul role="list" className="mt-12 grid gap-4 md:grid-cols-3">
-            {Array.from({ length: LIMIT }).map((_, i) => (
-              <li
-                key={i}
-                aria-hidden
-                className="h-[168px] animate-pulse rounded-lg border border-border/60 bg-card/30"
-              />
-            ))}
-          </ul>
+          <>
+            <p role="status" className="sr-only">
+              {t("loading")}
+            </p>
+            <ul role="list" className="mt-12 grid gap-4 md:grid-cols-3">
+              {Array.from({ length: LIMIT }).map((_, i) => (
+                <li
+                  key={i}
+                  aria-hidden
+                  className="h-[168px] animate-pulse rounded-lg border border-border/60 bg-card/30"
+                />
+              ))}
+            </ul>
+          </>
         ) : failed ? (
           <p role="status" className="mt-12 text-sm text-muted-foreground">
             {t("error")}

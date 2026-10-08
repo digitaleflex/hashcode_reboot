@@ -220,6 +220,25 @@ npx lhci autorun --config=lighthouserc.json
 | 2026-10-01 | `prefers-reduced-motion` : désactiver seulement `.animate-*` + framer-motion via hook | Ne pas casser `layout` animations framer-motion |
 | 2026-10-01 | Server Actions migration = P3 (post-V1) | Risque régression fort, V1 stable prioritaire |
 
+## 📏 BASELINE a11y/perf landing (#214 — 2026-10-08)
+
+> Mesure locale, non bloquante (`bun run test:perf`, hors `validate`).
+
+- **a11y automatisé** : `@axe-core/playwright` NON installé (axe-core présent
+  uniquement en transitif via `eslint-plugin-jsx-a11y`, vérifié dans le
+  lockfile). En attendant : bloc « accessibilité native » dans
+  `tests/e2e/landing.spec.ts` (landmarks, h1 unique, `lang="fr"`, noms
+  accessibles des boutons, `aria-labelledby` résolues, `img` avec `alt`).
+  Baseline = ces 4 tests verts (navigateurs Playwright requis pour l'exécution).
+- **LHCI** : `lighthouserc.json` (perf warn ≥ 0.7, a11y error ≥ 0.9,
+  best-practices/seo warn). Première mesure chiffrée : à consigner ici après
+  `bun run test:perf` en local (non exécuté : LHCI non installé, sortie
+  `filesystem` vers `./lhci`, non commitée).
+- **Garde i18n** : `node scripts/check-messages.mjs` échoue désormais sur
+  toute clé orpheline du périmètre `landing.*` + `profiling.welcome.*`
+  (consommations dynamiques `t(variable)` exemptées explicitement :
+  `landing.activity.types|levels`).
+
 ---
 
 ## 🔗 LIENS RAPIDES

@@ -153,11 +153,11 @@ export function Welcome({
           <Logo variant="compact" size="sm" />
           <div className="flex items-center gap-2">
             <span className="hidden text-xs text-muted-foreground sm:inline">
-              Profil
+              {t("welcome.headerProfile")}
             </span>
             <span className="inline-flex items-center gap-2 rounded-full border border-lime/35 bg-lime/5 px-3 py-1.5 font-mono text-[11px] tracking-[0.08em] text-lime">
               <span className="size-1.5 rounded-full bg-lime animate-hash-pulse" />
-              ACTIF
+              {t("welcome.headerActive")}
             </span>
           </div>
         </div>
@@ -183,13 +183,12 @@ export function Welcome({
               </div>
 
               <h1 id="welcome-title" className="mt-6 max-w-3xl font-display text-[clamp(2.6rem,6vw,5rem)] font-extrabold italic leading-[0.92] tracking-[-0.045em] text-balance">
-                Bienvenue dans le Reboot,
+                {t("welcome.heroGreeting")}
                 <span className="text-lime text-glow-lime"> {answers.firstName}.</span>
               </h1>
 
               <p className="mt-6 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
-                Ton profil est validé. Tu fais maintenant partie de l’écosystème
-                HASHCODE. Découvre ta prochaine étape et rejoins la communauté.
+                {t("welcome.heroSubtitle")}
               </p>
 
               <div className="mt-6 flex flex-wrap gap-2">
@@ -325,7 +324,7 @@ export function Welcome({
               onClick={onReset}
               className="w-full sm:w-auto"
             >
-              Retourner à HASHCODE
+              {t("welcome.backToHashcode")}
               <ArrowUpRight className="size-4" />
             </RebootButton>
 
@@ -442,9 +441,9 @@ function WhatsAppCapture({ memberId }: { memberId: string }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-semibold text-foreground">
-              Recevoir les infos sur WhatsApp
+              {t("welcome.whatsappCaptureTitle")}
             </p>
-            <MonoLabel className="text-muted-foreground">Optionnel</MonoLabel>
+            <MonoLabel className="text-muted-foreground">{t("welcome.whatsappCaptureOptional")}</MonoLabel>
           </div>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
             {t("welcome.addToWhatsAppHint")}
@@ -458,7 +457,7 @@ function WhatsAppCapture({ memberId }: { memberId: string }) {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               maxLength={40}
-              placeholder="+229 …"
+              placeholder={t("welcome.whatsappNumberPlaceholder")}
               aria-label={t("welcome.whatsappNumber")}
               className="min-w-0 flex-1 rounded-md border border-border/70 bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-lime/50 focus:outline-none focus:ring-1 focus:ring-lime/30"
             />
@@ -472,13 +471,13 @@ function WhatsAppCapture({ memberId }: { memberId: string }) {
               ) : (
                 <MessageCircle className="size-4" />
               )}
-              Ajouter
+              {t("welcome.add")}
             </button>
           </div>
 
           {error && <p className="mt-2 text-xs text-red-400" role="alert">{error}</p>}
           <p className="mt-3 text-[11px] leading-5 text-muted-foreground">
-            Ton numéro reste privé et n’est pas affiché publiquement.
+            {t("welcome.whatsappPrivacyNote")}
           </p>
         </div>
       </div>
@@ -518,11 +517,10 @@ function ImmediateBranch({
         </div>
 
         <h2 className="mt-5 font-display text-2xl font-bold tracking-tight sm:text-3xl">
-          Rejoins la communauté maintenant.
+          {t("welcome.joinNow")}
         </h2>
         <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-          Ton profil est prêt. Tu peux rejoindre HASHCODE pour échanger,
-          poser tes questions et participer aux prochaines activités.
+          {t("welcome.immediateText")}
         </p>
 
         <ExternalCta
@@ -598,15 +596,14 @@ function PendingBranch({
         <div className="grid size-11 shrink-0 place-items-center rounded-full bg-secondary text-foreground">
           <Clock className="size-5" />
         </div>
-        <MonoLabel className="text-muted-foreground">En cours</MonoLabel>
+        <MonoLabel className="text-muted-foreground">{t("welcome.processing")}</MonoLabel>
       </div>
 
       <h2 className="mt-5 font-display text-2xl font-bold tracking-tight sm:text-3xl">
-        Ton profil est en cours de traitement.
+        {t("welcome.pendingTitle")}
       </h2>
       <p className="mt-2 text-sm leading-6 text-muted-foreground">
-        Nous allons vérifier ton profil avant de t’envoyer une invitation
-        personnalisée.
+        {t("welcome.pendingText")}
       </p>
 
       {reasons.length > 0 && (

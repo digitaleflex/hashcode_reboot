@@ -200,6 +200,7 @@ export function ProfilingFlow({
   }
 
   function goBack() {
+    track({ type: "profiling_back" });
     if (phase === "preview") {
       setPhase("questions");
       return;
@@ -214,6 +215,7 @@ export function ProfilingFlow({
   }
 
   function resume() {
+    track({ type: "profiling_resumed" });
     setShowResumePrompt(false);
   }
 

@@ -18,16 +18,13 @@
     },
     "siteHeader": {
       "navAria": "Navigation",
-      "menuAria": "Ouvrir le menu",
-      "menuCloseAria": "Fermer le menu",
       "links": [
         "Les axes",
         "Événements",
         "FAQ"
       ],
       "cta": "Construire mon profil",
-      "ctaMobile": "Construire mon profil",
-      "editionBadge": "Reboot · Édition 2026"
+      "ctaMobile": "Construire mon profil"
     },
     "hero": {
       "eyebrow": "Bienvenue dans le Reboot — où que tu sois",
@@ -169,9 +166,7 @@
           "t": "Évoluer",
           "d": "Un accompagnement selon ton rythme et tes besoins."
         }
-      ],
-      "railAria": "Progression de la méthode",
-      "doneAria": "accompli"
+      ]
     },
     "engine": {
       "index": "04 · Ton point de départ",
@@ -297,11 +292,6 @@
         "beginner": "Débutant",
         "intermediate": "Intermédiaire",
         "advanced": "Avancé"
-      },
-      "domains": {
-        "web": "Web",
-        "cybersecurity": "Cyber",
-        "ai": "IA"
       }
     },
     "roadmap": {
@@ -340,8 +330,7 @@
           "live": false
         }
       ],
-      "liveBadge": "En cours",
-      "nextBadge": "À venir"
+      "liveBadge": "En cours"
     },
     "faq": {
       "index": "08 · Tes questions",
@@ -448,17 +437,10 @@
         }
       ],
       "liveCount": {
-        "valueWithCount": "{count}",
         "valueEmpty": "1ère",
         "labelWithCount": "Profils déjà créés",
         "labelEmpty": "Cohorte en cours"
-      },
-      "linksTitle": "Liens",
-      "links": [
-        "Construire mon profil",
-        "Voir les 3 axes",
-        "Questions fréquentes"
-      ]
+      }
     },
     "stickyCta": {
       "title": "2 min · Gratuit",
@@ -469,99 +451,6 @@
       "authenticated": "Mon espace",
       "authenticatedWithName": "Mon espace · {firstName}",
       "anonymous": "Se connecter"
-    },
-    "why": {
-      "index": "01 · Pourquoi on revient",
-      "title": "HASHCODE évolue.",
-      "intro": "Le contenu seul ne suffit plus. On veut un environnement où les membres peuvent apprendre, pratiquer, construire, collaborer et progresser — pour de vrai."
-    },
-    "pillars": {
-      "index": "03 · Ce qui change vraiment",
-      "title": "Quatre verbes. Une direction.",
-      "intro": "On passe de la consommation à la construction.",
-      "items": [
-        {
-          "k": "01",
-          "t": "Apprendre",
-          "d": "Les fondamentaux, clairs et solides."
-        },
-        {
-          "k": "02",
-          "t": "Construire",
-          "d": "De vrais projets, pas des démos."
-        },
-        {
-          "k": "03",
-          "t": "Pratiquer",
-          "d": "Des challenges pour progresser."
-        },
-        {
-          "k": "04",
-          "t": "Collaborer",
-          "d": "Progresser avec d'autres membres."
-        }
-      ],
-      "carouselAria": "Ce qui change : quatre verbes, une direction",
-      "trackAria": "Faites défiler horizontalement pour voir les quatre verbes. Flèches gauche et droite disponibles.",
-      "slideAria": "{i} sur {total} : {pt}",
-      "prevAria": "Voir le verbe précédent",
-      "nextAria": "Voir le verbe suivant",
-      "dotsAria": "Choisir un verbe",
-      "dotAria": "Aller au verbe {i} : {pt}"
-    },
-    "audience": {
-      "index": "04 · Pour qui c'est fait",
-      "title": "Pas besoin d'être expert.",
-      "intro": "Si tu es curieux et motivé, tu as ta place. Touche un profil pour commencer.",
-      "items": [
-        "Débutants",
-        "Étudiant·es",
-        "Développeur·euses",
-        "Professionnel·les",
-        "Entrepreneur·es",
-        "Passionné·es de cyber",
-        "Curieux d'IA",
-        "Autodidactes"
-      ],
-      "note": "Débutant ou avancé — on part de là où tu es vraiment."
-    },
-    "testimonial": {
-      "quote": "Je suis arrivé curieux, reparti avec un plan clair et mon premier challenge à faire cette semaine. On sait enfin où aller.",
-      "avatarLetter": "A",
-      "name": "Aïcha · Étudiante",
-      "role": "Débutante web · Première cohorte 2026"
-    },
-    "coming": {
-      "index": "05 · La suite, concrètement",
-      "title": "Le Reboot, c'est maintenant.",
-      "intro": "Les premiers membres ouvrent la voie. Voici l'ordre réel.",
-      "items": [
-        {
-          "t": "Challenges",
-          "d": "Des problèmes concrets à résoudre, régulièrement. Le premier dès cette semaine.",
-          "status": "Maintenant"
-        },
-        {
-          "t": "Workshops",
-          "d": "Des sessions live pour apprendre ensemble.",
-          "status": "Bientôt"
-        },
-        {
-          "t": "Projects",
-          "d": "Construire en équipe sur des projets réels.",
-          "status": "Bientôt"
-        },
-        {
-          "t": "Mentoring",
-          "d": "De l'accompagnement pour celles et ceux qui en ont besoin.",
-          "status": "Ensuite"
-        },
-        {
-          "t": "HASHCODE Registry",
-          "d": "Le futur centre de gestion des profils et parcours.",
-          "status": "Ensuite"
-        }
-      ]
     }
   },
   "profiling": {
@@ -1336,32 +1225,28 @@
       "resendCooldown": "Renvoyer dans {seconds} s"
     },
     "welcome": {
-      "existingProfile": "Profil retrouvé",
-      "profileSaved": "Profil enregistré",
-      "alreadyStarted": "Tu avais déjà commencé.",
-      "profileFound": "On a retrouvé ton profil — reprends où tu t'étais arrêté.",
-      "rebootWelcome": "Bienvenue dans le Reboot.",
-      "immediateHero": "Ton profil est validé. Rejoins la communauté et commence avec ton premier challenge.",
-      "pendingHero": "Ton profil est bien enregistré. On te prépare une invitation personnalisée.",
-      "yourProfile": "Ton profil",
-      "joinCommunity": "Rejoindre la communauté",
+      "heroGreeting": "Bienvenue dans le Reboot,",
+      "heroSubtitle": "Ton profil est validé. Tu fais maintenant partie de l’écosystème HASHCODE. Découvre ta prochaine étape et rejoins la communauté.",
+      "headerProfile": "Profil",
+      "headerActive": "ACTIF",
       "backToHashcode": "Retourner à HASHCODE",
       "shareProfile": "Partager mon profil",
       "linkCopied": "Lien copié",
       "privacy": "Confidentialité",
-      "footer": "HASHCODE REBOOT — minimum nécessaire, zéro revente, zéro pub.",
       "shareTitle": "Mon profil HASHCODE : {archetype}",
       "shareText": "J'ai créé mon profil HASHCODE ({archetype}). Fais comme moi :",
       "errorGeneric": "Une erreur est survenue. Réessaie.",
       "errorNetwork": "Pas de connexion. Vérifie ton réseau puis réessaie.",
       "addedToWhatsApp": "C'est noté, on t'ajoute au groupe WhatsApp.",
-      "addToWhatsApp": "Laisse ton numéro WhatsApp",
+      "whatsappCaptureTitle": "Recevoir les infos sur WhatsApp",
+      "whatsappCaptureOptional": "Optionnel",
       "addToWhatsAppHint": "Pour qu'on t'ajoute directement au groupe.",
       "whatsappNumber": "Ton numéro WhatsApp",
+      "whatsappNumberPlaceholder": "+229 …",
       "add": "Ajouter",
-      "immediateAccess": "Accès immédiat",
-      "joinNow": "Rejoins la communauté maintenant",
-      "immediateDescription": "Ton profil est compatible : ton invitation a été envoyée. Ouvre WhatsApp et présente-toi.",
+      "whatsappPrivacyNote": "Ton numéro reste privé et n’est pas affiché publiquement.",
+      "joinNow": "Rejoins la communauté maintenant.",
+      "immediateText": "Ton profil est prêt. Tu peux rejoindre HASHCODE pour échanger, poser tes questions et participer aux prochaines activités.",
       "profileValidated": "Profil",
       "approved": "Validé",
       "invitation": "Invitation",
@@ -1369,8 +1254,8 @@
       "now": "Reçu à {time}",
       "localCommunity": "Tu rejoins la communauté {flag} {country}.",
       "processing": "En cours",
-      "personalInvitation": "Invitation personnalisée en préparation",
-      "pendingDescription": "Ton profil est en revue. On te recontacte par email pour une invitation personnalisée. Zéro spam.",
+      "pendingTitle": "Ton profil est en cours de traitement.",
+      "pendingText": "Nous allons vérifier ton profil avant de t’envoyer une invitation personnalisée.",
       "status": "Statut",
       "pending": "En attente",
       "contact": "Contact",
