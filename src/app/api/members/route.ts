@@ -6,6 +6,8 @@ import { createProfileSchema, answersToCreatePayload } from "@/lib/profiling/val
 import { runAutoControls } from "@/lib/profiling/auto-controls";
 import { generateProfile } from "@/lib/profiling/engine";
 import { orientationEngine } from "@/lib/orientation/engine";
+import { toQualificationData } from "@/lib/qualification";
+import { normalizeSource } from "@/lib/acquisition";
 import { loadPublishedActivitiesWithTimeout } from "@/lib/orientation/activities";
 import type { OrientationResult } from "@/lib/orientation/types";
 import { sendOnboardingEmails } from "@/lib/onboarding-emails";
@@ -105,6 +107,7 @@ export async function POST(req: NextRequest) {
   // Catalogue réel (DB) avec repli seed. Les recommandations exposent
   // uniquement des métadonnées d'activités déjà validées par le catalogue ;
   // les scores/confiance globaux restent internes.
+  let orientation: OrientationResult | null = null;
   let nextBestAction: OrientationResult["nextBestAction"] = null;
   let orientationStatus: OrientationResult["status"] = "NO_MATCH";
   let orientationRecommendations: OrientationResult["recommendations"] = [];
@@ -112,7 +115,7 @@ export async function POST(req: NextRequest) {
     const live = await loadPublishedActivitiesWithTimeout(1500).catch(
       () => null,
     );
-    const orientation =
+    orientation =
       live && live.length > 0
         ? orientationEngine.evaluateWithActivities(data, live)
         : orientationEngine.evaluate(data);
@@ -127,7 +130,9 @@ export async function POST(req: NextRequest) {
     .create({
       data: {
         ...answersToCreatePayload(data),
-        source: data.source ?? "direct",
+        // Source d'acquisition normalisée (#210 p2 : lowercase, trim,
+        // alias "" → "direct") pour garder l'index source exploitable.
+        source: normalizeSource(data.source),
         profileArchetype: generated.archetype,
         tags: JSON.stringify(generated.tags),
         profileStatus: controls.profileStatus,
@@ -165,7 +170,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Écritures secondaires en parallèle (analytics + draft) — jamais bloquantes.
+  // Écritures secondaires en parallèle (analytics + draft + qualification) —
+  // jamais bloquantes (allSettled : un échec n'annule ni les autres ni la 201).
   const drafting = controls.profileStatus === "PENDING";
   await Promise.allSettled([
     db.analyticsEvent.create({
@@ -175,6 +181,14 @@ export async function POST(req: NextRequest) {
         ref: controls.accessLane,
       },
     }),
+    // Qualification #210 p2 : une ligne par calcul (append-only).
+    ...(orientation
+      ? [
+          db.qualification.create({
+            data: toQualificationData(created.id, orientation),
+          }),
+        ]
+      : []),
     ...(drafting
       ? [
           db.profilingDraft.upsert({

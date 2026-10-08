@@ -35,6 +35,11 @@ const draftSchema = z.object({
       "Brouillon trop volumineux.",
     ),
   lastQuestionId: z.string().max(80).optional(),
+  // #210 p2 : rattachement du draft abandonné à son parcours.
+  // Reçus du client (analytics.ts : getOrCreateSessionId / source persistée).
+  // Optionnels : les anciens clients ne les envoient pas encore.
+  sessionId: z.string().max(64).optional(),
+  sourceUTM: z.string().trim().max(120).optional(),
 });
 
 /**
@@ -68,7 +73,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false }, { status: 422 });
   }
 
-  const { email, answers, lastQuestionId } = parsed.data;
+  const { email, answers, lastQuestionId, sessionId, sourceUTM } = parsed.data;
   const emailLower = email.trim().toLowerCase();
 
   const firstName =
@@ -82,12 +87,18 @@ export async function POST(req: NextRequest) {
       update: {
         answers: JSON.stringify(answers ?? {}),
         ...(lastQuestionId ? { lastQuestionId } : {}),
+        // Ne jamais écraser avec du vide : seuls les clients à jour envoient
+        // sessionId/sourceUTM (les anciens beacons n'ont que email/answers).
+        ...(sessionId ? { sessionId } : {}),
+        ...(sourceUTM ? { sourceUTM } : {}),
         updatedAt: new Date(),
       },
       create: {
         email: emailLower,
         answers: JSON.stringify(answers ?? {}),
         lastQuestionId: lastQuestionId ?? null,
+        sessionId: sessionId ?? null,
+        sourceUTM: sourceUTM ?? null,
         firstName: firstName.slice(0, 40),
       },
     });

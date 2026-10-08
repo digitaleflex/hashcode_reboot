@@ -5,6 +5,9 @@ import { db } from "@/lib/db";
 import { createProfileSchema, answersToCreatePayload } from "@/lib/profiling/validate";
 import { runAutoControls } from "@/lib/profiling/auto-controls";
 import { generateProfile } from "@/lib/profiling/engine";
+import { orientationEngine } from "@/lib/orientation/engine";
+import type { OrientationResult } from "@/lib/orientation/types";
+import { toQualificationData } from "@/lib/qualification";
 import { audit } from "@/lib/admin-audit";
 import { blockIfTesting } from "@/lib/test-guard";
 import { bodyLimit } from "@/lib/body-limit";
@@ -101,6 +104,15 @@ export async function POST(req: NextRequest) {
     const generated = generateProfile(data);
     const payload = answersToCreatePayload(data);
 
+    // Orientation #210 p2 : évaluation pure (zéro I/O, jamais bloquante),
+    // persistée en Qualification après l'update membre.
+    let orientation: OrientationResult | null = null;
+    try {
+      orientation = orientationEngine.evaluate(data);
+    } catch {
+      /* l'orientation ne doit jamais casser la complétion */
+    }
+
     const updated = await db.member.update({
       where: { id: member.id },
       data: {
@@ -132,6 +144,17 @@ export async function POST(req: NextRequest) {
       });
     } catch {
       /* audit best-effort */
+    }
+
+    // Qualification #210 p2 : historique append-only, jamais bloquant.
+    if (orientation) {
+      try {
+        await db.qualification.create({
+          data: toQualificationData(member.id, orientation),
+        });
+      } catch {
+        /* best-effort */
+      }
     }
 
     return NextResponse.json({

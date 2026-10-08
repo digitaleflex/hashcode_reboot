@@ -515,3 +515,151 @@ describe("EMAIL_RE", () => {
     assert.ok(!EMAIL_RE.test("user@.com"));
   });
 });
+
+// ══════════════════════════════════════════════════════════════════
+// #210 phase 2 — Acquisition (miroirs de src/lib/acquisition.ts,
+// src/lib/qualification.ts et du schéma draft — append-only,
+// normalisation source, session rattachée au draft).
+// ══════════════════════════════════════════════════════════════════
+
+// ── Mirrors ──
+
+const SOURCE_ALIASES = {
+  "": "direct",
+  "(direct)": "direct",
+  "(none)": "direct",
+  "n/a": "direct",
+  "na": "direct",
+  "none": "direct",
+  "null": "direct",
+  "undefined": "direct",
+  "unknown": "direct",
+};
+
+function normalizeSource(raw) {
+  const v = typeof raw === "string" ? raw.trim().toLowerCase() : "";
+  if (!v) return "direct";
+  return SOURCE_ALIASES[v] ?? v;
+}
+
+const QUALIFICATION_ENGINE_VERSION = "1.0.0";
+
+function dominantArchetype(scores) {
+  let best = "builder";
+  for (const k of ["builder", "strategist", "creator", "catalyst"]) {
+    if (scores[k] > scores[best]) best = k;
+  }
+  return best;
+}
+
+function qualificationReasons(orientation, max = 10) {
+  const out = [];
+  for (const rec of orientation.recommendations.slice(0, 3)) {
+    for (const r of rec.reasons) {
+      if (!out.includes(r)) out.push(r);
+      if (out.length >= max) return out;
+    }
+  }
+  return out;
+}
+
+function toQualificationData(memberId, orientation) {
+  return {
+    memberId,
+    archetype: dominantArchetype(orientation.scores),
+    scores: orientation.scores,
+    confidence: orientation.confidence,
+    reasons: qualificationReasons(orientation),
+    engineVersion: QUALIFICATION_ENGINE_VERSION,
+  };
+}
+
+// Miroir des bornes draft (#210 p2) : sessionId ≤ 64, sourceUTM ≤ 120,
+// optionnels (anciens beacons sans ces champs toujours acceptés).
+function isDraftSessionFieldsValid(b) {
+  if (b.sessionId !== undefined) {
+    if (typeof b.sessionId !== "string" || b.sessionId.length > 64) return false;
+  }
+  if (b.sourceUTM !== undefined) {
+    if (typeof b.sourceUTM !== "string" || b.sourceUTM.trim().length > 120) return false;
+  }
+  return true;
+}
+
+// ── Tests ──
+
+describe("normalizeSource — Member.source à la création", () => {
+  test("lowercase + trim", () => {
+    assert.equal(normalizeSource("WhatsApp/Post"), "whatsapp/post");
+    assert.equal(normalizeSource("  DIRECT  "), "direct");
+  });
+
+  test("vide/absent/alias → direct", () => {
+    assert.equal(normalizeSource(""), "direct");
+    assert.equal(normalizeSource("   "), "direct");
+    assert.equal(normalizeSource(undefined), "direct");
+    assert.equal(normalizeSource(null), "direct");
+    assert.equal(normalizeSource("unknown"), "direct");
+    assert.equal(normalizeSource("(none)"), "direct");
+    assert.equal(normalizeSource("N/A"), "direct");
+  });
+
+  test("valeur UTM réelle conservée (normalisée)", () => {
+    assert.equal(normalizeSource("whatsapp/post?reboot"), "whatsapp/post?reboot");
+    assert.equal(normalizeSource("Newsletter/Email?octobre"), "newsletter/email?octobre");
+  });
+
+  test("non-string → direct", () => {
+    assert.equal(normalizeSource(123), "direct");
+    assert.equal(normalizeSource({}), "direct");
+  });
+});
+
+describe("toQualificationData — ligne Qualification persistée", () => {
+  const orientation = {
+    engineVersion: "1.0.0",
+    scores: { builder: 0.8, strategist: 0.4, creator: 0.5, catalyst: 0.2 },
+    confidence: 0.72,
+    recommendations: [
+      { id: "a", reasons: ["domain-match", "level-fit"] },
+      { id: "b", reasons: ["domain-match", "goal-fit"] },
+      { id: "c", reasons: ["budget-fit"] },
+      { id: "d", reasons: ["ignored-beyond-top3"] },
+    ],
+  };
+
+  test("memberId + archétype dominant + scores + confiance + version moteur", () => {
+    const q = toQualificationData("m1", orientation);
+    assert.equal(q.memberId, "m1");
+    assert.equal(q.archetype, "builder");
+    assert.deepEqual(q.scores, orientation.scores);
+    assert.equal(q.confidence, 0.72);
+    assert.equal(q.engineVersion, "1.0.0");
+  });
+
+  test("reasons : top-3 recos, dédupliquées, plafonnées", () => {
+    const q = toQualificationData("m1", orientation);
+    assert.deepEqual(q.reasons, ["domain-match", "level-fit", "goal-fit", "budget-fit"]);
+  });
+
+  test("aucune recommandation → reasons vide (jamais d'échec)", () => {
+    const q = toQualificationData("m1", { ...orientation, recommendations: [] });
+    assert.deepEqual(q.reasons, []);
+    assert.equal(q.engineVersion, QUALIFICATION_ENGINE_VERSION);
+  });
+});
+
+describe("draft sessionId/sourceUTM — upsert session + UTM", () => {
+  test("champs optionnels acceptés", () => {
+    assert.equal(isDraftSessionFieldsValid({}), true);
+    assert.equal(
+      isDraftSessionFieldsValid({ sessionId: "s_abc123", sourceUTM: "whatsapp/post" }),
+      true,
+    );
+  });
+
+  test("bornes refusées", () => {
+    assert.equal(isDraftSessionFieldsValid({ sessionId: "x".repeat(65) }), false);
+    assert.equal(isDraftSessionFieldsValid({ sourceUTM: "x".repeat(121) }), false);
+  });
+});

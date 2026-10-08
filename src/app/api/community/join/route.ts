@@ -29,33 +29,31 @@ export async function GET(req: NextRequest) {
 
   const memberId = session.member.id;
 
-  // Traçage best-effort : ne bloque jamais l'accès au groupe.
+  // Traçage atomique (#210 p2) : statut JOINED + événement analytics dans
+  // une seule transaction. Best-effort : ne bloque jamais l'accès au groupe.
   try {
-    await db.member.updateMany({
-      where: { id: memberId, communityStatus: { not: "JOINED" } },
-      data: {
-        communityStatus: "JOINED",
-        joinedAt: new Date(),
-        lastClickedAt: new Date(),
-      },
-    });
+    await db.$transaction([
+      db.member.updateMany({
+        where: { id: memberId, communityStatus: { not: "JOINED" } },
+        data: {
+          communityStatus: "JOINED",
+          joinedAt: new Date(),
+          lastClickedAt: new Date(),
+        },
+      }),
+      db.analyticsEvent.create({
+        data: {
+          type: "whatsapp_join_clicked",
+          memberId,
+          ref: "community-join",
+        },
+      }),
+    ]);
   } catch {
     /* ignore */
   }
 
   void audit("member.community-join", "member", memberId);
-
-  try {
-    await db.analyticsEvent.create({
-      data: {
-        type: "whatsapp_join_clicked",
-        memberId,
-        ref: "community-join",
-      },
-    });
-  } catch {
-    /* ignore */
-  }
 
   return NextResponse.redirect(WHATSAPP_URL);
 }

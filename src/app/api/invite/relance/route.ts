@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
           providerId: res.id,
         });
         // Mettre à jour le statut + émettre un nouveau token single-use
-        // (vérifié sur /api/invite/accept et /api/invite/refuse).
+        // (vérifié sur /api/invite/refuse).
         await db.member.update({
           where: { id: member.id },
           data: {

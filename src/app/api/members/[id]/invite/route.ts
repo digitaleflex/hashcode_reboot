@@ -51,21 +51,33 @@ export async function POST(
       throw new NotFoundError("Membre introuvable.");
     }
 
-    const updated = await db.member.update({
-      where: { id },
-      data: {
-        profileStatus: "APPROVED",
-        communityStatus: "INVITED",
-        accessLane: "immediate",
-        ...(member.profileStatus !== "APPROVED" ? { approvedAt: new Date() } : {}),
-        ...(member.invitationStatus === "NOT_INVITED"
-          ? {
-              invitationStatus: "INVITED",
-              invitedAt: new Date(),
-            }
-          : {}),
-      },
-    });
+    // Conversion atomique (#210 p2) : statut membre + trace analytics dans
+    // une seule transaction — plus de membre INVITÉ sans événement (ni
+    // l'inverse) en cas de panne entre les deux écritures.
+    const [updated] = await db.$transaction([
+      db.member.update({
+        where: { id },
+        data: {
+          profileStatus: "APPROVED",
+          communityStatus: "INVITED",
+          accessLane: "immediate",
+          ...(member.profileStatus !== "APPROVED" ? { approvedAt: new Date() } : {}),
+          ...(member.invitationStatus === "NOT_INVITED"
+            ? {
+                invitationStatus: "INVITED",
+                invitedAt: new Date(),
+              }
+            : {}),
+        },
+      }),
+      db.analyticsEvent.create({
+        data: {
+          type: "admin_invite",
+          memberId: id,
+          ref: `member.invite:${id}`,
+        },
+      }),
+    ]);
 
     void audit(
       "member.invite",
@@ -74,18 +86,6 @@ export async function POST(
       { email: member.email },
       { type: "admin", role: (await getAdminRole(req)) ?? "operator" },
     );
-
-    try {
-      await db.analyticsEvent.create({
-        data: {
-          type: "admin_invite",
-          memberId: id,
-          ref: `member.invite:${id}`,
-        },
-      });
-    } catch {
-      /* ignore */
-    }
 
     const siteBase =
       process.env.NEXT_PUBLIC_SITE_URL ||
