@@ -1,5 +1,5 @@
-import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { isCronAuthed } from "@/lib/cron-auth";
 import { db } from "@/lib/db";
 import { withPrismaRetry } from "@/lib/prisma-extensions";
 import { sendEventReminderEmail } from "@/lib/email/builders";
@@ -54,20 +54,13 @@ const OFFSET_MINUTES = OFFSETS.map((o) => o.minutes);
 const ADVISORY_LOCK_KEY = 123456;
 
 export async function GET(req: NextRequest) {
-  if (!process.env.CRON_SECRET) {
+  if (!process.env.CRON_SECRET && !process.env.CRON_SECRET_PREVIOUS) {
     return NextResponse.json(
       { ok: false, error: "event-reminders non configuré (CRON_SECRET manquant)" },
       { status: 401 },
     );
   }
-  const authHeader = req.headers.get("authorization") || "";
-  const expected = `Bearer ${process.env.CRON_SECRET}`;
-  if (authHeader.length !== expected.length) {
-    return NextResponse.json({ ok: false }, { status: 401 });
-  }
-  const a = Buffer.from(authHeader, "utf8");
-  const b = Buffer.from(expected, "utf8");
-  if (!timingSafeEqual(a, b)) {
+  if (!isCronAuthed(req)) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
 

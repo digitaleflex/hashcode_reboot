@@ -1,5 +1,5 @@
-import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { isCronAuthed } from "@/lib/cron-auth";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { withPrismaRetry } from "@/lib/prisma-extensions";
@@ -32,17 +32,10 @@ const ADVISORY_LOCK_KEY = 123459;
 
 export async function GET(req: NextRequest) {
   try {
-  if (!process.env.CRON_SECRET) {
+  if (!process.env.CRON_SECRET && !process.env.CRON_SECRET_PREVIOUS) {
     throw new AuthError("collecte non configurée (CRON_SECRET manquant)", "UNAUTHORIZED");
   }
-  const authHeader = req.headers.get("authorization") || "";
-  const expected = `Bearer ${process.env.CRON_SECRET}`;
-  if (authHeader.length !== expected.length) {
-    throw new AuthError("Non autorisé.", "UNAUTHORIZED");
-  }
-  const a = Buffer.from(authHeader, "utf8");
-  const b = Buffer.from(expected, "utf8");
-  if (!timingSafeEqual(a, b)) {
+  if (!isCronAuthed(req)) {
     throw new AuthError("Non autorisé.", "UNAUTHORIZED");
   }
 
