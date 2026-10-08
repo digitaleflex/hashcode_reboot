@@ -7,6 +7,33 @@ import { X } from "lucide-react";
 const CONSENT_KEY = "hashcode:reboot:consent";
 
 /**
+ * Fire-and-forget server trace. localStorage stays the local source of
+ * truth: a missing/failed API must never block or break the UI.
+ */
+function reportCookieConsent(choice: "granted" | "withdrawn") {
+  try {
+    const ts = Date.now();
+    const userAgent =
+      typeof navigator !== "undefined" ? navigator.userAgent : undefined;
+    fetch("/api/consents", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        purpose: "cookies",
+        choice,
+        textVersion: "cookies-v1",
+        proof: { ts, userAgent },
+      }),
+      keepalive: true,
+    }).catch(() => {
+      /* silent — localStorage remains the source of truth */
+    });
+  } catch {
+    /* silent */
+  }
+}
+
+/**
  * Lightweight cookie consent banner. Shows once (until the user accepts or
  * declines). Stores the choice in localStorage. We only set analytics cookies
  * after consent (the analytics tracking itself is fire-and-forget; this banner
@@ -30,6 +57,7 @@ export function CookieConsent() {
     } catch {
       /* ignore */
     }
+    reportCookieConsent(choice === "accepted" ? "granted" : "withdrawn");
     setVisible(false);
   }
 

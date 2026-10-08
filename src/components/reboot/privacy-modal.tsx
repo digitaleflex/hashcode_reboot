@@ -9,7 +9,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { HashSymbol } from "@/components/brand/logo";
-import { MonoLabel } from "./shared";
+import { MonoLabel, RebootButton } from "./shared";
 
 /**
  * In-page privacy modal (no separate /privacy route per the single-route
@@ -22,6 +22,39 @@ export function PrivacyModal({
   open: boolean;
   onClose: () => void;
 }) {
+  const [withdrawState, setWithdrawState] = React.useState<
+    "idle" | "sending" | "withdrawn"
+  >("idle");
+
+  function withdrawConsent() {
+    if (withdrawState !== "idle") return;
+    setWithdrawState("sending");
+    try {
+      const ts = Date.now();
+      const userAgent =
+        typeof navigator !== "undefined" ? navigator.userAgent : undefined;
+      fetch("/api/consents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          purpose: "contact",
+          choice: "withdrawn",
+          textVersion: "privacy-v1",
+          proof: { ts, userAgent },
+        }),
+        keepalive: true,
+      })
+        .catch(() => {
+          /* silent — visual feedback stays, API is fire-and-forget */
+        })
+        .finally(() => {
+          setWithdrawState("withdrawn");
+        });
+    } catch {
+      /* silent */
+      setWithdrawState("withdrawn");
+    }
+  }
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="bg-card border-border max-w-full md:max-w-lg max-h-[85vh] overflow-y-auto scroll-slim">
@@ -87,6 +120,26 @@ export function PrivacyModal({
               </a>{" "}
               depuis l&apos;email de ton profil.
             </p>
+            <div className="mt-3">
+              <RebootButton
+                size="sm"
+                variant="outline"
+                onClick={withdrawConsent}
+                disabled={withdrawState !== "idle"}
+              >
+                {withdrawState === "withdrawn"
+                  ? "Consentement retiré"
+                  : withdrawState === "sending"
+                    ? "Envoi…"
+                    : "Retirer ton consentement"}
+              </RebootButton>
+              {withdrawState === "withdrawn" && (
+                <p aria-live="polite" className="mt-2 text-lime text-sm">
+                  Ton retrait a été enregistré. Tu peux aussi écrire à
+                  privacy@joinhashcode.com pour une suppression complète.
+                </p>
+              )}
+            </div>
           </Section>
 
           <Section title="Sécurité">
