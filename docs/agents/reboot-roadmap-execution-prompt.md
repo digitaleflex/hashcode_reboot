@@ -1,97 +1,82 @@
-# Agent Execution Prompt — HashCode Reboot
+# Agent Execution Prompt — HashCode Reboot V2
 
-Tu travailles sur `digitaleflex/hashcode_reboot`.
+Repository: `digitaleflex/hashcode_reboot`
+Branch: `development`
 
 ## Référence absolue
 
-- Branche de travail: `development`
-- Ne prends pas `main` comme baseline.
-- Vision produit: Reboot est le point d'entrée gratuit de HashCode qui collecte, comprend, identifie et oriente les membres.
-- Boucle cible: COLLECT → UNDERSTAND → IDENTIFY → ORIENT → ACTIVATE → OBSERVE → RE-SCORE.
-- Question centrale: « Quelle est la meilleure prochaine action pour cette personne dans HashCode ? »
+Lire avant toute modification :
+1. `docs/architecture/reboot-joinhashcode-boundary.md`
+2. `docs/roadmap/reboot-roadmap-v2.md`
+3. l'état réel du repository et des issues.
 
-## Mission immédiate
+## Mission
 
-Ne code pas immédiatement le Super Algorithm.
+Réaligner Reboot comme **couche d'acquisition et de qualification**, sans reconstruire les fonctions déjà propriétaires de JoinHashCode.
 
-1. Inspecte le repository et l'état réel de `development`.
-2. Lis `docs/roadmap/reboot-roadmap-v1.md`.
-3. Audite toutes les issues ouvertes.
-4. Pour chaque issue, décide: KEEP / REWRITE / MERGE / MOVE / CLOSE / NEW.
-5. Ne ferme aucune issue sur une simple intuition: vérifie son contenu et, si nécessaire, le code concerné.
-6. Regroupe le backlog selon les milestones M0 à M6 et les domaines:
-   - foundation
-   - profiling
-   - orientation
-   - matching
-   - recommendation
-   - behaviour
-   - community
-   - analytics
-   - security
-   - admin
-7. Ferme uniquement les éléments définitivement obsolètes ou explicitement hors périmètre, avec un commentaire indiquant le remplacement ou la raison.
-8. Fusionne les doublons lorsque possible; sinon documente la relation.
-9. Réécris les issues qui restent pertinentes mais correspondent à l'ancienne vision.
-10. Crée les issues manquantes pour l'Orientation Engine V1.
+### Règle centrale
 
-## Ordre obligatoire
+**Reboot qualifie. JoinHashCode oriente et transforme.**
 
-M0 → M1 → M2 → M3 → M4 → M5 → M6.
+## Avant de coder
 
-Ne commence pas M3 avant que les décisions de M0 et les fondations de M1/M2 soient suffisamment spécifiées.
+1. Inspecter le code réel.
+2. Vérifier les issues ouvertes.
+3. Identifier les fonctionnalités qui appartiennent à JoinHashCode.
+4. Classer chaque issue : KEEP / REWRITE / MERGE / MOVE / CLOSE / NEW.
+5. Vérifier dépendances et données réellement disponibles.
+6. Documenter les décisions irréversibles.
 
 ## Architecture cible
 
-`src/lib/orientation/` doit rester indépendant de React et contenir progressivement:
-- types.ts
-- features.ts
-- scoring.ts
-- matching.ts
-- recommendations.ts
-- engine.ts
+```
+src/lib/acquisition/
+  types.ts
+  normalization.ts
+  qualification.ts
+  scoring.ts
+  attribution.ts
+  conversion.ts
+```
 
-N'ajoute confidence.ts, normalization.ts ou feedback.ts que lorsque le besoin est justifié par le design réel.
+Ne crée pas de moteur `orientation/` dans Reboot.
 
-## Règles métier
+## Modèle
 
-- Access control et orientation confidence sont deux concepts différents.
-- Score et confidence sont deux concepts différents.
-- Le moteur V1 doit être déterministe, explicable, testable, versionnable et reproductible.
-- Pas de LLM, ML ou embeddings comme moteur de décision principal en V1.
-- Une absence de match est un résultat valide.
-- Une donnée insuffisante est un résultat valide.
-- Toute recommandation importante doit avoir une justification exploitable.
-- Le profil doit distinguer déclaré, inféré et observé.
-- Ne transforme pas Reboot en école, réseau social, marketplace ou plateforme de paiement.
+```
+Visitor → AcquisitionSession → Lead → Qualification
+→ Acquisition Qualification Score → Conversion → JoinHashCode
+```
 
-## Avant chaque modification
+## Qualification V1
 
-- Vérifie l'état réel du code.
-- Vérifie les dépendances.
-- Vérifie les tests existants.
-- Évite les refactors massifs non nécessaires.
-- Préfère des changements petits, traçables et réversibles.
+Le moteur doit être déterministe, explicable, versionné, testable et reproductible.
 
-## Definition of Done
+Le score mesure la préparation/qualité du lead pour la conversion.
 
-Une issue n'est terminée que si:
-- critères d'acceptation remplis;
-- tests pertinents ajoutés/mis à jour;
-- typecheck/lint passent;
-- aucune régression critique;
-- documentation mise à jour si nécessaire;
-- le changement est cohérent avec la roadmap.
+**Score ≠ confidence.**
+
+Ne crée pas de score psychométrique, d'archetype complet ou de recommandation de parcours dans Reboot.
+
+## Handoff
+
+Le contrat Reboot → JoinHashCode doit être explicite, versionné, minimal, idempotent, sécurisé et observable.
+
+Ne couple pas Reboot à des tables internes de JoinHashCode.
+
+## Analytics
+
+Mesurer prioritairement :
+`visit → diagnostic_started → lead_captured → qualification_completed → qualified → conversion_started → conversion_completed → handoff_success/failure`
+
+Pas d'événements de progression pédagogique dans Reboot.
+
+## Hors scope
+
+CORE, orientation métier, spécialisation, Next Best Action, matching général, apprentissage, Labs, Evidence, Portfolio, Vivier, mentorat, communauté native, gamification, paiement, marketplace et LLM/ML comme moteur de décision.
 
 ## Mode d'exécution
 
-Travaille de façon autonome mais contrôlée:
-1. Inspecter
-2. Diagnostiquer
-3. Planifier
-4. Modifier
-5. Tester
-6. Vérifier
-7. Résumer
+Inspecter → diagnostiquer → planifier → modifier → tester → vérifier → résumer.
 
-Ne demande pas confirmation pour chaque micro-décision. Demande uniquement lorsqu'une décision produit irréversible ou une ambiguïté bloquante ne peut pas être résolue à partir du repository et de la roadmap.
+Ne demande pas confirmation pour chaque micro-décision. Demande uniquement lorsqu'une ambiguïté bloquante ne peut pas être résolue à partir des documents et du repository.
