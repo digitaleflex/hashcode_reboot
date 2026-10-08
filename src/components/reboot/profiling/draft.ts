@@ -1,4 +1,5 @@
 import type { ProfileAnswers } from "@/lib/profiling/types";
+import { getOrCreateSessionId, getOrCreateSource } from "@/lib/analytics";
 
 /**
  * Sauvegarde partielle côté serveur en cas d'abandon (relances email).
@@ -7,12 +8,16 @@ import type { ProfileAnswers } from "@/lib/profiling/types";
 export function saveDraftBeacon(answers: ProfileAnswers, lastQuestionId: string | null) {
   const email = answers.email;
   if (!email || !email.trim()) return; // email not captured yet
-  const payload = {
-    email,
-    answers,
-    lastQuestionId: lastQuestionId ?? undefined,
-  };
   try {
+    const sessionId = getOrCreateSessionId().slice(0, 64);
+    const sourceUTM = getOrCreateSource().slice(0, 120);
+    const payload = {
+      email,
+      answers,
+      lastQuestionId: lastQuestionId ?? undefined,
+      sessionId: sessionId || undefined,
+      sourceUTM: sourceUTM || undefined,
+    };
     if (navigator.sendBeacon) {
       const blob = new Blob([JSON.stringify(payload)], {
         type: "application/json",
