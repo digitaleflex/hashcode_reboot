@@ -48,3 +48,32 @@ export function toQualificationData(
     engineVersion: QUALIFICATION_ENGINE_VERSION,
   };
 }
+
+// ── Qualification acquisition #211 ───────────────────────────────────────
+// Ligne "acquisition" (snapshot de qualifyLead) vs ligne "orientation"
+// (toQualificationData ci-dessus) : le discriminant est le préfixe "acq-"
+// de ruleVersion. archetype = NULL explicite (aucun archétype produit côté
+// acquisition — voir boundary § Forbidden Duplication). Colonnes portées
+// par la migration prisma/migrations/*_qualification_acquisition_fields.
+
+import type { AcquisitionQualification } from "./qualification/acquisition";
+
+/** Construit le payload Prisma d'une ligne Qualification d'acquisition. */
+export function toAcquisitionQualificationData(
+  memberId: string,
+  result: AcquisitionQualification,
+) {
+  return {
+    memberId,
+    archetype: null,
+    scores: {
+      qualificationScore: result.score,
+    } as Prisma.InputJsonValue,
+    confidence: null,
+    reasons: result.reasons,
+    engineVersion: result.ruleVersion,
+    qualificationScore: result.score,
+    status: result.status,
+    ruleVersion: result.ruleVersion,
+  };
+}

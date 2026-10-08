@@ -8,7 +8,8 @@ import { runAutoControls } from "@/lib/profiling/auto-controls";
 import { generateProfile } from "@/lib/profiling/engine";
 import { orientationEngine } from "@/lib/orientation/engine";
 import type { OrientationResult } from "@/lib/orientation/types";
-import { toQualificationData } from "@/lib/qualification";
+import { toQualificationData, toAcquisitionQualificationData } from "@/lib/qualification";
+import { qualifyLead } from "@/lib/qualification/acquisition";
 import { audit } from "@/lib/admin-audit";
 import { blockIfTesting } from "@/lib/test-guard";
 import { bodyLimit } from "@/lib/body-limit";
@@ -156,6 +157,17 @@ export async function POST(req: NextRequest) {
       } catch {
         /* best-effort */
       }
+    }
+
+    // Qualification acquisition #211 : snapshot d'entrée (append-only,
+    // archetype NULL — discriminant : ruleVersion préfixée "acq-").
+    try {
+      const acquisition = qualifyLead(data);
+      await db.qualification.create({
+        data: toAcquisitionQualificationData(member.id, acquisition),
+      });
+    } catch {
+      /* best-effort */
     }
 
     return NextResponse.json({

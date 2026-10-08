@@ -433,7 +433,14 @@ model Qualification {
   /// Motifs / explications du score.
   reasons Json?
   /// Version du moteur ayant produit la ligne (traçabilité des recalculs).
+  /// Lignes acquisition #211 : ruleVersion préfixée "acq-" (discriminant).
   engineVersion String
+  /// Score de qualification d'entrée #211 (lignes acquisition seules, NULL sinon).
+  qualificationScore Float?
+  /// Statut acquisition #211 : QUALIFIED | DISQUALIFIED | INSUFFICIENT_DATA.
+  status String?
+  /// Version de règle acquisition #211 (ex "acq-qualif-1.0.0").
+  ruleVersion String?
 
   createdAt DateTime @default(now())
 

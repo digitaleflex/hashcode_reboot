@@ -7,7 +7,9 @@ import { createProfileSchema, answersToCreatePayload } from "@/lib/profiling/val
 import { runAutoControls } from "@/lib/profiling/auto-controls";
 import { generateProfile } from "@/lib/profiling/engine";
 import { orientationEngine } from "@/lib/orientation/engine";
-import { toQualificationData } from "@/lib/qualification";
+import { toQualificationData, toAcquisitionQualificationData } from "@/lib/qualification";
+import { qualifyLead } from "@/lib/qualification/acquisition";
+import type { AcquisitionQualification } from "@/lib/qualification/acquisition";
 import { normalizeSource } from "@/lib/acquisition";
 import { loadPublishedActivitiesWithTimeout } from "@/lib/orientation/activities";
 import type { OrientationResult } from "@/lib/orientation/types";
@@ -104,6 +106,15 @@ export async function POST(req: NextRequest) {
   const controls = runAutoControls(data);
   const generated = generateProfile(data);
 
+  // Qualification acquisition #211 : snapshot pur (jamais bloquant —
+  // qualifyLead est total, mais on isole tout échec par principe).
+  let acquisition: AcquisitionQualification | null = null;
+  try {
+    acquisition = qualifyLead(data);
+  } catch {
+    /* la qualification acquisition ne doit jamais casser l'inscription */
+  }
+
   // Orientation engine (M3/M4) : pure, déterministe, jamais bloquant.
   // Catalogue réel (DB) avec repli seed. Les recommandations exposent
   // uniquement des métadonnées d'activités déjà validées par le catalogue ;
@@ -187,6 +198,15 @@ export async function POST(req: NextRequest) {
       ? [
           db.qualification.create({
             data: toQualificationData(created.id, orientation),
+          }),
+        ]
+      : []),
+    // Qualification acquisition #211 : snapshot d'entrée (append-only,
+    // archetype NULL — discriminant : ruleVersion préfixée "acq-").
+    ...(acquisition
+      ? [
+          db.qualification.create({
+            data: toAcquisitionQualificationData(created.id, acquisition),
           }),
         ]
       : []),

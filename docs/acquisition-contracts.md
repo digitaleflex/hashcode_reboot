@@ -42,3 +42,38 @@ Pas de `Lead` / `LeadSource` / `AcquisitionSession` / `Conversion` / `Acquisitio
 - `POST /api/analytics` : `blockIfTesting` + `bodyLimit` + 120 req/IP/10 min ; `z.enum(EVENT_TYPES)` (26 types funnel) ; `memberId` client honoré seulement s'il égale la session (anti-empoisonnement).
 - Écritures serveur : `toServerEventData` (`src/lib/analytics.ts`, union `SERVER_EVENT_TYPES` = 26 publics + 16 `SERVER_ONLY_*` admin/cron/onboarding) — plus aucune création directe non validée ; `POST /api/analytics` n'accepte jamais les types serveur.
 - Lots : exclusion préalable via `memberIdsWithEmailLog` avant envoi, `logMemberEmail` après envoi.
+
+## 5. Qualification acquisition (#211, bornée C1 — aucune table créée)
+
+Snapshot de qualification d'entrée, figé sur `Qualification` (append-only, jamais
+recalculé). Complète `runAutoControls` (lane immédiate vs revue humaine) sans la
+remplacer. Discriminant des deux écritures `Qualification` : les lignes acquisition
+portent `ruleVersion` préfixée `acq-` (`ACQUISITION_QUALIFICATION_RULE_VERSION =
+"acq-qualif-1.0.0"`, `engineVersion` = même valeur), `archetype = NULL` explicite
+(aucun archétype produit côté acquisition).
+
+- Module : `src/lib/qualification/acquisition.ts` — `qualifyLead(answers)` PUR,
+  zéro I/O, déterministe (même entrée + même version = même résultat).
+- Persistance : `toAcquisitionQualificationData` (`src/lib/qualification.ts`) ;
+  colonnes `qualificationScore` (DOUBLE, NULL), `status` (TEXT, NULL),
+  `ruleVersion` (TEXT, NULL) — migration
+  `prisma/migrations/20261008120000_qualification_acquisition_fields/`.
+- Déclenchement best-effort jamais bloquant : `POST /api/members` (dans le
+  `allSettled` existant) et `POST /api/account/complete-profile` (try/catch).
+  Aucune nouvelle route.
+- Lecture du courant : dernier `createdAt` + filtre `ruleVersion LIKE 'acq-%'`.
+
+Table règles / poids (recopie du code — `RULE_WEIGHTS`, max 100) :
+
+| Signal | Poids | Règle |
+|---|---|---|
+| Complétude noyau | +30 | email valide + firstName + primaryDomain + goal + level + availability |
+| Qualité email | +20 | email valide ET domaine non jetable |
+| Richesse threeMonthGoal | +20 | ≥ 20 car. → +20 ; ≥ 4 car. → +10 ; sinon 0 |
+| Disponibilité | +10 | renseignée : `<2h` → +5, autre valeur → +10 ; absente → 0 |
+| Intention mentorat/budget | +10 | `yes` + budget réel → +10 ; `yes` sans budget → +6 ; `maybe` → +5 ; sinon 0 |
+| Source normalisée | +10 | non-`direct` (via `normalizeSource`) → +10 ; `direct` → +4 |
+
+Statuts : noyau incomplet → `INSUFFICIENT_DATA` ; email invalide ou jetable →
+`DISQUALIFIED` ; sinon score ≥ 75 (`QUALIFIED_THRESHOLD`) → `QUALIFIED`, sinon
+`DISQUALIFIED`.
