@@ -4,37 +4,80 @@
  *
  * Run:  node --test tests/integration.test.cjs
  *
- * ⚠️  SAFETY: These tests spawn a dev server that connects to DATABASE_URL.
- *     If DATABASE_URL points to production, WRITE tests (POST) will pollute it.
- *     All WRITE tests below are intentionally READ-ONLY or sandboxed:
- *       - POST /api/admin/login  → only creates rate-limit state (in-memory)
- *       - POST /api/admin/logout → only clears a cookie
- *       - POST /api/analytics    → REMOVED (would pollute production analytics)
- *       - POST /api/events       → REMOVED (would pollute production events)
- *       - POST /api/members      → REMOVED (would pollute production members)
- *     Only GET/verify/logout tests remain. For write-path testing, use a
- *     dedicated test database (set TESTING_DATABASE_URL in .env.test).
+ * SAFETY: These tests spawn a dev server that connects to DATABASE_URL.
+ *     If DATABASE_URL points to production, WRITE tests will pollute it.
+ *     All writes below are sandboxed and cleaned up in `after` :
+ *       - Admin Member (email unique `integration-<run>-adm@…`, hard
+ *         deleted afterwards — no soft-delete, no blacklist pollution)
+ *       - Better Auth Verification OTP rows (deleted afterwards)
+ *       - Better Auth User + Session rows from the OTP sign-in (deleted)
+ *       - POST /api/auth/email-otp/send-verification-otp is only ever
+ *         called with UNKNOWN emails (anti-enumeration path) so the app
+ *         never sends a real email and writes no EmailEvent row.
+ *       - POST /api/analytics, POST /api/events, POST /api/members,
+ *         workshop enroll/submit/attempt writes → still REMOVED.
+ *     Only GET/verify/logout/auth-OTP tests remain. For anything else, use
+ *     a dedicated test database (set TESTING_DATABASE_URL in .env.test).
  *
  * Requires: Next.js dev server starts on port 3737.
  * Server lifecycle is managed automatically (before/after hooks).
  *
- * !! STALE ADMIN BLOCK — the `/api/admin/login` cases below still POST
- * !! `{ passcode }`, the contract that the Better Auth migration (T17)
- * !! replaced with `{ email, password }`. They also forge a legacy HMAC
- * !! token cookie, which no code validates any more. Those assertions are
- * !! expected to fail until they are rewritten against email+password.
- * !! See ADMIN_PASSCODE removal: `getAdminPasscode()` no longer exists.
+ * Auth contract (Better Auth email-OTP, T17+) :
+ *     1. `POST /api/auth/email-otp/send-verification-otp`
+ *        `{ email, type: "sign-in" }` → `{ success: true }`
+ *     2. `POST /api/auth/sign-in/email-otp` `{ email, otp }`
+ *        → `{ token, user }` + `better-auth.session_token` cookie.
+ *     Admin rights come from `Member.adminRole` ("operator"/"viewer").
+ *     There is NO `/api/admin/login` route anymore (passcode screen
+ *     removed, commit 580091b) and NO email+password (`emailAndPassword`
+ *     is disabled in `src/lib/auth`) : the old `{ passcode }` cases were
+ *     remapped to the two endpoints above.
+ *
+ * Auth-call budget (READ THIS before adding a test) :
+ *     `src/app/api/auth/[...betterAuth]/route.ts` wraps EVERY auth call
+ *     (send + sign-in share one bucket) with `otp-signin:<ip>` :
+ *     capacity 5 per 10 minutes. The 6th call within 10 min does NOT
+ *     return 429 — the thrown RateLimitError escapes the handler and
+ *     Next.js answers 500. Consequence : this whole file may issue at
+ *     most 5 `/api/auth/*` calls, in this fixed order —
+ *       send/unknown(200) → send/invalid(400) → sign-in/wrong(400) →
+ *       sign-in/valid(200, jar cached) → sign-in/replay(400).
+ *     Everything else reuses the cached jar (zero auth calls). The old
+ *     login intents that do not fit the budget (missing/empty/invalid-JSON
+ *     payloads, dedicated rate-limit burst) are NOT covered in-suite : a
+ *     burst test would need 6+ calls and poison the bucket for the rest
+ *     of the file. They require an isolated run, not more tests here.
+ *     Compensating zero-budget coverage was added instead (pagination,
+ *     compare mode, level filter — all real).
+ *
+ * Post-logout note : Better Auth `cookieCache` (1 h) means a verify WITH
+ *     the full jar still reads authed:true after server-side revocation.
+ *     The post-logout test therefore re-sends the session token ALONE
+ *     (no `session_data`), forcing the DB lookup that proves revocation.
+ *
+ * Test-only plumbing (no production equivalent, all inside this file) :
+ *     - `DATABASE_URL` : read from process.env, else from the repo .env*
+ *       files (plain node does not load .env by itself). Fails fast with
+ *       a clear message when absent.
+ *     - `NEXT_PUBLIC_SITE_URL` is forced to the test origin when spawning
+ *       the server so Better Auth `trustedOrigins` accepts our Origin.
+ *     - `Member` + OTP rows are created via Prisma (no API promotes to
+ *       adminRole, no API returns OTPs — by design) and hard-deleted in
+ *       `after`, keyed by a unique per-run token.
  *
  * Coverage:
- *  - /api/admin/login    — valid / wrong / missing / invalid JSON / rate-limit
- *                          (STALE: still uses the removed passcode contract)
- *  - /api/admin/verify   — no cookie / invalid / expired / valid
- *  - /api/admin/logout   — clears cookie
- *  - Protected endpoints — require auth, return 401 without cookie
+ *  - send-verification-otp — unknown / invalid (budget 2/5)
+ *  - sign-in/email-otp   — wrong / valid+cookies / replay (budget 5/5)
+ *  - /api/admin/verify   — no cookie / garbage / unknown / valid session
+ *  - /api/admin/logout   — 200 + server-side revocation (LAST: it kills
+ *                          the shared session)
+ *  - Protected endpoints — 401/403 without cookie, 200 with session,
+ *                          members pagination, analytics compare mode
  *  - Public endpoints    — work without auth (GET only)
- *  - /api/events/notify-count — auth + domain filter + invalid domain
+ *  - /api/events/notify-count — auth + domain/level filters + invalid
  *  - /api/admin/audit-log     — auth + CSV format
  *  - /api/admin/activity      — auth + limit param
+ *  - workshops — 401 without member session (unchanged)
  */
 
 "use strict";
@@ -48,8 +91,54 @@ const http = require("node:http");
 
 const PORT = 3737;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
-const TEST_PASSPHRASE = "test-integration-passphrase-16c";
 const SERVER_START_TIMEOUT_MS = 90_000;
+
+// Unique per-run token: every row created by this file carries it, so
+// `after` deletes exactly what this run created (never another run's).
+const RUN_TOKEN = `it${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`.toLowerCase();
+const ADMIN_EMAIL = `integration-${RUN_TOKEN}-adm@example.com`;
+const unknownEmail = (i) => `integration-${RUN_TOKEN}-unk${i}@example.com`;
+
+// ── Test-only environment ───────────────────────────────────────
+
+function resolveDatabaseUrl() {
+  if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
+  // Plain node does not load .env files (Next.js does for the server it
+  // spawns). Fall back to the repo dotenv cascade, dev order.
+  const fs = require("node:fs");
+  for (const f of [".env.development.local", ".env.local", ".env.development", ".env"]) {
+    try {
+      const text = fs.readFileSync(path.join(process.cwd(), f), "utf8");
+      for (const line of text.split("\n")) {
+        const m = line.match(/^\s*DATABASE_URL\s*=\s*(.*)\s*$/);
+        if (!m) continue;
+        let v = m[1].trim();
+        if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+          v = v.slice(1, -1);
+        }
+        if (v) return v;
+      }
+    } catch { /* file missing — try next */ }
+  }
+  return null;
+}
+
+let prisma = null;
+function getPrisma() {
+  if (prisma) return prisma;
+  const dbUrl = resolveDatabaseUrl();
+  if (!dbUrl) {
+    throw new Error(
+      "[integration] DATABASE_URL introuvable (ni dans l'environnement, ni dans les .env*) — " +
+      "impossible de préparer la session admin. Exportez DATABASE_URL avant de lancer ce fichier.",
+    );
+  }
+  // Same URL for the Prisma client below and the spawned server (which
+  // inherits process.env): both sides always talk to the same database.
+  process.env.DATABASE_URL = dbUrl;
+  prisma = new (require("@prisma/client").PrismaClient)();
+  return prisma;
+}
 
 // ── HTTP helpers ────────────────────────────────────────────────
 
@@ -69,14 +158,14 @@ function httpRequest(method, path, opts = {}) {
       hostname: url.hostname, port: url.port, path: url.pathname + url.search,
       method, headers: reqHeaders,
     }, (res) => {
-      const rawSetCookie = res.headers["set-cookie"];
-      const setCookie = Array.isArray(rawSetCookie) ? rawSetCookie.join(", ") : rawSetCookie ?? null;
+      const raw = res.headers["set-cookie"];
+      const setCookies = Array.isArray(raw) ? raw : raw ? [raw] : [];
       let data = "";
       res.on("data", c => (data += c));
       res.on("end", () => {
         let json = null;
         try { json = JSON.parse(data); } catch { /* not JSON */ }
-        resolve({ status: res.statusCode, headers: res.headers, json, setCookie });
+        resolve({ status: res.statusCode, headers: res.headers, json, setCookies });
       });
     });
     req.on("error", reject);
@@ -85,11 +174,12 @@ function httpRequest(method, path, opts = {}) {
   });
 }
 
-function parseSetCookies(header) {
-  if (!header) return {};
+/** Cookie jar from raw Set-Cookie lines (one entry per cookie — never
+ *  split on commas, Expires attributes contain them). */
+function jarFromSetCookies(setCookies) {
   const jar = {};
-  for (const part of header.split(/, (?=[^;]+; )/)) {
-    const [pair] = part.split(";");
+  for (const c of setCookies || []) {
+    const pair = String(c).split(";")[0];
     const eq = pair.indexOf("=");
     if (eq > 0) jar[pair.slice(0, eq).trim()] = pair.slice(eq + 1).trim();
   }
@@ -114,7 +204,10 @@ async function waitForServer() {
 }
 
 function startServer() {
-  const env = { ...process.env, NODE_ENV: "development" };
+  // NEXT_PUBLIC_SITE_URL is forced to the test origin: Better Auth
+  // `trustedOrigins` (CSRF check on cookie-less /api/auth/* calls) must
+  // accept our Origin header. Nothing else in these tests depends on it.
+  const env = { ...process.env, NODE_ENV: "development", NEXT_PUBLIC_SITE_URL: BASE_URL };
   const nextCli = path.join(process.cwd(), "node_modules", "next", "dist", "bin", "next");
   server = spawn(process.execPath, [nextCli, "dev", "-p", String(PORT), "-H", "127.0.0.1"], {
     env, stdio: ["ignore", "pipe", "pipe"], detached: false,
@@ -125,18 +218,217 @@ function startServer() {
 }
 
 async function stopServer() {
-  if (!server || server.killed) return;
-  server.kill("SIGTERM");
-  await wait(800);
-  if (!server.killed) server.kill("SIGKILL");
+  if (!server) return;
+  // Attendre la sortie réelle (sinon un zombie garde le port et le run
+  // suivant parle à un serveur résiduel — contamination silencieuse).
+  const exited = new Promise((resolve) => {
+    server.on("exit", () => resolve(true));
+    setTimeout(() => resolve(false), 10_000);
+  });
+  try { server.kill("SIGTERM"); } catch { /* already dead */ }
+  if (!(await exited)) {
+    try { server.kill("SIGKILL"); } catch { /* ignore */ }
+    await wait(1000);
+  }
+  server = null;
 }
 
-// ── /api/admin/verify ──────────────────────────────────────────
+/** Le port est-il occupé (serveur résiduel d'un run précédent) ? */
+function portInUse() {
+  const net = require("node:net");
+  return new Promise((resolve) => {
+    const s = net.connect(PORT, "127.0.0.1");
+    s.on("connect", () => { s.end(); resolve(true); });
+    s.on("error", () => resolve(false));
+  });
+}
+
+async function ensureServer() {
+  if (serverReady) return;
+  // Fail fast (instead of a 90 s start timeout): without DATABASE_URL the
+  // spawned server can never answer below 500, and the Prisma setup below
+  // cannot connect either.
+  if (!resolveDatabaseUrl()) {
+    throw new Error(
+      "[integration] DATABASE_URL introuvable (ni dans l'environnement, ni dans les .env*) — " +
+      "exportez DATABASE_URL (ex. le Postgres de dev) avant de lancer ce fichier.",
+    );
+  }
+  if (await portInUse()) {
+    throw new Error(
+      `[integration] le port ${PORT} est déjà occupé (serveur résiduel ?) — ` +
+      "libérez-le avant de lancer ce fichier (un serveur étranger fausserait tous les tests).",
+    );
+  }
+  startServer();
+  await waitForServer();
+  serverReady = true;
+}
+
+// ── Admin session setup (test-only, cleaned in `after`) ──────────
+
+const SIGN_IN_ID = (email) => `sign-in-otp-${email}`;
+
+function makeOtp() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+async function ensureAdminMember() {
+  const db = getPrisma();
+  const existing = await db.member.findUnique({ where: { email: ADMIN_EMAIL }, select: { id: true } });
+  if (existing) return;
+  await db.member.create({
+    data: {
+      firstName: "Integ",
+      email: ADMIN_EMAIL,
+      country: "BJ",
+      primaryDomain: "web",
+      level: "beginner",
+      goal: "project",
+      availability: "2-5h",
+      learningStyle: "practice",
+      adminRole: "operator",
+    },
+  });
+}
+
+/** Mint a sign-in OTP row exactly as Better Auth stores it
+ *  (`<otp>:<attempts>`, plain, 5 min) — reading real OTP emails is
+ *  impossible from here, and triggering a real send would email a
+ *  provider + write EmailEvent rows. The HTTP verification below stays
+ *  100% real. */
+async function mintSignInOtp(email, otp) {
+  const db = getPrisma();
+  await db.verification.deleteMany({ where: { identifier: SIGN_IN_ID(email) } });
+  await db.verification.create({
+    data: {
+      identifier: SIGN_IN_ID(email),
+      value: `${otp}:0`,
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+    },
+  });
+}
+
+let cachedAdminJar = null;
+let lastConsumedOtp = null;
+/** Shared admin session. In full runs the jar is populated once by the
+ *  sign-in/valid test below (zero extra auth calls); standalone runs
+ *  (test-name-pattern) perform one real login as fallback. */
+async function authedJar() {
+  if (cachedAdminJar) return cachedAdminJar;
+  await ensureAdminMember();
+  const otp = makeOtp();
+  await mintSignInOtp(ADMIN_EMAIL, otp);
+  const login = await httpRequest("POST", "/api/auth/sign-in/email-otp", {
+    body: { email: ADMIN_EMAIL, otp },
+  });
+  assert.equal(login.status, 200, `admin sign-in failed: ${login.status} ${JSON.stringify(login.json)}`);
+  cachedAdminJar = jarFromSetCookies(login.setCookies);
+  assert.ok(
+    cachedAdminJar["better-auth.session_token"],
+    `session cookie missing in ${JSON.stringify(Object.keys(cachedAdminJar))}`,
+  );
+  return cachedAdminJar;
+}
+
+async function cleanupTestData() {
+  if (!prisma) return;
+  try {
+    await prisma.verification.deleteMany({ where: { identifier: { contains: RUN_TOKEN } } });
+    await prisma.session.deleteMany({ where: { user: { email: { contains: RUN_TOKEN } } } });
+    await prisma.user.deleteMany({ where: { email: { contains: RUN_TOKEN } } });
+    await prisma.member.deleteMany({ where: { email: { contains: RUN_TOKEN } } });
+  } catch (e) {
+    console.log("[integration] cleanup warning:", e?.message ?? e);
+  }
+  try { await prisma.$disconnect(); } catch { /* ignore */ }
+  prisma = null;
+}
+
+// ── send-verification-otp (auth calls 1-2/5) ─────────────────────
+// NOTE: `POST /api/admin/login` no longer exists (passcode screen removed,
+// commit 580091b). Old login intents remapped: invalid JSON / missing /
+// empty payloads and the rate-limit burst do not fit the shared 5-calls-
+// per-10-min budget (see header) and are documented there, not tested.
+
+describe("POST /api/auth/email-otp/send-verification-otp", () => {
+  before(ensureServer);
+
+  test("→ 200 { success: true } for unknown email (anti-enumeration, no leak)", async () => {
+    const email = unknownEmail(0);
+    const res = await httpRequest("POST", "/api/auth/email-otp/send-verification-otp", {
+      body: { email, type: "sign-in" },
+    });
+    assert.equal(res.status, 200, `send failed: ${JSON.stringify(res.json)}`);
+    assert.equal(res.json?.success, true);
+  });
+
+  test("→ 400 when email is invalid", async () => {
+    const res = await httpRequest("POST", "/api/auth/email-otp/send-verification-otp", {
+      body: { email: "not-an-email", type: "sign-in" },
+    });
+    assert.equal(res.status, 400);
+  });
+});
+
+// ── sign-in/email-otp (auth calls 3-5/5 — the real login) ─────────
+
+describe("POST /api/auth/sign-in/email-otp", () => {
+  before(ensureServer);
+
+  test("→ 400 INVALID_OTP when otp is wrong", async () => {
+    await ensureAdminMember();
+    const otp = makeOtp();
+    await mintSignInOtp(ADMIN_EMAIL, otp);
+    const res = await httpRequest("POST", "/api/auth/sign-in/email-otp", {
+      body: { email: ADMIN_EMAIL, otp: "000000" },
+    });
+    assert.equal(res.status, 400);
+    assert.equal(res.json?.code, "INVALID_OTP");
+  });
+
+  test("→ 200 with correct otp, sets session cookies", async () => {
+    await ensureAdminMember();
+    const otp = makeOtp();
+    await mintSignInOtp(ADMIN_EMAIL, otp);
+    const res = await httpRequest("POST", "/api/auth/sign-in/email-otp", {
+      body: { email: ADMIN_EMAIL, otp },
+    });
+    assert.equal(res.status, 200, `sign-in failed: ${JSON.stringify(res.json)}`);
+    assert.equal(typeof res.json?.token, "string");
+    assert.equal(res.json?.user?.email, ADMIN_EMAIL);
+    const jar = jarFromSetCookies(res.setCookies);
+    assert.ok(jar["better-auth.session_token"], "session cookie must be set");
+    cachedAdminJar = jar;
+    lastConsumedOtp = otp;
+  });
+
+  test("→ 400 when the same otp is replayed (single-use)", async () => {
+    // Rejoue l'OTP déjà consommé par le test précédent : aucune création
+    // (zéro appel auth supplémentaire — budget 5/5 respecté). En run
+    // isolé (test-name-pattern), rejoue un OTP consommé localement.
+    let otp = lastConsumedOtp;
+    if (!otp) {
+      await ensureAdminMember();
+      otp = makeOtp();
+      await mintSignInOtp(ADMIN_EMAIL, otp);
+      const first = await httpRequest("POST", "/api/auth/sign-in/email-otp", {
+        body: { email: ADMIN_EMAIL, otp },
+      });
+      assert.equal(first.status, 200);
+    }
+    const replay = await httpRequest("POST", "/api/auth/sign-in/email-otp", {
+      body: { email: ADMIN_EMAIL, otp },
+    });
+    assert.equal(replay.status, 400);
+    assert.equal(replay.json?.code, "INVALID_OTP");
+  });
+});
+
+// ── /api/admin/verify (zero auth calls — reuses the cached jar) ──
 
 describe("GET /api/admin/verify", () => {
-  before(async () => {
-    if (!serverReady) { startServer(); await waitForServer(); serverReady = true; }
-  });
+  before(ensureServer);
 
   test("→ 200 { authed: false } with no cookie", async () => {
     const res = await httpRequest("GET", "/api/admin/verify");
@@ -145,28 +437,24 @@ describe("GET /api/admin/verify", () => {
     assert.equal(res.json?.role, null);
   });
 
-  test("→ 200 { authed: false } with garbage cookie", async () => {
-    const res = await httpRequest("GET", "/api/admin/verify", { cookies: { "hashcode-admin": "garbage.invalid.token" } });
+  test("→ 200 { authed: false } with garbage session cookie", async () => {
+    const res = await httpRequest("GET", "/api/admin/verify", {
+      cookies: { "better-auth.session_token": "garbage.invalid.token" },
+    });
     assert.equal(res.status, 200);
     assert.equal(res.json?.authed, false);
   });
 
-  test("→ 200 { authed: false } with expired cookie", async () => {
-    const crypto = require("node:crypto");
-    const expiredMs = String(Date.now() - 3_600_000);
-    const expB64 = Buffer.from(expiredMs, "utf8").toString("base64url");
-    const sig = crypto.createHmac("sha256", TEST_PASSPHRASE).update(expiredMs, "utf8").digest("base64url");
-    const expired = `${expB64}.${sig}.${Buffer.from("operator").toString("base64url")}`;
-    const res = await httpRequest("GET", "/api/admin/verify", { cookies: { "hashcode-admin": expired } });
+  test("→ 200 { authed: false } with unknown session token", async () => {
+    const res = await httpRequest("GET", "/api/admin/verify", {
+      cookies: { "better-auth.session_token": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
+    });
     assert.equal(res.status, 200);
     assert.equal(res.json?.authed, false);
   });
 
-  test("→ 200 { authed: true, role: operator } with valid cookie", async () => {
-    await wait(11_000); // rate-limit cooldown
-    const login = await httpRequest("POST", "/api/admin/login", { body: { passcode: TEST_PASSPHRASE } });
-    assert.equal(login.status, 200, `login failed: ${JSON.stringify(login.json)}`);
-    const jar = parseSetCookies(login.setCookie);
+  test("→ 200 { authed: true, role: operator } with valid session", async () => {
+    const jar = await authedJar();
     const res = await httpRequest("GET", "/api/admin/verify", { cookies: jar });
     assert.equal(res.status, 200);
     assert.equal(res.json?.authed, true);
@@ -174,107 +462,10 @@ describe("GET /api/admin/verify", () => {
   });
 });
 
-// ── /api/admin/login ───────────────────────────────────────────
-
-describe("POST /api/admin/login", () => {
-  before(async () => {
-    if (!serverReady) { startServer(); await waitForServer(); serverReady = true; }
-  });
-
-  test("→ 400 on invalid JSON body", async () => {
-    const res = await httpRequest("POST", "/api/admin/login", {
-      body: "not-json", headers: { "Content-Type": "text/plain" },
-    });
-    assert.equal(res.status, 400);
-  });
-
-  test("→ 422 when passcode is missing", async () => {
-    const res = await httpRequest("POST", "/api/admin/login", { body: {} });
-    assert.equal(res.status, 422);
-    assert.equal(res.json?.code, "INVALID_PAYLOAD");
-  });
-
-  test("→ 422 when passcode is empty", async () => {
-    const res = await httpRequest("POST", "/api/admin/login", { body: { passcode: "   " } });
-    assert.equal(res.status, 422);
-  });
-
-  test("→ 401 when passcode is wrong (length differs)", async () => {
-    await wait(11_000);
-    const res = await httpRequest("POST", "/api/admin/login", { body: { passcode: "short" } });
-    assert.equal(res.status, 401);
-  });
-
-  test("→ 401 when passcode is wrong (different content)", async () => {
-    await wait(11_000);
-    const res = await httpRequest("POST", "/api/admin/login", {
-      body: { passcode: "completely-different-passphrase-16c" },
-    });
-    assert.equal(res.status, 401);
-    assert.equal(res.json?.code, "UNAUTHORIZED");
-  });
-
-  test("→ 429 after 15 rapid wrong attempts (capacity: 10/10s)", async () => {
-    await wait(11_000); // ensure rate-limit bucket is full
-    const results = await Promise.all(
-      Array.from({ length: 15 }, () =>
-        httpRequest("POST", "/api/admin/login", { body: { passcode: "wrong-phrase-for-test" } }),
-      ),
-    );
-    const statuses = results.map(r => r.status);
-    assert.ok(statuses.includes(429), `expected at least one 429 in ${JSON.stringify(statuses)}`);
-    const r429 = results.find(r => r.status === 429);
-    assert.ok(
-      r429.headers["retry-after"] || parseInt(r429.headers["retry-after"]) >= 0,
-      "429 must include Retry-After header",
-    );
-  });
-
-  test("→ 200 with correct passcode, sets HttpOnly cookie", async () => {
-    await wait(11_000);
-    const res = await httpRequest("POST", "/api/admin/login", { body: { passcode: TEST_PASSPHRASE } });
-    assert.equal(res.status, 200, `login failed: ${JSON.stringify(res.json)}`);
-    assert.equal(res.json?.ok, true);
-    assert.ok(res.setCookie, "must set Set-Cookie header");
-    const jar = parseSetCookies(res.setCookie);
-    assert.ok(jar["hashcode-admin"], "hashcode-admin cookie must be present");
-    assert.ok(jar["hashcode-admin"].includes("."), "token should be dot-separated");
-  });
-});
-
-// ── /api/admin/logout ──────────────────────────────────────────
-
-describe("POST /api/admin/logout", () => {
-  before(async () => {
-    if (!serverReady) { startServer(); await waitForServer(); serverReady = true; }
-  });
-
-  test("→ 200 and clears cookie (Max-Age=0)", async () => {
-    await wait(11_000);
-    const login = await httpRequest("POST", "/api/admin/login", { body: { passcode: TEST_PASSPHRASE } });
-    const jar = parseSetCookies(login.setCookie);
-    const logout = await httpRequest("POST", "/api/admin/logout", { cookies: jar });
-    assert.equal(logout.status, 200);
-    assert.ok(logout.setCookie?.includes("Max-Age=0"), "must set Max-Age=0 to clear cookie");
-  });
-
-  test("after logout, /api/admin/verify → authed: false", async () => {
-    await wait(11_000);
-    const login = await httpRequest("POST", "/api/admin/login", { body: { passcode: TEST_PASSPHRASE } });
-    const jar = parseSetCookies(login.setCookie);
-    const logout = await httpRequest("POST", "/api/admin/logout", { cookies: jar });
-    const clearedJar = parseSetCookies(logout.setCookie);
-    const verify = await httpRequest("GET", "/api/admin/verify", { cookies: clearedJar });
-    assert.equal(verify.json?.authed, false, "must not be authed after logout");
-  });
-});
-
 // ── Protected endpoints ─────────────────────────────────────────
 
 describe("protected endpoints require auth", () => {
-  before(async () => {
-    if (!serverReady) { startServer(); await waitForServer(); serverReady = true; }
-  });
+  before(ensureServer);
 
   test("GET /api/members → 401 without cookie", async () => {
     const res = await httpRequest("GET", "/api/members");
@@ -286,22 +477,37 @@ describe("protected endpoints require auth", () => {
     assert.equal(res.status, 401);
   });
 
-  test("GET /api/members → 200 with valid cookie", async () => {
-    await wait(11_000);
-    const login = await httpRequest("POST", "/api/admin/login", { body: { passcode: TEST_PASSPHRASE } });
-    const jar = parseSetCookies(login.setCookie);
+  test("GET /api/members → 200 with valid session", async () => {
+    const jar = await authedJar();
     const res = await httpRequest("GET", "/api/members", { cookies: jar });
     assert.equal(res.status, 200, `got ${res.status}: ${JSON.stringify(res.json)}`);
     assert.ok(Array.isArray(res.json?.members));
+  });
+
+  test("GET /api/members?page=1&pageSize=5 → paginated shape", async () => {
+    const jar = await authedJar();
+    const res = await httpRequest("GET", "/api/members?page=1&pageSize=5", { cookies: jar });
+    assert.equal(res.status, 200);
+    assert.equal(res.json?.page, 1);
+    assert.equal(res.json?.pageSize, 5);
+    assert.equal(typeof res.json?.total, "number");
+    assert.ok(Array.isArray(res.json?.members));
+    assert.ok(res.json.members.length <= 5);
+  });
+
+  test("GET /api/analytics?compare=true → compare shape", async () => {
+    const jar = await authedJar();
+    const res = await httpRequest("GET", "/api/analytics?compare=true&period=week", { cookies: jar });
+    assert.equal(res.status, 200, `got ${res.status}: ${JSON.stringify(res.json)}`);
+    assert.equal(typeof res.json?.current?.total, "number");
+    assert.equal(typeof res.json?.change?.totalPct, "number");
   });
 });
 
 // ── Public endpoints ────────────────────────────────────────────
 
 describe("public endpoints work without auth", () => {
-  before(async () => {
-    if (!serverReady) { startServer(); await waitForServer(); serverReady = true; }
-  });
+  before(ensureServer);
 
   test("GET /api/community/count → 200", async () => {
     const res = await httpRequest("GET", "/api/community/count");
@@ -322,9 +528,7 @@ describe("public endpoints work without auth", () => {
 // ── GET /api/events/notify-count ─────────────────────────────────
 
 describe("GET /api/events/notify-count — auth + params", () => {
-  before(async () => {
-    if (!serverReady) { startServer(); await waitForServer(); serverReady = true; }
-  });
+  before(ensureServer);
 
   test("→ 401 without cookie", async () => {
     const res = await httpRequest("GET", "/api/events/notify-count");
@@ -332,9 +536,7 @@ describe("GET /api/events/notify-count — auth + params", () => {
   });
 
   test("→ 200 with auth, returns count + domain/level", async () => {
-    await wait(11_000);
-    const login = await httpRequest("POST", "/api/admin/login", { body: { passcode: TEST_PASSPHRASE } });
-    const jar = parseSetCookies(login.setCookie);
+    const jar = await authedJar();
     const res = await httpRequest("GET", "/api/events/notify-count", { cookies: jar });
     assert.equal(res.status, 200);
     assert.equal(typeof res.json?.count, "number");
@@ -343,19 +545,23 @@ describe("GET /api/events/notify-count — auth + params", () => {
   });
 
   test("→ 200 with domain filter", async () => {
-    await wait(11_000);
-    const login = await httpRequest("POST", "/api/admin/login", { body: { passcode: TEST_PASSPHRASE } });
-    const jar = parseSetCookies(login.setCookie);
+    const jar = await authedJar();
     const res = await httpRequest("GET", "/api/events/notify-count?domain=web", { cookies: jar });
     assert.equal(res.status, 200);
     assert.equal(res.json?.domain, "web");
     assert.equal(typeof res.json?.count, "number");
   });
 
+  test("→ 200 with level filter", async () => {
+    const jar = await authedJar();
+    const res = await httpRequest("GET", "/api/events/notify-count?level=beginner", { cookies: jar });
+    assert.equal(res.status, 200);
+    assert.equal(res.json?.level, "beginner");
+    assert.equal(typeof res.json?.count, "number");
+  });
+
   test("→ 422 with invalid domain", async () => {
-    await wait(11_000);
-    const login = await httpRequest("POST", "/api/admin/login", { body: { passcode: TEST_PASSPHRASE } });
-    const jar = parseSetCookies(login.setCookie);
+    const jar = await authedJar();
     const res = await httpRequest("GET", "/api/events/notify-count?domain=invalid", { cookies: jar });
     assert.equal(res.status, 422);
   });
@@ -364,9 +570,7 @@ describe("GET /api/events/notify-count — auth + params", () => {
 // ── POST /api/account/phone ──────────────────────────────────────
 
 describe("POST /api/account/phone — middleware auth + validation", () => {
-  before(async () => {
-    if (!serverReady) { startServer(); await waitForServer(); serverReady = true; }
-  });
+  before(ensureServer);
 
   test("→ 401 without session cookie (middleware blocks /api/account/*)", async () => {
     const res = await httpRequest("POST", "/api/account/phone", {
@@ -379,9 +583,7 @@ describe("POST /api/account/phone — middleware auth + validation", () => {
 // ── GET /api/admin/audit-log ─────────────────────────────────────
 
 describe("GET /api/admin/audit-log — auth + format", () => {
-  before(async () => {
-    if (!serverReady) { startServer(); await waitForServer(); serverReady = true; }
-  });
+  before(ensureServer);
 
   test("→ 403 without cookie (requireAdminRole returns false)", async () => {
     const res = await httpRequest("GET", "/api/admin/audit-log");
@@ -389,9 +591,7 @@ describe("GET /api/admin/audit-log — auth + format", () => {
   });
 
   test("→ 200 with auth, returns logs array", async () => {
-    await wait(11_000);
-    const login = await httpRequest("POST", "/api/admin/login", { body: { passcode: TEST_PASSPHRASE } });
-    const jar = parseSetCookies(login.setCookie);
+    const jar = await authedJar();
     const res = await httpRequest("GET", "/api/admin/audit-log", { cookies: jar });
     assert.equal(res.status, 200);
     assert.ok(Array.isArray(res.json?.logs));
@@ -399,9 +599,7 @@ describe("GET /api/admin/audit-log — auth + format", () => {
   });
 
   test("→ 200 with ?format=csv, returns CSV content", async () => {
-    await wait(11_000);
-    const login = await httpRequest("POST", "/api/admin/login", { body: { passcode: TEST_PASSPHRASE } });
-    const jar = parseSetCookies(login.setCookie);
+    const jar = await authedJar();
     const res = await httpRequest("GET", "/api/admin/audit-log?format=csv", { cookies: jar });
     assert.equal(res.status, 200);
     assert.ok(res.headers["content-type"]?.includes("text/csv"));
@@ -411,9 +609,7 @@ describe("GET /api/admin/audit-log — auth + format", () => {
 // ── GET /api/admin/activity ──────────────────────────────────────
 
 describe("GET /api/admin/activity — auth + format", () => {
-  before(async () => {
-    if (!serverReady) { startServer(); await waitForServer(); serverReady = true; }
-  });
+  before(ensureServer);
 
   test("→ 403 without cookie (requireAdminRole returns false)", async () => {
     const res = await httpRequest("GET", "/api/admin/activity");
@@ -421,18 +617,14 @@ describe("GET /api/admin/activity — auth + format", () => {
   });
 
   test("→ 200 with auth, returns events array", async () => {
-    await wait(11_000);
-    const login = await httpRequest("POST", "/api/admin/login", { body: { passcode: TEST_PASSPHRASE } });
-    const jar = parseSetCookies(login.setCookie);
+    const jar = await authedJar();
     const res = await httpRequest("GET", "/api/admin/activity", { cookies: jar });
     assert.equal(res.status, 200);
     assert.ok(Array.isArray(res.json?.events));
   });
 
   test("→ 200 with ?limit=5, respects limit", async () => {
-    await wait(11_000);
-    const login = await httpRequest("POST", "/api/admin/login", { body: { passcode: TEST_PASSPHRASE } });
-    const jar = parseSetCookies(login.setCookie);
+    const jar = await authedJar();
     const res = await httpRequest("GET", "/api/admin/activity?limit=5", { cookies: jar });
     assert.equal(res.status, 200);
     assert.ok(res.json.events.length <= 5);
@@ -491,10 +683,36 @@ describe("workshops — auth (read-only, aucune écriture sans session)", () => 
 // it would create an enrollment row in the production database. Write-path
 // coverage requires a dedicated test DB (see TESTING_DATABASE_URL note above).
 
+// ── /api/admin/logout (LAST: it kills the shared session) ───────
+
+describe("POST /api/admin/logout", () => {
+  before(ensureServer);
+
+  test("→ 200 and revokes the session server-side", async () => {
+    const jar = await authedJar();
+    const logout = await httpRequest("POST", "/api/admin/logout", { cookies: jar });
+    assert.equal(logout.status, 200);
+    assert.equal(logout.json?.ok, true);
+  });
+
+  test("after logout, session token alone → authed: false (DB lookup)", async () => {
+    const jar = await authedJar();
+    await httpRequest("POST", "/api/admin/logout", { cookies: jar });
+    cachedAdminJar = null;
+    // Token alone (no `session_data` cookie cache): forces the DB lookup
+    // that proves the session was revoked server-side.
+    const tokenOnly = { "better-auth.session_token": jar["better-auth.session_token"] };
+    const verify = await httpRequest("GET", "/api/admin/verify", { cookies: tokenOnly });
+    assert.equal(verify.json?.authed, false, "session must be revoked server-side after logout");
+  });
+});
+
 // ── Cleanup ────────────────────────────────────────────────────
 
 after(async () => {
-  console.log("\n[integration] Stopping dev server...");
+  console.log("\n[integration] Cleaning test data...");
+  await cleanupTestData();
+  console.log("[integration] Stopping dev server...");
   await stopServer();
   serverReady = false;
   console.log("[integration] Done.");
