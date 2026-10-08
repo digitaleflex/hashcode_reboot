@@ -356,6 +356,24 @@ export async function GET(req: NextRequest) {
 
     const where: Prisma.MemberWhereInput = {};
     where.deletedAt = null; // exclude soft-deleted members
+    // Pipeline onboarding (#106) : filtre `stage` -> etape du funnel.
+    // Mapping valide : pending -> {profileStatus:PENDING},
+    // approved -> {profileStatus:APPROVED}, invited -> {communityStatus:INVITED},
+    // active -> {communityStatus:JOINED}, toujours avec {deletedAt:null} (ci-dessus).
+    // WAITLIST/REJECTED sont des colonnes laterales (hors funnel) et accessLane
+    // n'est pas une etape : ni l'un ni l'autre ne sont utilises ici.
+    // Valeur invalide -> 422 via ValidationError (src/lib/errors.ts).
+    const stage = searchParams.get("stage");
+    if (stage !== null && stage !== "") {
+      if (stage === "pending") where.profileStatus = "PENDING";
+      else if (stage === "approved") where.profileStatus = "APPROVED";
+      else if (stage === "invited") where.communityStatus = "INVITED";
+      else if (stage === "active") where.communityStatus = "JOINED";
+      else {
+        const t = await getTranslations("profiling");
+        throw new ValidationError(t("api.invalidPagination"), [{ path: "stage", message: "stage invalide : pending|approved|invited|active attendu." }]);
+      }
+    }
     if (domain) where.primaryDomain = domain;
     if (country) where.country = country;
     if (level) where.level = level;

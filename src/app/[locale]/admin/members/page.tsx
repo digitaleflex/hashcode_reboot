@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useMembers } from "@/components/reboot/admin/hooks/useMembers";
 import { MemberTable } from "@/components/reboot/admin/MemberTable";
+import { PipelineStages } from "@/components/reboot/admin/PipelineStages";
 import { MemberDetailDialog } from "@/components/reboot/admin/MemberDetailDialog";
 import { fetchJson, isAbortError, withRetryAfter } from "@/components/reboot/admin/lib/fetchJson";
 import { AlertCircle } from "lucide-react";
@@ -138,6 +139,13 @@ export default function AdminMembersPage() {
           </button>
         </div>
       )}
+
+      <section aria-label="pipeline">
+        <PipelineStages
+          activeStage={filters.stage}
+          onSelect={(s) => setFilter("stage", s)}
+        />
+      </section>
 
       <section aria-label={t("sections.members")}>
         <MemberTable

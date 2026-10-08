@@ -48,6 +48,7 @@ const FILTER_KEYS = [
   "budget",
   "status",
   "lane",
+  "stage",
   "type",
   "tag",
 ] as const;
