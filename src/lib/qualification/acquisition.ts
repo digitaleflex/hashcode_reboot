@@ -83,6 +83,12 @@ export interface AcquisitionQualification {
 
 // ── Constantes email recopiées à l'identique du moteur de profilage ───────
 // ── (copie figée — ne JAMAIS importer le moteur ici, voir en-tête) ────────
+// STRATÉGIE DE SYNC ACTÉE (#211 P4) : copie volontaire, PAS d'import (frontière
+// acquisition / orientation, voir en-tête). La parité est garantie par le test
+// tests/qualification-acquisition.test.cjs:244-251 (deepEqual des domaines +
+// égalité textuelle des regex face au module engine côté profilage). Si le
+// moteur change EMAIL_RE / DISPOSABLE_DOMAINS, recopier ici ET mettre à jour
+// le miroir — le test casse sinon (garde-fou, pas de sync auto).
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 const DISPOSABLE_DOMAINS = new Set([
@@ -99,13 +105,6 @@ const DISPOSABLE_DOMAINS = new Set([
   "sharklasers.com",
   "dispostable.com",
 ]);
-
-export interface AcquisitionQualification {
-  score: number;
-  status: AcquisitionStatus;
-  reasons: string[];
-  ruleVersion: string;
-}
 
 /**
  * Score un lead d'acquisition. Pur et total : n'échoue jamais, ne lit

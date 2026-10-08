@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { toServerEventData } from "@/lib/analytics";
 import { requireAdminRole } from "@/lib/admin-auth";
 import { canTransition, deriveState, profileStatusToState } from "@/lib/acquisition-state";
+import { getLatestAcquisitionQualifications } from "@/lib/qualification";
 import { audit } from "@/lib/admin-audit";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
@@ -75,8 +76,23 @@ export async function POST(req: NextRequest) {
           invitationStatus: true,
         },
       });
+      // Preuves qualification #211 (une requête pour tous les visés) : même
+      // garde enrichie que PATCH /api/members/[id] — sans snapshot, un
+      // membre QUALIFIED retomberait à LEAD_CAPTURED et fausserait la garde.
+      const qualifications = await getLatestAcquisitionQualifications(
+        currents.map((m) => m.id),
+      );
       const illegal = currents
-        .filter((m) => !canTransition(deriveState({ member: m }), to))
+        .filter(
+          (m) =>
+            !canTransition(
+              deriveState({
+                member: m,
+                qualification: qualifications.get(m.id) ?? null,
+              }),
+              to,
+            ),
+        )
         .map((m) => m.id);
       if (illegal.length > 0) {
         throw new ValidationError(

@@ -542,7 +542,34 @@ function normalizeSource(raw) {
   return SOURCE_ALIASES[v] ?? v;
 }
 
-const QUALIFICATION_ENGINE_VERSION = "1.0.0";
+// ── Version faisant foi (#211 P5 : figée, jamais bumpée ici) ──────────────
+// Trois lignées distinctes, UNE seule autorité par lignée :
+//  - orientation : ORIENTATION_ENGINE_VERSION ("1.1.0",
+//    src/lib/orientation/engine.ts) — tracée par toQualificationData via
+//    QUALIFICATION_ENGINE_VERSION. FAIT FOI pour les lignes orientation.
+//  - acquisition : ACQUISITION_QUALIFICATION_RULE_VERSION ("acq-qualif-1.0.0",
+//    src/lib/qualification/acquisition.ts) — lignée SÉPARÉE, préfixe "acq-"
+//    obligatoire, jamais comparée à la version orientation.
+//  - generateRecommendations() code encore engineVersion "1.0.0" en dur
+//    (src/lib/orientation/recommendationEngine.ts:73) mais l'API publique
+//    orientationEngine.evaluate() l'ÉCRASE par ORIENTATION_ENGINE_VERSION :
+//    le "1.0.0" résiduel n'est jamais persisté via les routes (documenté,
+//    pas bumpé — hors périmètre).
+// Le miroir ci-dessous EXTRAIT la version orientation depuis la source
+// (comme tests/qualification-acquisition.test.cjs) : tout bump futur du
+// moteur suit automatiquement, sans edit de test.
+
+const _ENGINE_SRC = require("node:fs").readFileSync(
+  require("node:path").join(__dirname, "..", "src", "lib", "orientation", "engine.ts"),
+  "utf8",
+);
+const QUALIFICATION_ENGINE_VERSION = (() => {
+  const m = _ENGINE_SRC.match(
+    /export const ORIENTATION_ENGINE_VERSION = "([^"]+)"/,
+  );
+  if (!m) throw new Error("ORIENTATION_ENGINE_VERSION introuvable");
+  return m[1];
+})();
 
 function dominantArchetype(scores) {
   let best = "builder";
@@ -639,7 +666,7 @@ describe("normalizeSource — Member.source à la création", () => {
 
 describe("toQualificationData — ligne Qualification persistée", () => {
   const orientation = {
-    engineVersion: "1.0.0",
+    engineVersion: "stale-input-ignored",
     scores: { builder: 0.8, strategist: 0.4, creator: 0.5, catalyst: 0.2 },
     confidence: 0.72,
     recommendations: [
@@ -656,7 +683,7 @@ describe("toQualificationData — ligne Qualification persistée", () => {
     assert.equal(q.archetype, "builder");
     assert.deepEqual(q.scores, orientation.scores);
     assert.equal(q.confidence, 0.72);
-    assert.equal(q.engineVersion, "1.0.0");
+    assert.equal(q.engineVersion, QUALIFICATION_ENGINE_VERSION);
   });
 
   test("reasons : top-3 recos, dédupliquées, plafonnées", () => {

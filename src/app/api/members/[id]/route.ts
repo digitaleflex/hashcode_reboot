@@ -6,6 +6,7 @@ import { isAdminAuthed, requireAdminRole, getAdminRole, checkCSRF } from "@/lib/
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { normalizeAccessLane } from "@/lib/import/normalize";
 import { canTransition, deriveState, profileStatusToState } from "@/lib/acquisition-state";
+import { getLatestAcquisitionQualification } from "@/lib/qualification";
 import { audit } from "@/lib/admin-audit";
 import { sendStatusChangeEmail, type StatusChangeType } from "@/lib/email/builders";
 import { addToBlacklist } from "@/lib/blacklist";
@@ -191,7 +192,11 @@ export async function PATCH(
     // est dérivé des statuts (deriveState) et la cible projetée depuis le
     // profileStatus demandé — Member reste la source d'écriture.
     if (statusTransition) {
-      const from = deriveState({ member: before });
+      // Preuve qualification #211 : le dernier snapshot acq-% affine l'état
+      // dérivé (sans lui, un membre QUALIFIED retomberait à LEAD_CAPTURED et
+      // la garde laisserait passer des transitions incohérentes).
+      const qualification = await getLatestAcquisitionQualification(id);
+      const from = deriveState({ member: before, qualification });
       const to = profileStatusToState(statusTransition.to);
       if (!canTransition(from, to)) {
         throw new ValidationError(
