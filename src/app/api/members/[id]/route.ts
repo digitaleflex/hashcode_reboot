@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { isAdminAuthed, requireAdminRole, getAdminRole, checkCSRF } from "@/lib/admin-auth";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
+import { normalizeAccessLane } from "@/lib/import/normalize";
 import { audit } from "@/lib/admin-audit";
 import { sendStatusChangeEmail, type StatusChangeType } from "@/lib/email/builders";
 import { addToBlacklist } from "@/lib/blacklist";
@@ -153,9 +154,10 @@ export async function PATCH(
       data.customTags = JSON.stringify(checked.tags);
     }
     if (typeof body.accessLane === "string") {
-      if (body.accessLane !== "immediate" && body.accessLane !== "pending")
+      const lane = normalizeAccessLane(body.accessLane);
+      if (lane !== "immediate" && lane !== "pending")
         throw new ValidationError("accessLane invalide.");
-      data.accessLane = body.accessLane;
+      data.accessLane = lane;
     }
 
     // Charger le member AVANT l'update pour comparer le statut (anti-doublon

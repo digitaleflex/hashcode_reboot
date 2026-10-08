@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireAdminRole, checkCSRF } from "@/lib/admin-auth";
+import { requireAdminRole, checkCSRF, getAdminRole } from "@/lib/admin-auth";
+import { audit } from "@/lib/admin-audit";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
 import { sendRejoinEmail } from "@/lib/email/builders";
 import { logMemberEmail, memberIdsWithEmailLog } from "@/lib/member-email-log";
 import { planBatch } from "@/lib/email-budget";
+import {
+  CSV_MAX_BYTES,
+  parseCsvRecords,
+  parseCsvTable,
+  pickField,
+} from "@/lib/import/csv";
+import { normalizeCountry, normalizeLevel } from "@/lib/import/normalize";
 
 export const runtime = "nodejs";
 
@@ -14,96 +22,29 @@ export const runtime = "nodejs";
 const INVITE_TTL_MS = 72 * 60 * 60 * 1000;
 /** Pause entre 2 envois emails (Resend : 10 req/s max → 4/s = large marge). */
 const SEND_DELAY_MS = 250;
+/**
+ * Plafond du mode confirm (création + envois séquentiels avec
+ * SEND_DELAY_MS entre chaque email : 200 lignes ≈ 50 s + écritures DB,
+ * proche des timeouts proxy/serverless — au-delà, découper en plusieurs
+ * imports). Le dry-run (sans envoi) n'est pas plafonné : il analyse tout.
+ */
+const MAX_CONFIRM_ROWS = 200;
 
 const bodySchema = z.object({
-  /** CSV brut (texte) — un email par ligne, virgules ou tabulations comme séparateur. */
-  csvText: z.string().min(1, "Texte CSV requis."),
+  /** CSV brut (texte) — parsé via le wrapper PapaParse partagé (csv.ts). */
+  csvText: z.string().min(1, "Texte CSV requis.").max(CSV_MAX_BYTES),
   /** Sans confirm=true : dry-run, aucun email envoyé. */
   confirm: z.boolean().optional().default(false),
 });
 
-/**
- * Parse une ligne CSV en gérant les champs entre guillemets.
- * Séparateur : virgule ou tabulation (auto-détecté).
- */
-function parseCsvLine(line: string, sep: "," | "\t"): string[] {
-  const fields: string[] = [];
-  let current = "";
-  let inQuotes = false;
-
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (inQuotes) {
-      if (ch === '"') {
-        if (i + 1 < line.length && line[i + 1] === '"') {
-          current += '"';
-          i++; // escape double quote
-        } else {
-          inQuotes = false;
-        }
-      } else {
-        current += ch;
-      }
-    } else {
-      if (ch === '"') {
-        inQuotes = true;
-      } else if (ch === sep || ch === ";") {
-        fields.push(current.trim());
-        current = "";
-      } else {
-        current += ch;
-      }
-    }
-  }
-  fields.push(current.trim());
-  return fields;
-}
-
-/** Détecte le séparateur dominant (virgule ou tabulation). */
-function detectSeparator(firstLines: string[]): "," | "\t" {
-  let commas = 0;
-  let tabs = 0;
-  for (const line of firstLines.slice(0, 5)) {
-    commas += (line.match(/,/g) || []).length;
-    tabs += (line.match(/\t/g) || []).length;
-  }
-  return tabs > commas ? "\t" : ",";
-}
-
-/** Mappe le level français vers le level interne. */
-function mapLevel(raw: string): string {
-  const s = raw.toLowerCase().trim();
-  if (s.includes("expert")) return "advanced";
-  if (s.includes("avanc")) return "advanced";
-  if (s.includes("inter")) return "practicing";
-  if (s.includes("dbutant") || s.includes("dbutant")) return "beginner";
-  return "beginner";
-}
-
-/** Mappe le pays vers un code pays ISO 2 lettres (best-effort). */
-function mapCountry(raw: string): string {
-  const s = raw.trim().toLowerCase();
-  const map: Record<string, string> = {
-    "côte d'ivoire": "CI", "cote d'ivoire": "CI", "ivoire": "CI",
-    "sénégal": "SN", "senegal": "SN",
-    "bénin": "BJ", "benin": "BJ",
-    "cameroun": "CM",
-    "mali": "ML",
-    "niger": "NE",
-    "burkina faso": "BF", "burkina": "BF",
-    "togo": "TG",
-    "congo": "CG", "république du congo": "CG", "republique du congo": "CG",
-    "rdc": "CD", "république démocratique du congo": "CD", "republique democratique du congo": "CD",
-    "tunisie": "TN",
-    "maroc": "MA",
-    "algérie": "DZ", "algerie": "DZ",
-    "gabon": "GA",
-    "guinée": "GN", "guinee": "GN",
-    "autres pays du monde": "",
-    "": "",
-  };
-  return map[s] ?? "";
-}
+/** Email validé via Zod (plus de includes("@") maison). */
+const inviteEmailSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .min(1, "Email manquant.")
+  .max(254, "Email trop long.")
+  .email("Email invalide ou manquant.");
 
 interface InviteRow {
   email: string;
@@ -178,90 +119,93 @@ export async function POST(req: NextRequest) {
 
   const { csvText, confirm } = parsed.data;
 
-  // ── Parse CSV ───────────────────────────────────────────────────────────
-  const lines = csvText
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0);
+  // ── Parse CSV (wrapper PapaParse partagé) ─────────────────────────
+  // En-tête détecté par csv.ts (colonne "email") → mapping par alias ;
+  // sinon fallback positionnel historique : email=0, name=2, phone=1,
+  // country=5, level=8.
+  let dataLines: number;
+  let extracted: Array<{
+    email: string;
+    name: string;
+    phone: string;
+    country: string;
+    level: string;
+  }>;
+  try {
+    const { records, hasHeader } = parseCsvRecords(csvText);
+    if (hasHeader) {
+      dataLines = records.length;
+      extracted = records.map((rec) => ({
+        email: pickField(rec, ["email", "e-mail", "adresse"]),
+        name: pickField(rec, ["nom complet", "nom ou pseudo", "name", "nom", "pseudo", "prénom", "prenom"]),
+        phone: pickField(rec, ["whatsapp", "téléphone", "telephone", "phone", "tel"]),
+        country: pickField(rec, ["pays", "country"]),
+        level: pickField(rec, ["niveau", "level"]),
+      }));
+    } else {
+      const { rows } = parseCsvTable(csvText);
+      dataLines = rows.length;
+      extracted = rows.map((cols) => ({
+        email: cols[0] ?? "",
+        name: cols[2] ?? "",
+        phone: cols[1] ?? "",
+        country: cols[5] ?? "",
+        level: cols[8] ?? "",
+      }));
+    }
+  } catch (e) {
+    return NextResponse.json(
+      {
+        error: e instanceof Error ? e.message : "CSV illisible.",
+        code: "CSV_TOO_LARGE",
+      },
+      { status: 413 },
+    );
+  }
 
-  if (lines.length === 0) {
+  if (dataLines === 0) {
     return NextResponse.json(
       { error: "Aucune ligne trouvée.", code: "EMPTY_CSV" },
       { status: 422 },
     );
   }
 
-  const sep = detectSeparator(lines.slice(0, 5));
-
-  // Détecter l'en-tête (première ligne)
-  const headerFields = parseCsvLine(lines[0], sep).map((h) => h.toLowerCase());
-  const hasHeader = headerFields.some(
-    (h) => h.includes("email") || h.includes("e-mail") || h.includes("adresse"),
-  );
-
-  const dataLines = hasHeader ? lines.slice(1) : lines;
-
-  // Trouver les indices des colonnes par en-tête
-  let emailIdx = -1;
-  let nameIdx = -1;
-  let phoneIdx = -1;
-  let countryIdx = -1;
-  let levelIdx = -1;
-
-  if (hasHeader) {
-    const origHeaders = parseCsvLine(lines[0], sep);
-    for (let i = 0; i < origHeaders.length; i++) {
-      const h = origHeaders[i].toLowerCase();
-      if (h.includes("email") || h.includes("e-mail") || h.includes("adresse")) emailIdx = i;
-      if (h.includes("nom complet") || h.includes("nom ou pseudo") || h === "name") nameIdx = i;
-      if (h.includes("whatsapp") || h.includes("téléphone") || h.includes("telephone") || h.includes("phone") || h.includes("tel")) phoneIdx = i;
-      if (h.includes("pays") || h.includes("country")) countryIdx = i;
-      if (h.includes("niveau") || h.includes("level")) levelIdx = i;
-    }
-  } else {
-    // Fallback : assume email=0, name=2, phone=1, country=5, level=8
-    emailIdx = 0;
-    nameIdx = 2;
-    phoneIdx = 1;
-    countryIdx = 5;
-    levelIdx = 8;
-  }
-
   const errors: ImportError[] = [];
   const seen = new Set<string>();
   const validRows: InviteRow[] = [];
 
-  for (let i = 0; i < dataLines.length; i++) {
-    const fields = parseCsvLine(dataLines[i], sep);
-    const email = (fields[emailIdx] ?? "").toLowerCase().trim();
-    const rawName = (fields[nameIdx] ?? "").trim();
-    const rawPhone = (fields[phoneIdx] ?? "").trim();
-    const rawCountry = (fields[countryIdx] ?? "").trim();
-    const rawLevel = (fields[levelIdx] ?? "").trim();
-
-    if (!email || !email.includes("@")) {
-      errors.push({ row: i + 2, field: "email", message: "Email invalide ou manquant." });
+  for (let i = 0; i < extracted.length; i++) {
+    const raw = extracted[i];
+    const emailParsed = inviteEmailSchema.safeParse(raw.email);
+    if (!emailParsed.success) {
+      errors.push({
+        row: i + 2,
+        field: "email",
+        message: emailParsed.error.issues[0]?.message ?? "Email invalide ou manquant.",
+      });
       continue;
     }
+    const email = emailParsed.data;
 
     if (seen.has(email)) continue;
     seen.add(email);
 
     // Extraire prénom du nom complet (premier mot)
+    const rawName = raw.name.trim();
     const firstName = rawName.split(/\s+/)[0] || email.split("@")[0];
 
     validRows.push({
       email,
       firstName,
-      phone: rawPhone || null,
-      country: mapCountry(rawCountry),
-      level: mapLevel(rawLevel),
+      phone: raw.phone.trim() || null,
+      country: normalizeCountry(raw.country),
+      level: normalizeLevel(raw.level) ?? "beginner",
     });
   }
 
   if (errors.length > 0) {
     return NextResponse.json(
-      { error: "Erreurs de validation.", code: "VALIDATION_ERROR", errors, totalRows: dataLines.length },
+      { error: "Erreurs de validation.", code: "VALIDATION_ERROR", errors, totalRows: dataLines },
       { status: 422 },
     );
   }
@@ -270,6 +214,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { error: "Aucun email valide trouvé.", code: "NO_VALID_ROWS" },
       { status: 422 },
+    );
+  }
+
+  // Plafond confirm (timeouts — voir commentaire MAX_CONFIRM_ROWS).
+  if (confirm && validRows.length > MAX_CONFIRM_ROWS) {
+    return NextResponse.json(
+      {
+        error: `Maximum ${MAX_CONFIRM_ROWS} lignes par envoi confirmé (timeouts). Découpe le fichier.`,
+        code: "TOO_MANY_ROWS",
+        totalRows: dataLines,
+        validRows: validRows.length,
+      },
+      { status: 400 },
     );
   }
 
@@ -291,7 +248,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       dryRun: true,
-      totalRows: dataLines.length,
+      totalRows: dataLines,
       validRows: validRows.length,
       newMembers: validRows.filter((r) => !existingSet.has(r.email)).length,
       alreadyExist: validRows.filter((r) => existingSet.has(r.email)).length,
@@ -450,6 +407,20 @@ export async function POST(req: NextRequest) {
   }
 
   // Audit log
+  const role = (await getAdminRole(req)) ?? "operator";
+  void audit(
+    "member.import-invite",
+    "member",
+    undefined,
+    {
+      created,
+      emailsSent,
+      resent,
+      failed: failedEmails.length,
+      skipped: skipped.length,
+    },
+    { type: "admin", role },
+  );
   try {
     await db.analyticsEvent.create({
       data: {
@@ -464,7 +435,7 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     ok: true,
-    totalRows: dataLines.length,
+    totalRows: dataLines,
     created,
     emailsSent,
     resent,

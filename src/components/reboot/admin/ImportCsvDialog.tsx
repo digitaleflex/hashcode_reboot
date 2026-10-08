@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import Papa from "papaparse";
+import { useTranslations } from "next-intl";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,17 +16,100 @@ interface ImportResult {
   errors: Array<{ row: number; field?: string; message: string }>;
 }
 
-const MAX_ROWS = 500;
+interface ClientRow {
+  email: string;
+  name: string;
+  level?: string;
+  country?: string;
+  domain?: string;
+  accessLane?: string;
+}
 
-function stripQuotes(s: string): string {
-  const t = s.trim();
-  if (t.length >= 2 && t.startsWith('"') && t.endsWith('"')) {
-    return t.slice(1, -1).replace(/""/g, '"').trim();
+const MAX_ROWS = 500;
+/** Lots de traitement côté client (100-200 lignes) : évite le gel UI. */
+const CLIENT_CHUNK_SIZE = 150;
+
+function findColIndex(headers: string[], aliases: string[], fallback: number): number {
+  const lower = headers.map((h) => h.trim().toLowerCase());
+  for (const alias of aliases) {
+    const hit = lower.findIndex((h) => h.includes(alias));
+    if (hit >= 0) return hit;
   }
-  return t;
+  return fallback;
+}
+
+/**
+ * Parse le CSV côté client via PapaParse en worker (RFC 4180 : guillemets,
+ * multilignes, séparateurs ,/;/tab auto-détectés), traité par lots de
+ * CLIENT_CHUNK_SIZE lignes pour rester fluide.
+ */
+function parseClientCsv(csvText: string): Promise<ClientRow[]> {
+  const firstLine =
+    csvText.split(/\r?\n/).find((l) => l.trim()) ?? "";
+  const hasHeader = /email/i.test(firstLine);
+  return new Promise((resolve, reject) => {
+    const out: ClientRow[] = [];
+    let batch: ClientRow[] = [];
+    let indices: {
+      email: number;
+      name: number;
+      level: number;
+      country: number;
+      domain: number;
+      accessLane: number;
+    } | null = hasHeader ? null : { email: 0, name: 1, level: 2, country: 3, domain: 4, accessLane: 5 };
+    let isFirst = true;
+    const flush = () => {
+      if (batch.length > 0) {
+        out.push(...batch);
+        batch = [];
+      }
+    };
+    Papa.parse<string[]>(csvText, {
+      header: false,
+      skipEmptyLines: "greedy",
+      worker: true,
+      step: (res) => {
+        const cols = (res.data as string[]).map((c) => String(c ?? "").trim());
+        if (cols.every((c) => c === "")) return;
+        if (isFirst && hasHeader) {
+          isFirst = false;
+          indices = {
+            email: findColIndex(cols, ["email", "e-mail", "adresse"], 0),
+            name: findColIndex(cols, ["name", "nom", "pseudo"], 1),
+            level: findColIndex(cols, ["level", "niveau"], 2),
+            country: findColIndex(cols, ["country", "pays"], 3),
+            domain: findColIndex(cols, ["domain", "domaine"], 4),
+            accessLane: findColIndex(cols, ["accesslane", "access_lane", "lane", "voie", "acces"], 5),
+          };
+          return;
+        }
+        isFirst = false;
+        const idx = indices ?? { email: 0, name: 1, level: 2, country: 3, domain: 4, accessLane: 5 };
+        batch.push({
+          email: cols[idx.email] ?? "",
+          name: cols[idx.name] ?? "",
+          level: cols[idx.level] || undefined,
+          country: cols[idx.country] || undefined,
+          domain: cols[idx.domain] || undefined,
+          accessLane: cols[idx.accessLane] || undefined,
+        });
+        // Traitement par lots de 100-200 lignes.
+        if (batch.length >= CLIENT_CHUNK_SIZE) flush();
+      },
+      complete: () => {
+        flush();
+        resolve(out);
+      },
+      error: (err) => reject(err),
+    });
+  });
 }
 
 export function ImportCsvDialog() {
+  // Clés i18n admin.import.* — NON créées ici (hors périmètre de ce lane,
+  // cf. messages/fr.json) : liste exhaustive dans le rapport d'implémentation.
+  const t = useTranslations("admin.import");
   const [open, setOpen] = React.useState(false);
   const [csvText, setCsvText] = React.useState("");
   const [fileName, setFileName] = React.useState<string | null>(null);
@@ -63,13 +148,13 @@ pierre.dupont@example.com,Pierre Dupont,practicing,FR,cybersecurity`;
       const text = await f.text();
       // Garde-fou taille : ~2 Mo max pour rester fluide.
       if (text.length > 2_000_000) {
-        setError("Fichier trop volumineux (2 Mo max). Découpe-le en plusieurs imports.");
+        setError(t("fileTooLarge"));
         return;
       }
       setCsvText(text);
       setFileName(f.name);
     } catch {
-      setError("Lecture du fichier impossible.");
+      setError(t("readError"));
     } finally {
       // Permet de re-sélectionner le même fichier.
       e.target.value = "";
@@ -87,7 +172,7 @@ pierre.dupont@example.com,Pierre Dupont,practicing,FR,cybersecurity`;
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (overLimit) {
-      setError(`Trop de lignes (${rowCount} / ${MAX_ROWS} max). Découpe le fichier.`);
+      setError(t("tooManyRows", { count: rowCount, max: MAX_ROWS }));
       return;
     }
     setLoading(true);
@@ -95,27 +180,18 @@ pierre.dupont@example.com,Pierre Dupont,practicing,FR,cybersecurity`;
     setError(null);
 
     try {
-      const dataLines = lines.dataRows;
-      if (dataLines.length === 0) {
-        setError("Aucune ligne à importer. Ajoute des lignes sous l’en-tête.");
+      // Parse PapaParse (worker, par lots) plutôt que split/stripQuotes.
+      const rows = await parseClientCsv(csvText);
+      if (rows.length === 0) {
+        setError(t("noRows"));
         setLoading(false);
         return;
       }
-
-      // Détecte le séparateur depuis l’en-tête (virgule ou point-virgule).
-      const header = lines.hasHeader ? lines.all[0] : "email,name,level,country,domain";
-      const sep = header.includes(";") && !header.includes(",") ? ";" : ",";
-
-      const rows = dataLines.map((line) => {
-        const cols = line.split(sep).map(stripQuotes);
-        return {
-          email: cols[0]?.trim() ?? "",
-          name: cols[1]?.trim() ?? "",
-          level: cols[2]?.trim() || undefined,
-          country: cols[3]?.trim() || undefined,
-          domain: cols[4]?.trim() || undefined,
-        };
-      });
+      if (rows.length > MAX_ROWS) {
+        setError(t("tooManyRows", { count: rows.length, max: MAX_ROWS }));
+        setLoading(false);
+        return;
+      }
 
       const response = await fetch("/api/members/import", {
         method: "POST",
@@ -127,17 +203,17 @@ pierre.dupont@example.com,Pierre Dupont,practicing,FR,cybersecurity`;
 
       if (!response.ok) {
         if (data.code === "RATE_LIMITED") {
-          setError(`Trop d'imports. Réessaie dans ${data.retryAfterSec ?? 10}s.`);
+          setError(t("rateLimited", { retry: data.retryAfterSec ?? 10 }));
         } else if (data.code === "VALIDATION_ERROR") {
-          setError("Certaines lignes sont invalides — corrige et réimporte. Le contenu est conservé.");
+          setError(t("validationErrorsTitle"));
           setResult({
             created: 0,
             updated: 0,
             skipped: 0,
-            errors: data.errors ?? [],
+            errors: data.details?.errors ?? data.errors ?? [],
           });
         } else {
-          setError(data.error ?? "Erreur lors de l'import.");
+          setError(data.error ?? t("genericError"));
         }
         return;
       }
@@ -150,7 +226,7 @@ pierre.dupont@example.com,Pierre Dupont,practicing,FR,cybersecurity`;
         setFileName(null);
       }
     } catch {
-      setError("Échec de la connexion. Vérifie ton réseau.");
+      setError(t("networkError"));
     } finally {
       setLoading(false);
     }
@@ -186,7 +262,7 @@ pierre.dupont@example.com,Pierre Dupont,practicing,FR,cybersecurity`;
         disabled={loading}
       >
         <Upload className="size-4 mr-1" aria-hidden="true" />
-        Importer CSV
+        {t("openButton")}
       </Button>
 
       <Dialog open={open} onOpenChange={(o) => {
@@ -196,15 +272,15 @@ pierre.dupont@example.com,Pierre Dupont,practicing,FR,cybersecurity`;
       }}>
         <DialogContent className="sm:max-w-xl max-h-[85vh] overflow-y-auto scroll-slim">
           <DialogHeader>
-            <DialogTitle>Importer des membres</DialogTitle>
+            <DialogTitle>{t("dialogTitle")}</DialogTitle>
             <DialogDescription>
-              Fichier CSV ou collage. En-tête : email,name,level,country,domain. {MAX_ROWS} lignes max.
+              {t("dialogDescription", { max: MAX_ROWS })}
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="csv-file">Fichier CSV</Label>
+              <Label htmlFor="csv-file">{t("fileLabel")}</Label>
               <div className="flex flex-wrap items-center gap-2">
                 <input
                   ref={fileRef}
@@ -223,7 +299,7 @@ pierre.dupont@example.com,Pierre Dupont,practicing,FR,cybersecurity`;
                   onClick={() => fileRef.current?.click()}
                 >
                   <FileText className="size-4 mr-1" aria-hidden />
-                  Choisir un fichier
+                  {t("chooseFile")}
                 </Button>
                 {fileName && (
                   <span className="inline-flex items-center gap-1.5 text-xs text-foreground bg-secondary rounded-sm px-2 py-1 max-w-full">
@@ -231,7 +307,7 @@ pierre.dupont@example.com,Pierre Dupont,practicing,FR,cybersecurity`;
                     <button
                       type="button"
                       onClick={clearInput}
-                      aria-label="Retirer le fichier"
+                      aria-label={t("removeFile")}
                       className="size-5 inline-flex items-center justify-center rounded-sm hover:text-destructive focus-lime"
                     >
                       <X className="size-3" aria-hidden />
@@ -245,19 +321,19 @@ pierre.dupont@example.com,Pierre Dupont,practicing,FR,cybersecurity`;
                   onClick={loadTemplate}
                   disabled={loading}
                 >
-                  Charger un exemple
+                  {t("loadExample")}
                 </Button>
               </div>
             </div>
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label htmlFor="csv-data">Données CSV</Label>
+                <Label htmlFor="csv-data">{t("csvDataLabel")}</Label>
                 <span
                   className={`text-xs tabular-nums ${overLimit ? "text-destructive font-medium" : "text-muted-foreground"}`}
                   role="status"
                 >
-                  {rowCount} ligne{rowCount > 1 ? "s" : ""} / {MAX_ROWS}
+                  {t("rowsCount", { count: rowCount, max: MAX_ROWS })}
                 </span>
               </div>
               <Textarea
@@ -273,7 +349,7 @@ pierre.dupont@example.com,Pierre Dupont,practicing,FR,cybersecurity`;
               />
               {overLimit && (
                 <p className="text-xs text-destructive" role="alert">
-                  Découpe en plusieurs fichiers de {MAX_ROWS} lignes max.
+                  {t("overLimit", { max: MAX_ROWS })}
                 </p>
               )}
             </div>
@@ -281,11 +357,11 @@ pierre.dupont@example.com,Pierre Dupont,practicing,FR,cybersecurity`;
             <div className="flex items-center gap-2">
               <Button type="submit" size="sm" disabled={loading || !csvText.trim() || overLimit}>
                 {loading && <Loader2 className="size-4 mr-1 animate-spin" aria-hidden="true" />}
-                {loading ? "Import…" : `Importer${rowCount > 0 ? ` (${rowCount})` : ""}`}
+                {loading ? t("importing") : t("importButton", { count: rowCount })}
               </Button>
               {csvText && (
                 <Button type="button" size="sm" variant="ghost" onClick={clearInput} disabled={loading}>
-                  Tout effacer
+                  {t("clearAll")}
                 </Button>
               )}
             </div>
@@ -304,12 +380,12 @@ pierre.dupont@example.com,Pierre Dupont,practicing,FR,cybersecurity`;
                 >
                   <p className={`text-sm font-medium ${hasErrors ? "text-amber-200" : "text-lime"}`}>
                     {hasErrors
-                      ? `Import partiel : ${result.created} créé(s), ${result.updated} mis à jour, ${result.skipped} ignoré(s).`
-                      : `Import terminé : ${result.created} créé(s), ${result.updated} mis à jour, ${result.skipped} ignoré(s).`}
+                      ? t("partialSummary", { created: result.created, updated: result.updated, skipped: result.skipped })
+                      : t("successSummary", { created: result.created, updated: result.updated, skipped: result.skipped })}
                   </p>
                   {hasErrors && (
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Le contenu est conservé ci-dessus — corrige et réimporte.
+                      {t("keepDraftHint")}
                     </p>
                   )}
                 </div>
@@ -318,8 +394,7 @@ pierre.dupont@example.com,Pierre Dupont,practicing,FR,cybersecurity`;
                   <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4" role="alert">
                     <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                       <p className="text-sm font-medium text-destructive">
-                        {result.errors.length} erreur{result.errors.length > 1 ? "s" : ""}
-                        {result.errors.length > 20 ? " — 20 premières" : ""} :
+                        {t("errorsTitle", { count: result.errors.length })}
                       </p>
                       <Button
                         type="button"
@@ -329,20 +404,20 @@ pierre.dupont@example.com,Pierre Dupont,practicing,FR,cybersecurity`;
                         className="h-9"
                       >
                         <Download className="size-4 mr-1" aria-hidden="true" />
-                        Télécharger le rapport ({result.errors.length})
+                        {t("downloadReport", { count: result.errors.length })}
                       </Button>
                     </div>
                     <ul className="space-y-1 max-h-48 overflow-y-auto scroll-slim">
                       {result.errors.slice(0, 20).map((err, i) => (
                         <li key={i} className="text-xs text-destructive">
-                          Ligne {err.row}: {err.message}
-                          {err.field ? ` (champ: ${err.field})` : ""}
+                          {t("errorLine", { row: err.row, message: err.message })}
+                          {err.field ? ` (${t("errorField", { field: err.field })})` : ""}
                         </li>
                       ))}
                     </ul>
                     {result.errors.length > 20 && (
                       <p className="mt-2 text-xs text-muted-foreground">
-                        + {result.errors.length - 20} autre(s). Corrige par lots.
+                        {t("moreErrors", { count: result.errors.length - 20 })}
                       </p>
                     )}
                   </div>
@@ -362,7 +437,7 @@ pierre.dupont@example.com,Pierre Dupont,practicing,FR,cybersecurity`;
                       }
                     }}
                   >
-                    {hasErrors ? "Reprendre plus tard" : "Fermer"}
+                    {hasErrors ? t("resumeLater") : t("close")}
                   </Button>
                   {hasErrors && (
                     <Button
@@ -374,7 +449,7 @@ pierre.dupont@example.com,Pierre Dupont,practicing,FR,cybersecurity`;
                         setError(null);
                       }}
                     >
-                      Corriger maintenant
+                      {t("fixNow")}
                     </Button>
                   )}
                 </div>
