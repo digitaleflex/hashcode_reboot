@@ -591,7 +591,8 @@
     "finalizing": {
       "stepLabel": "Finalisation…",
       "title": "On finalise ton profil…",
-      "subtitle": "Une seconde."
+      "subtitle": "Une seconde.",
+      "body": "Ton profil est presque prêt."
     },
     "flow": {
       "stepLabel": "Ton profil HASHCODE",
@@ -1374,6 +1375,29 @@
       "pending": "En attente",
       "contact": "Contact",
       "estimatedDelay": "Délai estimé : 48 h ouvrées."
+    },
+    "page": {
+      "submitError": "L'envoi a échoué, mais ton profil local est affiché ci-dessous. Tu peux réessayer.",
+      "submitFailed": "L'enregistrement a échoué. Réessaie dans un instant.",
+      "stillFailing": "Ça ne passe toujours pas. Vérifie ta connexion puis réessaie.",
+      "retry": "Réessayer",
+      "profileNotFound": "Profil introuvable",
+      "backToHashcode": "Retourner à HASHCODE",
+      "publicProfile": "PROFIL PUBLIC",
+      "howHashcodeUnderstood": "Voici comment HASHCODE a compris ton profil.",
+      "domain": "Domaine",
+      "level": "Niveau",
+      "goal": "Objectif",
+      "availability": "Disponibilité",
+      "style": "Style d'apprentissage",
+      "mentoring": "Mentorat",
+      "mentoringInterested": "Intéressé",
+      "mentoringCurious": "Curieux",
+      "mentoringNotNow": "Pas pour le moment",
+      "threeMonthGoal": "Objectif à 3 mois",
+      "buildMyProfile": "Créer mon profil",
+      "savingProfile": "On enregistre ton profil…",
+      "autoControlsRunning": "Vérifications automatiques en cours…"
     }
   },
   "auth": {
@@ -1476,14 +1500,48 @@
       "mySpace": "Mon espace",
       "login": "Se connecter"
     },
-    "metaTitle": "{firstName} — HASHCODE Profile",
+    "metaTitle": "{firstName} — Profil HASHCODE",
     "metaDescription": "{archetype} · {domain} · {level}",
     "brandLabel": "HASHCODE REBOOT",
     "backLink": "← Retour au site",
     "dashboardLink": "Mon espace",
     "loginLink": "Se connecter",
     "footerText": "HASHCODE REBOOT · Réseau de talents tech",
-    "notFoundTitle": "Profil introuvable"
+    "notFoundTitle": "Profil introuvable",
+    "header": {
+      "backToSite": "← Retour au site",
+      "mySpace": "Mon espace",
+      "login": "Se connecter"
+    },
+    "footer": "HASHCODE REBOOT · Réseau de talents tech",
+    "card": {
+      "publicProfileLabel": "PROFIL PUBLIC",
+      "domainLabel": "Domaine",
+      "levelLabel": "Niveau",
+      "availabilityLabel": "Disponibilité",
+      "goalLabel": "Objectif",
+      "mentoringLabel": "Mentorat",
+      "threeMonthGoalLabel": "Objectif à 3 mois",
+      "joinNetwork": "Rejoindre le réseau"
+    },
+    "domainLabels": {
+      "web": "Web Development",
+      "cybersecurity": "Cybersecurity",
+      "ai": "Applied AI"
+    },
+    "levelLabels": {
+      "beginner": "Débutant",
+      "practicing": "Pratique",
+      "autonomous": "Autonome",
+      "advanced": "Avancé"
+    },
+    "availabilityLabels": {
+      "<2h": "Moins de 2 h / semaine",
+      "2-5h": "2 – 5 h / semaine",
+      "5-10h": "5 – 10 h / semaine",
+      "10-15h": "10 – 15 h / semaine",
+      "15h+": "15 h+ / semaine"
+    }
   },
   "error": {
     "pageTitle": "Erreur — HASHCODE REBOOT",
@@ -1651,7 +1709,6 @@
       "rsvpErrorDefault": "Impossible d'enregistrer ta réponse.",
       "rsvpErrorOffline": "Connexion interrompue — ta réponse n'a pas été enregistrée.",
       "closeMessageAria": "Fermer le message",
-      "empty": "Aucun événement à venir.",
       "emptySub": "Les prochaines sessions seront bientôt annoncées.",
       "typeSession": "Session",
       "typeWorkshop": "Workshop",
@@ -1676,7 +1733,74 @@
       "maybe": "Peut-être",
       "today": "Aujourd'hui à {timeStr}",
       "tomorrow": "Demain à {timeStr}",
-      "dateTime": "{dateStr} à {timeStr}"
+      "dateTime": "{dateStr} à {timeStr}",
+      "type": {
+        "session": "Session",
+        "workshop": "Workshop",
+        "meetup": "Meetup",
+        "webinar": "Webinaire",
+        "other": "Événement"
+      },
+      "domain": {
+        "web": "Web",
+        "cybersecurity": "Cyber",
+        "ai": "AI"
+      },
+      "level": {
+        "beginner": "Débutant",
+        "practicing": "Pratiquant",
+        "autonomous": "Autonome",
+        "advanced": "Avancé"
+      },
+      "recurrence": {
+        "weekly": "Chaque semaine",
+        "biweekly": "Toutes les 2 semaines",
+        "monthly": "Chaque mois"
+      },
+      "date": {
+        "today": "Aujourd'hui à {timeStr}",
+        "tomorrow": "Demain à {timeStr}",
+        "other": "{dateStr} à {timeStr}"
+      },
+      "error": {
+        "loading": "Impossible de charger l'agenda.",
+        "rsvp": "Impossible d'enregistrer ta réponse.",
+        "network": "Connexion interrompue — ta réponse n'a pas été enregistrée."
+      },
+      "filters": {
+        "type": {
+          "label": "Type :",
+          "all": "Tous",
+          "session": "Sessions",
+          "workshop": "Workshops",
+          "meetup": "Meetups"
+        },
+        "domain": {
+          "label": "Domaine :",
+          "all": "Tous",
+          "web": "Web",
+          "cybersecurity": "Cyber",
+          "ai": "AI"
+        }
+      },
+      "empty": {
+        "title": "Aucun événement à venir.",
+        "description": "Les prochaines sessions seront bientôt annoncées."
+      },
+      "status": {
+        "live": "EN DIRECT"
+      },
+      "rsvp": {
+        "going": {
+          "join": "Je participe",
+          "cancel": "Inscrit · Annuler"
+        },
+        "maybe": {
+          "join": "Peut-être",
+          "cancel": "Peut-être · Annuler"
+        }
+      },
+      "loadingAria": "Chargement de l'agenda"
     },
     "ateliers": {
       "list": {
@@ -1868,6 +1992,26 @@
           "immediate": "Immédiat",
           "pending": "En attente"
         }
+      },
+      "pageTitle": "Mon profil",
+      "pageDescription": "Ta vitrine membre, ton objectif et ton lien public.",
+      "goalSectionTitle": "Objectif à 3 mois",
+      "publicProfileSectionTitle": "Profil public",
+      "publicProfileDescription": "Partage ton positionnement dans la communauté, ton CV ou WhatsApp.",
+      "shareProfile": {
+        "viewPublicProfile": "Voir mon profil public",
+        "copied": "Copié !",
+        "copyLink": "Copier le lien"
+      },
+      "goalEditor": {
+        "label": "Ton objectif à 3 mois",
+        "placeholder": "Ex. Décrocher mon premier stage.",
+        "charLimit": "4 caractères minimum, 280 maximum.",
+        "successMessage": "Objectif enregistré.",
+        "saving": "Enregistrement…",
+        "saveButton": "Enregistrer",
+        "genericError": "Erreur lors de la mise à jour.",
+        "networkError": "Erreur réseau. Vérifie ta connexion."
       }
     },
     "profileComplet": {
@@ -1917,7 +2061,128 @@
       "phonePlaceholder": "+229 …",
       "countryPlaceholder": "CI",
       "goalPlaceholder": "Ex : décrocher mon premier stage en développement web.",
-      "submit": "Confirmer mon profil"
+      "submit": "Confirmer mon profil",
+      "success": {
+        "approvedTitle": "Profil validé, bienvenue.",
+        "pendingTitle": "Profil reçu, on l'examine.",
+        "approvedDescription": "Ton profil {archetype} est confirmé. Rejoins la communauté.",
+        "pendingDescription": "Notre équipe relit ton dossier sous 48 h. Tu recevras un email.",
+        "joinWhatsApp": "Rejoindre WhatsApp",
+        "viewDashboard": "Voir mon espace"
+      },
+      "header": {
+        "tag": "INVITATION ACCEPTÉE",
+        "title": "Confirme ton profil",
+        "description": "Vérifie les infos qu'on a sur toi, complète ce qui manque, puis confirme. C'est ce profil qui sera examiné."
+      },
+      "fields": {
+        "firstName": "Prénom",
+        "lastName": "Nom",
+        "phone": "WhatsApp",
+        "phonePlaceholder": "+229 …",
+        "country": "Pays (code)",
+        "countryPlaceholder": "CI",
+        "city": "Ville",
+        "primaryDomain": "Domaine principal",
+        "level": "Niveau",
+        "goal": "Objectif",
+        "availability": "Disponibilité",
+        "learningStyle": "Façon d'apprendre",
+        "threeMonthGoal": "Objectif à 3 mois (min. 4 caractères)",
+        "threeMonthGoalPlaceholder": "Ex : décrocher mon premier stage en développement web."
+      },
+      "domains": [
+        [
+          "web",
+          "Web Development"
+        ],
+        [
+          "cybersecurity",
+          "Cybersécurité"
+        ],
+        [
+          "ai",
+          "IA appliquée"
+        ]
+      ],
+      "levels": [
+        [
+          "beginner",
+          "Débutant"
+        ],
+        [
+          "practicing",
+          "En pratique"
+        ],
+        [
+          "autonomous",
+          "Autonome"
+        ],
+        [
+          "advanced",
+          "Avancé"
+        ]
+      ],
+      "goals": [
+        [
+          "project",
+          "Monter un projet"
+        ],
+        [
+          "employment",
+          "Trouver un emploi"
+        ],
+        [
+          "freelance",
+          "Freelance"
+        ],
+        [
+          "upskill",
+          "Monter en compétences"
+        ],
+        [
+          "business",
+          "Lancer une activité"
+        ],
+        [
+          "career",
+          "Faire évoluer ma carrière"
+        ],
+        [
+          "other",
+          "Autre"
+        ]
+      ],
+      "availabilities": [
+        "<2h",
+        "2-5h",
+        "5-10h",
+        "10-15h",
+        "15h+"
+      ],
+      "learning": [
+        [
+          "practice",
+          "Par la pratique"
+        ],
+        [
+          "path",
+          "Parcours guidé"
+        ],
+        [
+          "group",
+          "En groupe"
+        ],
+        [
+          "mentor",
+          "Avec un mentor"
+        ],
+        [
+          "project",
+          "Par projet"
+        ]
+      ],
+      "submitButton": "Confirmer mon profil"
     },
     "settings": {
       "title": "Paramètres",
@@ -1950,7 +2215,50 @@
       "deleteLoading": "Suppression…",
       "deleteCancel": "Annuler",
       "sessionTitle": "Session",
-      "sessionHint": "Déconnecte cet appareil."
+      "sessionHint": "Déconnecte cet appareil.",
+      "pageTitle": "Paramètres",
+      "pageDescription": "Tes coordonnées, ton compte et ta session.",
+      "contactSection": {
+        "title": "Mes coordonnées",
+        "subtitle": "mets-les à jour à tout moment"
+      },
+      "accountSection": {
+        "title": "Compte",
+        "emailLabel": "Email",
+        "countryLabel": "Pays",
+        "memberSinceLabel": "Membre depuis",
+        "emailChangeNote": "Pour changer ton email, contacte-nous via WhatsApp. La suppression de ton compte se fait ci-dessous, dans « Mes données »."
+      },
+      "sessionSection": {
+        "title": "Session",
+        "description": "Déconnecte cet appareil."
+      },
+      "dataSection": {
+        "title": "Mes données",
+        "description": "Exporte tout ce qu'on sait de toi, ou supprime ton compte.",
+        "export": {
+          "title": "Exporter mes données",
+          "description": "Profil, progression, RSVP et emails — fichier JSON.",
+          "generating": "Génération…",
+          "download": "Télécharger",
+          "rateLimitError": "Trop d'exports. Réessaie dans quelques minutes.",
+          "genericError": "Impossible de générer l'export.",
+          "networkError": "Erreur réseau. Vérifie ta connexion."
+        },
+        "delete": {
+          "title": "Supprimer mon compte",
+          "description": "Ton profil disparaît, tes sessions sont révoquées. Irréversible.",
+          "startButton": "Supprimer…",
+          "confirmText": "Pour confirmer, écris {word} ci-dessous.",
+          "confirmWord": "SUPPRIMER",
+          "ariaLabel": "Écris {word} pour confirmer",
+          "deleting": "Suppression…",
+          "confirmButton": "Supprimer définitivement",
+          "cancelButton": "Annuler",
+          "genericError": "Impossible de supprimer le compte.",
+          "networkError": "Erreur réseau. Vérifie ta connexion."
+        }
+      }
     }
   },
   "account": {
@@ -1961,7 +2269,8 @@
         "pending": "En attente",
         "waitlist": "Liste d'attente",
         "rejected": "Non retenu"
-      }
+      },
+      "redirectPath": "/dashboard/settings"
     },
     "status": {
       "approvedTitle": "Tu es validé dans HASHCODE.",
@@ -1973,7 +2282,25 @@
       "waitlistTitle": "Tu es sur la liste d'attente.",
       "waitlistDescription": "Les prochaines vagues s'ouvrent en fonction des places disponibles. On te contactera par email dès qu'une place se libère — inutile de recréer un profil.",
       "rejectedTitle": "Profil non retenu cette fois.",
-      "rejectedDescription": "Tu peux mettre à jour tes informations ci-dessous et repasser la validation. On relit les dossiers chaque semaine."
+      "rejectedDescription": "Tu peux mettre à jour tes informations ci-dessous et repasser la validation. On relit les dossiers chaque semaine.",
+      "approved": {
+        "title": "Tu es validé dans HASHCODE.",
+        "description": "Bienvenue dans la communauté. Rejoins le groupe WhatsApp officiel pour suivre les sessions, partager tes progrès et rencontrer les autres membres.",
+        "whatsappButton": "Rejoindre le groupe WhatsApp"
+      },
+      "pending": {
+        "title": "On examine ton dossier.",
+        "description": "Quelques points peuvent nécessiter une vérification humaine (email, complétude du profil, demande de mentorat prioritaire). On revient vers toi rapidement.",
+        "tip": "Conseil : complète ton objectif à 3 mois ci-dessous. Ça aide beaucoup à la validation."
+      },
+      "waitlist": {
+        "title": "Tu es sur la liste d'attente.",
+        "description": "Les prochaines vagues s'ouvrent en fonction des places disponibles. On te contactera par email dès qu'une place se libère — inutile de recréer un profil."
+      },
+      "rejected": {
+        "title": "Profil non retenu cette fois.",
+        "description": "Tu peux mettre à jour tes informations ci-dessous et repasser la validation. On relit les dossiers chaque semaine."
+      }
     },
     "contactForm": {
       "emailLabel": "Email",
@@ -2004,7 +2331,15 @@
       "networkError": "Erreur réseau. Vérifie ta connexion.",
       "successMessage": "Modifications enregistrées.",
       "savingButton": "Enregistrement…",
-      "saveButton": "Enregistrer"
+      "saveButton": "Enregistrer",
+      "emailChangeNote": "Pour changer ton email, contacte-nous via WhatsApp.",
+      "phoneLabel": "WhatsApp",
+      "phonePlaceholder": "+229 …",
+      "phoneNote": "Format international (+229…). On utilise ce numéro pour t'inviter au groupe.",
+      "optional": "(facultatif)",
+      "goalMinChars": "4 caractères minimum. C'est ce qui t'aide à la validation.",
+      "saving": "Enregistrement…",
+      "genericError": "Erreur lors de la mise à jour."
     },
     "nextSteps": {
       "title": "Prochaines étapes",
@@ -2040,9 +2375,12 @@
           "Identifie le domaine qui t'attire le plus (web, cyber, AI) et creuse un cas concret.",
           "Partage ton objectif 3 mois sur le canal #objectifs pour trouver un binôme."
         ]
-      }
+      },
+      "personalizedNote": "Personnalisées selon ton profil"
     },
-    "logoutButton": "Se déconnecter"
+    "logoutButton": {
+      "label": "Se déconnecter"
+    }
   },
   "admin": {
     "members": {

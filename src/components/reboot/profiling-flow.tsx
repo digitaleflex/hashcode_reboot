@@ -107,12 +107,12 @@ export function ProfilingFlow({
     if (!hydrated || answeredIds.length === 0) return;
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
-      e.returnValue = t("flow.confirmLeave");
+      e.returnValue = t("flow.beforeUnloadConfirm");
       if (lastQuestionRef.current) {
         track({ type: "profiling_abandoned", ref: lastQuestionRef.current });
         saveDraftBeacon(answers, lastQuestionRef.current);
       }
-      return t("flow.beforeUnloadMessage");
+      return t("flow.beforeUnloadSaveNote");
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);

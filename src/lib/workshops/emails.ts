@@ -124,7 +124,7 @@ export function reviewEmail(data: ReviewEmailData): WorkshopEmailPayload {
       <h1>${decisionLabel}</h1>
       <p>Bonjour ${safeName},</p>
       <p>Votre livrable <strong>${safeDeliverable}</strong> pour l'atelier <strong>${safeWorkshop}</strong> a été évalué.</p>
-      ${safeFeedback ? `<p><strong>Feedback :</strong> ${safeFeedback}</p>` : ""}
+      ${safeFeedback ? `<p><strong>Retour :</strong> ${safeFeedback}</p>` : ""}
       <a href="${safeUrl}" style="display:inline-block;padding:12px 24px;background:#0070f3;color:#fff;text-decoration:none;border-radius:6px;">Voir la soumission</a>
       <p style="margin-top:24px;color:#666;font-size:12px;">Cet email a été envoyé automatiquement.</p>
     `,

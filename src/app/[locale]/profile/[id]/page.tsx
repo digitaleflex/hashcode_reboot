@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
     const { profile } = await res.json();
     return {
-      title: `${profile.firstName} — HASHCODE Profile`,
+      title: `${profile.firstName} — Profil HASHCODE`,
       description: `${profile.archetype} · ${profile.domain} · ${profile.level}`,
     };
   } catch (error) {
