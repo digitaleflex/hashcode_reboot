@@ -2811,6 +2811,85 @@
       "loadError": "Erreur de chargement des stats.",
       "genericLoadError": "Erreur de chargement des données. Vérifie ta connexion puis rafraîchis."
     },
+    "pipeline": {
+      "stages": {
+        "pending": {
+          "label": "En attente",
+          "description": "Profils à valider"
+        },
+        "approved": {
+          "label": "Validés",
+          "description": "Profils approuvés, pas encore invités"
+        },
+        "invited": {
+          "label": "Invités",
+          "description": "Invités dans la communauté"
+        },
+        "active": {
+          "label": "Actifs",
+          "description": "Ont rejoint la communauté"
+        }
+      },
+      "filters": {
+        "stageAll": "Tous"
+      },
+      "empty": {
+        "noMembers": "Aucun membre à cette étape."
+      },
+      "errors": {
+        "countsLoad": "Impossible de charger les compteurs."
+      }
+    },
+    "activation": {
+      "title": "Activation — premier challenge",
+      "subtitle": "Membres ayant fait leur premier challenge",
+      "kpiRate": "Taux d'activation",
+      "kpiActivated": "Activés",
+      "kpiEligible": "Éligibles",
+      "curveTitle": "Courbe d'activation",
+      "inactiveTitle": "Inactifs depuis 7 jours",
+      "inactiveEmpty": "Aucun inactif — tout le monde a fait son premier challenge.",
+      "relanceSent": "Relance envoyée",
+      "table": {
+        "member": "Membre",
+        "since": "Inscrit le",
+        "daysInactive": "Jours sans challenge"
+      }
+    },
+    "import": {
+      "openButton": "Importer un CSV",
+      "dialogTitle": "Import CSV",
+      "dialogDescription": "Importe jusqu'à {max} lignes. Les doublons mettent à jour le membre existant.",
+      "fileLabel": "Fichier CSV",
+      "chooseFile": "Choisir un fichier",
+      "removeFile": "Retirer le fichier",
+      "loadExample": "Charger un exemple",
+      "csvDataLabel": "Contenu CSV",
+      "rowsCount": "{count} ligne(s) sur {max} max",
+      "overLimit": "Limite de {max} lignes dépassée.",
+      "fileTooLarge": "Fichier trop volumineux (2 Mo max).",
+      "readError": "Lecture du fichier impossible.",
+      "noRows": "Aucune ligne à importer.",
+      "tooManyRows": "{count} lignes : limite de {max} dépassée.",
+      "rateLimited": "Trop de demandes. Réessaie dans {retry} s.",
+      "validationErrorsTitle": "Erreurs de validation",
+      "genericError": "Une erreur est survenue.",
+      "networkError": "Erreur réseau. Vérifie ta connexion.",
+      "importing": "Import en cours…",
+      "importButton": "Importer ({count})",
+      "clearAll": "Tout effacer",
+      "partialSummary": "{created} créé(s), {updated} mis à jour, {skipped} ignoré(s).",
+      "successSummary": "{created} créé(s), {updated} mis à jour, {skipped} ignoré(s).",
+      "keepDraftHint": "Le brouillon est conservé pour corriger les erreurs.",
+      "errorsTitle": "{count} erreur(s)",
+      "downloadReport": "Télécharger le rapport ({count})",
+      "errorLine": "Ligne {row} : {message}",
+      "errorField": "champ {field}",
+      "moreErrors": "… et {count} autre(s).",
+      "resumeLater": "Reprendre plus tard",
+      "close": "Fermer",
+      "fixNow": "Corriger maintenant"
+    },
     "dashboard": {
       "brand": "HASHCODE · ADMIN",
       "title": "Dashboard 360°",
