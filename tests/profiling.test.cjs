@@ -613,6 +613,28 @@ describe("normalizeSource — Member.source à la création", () => {
     assert.equal(normalizeSource(123), "direct");
     assert.equal(normalizeSource({}), "direct");
   });
+
+  test("alias insensibles à la casse et aux espaces → direct", () => {
+    assert.equal(normalizeSource("  (Direct)  "), "direct");
+    assert.equal(normalizeSource("(NONE)"), "direct");
+    assert.equal(normalizeSource(" Unknown "), "direct");
+    assert.equal(normalizeSource("N/A"), "direct");
+    assert.equal(normalizeSource("Null"), "direct");
+    assert.equal(normalizeSource("UNDEFINED"), "direct");
+  });
+
+  test("parité source : miroir aligné sur src/lib/acquisition.ts", () => {
+    const fs = require("node:fs");
+    const path = require("node:path");
+    const src = fs.readFileSync(
+      path.join(__dirname, "..", "src", "lib", "acquisition.ts"),
+      "utf8",
+    );
+    assert.ok(src.includes("export function normalizeSource"));
+    for (const alias of Object.keys(SOURCE_ALIASES)) {
+      assert.ok(src.includes('"' + alias + '"'), "alias manquant : " + alias);
+    }
+  });
 });
 
 describe("toQualificationData — ligne Qualification persistée", () => {

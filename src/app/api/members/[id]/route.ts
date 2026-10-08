@@ -5,6 +5,7 @@ import { toServerEventData } from "@/lib/analytics";
 import { isAdminAuthed, requireAdminRole, getAdminRole, checkCSRF } from "@/lib/admin-auth";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { normalizeAccessLane } from "@/lib/import/normalize";
+import { canTransition, deriveState, profileStatusToState } from "@/lib/acquisition-state";
 import { audit } from "@/lib/admin-audit";
 import { sendStatusChangeEmail, type StatusChangeType } from "@/lib/email/builders";
 import { addToBlacklist } from "@/lib/blacklist";
@@ -170,6 +171,8 @@ export async function PATCH(
         email: true,
         firstName: true,
         profileStatus: true,
+        communityStatus: true,
+        invitationStatus: true,
         profileArchetype: true,
         deletedAt: true,
       },
@@ -183,6 +186,20 @@ export async function PATCH(
       data.profileStatus !== before.profileStatus
         ? { from: before.profileStatus, to: data.profileStatus as string }
         : null;
+    // Garde machine à états #158 : rejette les transitions illégales
+    // (états terminaux BOUNCED/HANDOFF, retours incohérents). L'état courant
+    // est dérivé des statuts (deriveState) et la cible projetée depuis le
+    // profileStatus demandé — Member reste la source d'écriture.
+    if (statusTransition) {
+      const from = deriveState({ member: before });
+      const to = profileStatusToState(statusTransition.to);
+      if (!canTransition(from, to)) {
+        throw new ValidationError(
+          `Transition de statut illégale : ${statusTransition.from} → ${statusTransition.to}.`,
+          { from: statusTransition.from, to: statusTransition.to, state: from },
+        );
+      }
+    }
     if (statusTransition?.to === "APPROVED") {
       data.approvedAt = new Date();
     }

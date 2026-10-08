@@ -218,6 +218,10 @@ export async function POST(req: NextRequest) {
               answers: JSON.stringify(data),
               updatedAt: new Date(),
               relanceSentAt: null,
+              // Preuve aveugle #158 : le flow est complété (Member créé) →
+              // ce brouillon ne doit plus être relancé (cron : completedAt
+              // NULL). Écrit best-effort dans le allSettled ci-dessous.
+              completedAt: new Date(),
             },
             create: {
               email: data.email.toLowerCase(),
@@ -225,10 +229,22 @@ export async function POST(req: NextRequest) {
               firstName: data.firstName?.slice(0, 40) ?? "",
               lastQuestionId: null,
               relanceSentAt: null,
+              completedAt: new Date(),
             },
           }),
         ]
-      : []),
+      : [
+          // Lane immédiate : aucun brouillon créé ici, mais un brouillon
+          // abandonné pré-existant (beacon) doit être clôturé — updateMany
+          // sans création (zéro ligne quand aucun brouillon).
+          db.profilingDraft.updateMany({
+            where: {
+              email: data.email.toLowerCase(),
+              completedAt: null,
+            },
+            data: { completedAt: new Date() },
+          }),
+        ]),
   ]);
 
   // Emails en arrière-plan : on répond 201 sans attendre les providers

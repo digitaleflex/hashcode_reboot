@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { toServerEventData } from "@/lib/analytics";
 import { requireAdminRole } from "@/lib/admin-auth";
+import { canTransition, deriveState, profileStatusToState } from "@/lib/acquisition-state";
 import { audit } from "@/lib/admin-audit";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
@@ -51,6 +52,39 @@ export async function POST(req: NextRequest) {
       throw new ValidationError("Données invalides.", parsed.error.flatten());
     }
     const { ids, action } = parsed.data;
+
+    // Garde machine à états #158 (même garde que PATCH /api/members/[id]) :
+    // les actions qui changent profileStatus sont rejetées en bloc si l'un
+    // des membres visés est dans un état terminal (BOUNCED/HANDOFF) ou si la
+    // transition est incohérente. Mappings approve/invite/waitlist/reject
+    // inchangés ; invite (communityStatus seul) et delete non gardés.
+    if (action === "approve" || action === "waitlist" || action === "reject") {
+      const targetStatus =
+        action === "approve"
+          ? "APPROVED"
+          : action === "waitlist"
+            ? "WAITLIST"
+            : "REJECTED";
+      const to = profileStatusToState(targetStatus);
+      const currents = await db.member.findMany({
+        where: { id: { in: ids } },
+        select: {
+          id: true,
+          profileStatus: true,
+          communityStatus: true,
+          invitationStatus: true,
+        },
+      });
+      const illegal = currents
+        .filter((m) => !canTransition(deriveState({ member: m }), to))
+        .map((m) => m.id);
+      if (illegal.length > 0) {
+        throw new ValidationError(
+          "Transition de statut illégale pour certains membres.",
+          { ids: illegal, action, target: targetStatus },
+        );
+      }
+    }
 
     try {
       let affected = 0;

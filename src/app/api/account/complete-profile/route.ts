@@ -136,6 +136,17 @@ export async function POST(req: NextRequest) {
       accessLane: updated.accessLane,
     });
 
+    // Preuve aveugle #158 : le flow est complété → clôture best-effort du
+    // brouillon éventuel (jamais bloquant, sans création si absent).
+    try {
+      await db.profilingDraft.updateMany({
+        where: { email: member.email.toLowerCase(), completedAt: null },
+        data: { completedAt: new Date() },
+      });
+    } catch {
+      /* best-effort */
+    }
+
     try {
       await db.analyticsEvent.create({
         data: toServerEventData({
