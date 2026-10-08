@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { isAdminAuthed } from "@/lib/admin-auth";
+import { expireStaleInvitations } from "@/lib/invitations";
 import { AuthError, ValidationError, errorToResponse } from "@/lib/errors";
 
 export const runtime = "nodejs";
@@ -40,6 +41,13 @@ export async function GET(req: NextRequest) {
   }
 
   const { status, page, pageSize } = parsed.data;
+
+  // #213 handoff_failure : balayage paresseux des invitations périmées
+  // (INVITED + 72 h → EXPIRED, jamais les JOINED). L'écrivain manquait :
+  // seule la lecture existait (deriveState → HANDOFF_FAILED). Best-effort
+  // (ne lève jamais), avant les stats pour que le compteur EXPIRED soit
+  // juste dans cette même réponse. Ni join ni cron touchés.
+  await expireStaleInvitations();
 
   // Stats globales (tous les membres actifs — invités inclus, inscrits inclus).
   // NB : pas de filtre `source` ici : les imports historiques ont `source=null`

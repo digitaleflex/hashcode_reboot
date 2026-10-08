@@ -17,6 +17,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { toServerEventData } from "@/lib/analytics";
 import { createLogger, serializeError } from "@/lib/logging";
 import { sendBouncedNotificationEmail } from "@/lib/email/builders";
 
@@ -66,7 +67,7 @@ async function findMember(email: string) {
   try {
     return await db.member.findUnique({
       where: { email: email.toLowerCase() },
-      select: { id: true, email: true, firstName: true },
+      select: { id: true, email: true, firstName: true, invitationStatus: true },
     });
   } catch {
     return null;
@@ -231,6 +232,23 @@ async function handleEngagement(
       });
     } catch {
       // Silent
+    }
+    // #213 conversion_started : trace le clic d'invitation en analytics
+    // (type existant `community_cta_clicked`, ref `invite-click` — aucun
+    // nouveau type). Seulement pour les INVITED : les clics des autres
+    // emails (welcome, relance…) ne sont pas une conversion. Best-effort.
+    if (member.invitationStatus === "INVITED") {
+      try {
+        await db.analyticsEvent.create({
+          data: toServerEventData({
+            type: "community_cta_clicked",
+            memberId: member.id,
+            ref: "invite-click",
+          }),
+        });
+      } catch {
+        // Silent
+      }
     }
   }
 }

@@ -21,6 +21,14 @@
  *    (User/Profile/Path/Progress/Evidence/Mentoring — Better Auth
  *    User local OK)
  *  - aucun CJK dans les fichiers touchés
+ * Funnel #213 (même technique, assertions texte) :
+ *  - correspondance canonique → implémentation (docs §7)
+ *  - analytics POST idempotent (clé déterministe, rate-limit conservé)
+ *  - members POST : sessionId optionnel écrit sur profil_generated
+ *  - conversion_started : clic Brevo INVITED tracé, type existant
+ *  - handoff_failure : écrivain EXPIRED localisé, join/cron intacts
+ *  - analytics = preuve (deriveState/canTransition intacts, pas de
+ *    table AcquisitionEvent, pas de migration)
  */
 
 "use strict";
@@ -351,6 +359,7 @@ describe("hygiène fichiers touchés", () => {
   test("aucun CJK", () => {
     const files = [
       "src/lib/analytics.ts",
+      "src/lib/invitations.ts",
       "src/lib/onboarding-emails.ts",
       "src/app/api/members/route.ts",
       "src/app/api/members/import/route.ts",
@@ -367,17 +376,105 @@ describe("hygiène fichiers touchés", () => {
       "src/app/api/export/json/route.ts",
       "src/app/api/admin/announce-dashboard/route.ts",
       "src/app/api/admin/import-invite/route.ts",
+      "src/app/api/admin/invitations/route.ts",
       "src/app/api/admin/logout/route.ts",
+      "src/app/api/webhooks/brevo/route.ts",
       "src/app/api/cron/relance/route.ts",
       "src/app/api/cron/collect-metrics/route.ts",
       "src/app/api/cron/activation-relance/route.ts",
       "src/app/api/cron/admin-alerts/route.ts",
       "src/app/api/cron/email-alerts/route.ts",
       "src/app/api/cron/event-reminders/route.ts",
+      "src/app/[locale]/page.tsx",
       "docs/acquisition-contracts.md",
       "tests/acquisition-foundation.test.cjs",
     ];
     const bad = files.filter((f) => /[\u3000-\u9FFF]/.test(read(f)));
     assert.deepEqual(bad, [], "CJK détecté");
+  });
+});
+
+describe("funnel acquisition #213 (correspondance, preuve — jamais vérité)", () => {
+  test("contrats §7 : les 8 étapes mappées + interdits rappelés", () => {
+    const doc = read("docs/acquisition-contracts.md");
+    for (const s of [
+      "## 7. Funnel acquisition #213",
+      "reboot_page_view",
+      "profiling_started",
+      "profil_generated",
+      "acq-",
+      "invite-click",
+      "admin_invite",
+      "whatsapp_join_clicked",
+      "EXPIRED",
+      "pas de table `AcquisitionEvent`",
+      "deriveState",
+    ]) {
+      assert.ok(doc.includes(s), "correspondance manquante : " + s);
+    }
+  });
+
+  test("analytics POST : idempotence déterministe, rate-limit + enum conservés", () => {
+    const src = read("src/app/api/analytics/route.ts");
+    assert.ok(src.includes("ANALYTICS_DEDUP_WINDOW_MS"), "fenêtre dedup manquante");
+    assert.ok(src.includes("findFirst"), "lookup dedup manquant");
+    assert.ok(src.includes("deduped"), "réponse deduped manquante");
+    assert.ok(src.includes("capacity: 120"), "rate-limit 120 modifié");
+    assert.ok(src.includes("z.enum(EVENT_TYPES)"), "allowlist publique modifiée");
+  });
+
+  test("members POST : sessionId optionnel ≤64 écrit sur profil_generated, draft intact", () => {
+    const src = read("src/app/api/members/route.ts");
+    assert.ok(src.includes("clientSessionId"), "pont sessionId manquant");
+    assert.ok(src.includes("max(64)"), "borne sessionId ≤64 manquante");
+    assert.ok(src.includes("sessionId: clientSessionId"), "écriture profil_generated manquante");
+    assert.ok(src.includes("profilingDraft.upsert"), "pont email/draft altéré");
+    const page = read("src/app/[locale]/page.tsx");
+    assert.ok(page.includes("getOrCreateSessionId"), "client sans sessionId");
+    assert.ok(page.includes("sessionId: getOrCreateSessionId()"), "envoi client manquant");
+  });
+
+  test("conversion_started : clic Brevo INVITED → type existant, sans nouveau type", () => {
+    const src = read("src/app/api/webhooks/brevo/route.ts");
+    assert.ok(src.includes("invite-click"), "ref invite-click manquante");
+    assert.ok(src.includes('type: "community_cta_clicked"'), "type de trace manquant");
+    assert.ok(src.includes("toServerEventData"), "validation serveur manquante");
+    assert.ok(src.includes('invitationStatus === "INVITED"'), "garde INVITED manquante");
+    assert.ok(EVENT_TYPES.includes("community_cta_clicked"), "type hors allowlist publique");
+  });
+
+  test("handoff_failure : écrivain EXPIRED localisé, join/cron intacts", () => {
+    const lib = read("src/lib/invitations.ts");
+    assert.ok(lib.includes("expireStaleInvitations"), "balayage manquant");
+    assert.ok(lib.includes("INVITE_TTL_MS"), "TTL 72 h manquant");
+    const adminInvites = read("src/app/api/admin/invitations/route.ts");
+    assert.ok(adminInvites.includes("expireStaleInvitations"), "déclencheur admin manquant");
+    // L'écriture `invitationStatus: "EXPIRED"` n'existe qu'au bon endroit.
+    const files = walk(path.join(ROOT, "src"), []);
+    const writers = files.filter((f) =>
+      fs.readFileSync(f, "utf8").includes('invitationStatus: "EXPIRED"'),
+    );
+    assert.deepEqual(
+      writers.map((f) => path.relative(ROOT, f)),
+      ["src/lib/invitations.ts"],
+      "écrivain EXPIRED inattendu",
+    );
+    // Ni join ni cron ne portent l'expiration.
+    assert.ok(!read("src/app/api/community/join/route.ts").includes("expireStaleInvitations"));
+    assert.ok(!read("src/lib/cron/registry.ts").includes("expireStaleInvitations"));
+  });
+
+  test("vérité métier : machine intacte, aucune table ni migration acquisition", () => {
+    const state = read("src/lib/acquisition-state.ts");
+    assert.ok(state.includes("export function deriveState"), "deriveState altéré");
+    assert.ok(state.includes("export function canTransition"), "canTransition altéré");
+    const schema = read("prisma/schema.prisma");
+    assert.ok(!schema.includes("model AcquisitionEvent"), "table AcquisitionEvent interdite");
+    // Seule la migration #211 (champs Qualification, historique) contient
+    // "acquisition" : toute NOUVELLE migration acquisition (#213 = zéro
+    // migration) est interdite.
+    const migrations = fs.readdirSync(path.join(ROOT, "prisma/migrations"));
+    const suspects = migrations.filter((m) => /acquisition.?event/i.test(m));
+    assert.deepEqual(suspects, [], "migration acquisition interdite : " + suspects.join(","));
   });
 });

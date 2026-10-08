@@ -69,6 +69,21 @@ export async function POST(req: NextRequest) {
   }
   const data = parsed.data;
 
+  // Pont sessionId #213 (rupture analytics ↔ Member) : le client envoie
+  // son sessionId navigateur (optionnel, ≤ 64) hors schéma de profil —
+  // il n'entre ni dans le payload Member ni dans le brouillon (pont
+  // email/draft inchangé ci-dessous) — et il est écrit sur
+  // `profil_generated` pour rattacher le parcours anonyme au membre.
+  // Invalide ou absent → null, jamais bloquant pour l'inscription.
+  const sessionIdParsed = z
+    .string()
+    .max(64)
+    .safeParse((body as Record<string, unknown>).sessionId);
+  const clientSessionId =
+    sessionIdParsed.success && sessionIdParsed.data.length > 0
+      ? sessionIdParsed.data
+      : null;
+
   // Blacklist + dédup en parallèle (2 lectures indépendantes).
   // Anti-énumération : messages génériques, sans memberId ni statuts.
   const [blacklisted, existing] = await Promise.all([
@@ -190,6 +205,7 @@ export async function POST(req: NextRequest) {
       data: toServerEventData({
         type: "profil_generated",
         memberId: created.id,
+        sessionId: clientSessionId,
         ref: controls.accessLane,
       }),
     }),

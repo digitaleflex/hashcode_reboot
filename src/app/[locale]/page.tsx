@@ -15,7 +15,7 @@ import { generateProfile } from "@/lib/profiling/engine";
 import { runAutoControls } from "@/lib/profiling/auto-controls";
 import { orientationEngine } from "@/lib/orientation/engine";
 import type { OrientationResult } from "@/lib/orientation/types";
-import { track, getSource } from "@/lib/analytics";
+import { track, getSource, getOrCreateSessionId } from "@/lib/analytics";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/routing";
 
@@ -149,7 +149,9 @@ export default function Home() {
       const res = await fetch("/api/members", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...finalAnswers, source: getSource() }),
+        // Pont sessionId #213 : rattache `profil_generated` au parcours
+        // anonyme (profiling_started / draft partagent ce sessionId).
+        body: JSON.stringify({ ...finalAnswers, source: getSource(), sessionId: getOrCreateSessionId() }),
       });
       const data: SubmitResponse = await res.json();
       if (!res.ok || !data.ok) {
@@ -241,7 +243,8 @@ export default function Home() {
       const res = await fetch("/api/members", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(retryAnswers),
+        // Pont sessionId #213 : même rattachement que l'envoi initial.
+        body: JSON.stringify({ ...retryAnswers, source: getSource(), sessionId: getOrCreateSessionId() }),
       });
       const data: SubmitResponse = await res.json();
       if (!res.ok || !data.ok) {

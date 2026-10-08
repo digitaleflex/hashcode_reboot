@@ -13,6 +13,18 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+/**
+ * Fenêtre d'idempotence #213 : deux POST byte-identiques (même tuple
+ * type/sessionId/memberId/ref/value) à moins de 30 s d'intervalle sont
+ * le même événement logique — `navigator.sendBeacon` + retry fetch
+ * renvoient un payload identique, sans clé client (aucune colonne
+ * ajoutée, aucune migration). La clé déterministe = le tuple + la
+ * fenêtre. Au-delà de 30 s, un doublon exact est compté normalement
+ * (fenêtre courte assumée : les questions minutées répétées restent
+ * mesurées, seul le double-submit immédiat est absorbé).
+ */
+export const ANALYTICS_DEDUP_WINDOW_MS = 30_000;
+
 const eventSchema = z.object({
   type: z.enum(EVENT_TYPES),
   sessionId: z.string().max(64).optional(),
@@ -65,6 +77,27 @@ export async function POST(req: NextRequest) {
     }
   }
   try {
+    // Idempotence #213 : absorbe les doubles envois sendBeacon/retry
+    // (payload identique dans la fenêtre). Best-effort : un échec de
+    // lecture retombe sur la création (fail-open, contrat inchangé).
+    try {
+      const recent = await db.analyticsEvent.findFirst({
+        where: {
+          type: d.type,
+          sessionId: d.sessionId ?? null,
+          memberId,
+          ref: d.ref ?? null,
+          value: d.value ?? null,
+          createdAt: { gte: new Date(Date.now() - ANALYTICS_DEDUP_WINDOW_MS) },
+        },
+        select: { id: true },
+      });
+      if (recent) {
+        return NextResponse.json({ ok: true, deduped: true });
+      }
+    } catch {
+      /* fail-open : on tente quand même la création ci-dessous */
+    }
     await db.analyticsEvent.create({
       data: {
         type: d.type,

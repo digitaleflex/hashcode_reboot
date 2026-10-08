@@ -35,11 +35,11 @@ Pas de `Lead` / `LeadSource` / `AcquisitionSession` / `Conversion` / `Acquisitio
 ## 4. Règles d'écriture
 
 - Toute écriture publique est validée Zod, rate-limitée, auditée best-effort jamais bloquant (boundary règle 6).
-- `POST /api/members` : `blockIfTesting` + `bodyLimit` + 5 req/IP/10 min ; dedup email (pré-check + course P2002 → `200 duplicate`) ; `source` normalisée (`normalizeSource`, alias `""` → `direct`) ; `profil_generated` + `Qualification` en `allSettled`.
+- `POST /api/members` : `blockIfTesting` + `bodyLimit` + 5 req/IP/10 min ; dedup email (pré-check + course P2002 → `200 duplicate`) ; `source` normalisée (`normalizeSource`, alias `""` → `direct`) ; `sessionId` navigateur accepté (optionnel, ≤ 64, hors schéma — jamais bloquant) et écrit sur `profil_generated` (pont analytics ↔ Member, cf. §7) ; `profil_generated` + `Qualification` en `allSettled`.
 - `POST /api/consents` : `blockIfTesting` + `bodyLimit` + 30 req/IP/10 min ; create seul, email absent → marqueur `anonymous` (`src/lib/consents.ts`) ; lecture = `findFirst orderBy createdAt desc` (miroir pur : `pickLatestConsent`).
 - `POST /api/profiling/draft` : `blockIfTesting` + `bodyLimit` + 30 req/IP/10 min ; `upsert where email` (idempotent) ; answers bornées (60 clés, 32 Ko) ; n'écrase jamais `sessionId`/`sourceUTM` avec du vide.
 - `POST /api/account/phone` : `blockIfTesting` + `bodyLimit` + 5 req/IP/10 min ; ticket HMAC lié au memberId (`phone-fill-ticket`) sinon réponse générique sans écriture ; remplissage unique (`!member.phone`, pas d'écrasement).
-- `POST /api/analytics` : `blockIfTesting` + `bodyLimit` + 120 req/IP/10 min ; `z.enum(EVENT_TYPES)` (26 types funnel) ; `memberId` client honoré seulement s'il égale la session (anti-empoisonnement).
+- `POST /api/analytics` : `blockIfTesting` + `bodyLimit` + 120 req/IP/10 min (conservé) ; `z.enum(EVENT_TYPES)` (26 types funnel — inconnu → 422, aucun nouveau type, cf. §7) ; idempotence par clé déterministe (tuple + fenêtre 30 s → `{ok:true, deduped:true}`, cf. §7) ; `memberId` client honoré seulement s'il égale la session (anti-empoisonnement).
 - Écritures serveur : `toServerEventData` (`src/lib/analytics.ts`, union `SERVER_EVENT_TYPES` = 26 publics + 16 `SERVER_ONLY_*` admin/cron/onboarding) — plus aucune création directe non validée ; `POST /api/analytics` n'accepte jamais les types serveur.
 - Lots : exclusion préalable via `memberIdsWithEmailLog` avant envoi, `logMemberEmail` après envoi.
 
@@ -104,3 +104,48 @@ mentoringTypes), `objectif` (goal + threeMonthGoal), `niveau` (level),
   que des reçus sans PII.
 - Interdits respectés : aucune table `Conversion`, aucune migration Prisma,
   aucune route nouvelle, comportement join/cron inchangé.
+
+## 7. Funnel acquisition #213 (correspondance, preuve — jamais vérité)
+
+Table de correspondance entre le funnel canonique de l'issue (noms
+historiques) et l'implémentation réelle sur `main`. Aucun modèle créé
+(arbitrage C1 : REUSE partout — pas de table `AcquisitionEvent`, pas de
+migration) ; aucun événement de progression JoinHashCode (ateliers,
+mentorat, parcours) n'est émis côté Reboot.
+
+| Étape canonique | Implémentation réelle | Support |
+|---|---|---|
+| `visit` | `reboot_page_view` (client, `track`) | `AnalyticsEvent` (preuve) |
+| `diagnostic_started` | `profiling_started` (client, CTA) | `AnalyticsEvent` (preuve) |
+| `lead_captured` | `profil_generated` (serveur, `POST /api/members`, `allSettled`) | `AnalyticsEvent` (preuve) + `Member` créé (vérité) |
+| `qualification_completed` / `qualified` | Ligne `Qualification` `ruleVersion acq-*` (append-only, `QUALIFIED`/`DISQUALIFIED`/`INSUFFICIENT_DATA`) | `Qualification` (vérité) — PAS d'event |
+| `conversion_started` | Clic sur le lien d'invitation : webhook Brevo `clicked` (membre `INVITED` seul) → `community_cta_clicked`, `ref: "invite-click"` | `AnalyticsEvent` (preuve) + `invitationClicks++` (vérité) |
+| `conversion_completed` | `profileStatus → APPROVED` + `admin_invite` (transaction `POST /api/members/[id]/invite`) | `Member` (vérité) + `AnalyticsEvent` (preuve) |
+| `handoff_success` | `whatsapp_join_clicked` (`GET /api/community/join`, transaction statut + event) | `AnalyticsEvent` (preuve) + `communityStatus JOINED` (vérité) |
+| `handoff_failure` | `invitationStatus → EXPIRED` (balayage paresseux `expireStaleInvitations`, TTL 72 h, déclenché par `GET /api/admin/invitations`) | `Member` (vérité, lu par `deriveState` → `HANDOFF_FAILED`) — PAS d'event |
+
+- Types contraints, aucun nouveau type : le public est borné par
+  `z.enum(EVENT_TYPES)` (`POST /api/analytics` → 422 sur inconnu) ; toute
+  écriture serveur passe par `toServerEventData` (`src/lib/analytics.ts`),
+  qui lève sur type inconnu (`Unknown server analytics event type`) —
+  vérifié par le test `toute écriture serveur utilise un type de l'union
+  validée` (`tests/acquisition-foundation.test.cjs`).
+- Idempotence `POST /api/analytics` : clé déterministe = tuple
+  (type, sessionId, memberId, ref, value) + fenêtre 30 s
+  (`ANALYTICS_DEDUP_WINDOW_MS`) — un doublon exact dans la fenêtre
+  (sendBeacon + retry) répond `{ok:true, deduped:true}` sans créer de
+  ligne ; rate-limit 120 req/IP/10 min inchangé et appliqué avant.
+- Rupture sessionId : `POST /api/members` accepte `sessionId` (optionnel,
+  ≤ 64, hors schéma de profil) et l'écrit sur `profil_generated`
+  (`AnalyticsEvent.sessionId` existant — aucun changement de schéma) ;
+  le client l'envoie (`getOrCreateSessionId`, envoi initial + retry).
+  Pont email/draft conservé : `ProfilingDraft` upsert par email, jamais
+  écrasé avec du vide, clôturé (`completedAt`) à la création du Member.
+- Cohortes par source/campagne : `Member.source` (`normalizeSource`) +
+  `ProfilingDraft.sourceUTM` + clés navigateur (`hashcode:reboot:source`),
+  sans PII inutile (jamais d'email dans `AnalyticsEvent.ref`).
+- Analytics = preuve, jamais vérité : `deriveState`/`canTransition`
+  (`src/lib/acquisition-state.ts`) intacts — les statuts `Member`
+  (+ `Qualification` + `Consent` + `ProfilingDraft`) décident, les events
+  ne font que corroborer (signaux `SESSION_STARTED`/`DIAGNOSTIC`/
+  `LEAD_CAPTURED`).
