@@ -30,13 +30,48 @@ export function normalizeConsentEmail(raw: unknown): string {
   return v || ANONYMOUS_CONSENT_EMAIL;
 }
 
+/**
+ * Bornes anti-abus de `proof` (audit v2 HIGH : JSON libre → borné comme
+ * `draft`). La route garde aussi `bodyLimit` (100 Ko) : ces bornes portent
+ * sur le contenu décodé, pas sur l'enveloppe HTTP.
+ */
+export const CONSENT_PROOF_MAX_KEYS = 20;
+export const CONSENT_PROOF_KEY_MAX_LEN = 128;
+export const CONSENT_PROOF_VALUE_MAX_BYTES = 2048;
+
+/**
+ * Garde pure de `proof` (miroir testé dans tests/account-rgpd.test.cjs) :
+ * objet plat ≤ 20 clés, clés non vides ≤ 128 caractères, chaque valeur
+ * ≤ 2 Ko une fois sérialisée (chaîne brute ou JSON).
+ */
+export function isConsentProofValid(proof: unknown): boolean {
+  if (!proof || typeof proof !== "object" || Array.isArray(proof)) return false;
+  const entries = Object.entries(proof as Record<string, unknown>);
+  if (entries.length > CONSENT_PROOF_MAX_KEYS) return false;
+  const encoder = new TextEncoder();
+  for (const [k, v] of entries) {
+    if (!k || k.length > CONSENT_PROOF_KEY_MAX_LEN) return false;
+    const serialized = typeof v === "string" ? v : (JSON.stringify(v) ?? "");
+    if (encoder.encode(serialized).length > CONSENT_PROOF_VALUE_MAX_BYTES) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export const consentBodySchema = z.object({
   // Optionnel : bandeau cookies + modale privacy postent sans email.
   email: z.string().trim().toLowerCase().email().max(200).optional(),
   purpose: z.enum(CONSENT_PURPOSES),
   choice: z.enum(CONSENT_CHOICES),
   textVersion: z.string().trim().min(1).max(60),
-  proof: z.record(z.string(), z.unknown()).optional(),
+  proof: z
+    .record(z.string(), z.unknown())
+    .refine(
+      isConsentProofValid,
+      "Preuve de consentement invalide (20 clés max, 2 Ko par valeur).",
+    )
+    .optional(),
   memberId: z.string().trim().max(40).optional(),
 });
 

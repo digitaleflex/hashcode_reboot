@@ -202,6 +202,25 @@ run_migrations() {
     dc "$env" logs --no-color --tail=30 migrate || true
     die "migrate a échoué (code $rc) — l'app n'est pas démarrée"
   fi
+  # Sonde bloquante #215 (fail-closed) : prouve que la base répond à un
+  # SELECT 1 AVANT de démarrer l'app. verify-schema sort déjà en 1 si la
+  # base est injoignable, mais cette sonde distingue explicitement "base
+  # tombée entre-temps" d'un schéma non conforme — avec warn explicite.
+  info "sonde base (SELECT 1)…"
+  local envf db_user db_name probe
+  envf="$(envfile "$env")"
+  db_user="$(sed -n 's/^[[:space:]]*POSTGRES_USER[[:space:]]*=[[:space:]]*//p' "$envf" | tail -n1 | tr -d '\r' | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")"
+  db_name="$(sed -n 's/^[[:space:]]*POSTGRES_DB[[:space:]]*=[[:space:]]*//p' "$envf" | tail -n1 | tr -d '\r' | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")"
+  # La stack dev utilise une base suffixée (cf. compose.dev.yml) : la sonde
+  # doit viser la vraie base, pas le préfixe du .env.
+  [ "$env" = dev ] && db_name="${db_name}_dev"
+  [ -n "${db_user:-}" ] && [ -n "${db_name:-}" ] \
+    || die "POSTGRES_USER/POSTGRES_DB introuvables dans $envf — sonde impossible"
+  probe="$(dc "$env" exec -T postgres psql -U "$db_user" -d "$db_name" -tAc 'SELECT 1' 2>/dev/null || true)"
+  if [ "$probe" != "1" ]; then
+    warn "base injoignable pendant run_migrations (SELECT 1 sans réponse sur $db_name) — déploiement refusé"
+    die "SELECT 1 sans réponse sur la stack $env — l'app n'est pas démarrée"
+  fi
   ok "migrations appliquées"
 }
 

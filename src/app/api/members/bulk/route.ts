@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { toServerEventData } from "@/lib/analytics";
-import { requireAdminRole } from "@/lib/admin-auth";
+import { requireAdminRole, checkCSRF } from "@/lib/admin-auth";
 import { canTransition, deriveState, profileStatusToState } from "@/lib/acquisition-state";
 import { getLatestAcquisitionQualifications } from "@/lib/qualification";
 import { audit } from "@/lib/admin-audit";
@@ -35,6 +35,10 @@ export async function POST(req: NextRequest) {
     if (blocked) return blocked;
     if (!(await requireAdminRole(req, "operator"))) {
       throw new ForbiddenError("Opérateur requis.");
+    }
+    // CSRF protection (calque PATCH /api/members/[id]) : même 403 sans Origin.
+    if (!checkCSRF(req)) {
+      throw new ForbiddenError("CSRF validation failed.");
     }
     // Anti-abus : 20 actions bulk par IP toutes les 10 minutes.
     const rl = await rateLimit(`admin-bulk:${rateKey(req)}`, {

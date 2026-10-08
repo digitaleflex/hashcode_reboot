@@ -455,3 +455,44 @@ describe("audit: admin event types (unit)", () => {
     }
   });
 });
+
+// ────────────────────────────────────────────────────────────────
+// 5) CSRF admin — câblage source (403 sans Origin)
+// ────────────────────────────────────────────────────────────────
+// Aucun test runtime ici (pas de serveur) : on prouve que chaque écriture
+// admin exige checkCSRF après requireAdminRole — un POST sans Origin vaut
+// 403 "CSRF validation failed." via ForbiddenError (cf. src/lib/admin-auth.ts
+// checkCSRF : !origin || !host → false).
+
+describe("admin CSRF wiring (bulk + gardes existantes)", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const read = (p) => fs.readFileSync(path.join(__dirname, "..", p), "utf8");
+
+  test("POST /api/members/bulk exige checkCSRF après requireAdminRole", () => {
+    const src = read("src/app/api/members/bulk/route.ts");
+    assert.ok(src.includes("checkCSRF"), "import/appel checkCSRF manquant");
+    const rolePos = src.indexOf('requireAdminRole(req, "operator")');
+    const csrfPos = src.indexOf("if (!checkCSRF(req))");
+    assert.ok(rolePos >= 0, "garde requireAdminRole manquante");
+    assert.ok(csrfPos > rolePos, "checkCSRF doit suivre requireAdminRole");
+    assert.ok(
+      src.includes('throw new ForbiddenError("CSRF validation failed.")'),
+      "403 CSRF manquant",
+    );
+  });
+
+  test("gardes CSRF existantes intactes (PATCH/DELETE [id], email-templates)", () => {
+    for (const f of [
+      "src/app/api/members/[id]/route.ts",
+      "src/app/api/admin/email-templates/[key]/route.ts",
+    ]) {
+      const src = read(f);
+      assert.ok(src.includes("if (!checkCSRF(req))"), "garde perdue : " + f);
+      assert.ok(
+        src.includes('throw new ForbiddenError("CSRF validation failed.")'),
+        "403 perdu : " + f,
+      );
+    }
+  });
+});

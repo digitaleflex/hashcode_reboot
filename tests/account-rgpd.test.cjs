@@ -122,7 +122,9 @@ function normalizeConsentEmail(raw) {
 }
 
 // Miroir de consentBodySchema : mêmes règles (email optionnel,
-// unions strictes, textVersion 1..60, proof objet, memberId ≤ 40).
+// unions strictes, textVersion 1..60, proof objet BORNÉ (#215 : ≤ 20 clés,
+// clés ≤ 128, valeurs ≤ 2 Ko sérialisées — miroir de isConsentBodyValid),
+// memberId ≤ 40).
 function isConsentBodyValid(b) {
   if (!b || typeof b !== "object" || Array.isArray(b)) return false;
   if (!CONSENT_PURPOSES.includes(b.purpose)) return false;
@@ -137,6 +139,13 @@ function isConsentBodyValid(b) {
   }
   if (b.proof !== undefined) {
     if (!b.proof || typeof b.proof !== "object" || Array.isArray(b.proof)) return false;
+    const entries = Object.entries(b.proof);
+    if (entries.length > 20) return false;
+    for (const [k, v] of entries) {
+      if (!k || k.length > 128) return false;
+      const s = typeof v === "string" ? v : JSON.stringify(v) ?? "";
+      if (Buffer.byteLength(s, "utf8") > 2048) return false;
+    }
   }
   if (b.memberId !== undefined) {
     if (typeof b.memberId !== "string" || b.memberId.trim().length > 40) return false;
@@ -186,6 +195,48 @@ describe("consentBody — unions Zod (pas d'enum DB)", () => {
     assert.equal(isConsentBodyValid({ ...base, proof: { ts: 1 } }), true);
     assert.equal(isConsentBodyValid({ ...base, proof: [1] }), false);
     assert.equal(isConsentBodyValid({ ...base, memberId: "c123" }), true);
+  });
+
+  test("proof borné #215 : 20 clés max, valeurs ≤ 2 Ko", () => {
+    const keys20 = Object.fromEntries(
+      Array.from({ length: 20 }, (_, i) => [`k${i}`, "v"]),
+    );
+    assert.equal(isConsentBodyValid({ ...base, proof: keys20 }), true);
+    const keys21 = { ...keys20, k20: "v" };
+    assert.equal(isConsentBodyValid({ ...base, proof: keys21 }), false);
+    assert.equal(
+      isConsentBodyValid({ ...base, proof: { big: "x".repeat(2048) } }),
+      true,
+    );
+    assert.equal(
+      isConsentBodyValid({ ...base, proof: { big: "x".repeat(2049) } }),
+      false,
+    );
+    // Objet imbriqué mesuré sérialisé, pas au nombre de champs.
+    assert.equal(
+      isConsentBodyValid({ ...base, proof: { nested: { a: [1, 2, 3] } } }),
+      true,
+    );
+    assert.equal(
+      isConsentBodyValid({ ...base, proof: { nested: { a: "x".repeat(3000) } } }),
+      false,
+    );
+  });
+
+  test("parité source : bornes proof dans src/lib/consents.ts", () => {
+    const fs = require("node:fs");
+    const path = require("node:path");
+    const src = fs.readFileSync(
+      path.join(__dirname, "..", "src", "lib", "consents.ts"),
+      "utf8",
+    );
+    assert.ok(src.includes("isConsentProofValid"), "garde pure manquante");
+    assert.ok(src.includes("CONSENT_PROOF_MAX_KEYS = 20"), "borne 20 clés manquante");
+    assert.ok(
+      src.includes("CONSENT_PROOF_VALUE_MAX_BYTES = 2048"),
+      "borne 2 Ko manquante",
+    );
+    assert.ok(src.includes(".refine("), "refine Zod manquant sur proof");
   });
 });
 

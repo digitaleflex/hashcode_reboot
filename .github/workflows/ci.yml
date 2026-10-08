@@ -89,3 +89,42 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
+
+  integration:
+    name: Integration (ephemeral Postgres)
+    runs-on: ubuntu-latest
+    # Calque le job e2e (même Node, même install) mais SANS condition
+    # secrets : la DB est fournie par le service éphémère ci-dessous, et
+    # l'auth admin de test est posée via Prisma dans le fichier lui-même
+    # (aucun provider d'email requis — seuls des emails inconnus touchent
+    # la voie anti-énumération). Ne dépend que de validate.
+    needs: [validate]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: hashcode
+          POSTGRES_PASSWORD: hashcode
+          POSTGRES_DB: hashcode_reboot_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hashcode -d hashcode_reboot_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://hashcode:hashcode@localhost:5432/hashcode_reboot_test?schema=public
+      BETTER_AUTH_SECRET: integration-test-secret-32-chars-minimum-ok
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx prisma migrate deploy
+      - run: node --test tests/integration.test.cjs
+        timeout-minutes: 15

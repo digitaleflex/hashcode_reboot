@@ -17,12 +17,14 @@ import { sendOnboardingEmails } from "@/lib/onboarding-emails";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { isAdminAuthed } from "@/lib/admin-auth";
 import { isEmailBlacklisted } from "@/lib/blacklist";
+import { extractTurnstileToken, verifyTurnstile } from "@/lib/turnstile";
 import { blockIfTesting } from "@/lib/test-guard";
 import { bodyLimit } from "@/lib/body-limit";
 import {
   AppError,
   AuthError,
   errorToResponse,
+  ForbiddenError,
   parseJsonBody,
   RateLimitError,
   ValidationError,
@@ -68,6 +70,20 @@ export async function POST(req: NextRequest) {
     );
   }
   const data = parsed.data;
+
+  // Anti-bot Cloudflare Turnstile (#215) : le client envoie un champ
+  // optionnel `turnstileToken` (hors schéma de profil — Zod l'ignore — et
+  // jamais bloquant côté client : widget absent/bloqué = pas de token).
+  // Fail-open en dev (clé absente → warn + skip, sans appel réseau si pas
+  // de token), fail-closed en prod (clé absente ou vérif KO → 403, sans
+  // créer le membre). Placé avant toute lecture/écriture DB pour ne pas
+  // faire travailler la base sur du trafic bot.
+  const turnstile = await verifyTurnstile(extractTurnstileToken(body));
+  if (!turnstile.ok) {
+    throw new ForbiddenError(
+      "Vérification anti-robot échouée. Recharge la page et réessaie.",
+    );
+  }
 
   // Pont sessionId #213 (rupture analytics ↔ Member) : le client envoie
   // son sessionId navigateur (optionnel, ≤ 64) hors schéma de profil —

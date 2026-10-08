@@ -71,9 +71,15 @@ async function main() {
 }
 
 main().catch((err) => {
-  // Une erreur de connexion ne doit pas bloquer le déploiement : c'est
-  // probablement une indisponibilité passagère, et `postgres` a son propre
-  // healthcheck. On le signale sans faire échouer.
+  // Fail-closed (#215) : à ce stade (`migrate deploy` a réussi et le service
+  // `migrate` tourne avec `set -e`), ne pas prouver le schéma = ne pas
+  // démarrer l'app. Une base injoignable ici n'est pas "passagère" :
+  // `postgres` a son propre healthcheck et `web` dépend du succès de
+  // `migrate`. Le run_migrations de deploy.sh ajoute en plus une sonde
+  // bloquante SELECT 1 explicite (exit 1 si la DB ne répond pas).
   console.warn("  ⚠ vérification impossible :", err instanceof Error ? err.message : err);
-  process.exit(0);
+  console.error(
+    "    Base injoignable pendant la vérification — déploiement refusé.",
+  );
+  process.exit(1);
 });
