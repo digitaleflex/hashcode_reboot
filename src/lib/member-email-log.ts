@@ -13,6 +13,7 @@ export type MemberEmailKind =
   | "annonce"
   | "rejoin"
   | "engagement"
+  | "activation_relance"
   | "relance_event_J-3"
   | "relance_event_J-1"
   | "relance_event_H-1";

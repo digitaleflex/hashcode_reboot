@@ -4,6 +4,7 @@ import * as React from "react";
 import { AdminStats, type Stats, type FunnelData } from "@/components/reboot/admin/AdminStats";
 import { EmailEngagement, type EmailStatsData } from "@/components/reboot/admin/EmailEngagement";
 import { CohortRetention } from "@/components/reboot/admin/CohortRetention";
+import { ActivationSection } from "@/components/reboot/admin/ActivationSection";
 import { LoginActivity } from "@/components/reboot/admin/LoginActivity";
 import { ActivityLog } from "@/components/reboot/admin/ActivityLog";
 import {
@@ -362,6 +363,18 @@ export default function AdminDashboardPage() {
         data={data?.emailStats ?? null}
         loading={loading}
       />
+
+      {/* Section-level error: activation */}
+      {sectionErrors.activation && (
+        <SectionError
+          title="Activation premier challenge"
+          error={sectionErrors.activation}
+          onRetry={() => void loadData()}
+        />
+      )}
+
+      {/* ── 3b. Activation premier challenge (self-fetching) ───────────── */}
+      <ActivationSection />
 
       {/* Section-level error: emailOps */}
       {sectionErrors.emailOps && (

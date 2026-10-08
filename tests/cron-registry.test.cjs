@@ -8,7 +8,7 @@
  * Or:   npm run test:cron
  *
  * Coverage:
- *  - CRON_HEALTH : exactement 8 entrées, 5 premières = clés AnalyticsEvent
+ *  - CRON_HEALTH : exactement 9 entrées, 6 premières = clés AnalyticsEvent
  *    attendues par le dashboard (garde-fou anti-régression de la dédup),
  *    dérivées de CRON_JOBS via eventKey + CRON_MANUAL concaténé
  *  - CRON_JOBS : expression cron valide (5 champs), eventKey unique ou null
@@ -132,12 +132,13 @@ function renderStdout() {
 }
 
 // ────────────────────────────────────────────────────────────────
-// 1) CRON_HEALTH : 7 entrées exactes, dérivées du registre
+// 1) CRON_HEALTH : 9 entrées exactes, dérivées du registre
 // ────────────────────────────────────────────────────────────────
 
 describe("cron-registry: CRON_HEALTH (garde-fou dédup dashboard)", () => {
   const EXPECTED_KEYS = [
     "cron_relance",
+    "cron_activation_relance",
     "cron_email_alerts",
     "cron_admin_alerts",
     "cron_collect_metrics",
@@ -148,6 +149,7 @@ describe("cron-registry: CRON_HEALTH (garde-fou dédup dashboard)", () => {
   ];
   const EXPECTED_LABELS = [
     "Relance profils (J+7)",
+    "Relance activation (J+7)",
     "Alertes délivrabilité",
     "Alertes admin (Discord)",
     "Collecte métriques",
@@ -156,20 +158,20 @@ describe("cron-registry: CRON_HEALTH (garde-fou dédup dashboard)", () => {
     "Relance invitations (manuel)",
     "Import invitations (manuel)",
   ];
-  const EXPECTED_EVERY_H = [24, 24, 25, 24, 1, null, null, null];
+  const EXPECTED_EVERY_H = [24, 24, 24, 25, 24, 1, null, null, null];
 
-  test("les 5 premières lignes sont dérivées de CRON_JOBS via eventKey, dans l'ordre", () => {
+  test("les 6 premières lignes sont dérivées de CRON_JOBS via eventKey, dans l'ordre", () => {
     const src = readRegistry();
     const jobs = parseCronJobs(src);
     const derived = jobs.filter((j) => j.eventKey !== null);
-    assert.equal(derived.length, 5, "5 jobs HTTP doivent porter un eventKey (keepalive et health-alert exclus)");
+    assert.equal(derived.length, 6, "6 jobs HTTP doivent porter un eventKey (keepalive et health-alert exclus)");
     assert.deepEqual(
       derived.map((j) => j.eventKey),
-      EXPECTED_KEYS.slice(0, 5),
+      EXPECTED_KEYS.slice(0, 6),
     );
     assert.deepEqual(
       derived.map((j) => j.expectedEveryH),
-      EXPECTED_EVERY_H.slice(0, 5),
+      EXPECTED_EVERY_H.slice(0, 6),
     );
   });
 
@@ -177,14 +179,14 @@ describe("cron-registry: CRON_HEALTH (garde-fou dédup dashboard)", () => {
     const src = readRegistry();
     const manual = parseManual(src);
     assert.equal(manual.length, 3);
-    assert.deepEqual(manual.map((m) => m.key), EXPECTED_KEYS.slice(5));
-    assert.deepEqual(manual.map((m) => m.label), EXPECTED_LABELS.slice(5));
+    assert.deepEqual(manual.map((m) => m.key), EXPECTED_KEYS.slice(6));
+    assert.deepEqual(manual.map((m) => m.label), EXPECTED_LABELS.slice(6));
     for (const m of manual) {
       assert.equal(m.expectedEveryH, null, `${m.key} : action manuelle, expectedEveryH doit être null`);
     }
   });
 
-  test("CRON_HEALTH = dérivées + CRON_MANUAL : 8 entrées exactes, labels et seuils inchangés", () => {
+  test("CRON_HEALTH = dérivées + CRON_MANUAL : 9 entrées exactes, labels et seuils inchangés", () => {
     const src = readRegistry();
     // Le câblage doit rester une concaténation (pas une liste recopiée).
     const healthDecl = src.slice(src.indexOf("export const CRON_HEALTH"));
@@ -199,7 +201,7 @@ describe("cron-registry: CRON_HEALTH (garde-fou dédup dashboard)", () => {
         .map((j) => ({ key: j.eventKey, label: j.label, expectedEveryH: j.expectedEveryH })),
       ...manual,
     ];
-    assert.equal(health.length, 8, "le dashboard attend exactement 8 lignes");
+    assert.equal(health.length, 9, "le dashboard attend exactement 9 lignes");
     assert.deepEqual(health.map((h) => h.key), EXPECTED_KEYS);
     assert.deepEqual(health.map((h) => h.label), EXPECTED_LABELS);
     assert.deepEqual(health.map((h) => h.expectedEveryH), EXPECTED_EVERY_H);

@@ -167,6 +167,17 @@ export const TEMPLATE_REGISTRY: readonly TemplateDefinition[] = [
       V("acceptUrl", "Lien accepter", `${SEED_BASE}/zzaccept`, "https://joinhashcode.com/invite/accept?t=8f3c2a", "url"),
     ],
   },
+  {
+    key: "activation_relance",
+    name: "Relance activation atelier",
+    category: "marketing",
+    description: "Relance un membre approuvé qui n'a pas encore fait son premier challenge.",
+    source: "sendActivationRelanceEmail",
+    variables: [
+      FIRST_NAME,
+      V("challengeUrl", "Lien des ateliers", `${SEED_BASE}/zzchallenge`, "https://joinhashcode.com/dashboard/ateliers", "url"),
+    ],
+  },
 
   // ── Verrouillés : liens et secrets d'authentification ───────────────────
   {

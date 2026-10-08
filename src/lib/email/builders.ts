@@ -1256,3 +1256,79 @@ export async function sendEventReminderEmail({
 
   return sendEmail({ to, subject, html: emailShell(subject, inner), text, category: "notification", forceProvider });
 }
+
+/* ── Relance activation atelier (membre approuvé sans premier challenge) ── */
+
+export interface ActivationRelanceEmailInput {
+  to: string;
+  firstName: string;
+  challengeUrl: string;
+  forceProvider?: "resend" | "brevo";
+}
+
+/**
+ * Relance activation : le membre est approuvé mais n'a jamais soumis
+ * de challenge d'atelier. L'invite à passer à l'action (modèle sendRelanceEmail).
+ */
+export async function sendActivationRelanceEmail({
+  to,
+  firstName,
+  challengeUrl,
+  forceProvider,
+}: ActivationRelanceEmailInput): Promise<SendEmailResult> {
+  const name = firstName.trim() || "toi";
+  const safeName = escapeHtml(name);
+  const safeChallengeUrl = escapeHtml(challengeUrl.trim());
+  const subject = "Ton premier challenge HASHCODE t'attend — lance-toi";
+  const text = [
+    `Bonjour ${name},`,
+    "",
+    "Ton profil est validé et les ateliers ont démarré — mais tu n'as pas encore soumis ton premier challenge.",
+    "",
+    "Le premier pas est le plus simple : choisis un atelier et soumets ton premier livrable :",
+    challengeUrl.trim(),
+    "",
+    "Pas besoin d'être parfait : l'important est de commencer, la communauté est là pour t'aider.",
+    "",
+    "À très vite dans les ateliers,",
+    "L'équipe HASHCODE",
+  ].join("\n");
+  const inner = [
+    `<tr><td style="padding:24px 32px 28px 32px;background-color:#141414;">`,
+    monoLabel("TON PREMIER CHALLENGE"),
+    `<h1 style="margin:0 0 12px 0;font-family:${MAIL_FONT};font-size:24px;line-height:1.25;font-weight:800;color:#F8FAFC;">Lance-toi ${safeName}, les ateliers t'attendent.</h1>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">Ton profil est validé mais tu n'as pas encore soumis ton premier challenge. Le premier pas est le plus simple — choisis un atelier et soumets ton premier livrable.</p>`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;">`,
+    `<tr><td align="center" style="padding:0;">`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">`,
+    `<tr><td align="center" bgcolor="#C5F441" style="background-color:#C5F441;border-radius:8px;padding:14px 32px;">`,
+    `<a href="${safeChallengeUrl}" target="_blank" rel="noopener" style="font-family:${MAIL_FONT};font-size:16px;font-weight:800;color:#0A0A0A;text-decoration:none;display:inline-block;">Voir les ateliers</a>`,
+    `</td></tr>`,
+    `</table>`,
+    `</td></tr>`,
+    `</table>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:12px;line-height:1.6;color:#94A3B8;text-align:center;word-break:break-all;">Si le bouton ne fonctionne pas, copie ce lien :<br /><a href="${safeChallengeUrl}" target="_blank" rel="noopener" style="color:#C5F441;text-decoration:underline;">${safeChallengeUrl}</a></p>`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0;background-color:#0A0A0A;border:1px solid #333B1E;border-radius:8px;">`,
+    `<tr><td style="padding:14px 16px;">`,
+    `<div style="font-family:${MAIL_FONT};font-size:13px;font-weight:700;color:#C5F441;margin:0 0 4px 0;">Pas besoin d'être parfait</div>`,
+    `<div style="font-family:${MAIL_FONT};font-size:13px;line-height:1.6;color:#94A3B8;margin:0;">L'important est de commencer — la communauté et les mentors sont là pour t'aider à progresser.</div>`,
+    `</td></tr></table>`,
+    `<p style="margin:20px 0 0 0;font-family:${MAIL_FONT};font-size:14px;line-height:1.6;color:#F8FAFC;">À très vite,<br /><span style="color:#94A3B8;">L'équipe HASHCODE</span></p>`,
+    `</td></tr>`,
+  ].join("");
+  const html = emailShell(
+    "Ton premier challenge HASHCODE t'attend — lance-toi.",
+    inner,
+  );
+  // Template actif en base ? Sinon le HTML du code fait foi (repli sûr).
+  const active = await resolveActiveTemplate("activation_relance", { firstName: name, challengeUrl: challengeUrl.trim() });
+
+  return sendEmail({
+    to,
+    subject: active?.subject ?? subject,
+    html: active?.html ?? html,
+    text: active?.text ?? text,
+    category: "marketing",
+    forceProvider,
+  });
+}
