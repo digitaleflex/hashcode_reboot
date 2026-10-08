@@ -734,3 +734,176 @@
   background: var(--primary);
   border-color: var(--primary);
 }
+
+/* ============================================================
+   DS-127 — Design System Reboot · consolidation ADDITIVE
+   (Issue #127, Agent B — Phase 1, 2026-10-08)
+   REGLE : ajout/clarification UNIQUEMENT. Aucune valeur live
+   ci-dessus n'est modifiee. Chaque token existant est documente
+   (usage + ou), les alias --ds-* ci-dessous ne font que POINTER
+   vers les tokens existants. Supprimer ce bloc ne change rien
+   au rendu actuel.
+   Ref inventaire : docs/design-system-reboot.md.
+   ============================================================ */
+
+/* ---------- §1. Inventaire documente des tokens live ----------
+   COULEURS (dark-first, :root lignes 60-102)
+   --background (VOID) ........... usage : fond de page global ;
+                                   ou : body via @apply bg-background,
+                                   .shell, site-header/footer, sticky-cta.
+   --foreground (TEXT PRIMARY) .... usage : texte courant ;
+                                   ou : body text-foreground, titres landing.
+   --card / --card-foreground ..... usage : surfaces cartes/panneaux ;
+                                   ou : Card shadcn, engine/community
+                                   (bg-card/40), alert default, roadmap grid.
+   --popover / --popover-foreground usage : menus flottants ;
+                                   ou : dropdown-menu, popover, select,
+                                   command, context-menu (shadcn).
+   --primary (HASH LIME #C5F441) .. usage : ACCENT uniquement, jamais de fond
+                                   plein ; ou : CTA, text-lime/border-lime
+                                   (alias --color-lime), timeline__spine--fill,
+                                   method-rail__fill, selection, focus ring.
+   --primary-foreground ............ usage : texte sombre sur lime ;
+                                   ou : Button default, Badge default.
+   --secondary / --secondary-foreground (ELEVATED #1A1A1A)
+                                   usage : surfaces secondaires, boutons
+                                   secondaires ; ou : Button secondary.
+   --muted / --muted-foreground (#94A3B8 TEXT SECONDARY)
+                                   usage : textes secondaires, hints,
+                                   placeholders ; ou : .mono-label, .soft-note,
+                                   CardDescription, descriptions landing.
+   --accent / --accent-foreground .. usage : survols, fonds actifs ;
+                                   ou : hover Button ghost/outline, Skeleton
+                                   (bg-accent), dropdown items.
+   --destructive .................. usage : erreurs, danger ;
+                                   ou : Button destructive, Alert destructive,
+                                   aria-invalid rings sur Input.
+   --border (= --input, #2A2A2A) ... usage : TOUS les traits 1px ;
+                                   ou : .hairline, .divider-grad, cards,
+                                   ecosystem-core__orbit, timeline spine.
+   --ring (lime) ................... usage : anneau de focus uniquement ;
+                                   ou : base * outline-ring/40, .focus-lime,
+                                   focus-visible:ring sur Button/Input/Badge.
+   --chart-1..5 .................... usage : dataviz uniquement ;
+                                   ou : chart.tsx, donut-chart.
+   --sidebar* ...................... usage : scope sidebar shadcn ;
+                                   ou : sidebar.tsx.
+   TYPOGRAPHIE
+   --font-sans (Geist) ............. usage : texte courant ; ou : body.
+   --font-mono (Geist Mono) ........ usage : labels techniques ; ou :
+                                   .mono-label, .eyebrow-mono, legendes.
+   --font-display (Sora) ........... usage : titres/wordmark ; ou :
+                                   .font-display, hero, section headings.
+                                   Scope admin : remplace par Inter
+                                   (.admin-scope, lignes 418-477).
+   RAYONS : --radius-sm/md/lg/xl (4/6/8/12px), --radius (8px).
+   BREAKPOINTS Tailwind v4 (defaut) : sm 640 / md 768 / lg 1024 / xl 1280.
+   GRILLE LANDING : .shell (max 1320px, padding 20/32/40px),
+   .section (padding-block 72/112/144px), .rails (desktop-only, <=4%). */
+
+/* ---------- §2. Alias documentaires --ds-* (pointent, ne dupliquent pas) ----------
+   Ces alias existent pour nommer l'INTENTION dans les futurs composants
+   (landing -> diagnostic -> capture -> conversion). Ils resolvent vers les
+   tokens live ci-dessus : changer un token live se propage ici sans toucher
+   ce bloc. Ne jamais y mettre de valeur brute. */
+:root {
+  /* Surfaces — du fond vers l'avant. */
+  --ds-surface-0: var(--background); /* usage : page. ou : body, sections. */
+  --ds-surface-1: var(--card); /* usage : cartes/panneaux. ou : Card, engine. */
+  --ds-surface-2: var(--secondary); /* usage : surfaces elevees. ou : popovers custom. */
+  --ds-surface-overlay: var(--popover); /* usage : flottants. ou : select, dialog. */
+  /* Texte — 2 niveaux (+ success/error ci-dessous §4). */
+  --ds-text-primary: var(--foreground); /* usage : titres, corps. */
+  --ds-text-secondary: var(--muted-foreground); /* usage : hints, descriptions. */
+  /* Accent — lime, jamais en fond plein. */
+  --ds-accent: var(--primary); /* usage : CTA, remplissage accompli. */
+  --ds-accent-ink: var(--primary-foreground); /* usage : texte sur accent. */
+  /* Trait + focus. */
+  --ds-line: var(--border); /* usage : bordures 1px. */
+  --ds-focus: var(--ring); /* usage : anneaux clavier. ou : .ds-focus-ring. */
+  /* Rayons — miroir documente. */
+  --ds-radius-sm: var(--radius-sm); /* usage : puces, badges. */
+  --ds-radius-md: var(--radius-md); /* usage : boutons, inputs. */
+  --ds-radius-lg: var(--radius-lg); /* usage : cartes, orbites. */
+  --ds-radius-xl: var(--radius-xl); /* usage : grands panneaux. */
+  /* Rythme vertical landing — miroir de .section (lignes 519-528). */
+  --ds-section-y-mobile: 72px; /* usage : .section < md. */
+  --ds-section-y-tablet: 112px; /* usage : .section >= md. */
+  --ds-section-y-desktop: 144px; /* usage : .section >= xl. */
+  --ds-shell-max: 1320px; /* usage : .shell, container editorial. */
+}
+
+/* ---------- §3. Focus clavier systematise ----------
+   usage : appliquer .ds-focus-ring a tout controle custom qui n'herite pas
+   du focus shadcn (Button/Input/Badge/Alert l'ont deja). Règle a11y :
+   tout element atteignable au clavier DOIT montrer cet anneau.
+   ou : hero scroll-hint (.focus-lime), futurs CTA custom. */
+.ds-focus-ring:focus-visible {
+  outline: 2px solid var(--ds-focus);
+  outline-offset: 2px;
+}
+
+/* ---------- §4. Etats UI — teintes derivees des tokens live ----------
+   usage : nouveaux composants src/components/ui/feedback.tsx (bannieres
+   info/success/warning/error/loading) et form-state.tsx (FieldError/Hint).
+   color-mix sur tokens live : le dark-first reste garanti, aucune valeur
+   brute ajoutee. */
+.ds-state-success {
+  border-color: color-mix(in oklab, var(--primary) 45%, transparent);
+}
+.ds-state-success-ink {
+  color: var(--primary);
+}
+.ds-state-error {
+  border-color: color-mix(in oklab, var(--destructive) 55%, transparent);
+}
+.ds-state-error-ink {
+  color: var(--destructive);
+}
+.ds-state-warning-ink {
+  color: var(--chart-3); /* usage : avertissements non bloquants. */
+}
+.ds-state-info-ink {
+  color: var(--muted-foreground); /* usage : info neutre. */
+}
+
+/* ---------- §5. Motifs d'attente (loading) ----------
+   usage : parcours diagnostic -> capture -> conversion (soumissions,
+   transitions de phase). Reutilisent les keyframes live hash-sweep
+   (l.298) et hash-pulse (l.320) : pas de nouvelle animation.
+   ou : Feedback tone="loading", futurs skeletons de capture. */
+.ds-loading-bar {
+  position: relative;
+  overflow: hidden;
+}
+.ds-loading-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(197, 244, 65, 0.35), transparent);
+  animation: hash-sweep 1.6s ease-in-out infinite;
+}
+.ds-loading-dot {
+  animation: hash-pulse 2s ease-in-out infinite;
+}
+
+/* ---------- §6. Ligne squelette ----------
+   usage : placeholders de contenu en attente (resultats diagnostic,
+   listes evenements). Base = Skeleton shadcn (bg-accent animate-pulse) ;
+   cette classe ne fait que fixer la geometrie courante. */
+.ds-skeleton-line {
+  border-radius: var(--ds-radius-md);
+  background: var(--accent);
+  animation: ds-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes ds-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ds-skeleton-line,
+  .ds-loading-dot,
+  .ds-loading-bar::after {
+    animation: none !important;
+  }
+}
