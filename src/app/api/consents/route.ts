@@ -22,6 +22,9 @@ export const runtime = "nodejs";
  *
  * L'email est OPTIONNEL : le bandeau cookies et la modale privacy (déjà en
  * prod) postent sans email — on stocke alors le marqueur "anonymous".
+ * Finalités (src/lib/consents.ts) : cookies | contact | profiling | handoff
+ * (#212 : "handoff" = accord d'export vers l'écosystème, lu par
+ * GET /api/community/join avant jonction via la même règle latest-wins).
  * Fire-and-forget côté client : répond vite, ne casse jamais l'UX.
  */
 export async function POST(req: NextRequest) {
@@ -78,6 +81,8 @@ export async function POST(req: NextRequest) {
  * GET /api/consents?email=&purpose= — dernière ligne pour (email, purpose).
  * `purpose` optionnel : sans lui, dernière ligne tous purposes confondus.
  * Retourne { consent: null } (200) quand aucun historique — pas de 404.
+ * #212 : lecture pre-jonction = même requête avec purpose=handoff
+ * (miroir dans GET /api/community/join : findFirst orderBy createdAt desc).
  */
 export async function GET(req: NextRequest) {
   try {

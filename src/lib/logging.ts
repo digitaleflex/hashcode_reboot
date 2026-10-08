@@ -42,7 +42,9 @@ export interface LogEntry {
   environment: string;
 }
 
-/** Sensitive field patterns that should never be logged. */
+/** Sensitive field patterns that should never be logged.
+ * #212 : email / phone / firstName / lastName rediges comme les secrets
+ * (PII bannie des logs et des metadata d'audit). */
 const SENSITIVE_PATTERNS = [
   /password/i,
   /passcode/i,
@@ -57,6 +59,10 @@ const SENSITIVE_PATTERNS = [
   /credit[_-]?card/i,
   /cvv/i,
   /ssn/i,
+  /email/i,
+  /phone/i,
+  /first[_-]?name/i,
+  /last[_-]?name/i,
 ];
 
 /** Redact sensitive values from an object. */

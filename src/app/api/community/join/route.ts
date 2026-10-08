@@ -4,6 +4,13 @@ import { toServerEventData } from "@/lib/analytics";
 import { getSession } from "@/lib/account-auth";
 import { WHATSAPP_URL } from "@/lib/profiling/auto-controls";
 import { audit } from "@/lib/admin-audit";
+import { ForbiddenError } from "@/lib/errors";
+import {
+  HANDOFF_CONTRACT_VERSION,
+  HANDOFF_JOURNAL_EVENTS,
+  handoffIdempotencyKey,
+  isHandoffConsentGranted,
+} from "@/lib/handoff";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -54,7 +61,41 @@ export async function GET(req: NextRequest) {
     /* ignore */
   }
 
-  void audit("member.community-join", "member", memberId);
+  // #212 : recu d'audit SANS PII, best-effort (la redirection reste
+  // intacte dans tous les cas). Lecture pre-jonction miroir de
+  // GET /api/consents?email=&purpose=handoff (derniere ligne gagne) :
+  // refus ou absence = pas de payload handoff, erreur FORBIDDEN tracee
+  // (src/lib/errors.ts) dans le recu, sans email ni nom.
+  void (async () => {
+    try {
+      const m = await db.member.findUnique({
+        where: { id: memberId },
+        select: { email: true, approvedAt: true },
+      });
+      let choice: string | null = null;
+      if (m?.email) {
+        const c = await db.consent.findFirst({
+          where: { email: m.email.toLowerCase(), purpose: "handoff" },
+          orderBy: { createdAt: "desc" },
+          select: { choice: true },
+        });
+        choice = c?.choice ?? null;
+      }
+      const granted = isHandoffConsentGranted(choice);
+      const handoffError = granted
+        ? null
+        : (new ForbiddenError("Consentement handoff manquant ou retire.").code as string);
+      await audit("member.community-join", "member", memberId, {
+        contractVersion: HANDOFF_CONTRACT_VERSION,
+        idempotencyKey: handoffIdempotencyKey(memberId, m?.approvedAt ?? null),
+        handoffConsent: granted ? "granted" : "missing-or-withdrawn",
+        handoffError,
+        events: [...HANDOFF_JOURNAL_EVENTS],
+      });
+    } catch {
+      /* best-effort : ne bloque jamais l'acces au groupe */
+    }
+  })();
 
   return NextResponse.redirect(WHATSAPP_URL);
 }

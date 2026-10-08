@@ -77,3 +77,30 @@ Table règles / poids (recopie du code — `RULE_WEIGHTS`, max 100) :
 Statuts : noyau incomplet → `INSUFFICIENT_DATA` ; email invalide ou jetable →
 `DISQUALIFIED` ; sinon score ≥ 75 (`QUALIFIED_THRESHOLD`) → `QUALIFIED`, sinon
 `DISQUALIFIED`.
+
+## 6. Handoff Reboot-only (#212 — contrat, zéro table créée)
+
+Enveloppe versionnée `HandoffPayload` (`src/lib/handoff.ts`, pur zéro I/O,
+`contractVersion = "1.0.0"`) : `memberRef` (Member.id opaque, jamais de PII),
+`source` (`raw` + `parseSourceUTM` → `{source,medium,campaign}`, projection
+d'export — `normalizeSource` inchangé, aucun `LeadSource`), `intention`
+(mentoringInterest), `interets` (secondaryDomains + domainSpecialty +
+mentoringTypes), `objectif` (goal + threeMonthGoal), `niveau` (level),
+`disponibilite` (availability + availabilityTimes), `domaine`
+(primaryDomain + secondaires), `qualification` (score/status/ruleVersion
+`acq-*`/reasons de la ligne courante), `consent` (purpose `handoff` courant),
+`metadata` (invitedAt/joinedAt/approvedAt + `events` + `idempotencyKey`).
+
+- Consentement : finalité `handoff` (`src/lib/consents.ts`, GET/POST existants
+  inchangés) ; lecture pré-jonction miroir de `GET /api/consents` dans
+  `GET /api/community/join` — refus/absence = pas de payload, `ForbiddenError`
+  tracée dans le reçu (redirection WhatsApp intacte).
+- Idempotence : clé `handoff:<memberId>:<approvedAt ISO|sans-validation>` +
+  journal sans PII (`AnalyticsEvent` existant + `AuditLog` reçu
+  `{contractVersion,idempotencyKey,events}`) ; retry tardif
+  `HANDOFF_FAILED → HANDOFF` via `canTransition` (`canRetryHandoff`).
+- Audit PII : `SENSITIVE_PATTERNS` couvre email/phone/firstName/lastName ;
+  `POST /api/members/[id]/invite` et `GET /api/community/join` n'écrivent plus
+  que des reçus sans PII.
+- Interdits respectés : aucune table `Conversion`, aucune migration Prisma,
+  aucune route nouvelle, comportement join/cron inchangé.

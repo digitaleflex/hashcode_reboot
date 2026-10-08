@@ -11,6 +11,10 @@ import {
   NotFoundError,
   RateLimitError,
 } from "@/lib/errors";
+import {
+  HANDOFF_CONTRACT_VERSION,
+  handoffIdempotencyKey,
+} from "@/lib/handoff";
 
 export const runtime = "nodejs";
 
@@ -80,11 +84,19 @@ export async function POST(
       }),
     ]);
 
+    // #212 : recu d'audit SANS PII (ni email, ni nom). La cle
+    // d'idempotence handoff (memberId + approvedAt) permet de dedupliquer
+    // les rejouements cote operateur sans reidentifier le membre.
     void audit(
       "member.invite",
       "member",
       id,
-      { email: member.email },
+      {
+        profileStatus: "APPROVED",
+        communityStatus: "INVITED",
+        contractVersion: HANDOFF_CONTRACT_VERSION,
+        idempotencyKey: handoffIdempotencyKey(id, updated.approvedAt ?? null),
+      },
       { type: "admin", role: (await getAdminRole(req)) ?? "operator" },
     );
 

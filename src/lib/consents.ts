@@ -9,8 +9,8 @@ import { z } from "zod";
  * ligne (createdAt max) pour (email, purpose).
  */
 
-/** Finalités reconnues. */
-export const CONSENT_PURPOSES = ["cookies", "contact", "profiling"] as const;
+/** Finalités reconnues (#212 : "handoff" = accord d'export vers l'écosystème). */
+export const CONSENT_PURPOSES = ["cookies", "contact", "profiling", "handoff"] as const;
 export type ConsentPurpose = (typeof CONSENT_PURPOSES)[number];
 
 /** Choix exprimés. */
