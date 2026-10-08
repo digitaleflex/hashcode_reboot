@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkCSRF } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
+import { toServerEventData } from "@/lib/analytics";
 import { auth } from "@/lib/auth";
 
 export const runtime = "nodejs";
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest) {
   }
   try {
     await db.analyticsEvent.create({
-      data: { type: "community_cta_clicked", ref: "admin-logout" },
+      data: toServerEventData({ type: "community_cta_clicked", ref: "admin-logout" }),
     });
   } catch {
     /* ignore */

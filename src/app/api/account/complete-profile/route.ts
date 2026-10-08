@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { getSession } from "@/lib/account-auth";
 import { db } from "@/lib/db";
+import { toServerEventData } from "@/lib/analytics";
 import { createProfileSchema, answersToCreatePayload } from "@/lib/profiling/validate";
 import { runAutoControls } from "@/lib/profiling/auto-controls";
 import { generateProfile } from "@/lib/profiling/engine";
@@ -136,11 +137,11 @@ export async function POST(req: NextRequest) {
 
     try {
       await db.analyticsEvent.create({
-        data: {
+        data: toServerEventData({
           type: "profile_completed_by_member",
           memberId: member.id,
           ref: controls.accessLane,
-        },
+        }),
       });
     } catch {
       /* audit best-effort */

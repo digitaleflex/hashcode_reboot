@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isCronAuthed } from "@/lib/cron-auth";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { toServerEventData } from "@/lib/analytics";
 import { withPrismaRetry } from "@/lib/prisma-extensions";
 import {
   collectMetrics,
@@ -66,10 +67,10 @@ export async function GET(req: NextRequest) {
     try {
       await withPrismaRetry(() =>
         db.analyticsEvent.create({
-          data: {
+          data: toServerEventData({
             type: "cron_collect_metrics",
             ref: `date=${date.toISOString().split("T")[0]} provider=${provider}`,
-          },
+          }),
         }),
       );
     } catch {

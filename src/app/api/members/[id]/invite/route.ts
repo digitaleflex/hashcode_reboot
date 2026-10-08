@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { toServerEventData } from "@/lib/analytics";
 import { requireAdminRole, getAdminRole, checkCSRF } from "@/lib/admin-auth";
 import { audit } from "@/lib/admin-audit";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
@@ -71,11 +72,11 @@ export async function POST(
         },
       }),
       db.analyticsEvent.create({
-        data: {
+        data: toServerEventData({
           type: "admin_invite",
           memberId: id,
           ref: `member.invite:${id}`,
-        },
+        }),
       }),
     ]);
 

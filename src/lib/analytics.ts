@@ -44,6 +44,79 @@ export interface TrackEvent {
   value?: number;
 }
 
+/**
+ * Types émis uniquement côté serveur (jamais acceptés par POST /api/analytics,
+ * qui reste borné à EVENT_TYPES via Zod). Liste vérifiée par grep de toutes
+ * les écritures Prisma AnalyticsEvent (Phase 1, #210) : admin, cron,
+ * onboarding et complétion — hors funnel public.
+ */
+export const SERVER_ONLY_EVENT_TYPES = [
+  "admin_invite",
+  "admin_invite_relance",
+  "admin_import",
+  "admin_import_invite",
+  "admin_bulk_action",
+  "admin_member_update",
+  "admin_announce_dashboard",
+  "profile_completed_by_member",
+  "onboarding_email_budget_blocked",
+  "cron_relance",
+  "cron_collect_metrics",
+  "cron_activation_relance",
+  "cron_admin_alerts",
+  "cron_email_alerts",
+  "cron_event_reminders",
+] as const;
+
+export type ServerOnlyEventType = (typeof SERVER_ONLY_EVENT_TYPES)[number];
+
+/** Union complète acceptée côté serveur (funnel public + internes). */
+export const SERVER_EVENT_TYPES = [...EVENT_TYPES, ...SERVER_ONLY_EVENT_TYPES] as const;
+
+export type ServerEventType = (typeof SERVER_EVENT_TYPES)[number];
+
+const SERVER_EVENT_SET: ReadonlySet<string> = new Set(SERVER_EVENT_TYPES);
+
+/** Garde runtime : toute écriture serveur passe par ici avant l'écriture Prisma. */
+export function isServerEventType(t: string): t is ServerEventType {
+  return SERVER_EVENT_SET.has(t);
+}
+
+export interface ServerEventInput {
+  type: string;
+  sessionId?: string | null;
+  memberId?: string | null;
+  ref?: string | null;
+  value?: number | null;
+}
+
+export interface ServerEventData {
+  type: ServerEventType;
+  sessionId: string | null;
+  memberId: string | null;
+  ref: string | null;
+  value: number | null;
+}
+
+/**
+ * Valide puis normalise une écriture serveur (REUSE partout : plus aucune
+ * création directe non validée). Lève sur type inconnu — tous les appels
+ * existants sont best-effort (try/catch, allSettled ou transaction
+ * d'audit), donc sans changement de contrat sur les types actuels.
+ */
+export function toServerEventData(e: ServerEventInput): ServerEventData {
+  if (!isServerEventType(e.type)) {
+    throw new Error(`Unknown server analytics event type: ${e.type}`);
+  }
+  return {
+    type: e.type,
+    sessionId: e.sessionId ?? null,
+    memberId: e.memberId ?? null,
+    ref: e.ref ?? null,
+    value: e.value ?? null,
+  };
+}
+
 const SESSION_KEY = "hashcode:reboot:session";
 const SOURCE_KEY = "hashcode:reboot:source";
 

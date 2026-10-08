@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { toServerEventData } from "@/lib/analytics";
 import { sendInviteRelanceEmail } from "@/lib/email/builders";
 import { isAdminAuthed } from "@/lib/admin-auth";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
@@ -135,11 +136,11 @@ export async function POST(req: NextRequest) {
   // Audit
   try {
     await db.analyticsEvent.create({
-      data: {
+      data: toServerEventData({
         type: "admin_invite_relance",
         ref: `sent=${sent} failed=${failed.length}`,
         value: sent,
-      },
+      }),
     });
   } catch {}
 

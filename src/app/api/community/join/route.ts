@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { toServerEventData } from "@/lib/analytics";
 import { getSession } from "@/lib/account-auth";
 import { WHATSAPP_URL } from "@/lib/profiling/auto-controls";
 import { audit } from "@/lib/admin-audit";
@@ -42,11 +43,11 @@ export async function GET(req: NextRequest) {
         },
       }),
       db.analyticsEvent.create({
-        data: {
+        data: toServerEventData({
           type: "whatsapp_join_clicked",
           memberId,
           ref: "community-join",
-        },
+        }),
       }),
     ]);
   } catch {

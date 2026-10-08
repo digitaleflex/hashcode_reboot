@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { toServerEventData } from "@/lib/analytics";
 import { createProfileSchema, answersToCreatePayload } from "@/lib/profiling/validate";
 import { runAutoControls } from "@/lib/profiling/auto-controls";
 import { generateProfile } from "@/lib/profiling/engine";
@@ -175,11 +176,11 @@ export async function POST(req: NextRequest) {
   const drafting = controls.profileStatus === "PENDING";
   await Promise.allSettled([
     db.analyticsEvent.create({
-      data: {
+      data: toServerEventData({
         type: "profil_generated",
         memberId: created.id,
         ref: controls.accessLane,
-      },
+      }),
     }),
     // Qualification #210 p2 : une ligne par calcul (append-only).
     ...(orientation

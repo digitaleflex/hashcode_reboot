@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { bodyLimit } from "@/lib/body-limit";
+import { blockIfTesting } from "@/lib/test-guard";
 
 export const runtime = "nodejs";
 
@@ -48,6 +49,8 @@ const draftSchema = z.object({
  * Idempotent upsert per email.
  */
 export async function POST(req: NextRequest) {
+  const blocked = blockIfTesting();
+  if (blocked) return blocked;
   const rl = await rateLimit(`draft:${rateKey(req)}`, {
     capacity: 30,
     windowMs: 10 * 60 * 1000,

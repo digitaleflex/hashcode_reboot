@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+import { toServerEventData } from "@/lib/analytics";
 import { isAdminAuthed, requireAdminRole, getAdminRole, checkCSRF } from "@/lib/admin-auth";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { normalizeAccessLane } from "@/lib/import/normalize";
@@ -213,10 +214,10 @@ export async function PATCH(
     // Audit isolé : ne casse jamais la réponse si l'audit échoue.
     try {
       await db.analyticsEvent.create({
-        data: {
+        data: toServerEventData({
           type: "admin_member_update",
           ref: `member.update:${id}`,
-        },
+        }),
       });
     } catch {
       /* ignore */
@@ -303,10 +304,10 @@ export async function DELETE(
     // contenant encore des emails doivent être purgées manuellement en base.
     try {
       await db.analyticsEvent.create({
-        data: {
+        data: toServerEventData({
           type: "community_cta_clicked",
           ref: `admin-delete:${id}`,
-        },
+        }),
       });
     } catch {
       /* ignore */
@@ -369,12 +370,12 @@ async function notifyStatusChange(args: {
     // Event analytics (fire-and-forget)
     try {
       await db.analyticsEvent.create({
-        data: {
+        data: toServerEventData({
           type: "status_change_email_sent",
           memberId: args.memberId,
           ref: `status:${args.newStatus}`,
           value: result.ok ? 1 : 0,
-        },
+        }),
       });
     } catch {
       /* ignore */

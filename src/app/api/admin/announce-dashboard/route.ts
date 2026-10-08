@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { toServerEventData } from "@/lib/analytics";
 import { requireAdminRole, checkCSRF } from "@/lib/admin-auth";
 import { blockIfTesting } from "@/lib/test-guard";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
@@ -154,10 +155,10 @@ export async function POST(req: NextRequest) {
 
   try {
     await db.analyticsEvent.create({
-      data: {
+      data: toServerEventData({
         type: "admin_announce_dashboard",
         ref: `sent=${sent} failed=${failed.length}`,
-      },
+      }),
     });
   } catch {
     /* audit best-effort */

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isCronAuthed } from "@/lib/cron-auth";
 import { db } from "@/lib/db";
+import { toServerEventData } from "@/lib/analytics";
 import { withPrismaRetry } from "@/lib/prisma-extensions";
 import { runAdminAlertCheck } from "@/lib/admin-alerts";
 
@@ -40,11 +41,11 @@ export async function GET(req: NextRequest) {
     try {
       await withPrismaRetry(() =>
         db.analyticsEvent.create({
-          data: {
+          data: toServerEventData({
             type: "cron_admin_alerts",
             ref: `alerts=${result.alerts.length}`,
             value: result.alerts.length,
-          },
+          }),
         }),
       );
     } catch {

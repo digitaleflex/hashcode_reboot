@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+import { toServerEventData } from "@/lib/analytics";
 import { isAdminAuthed, getAdminRole } from "@/lib/admin-auth";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { audit } from "@/lib/admin-audit";
@@ -87,10 +88,10 @@ export async function GET(req: NextRequest) {
     // Audit isolé : ne casse jamais l'export si l'audit échoue.
     try {
       await db.analyticsEvent.create({
-        data: {
+        data: toServerEventData({
           type: "community_cta_clicked",
           ref: `admin-export-json:${clean.length}/${total}`,
-        },
+        }),
       });
     } catch {
       /* ignore */

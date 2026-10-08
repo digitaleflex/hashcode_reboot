@@ -23,6 +23,7 @@
  */
 
 import { db } from "@/lib/db";
+import { toServerEventData } from "@/lib/analytics";
 import {
   sendInvitationEmail,
   sendWelcomeEmail,
@@ -99,11 +100,11 @@ async function checkBudgetAllows(memberId: string, requested: number): Promise<v
     // Alerte visible côté admin (best-effort, n'échoue jamais l'envoi).
     try {
       await db.analyticsEvent.create({
-        data: {
+        data: toServerEventData({
           type: "onboarding_email_budget_blocked",
           memberId,
           ref: `requested:${requested}`,
-        },
+        }),
       });
     } catch {
       /* ignore */

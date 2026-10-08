@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { toServerEventData } from "@/lib/analytics";
 import { requireAdminRole } from "@/lib/admin-auth";
 import { audit } from "@/lib/admin-audit";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
@@ -105,10 +106,10 @@ export async function POST(req: NextRequest) {
       // Audit event.
       try {
         await db.analyticsEvent.create({
-          data: {
+          data: toServerEventData({
             type: "admin_bulk_action",
             ref: `${action}/${affected}`,
-          },
+          }),
         });
       } catch {
         /* ignore */

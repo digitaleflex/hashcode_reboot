@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { toServerEventData } from "@/lib/analytics";
 import { requireAdminRole, checkCSRF, getAdminRole } from "@/lib/admin-auth";
 import { audit } from "@/lib/admin-audit";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
@@ -423,11 +424,11 @@ export async function POST(req: NextRequest) {
   );
   try {
     await db.analyticsEvent.create({
-      data: {
+      data: toServerEventData({
         type: "admin_import_invite",
         ref: `created=${created} sent=${emailsSent} resent=${resent} failed=${failedEmails.length} skipped=${skipped.length}`,
         value: created,
-      },
+      }),
     });
   } catch {
     /* audit best-effort */

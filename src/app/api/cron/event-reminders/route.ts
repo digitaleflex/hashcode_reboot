@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isCronAuthed } from "@/lib/cron-auth";
 import { db } from "@/lib/db";
+import { toServerEventData } from "@/lib/analytics";
 import { withPrismaRetry } from "@/lib/prisma-extensions";
 import { sendEventReminderEmail } from "@/lib/email/builders";
 import { logMemberEmail, memberIdsWithEmailLog } from "@/lib/member-email-log";
@@ -282,11 +283,11 @@ export async function GET(req: NextRequest) {
     try {
       await withPrismaRetry(() =>
         db.analyticsEvent.create({
-          data: {
+          data: toServerEventData({
             type: "cron_event_reminders",
             ref: `checked=${events.length} sent=${sentTotal} batches=${remindersSent}`,
             value: sentTotal,
-          },
+          }),
         }),
       );
     } catch {
