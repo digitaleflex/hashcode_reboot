@@ -145,6 +145,7 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = React.useState<number | null>(null);
+  const [now, setNow] = React.useState(() => Date.now());
 
   // Per-section error tracking for granular recovery
   const [sectionErrors, setSectionErrors] = React.useState<Record<string, string>>({});
@@ -205,6 +206,12 @@ export default function AdminDashboardPage() {
     [],
   );
 
+  // Met à jour l'indication relative sans relancer les requêtes du dashboard.
+  React.useEffect(() => {
+    const interval = window.setInterval(() => setNow(Date.now()), 10_000);
+    return () => window.clearInterval(interval);
+  }, []);
+
   // Polling — un timer à la fois, refresh silencieux
   React.useEffect(() => {
     let mounted = true;
@@ -235,6 +242,12 @@ export default function AdminDashboardPage() {
       document.removeEventListener("visibilitychange", onVis);
     };
   }, [loadData]);
+
+  // Extract deliverability summary for the condensed section
+  const unhandledSectionErrors = React.useMemo(
+    () => Object.entries(sectionErrors).filter(([section]) => !["stats", "emailStats", "activation", "emailOps"].includes(section)),
+    [sectionErrors],
+  );
 
   // Extract deliverability summary for the condensed section
   const deliverabilitySummary = data?.emailDeliverability?.summary ?? null;
@@ -273,8 +286,8 @@ export default function AdminDashboardPage() {
       )}
 
       {/* ── Header: title + last refresh + manual refresh ───────────── */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <div className="mono-label text-lime text-xs mb-1">HASHCODE · ADMIN</div>
           <h1 className="text-2xl font-bold text-foreground">Dashboard 360°</h1>
           <p className="text-sm text-muted-foreground mt-1">
@@ -296,16 +309,16 @@ export default function AdminDashboardPage() {
               title={new Date(lastRefresh).toLocaleTimeString()}
             >
               <Clock className="size-3" />
-              {Math.round((Date.now() - lastRefresh) / 1000)}s
+              <span aria-live="polite">il y a {Math.floor((now - lastRefresh) / 1000)} s</span>
             </span>
           )}
         </div>
       </div>
 
       {/* ── Section-level errors (non-blocking) ──────────────────────── */}
-      {Object.keys(sectionErrors).length > 0 && (
+      {unhandledSectionErrors.length > 0 && (
         <div className="space-y-2">
-          {Object.entries(sectionErrors).map(([section, err]) => (
+          {unhandledSectionErrors.map(([section, err]) => (
             <SectionError
               key={section}
               title={`Alerte: ${section}`}
@@ -324,7 +337,7 @@ export default function AdminDashboardPage() {
         deliverabilityAlerts={deliverabilityAlerts}
         adminAlerts={data?.adminAlerts?.alerts ?? null}
         onQueueClick={() => router.push("/admin/members?status=PENDING")}
-        onCronsClick={() => {}}
+        onCronsClick={() => document.getElementById("admin-cron-health")?.scrollIntoView({ behavior: "smooth", block: "start" })}
       />
 
       {/* Section-level error: stats */}
@@ -343,8 +356,8 @@ export default function AdminDashboardPage() {
           funnel={data?.funnel ?? null}
           loading={loading}
           filters={{}}
-          onFilter={() => {}}
-          onClearFilters={() => {}}
+          onFilter={(key, value) => router.push(`/admin/members?${encodeURIComponent(key)}=${encodeURIComponent(value)}`)}
+          onClearFilters={() => router.push("/admin/members")}
           onSeeQueue={() => router.push("/admin/members?status=PENDING")}
         />
       </section>
