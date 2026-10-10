@@ -258,3 +258,7 @@ export function HashBullet({ className }: { className?: string }) {
     </span>
   );
 }
+
+// Re-export des nouveaux composants d'accessibilité
+export { EmptyState, EmptyMembers, EmptyEvents, EmptyWorkshops, EmptySearch, EmptyInvitations, OfflineState, SuccessState } from "./shared/EmptyState";
+export { SkipLink, SkipToNavigation, SkipLinks } from "./shared/SkipLink";
