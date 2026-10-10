@@ -1,6 +1,6 @@
 // HASHCODE REBOOT — Prisma schema
-// SQLite datasource (project constraint). Lists/enums stored as JSON strings
-// and validated at the application layer with Zod + TS union types.
+// Datasource : PostgreSQL (provider = postgresql). Les listes/enums sont stockées
+// sous forme de chaînes JSON et validées au niveau applicatif (Zod + TS union).
 
 generator client {
   provider = "prisma-client-js"
