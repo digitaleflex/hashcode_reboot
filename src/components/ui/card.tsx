@@ -15,6 +15,16 @@ function Card({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+function BrandCard({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="brand-card"
+      className={cn("rounded-md border border-border/60 bg-card/40", className)}
+      {...props}
+    />
+  )
+}
+
 function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
