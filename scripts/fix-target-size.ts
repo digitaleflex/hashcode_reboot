@@ -154,9 +154,9 @@ function fixFile(filePath: string): { changed: boolean; changes: number } {
   
   // Pattern pour trouver <IconName className="...size-4..." />
   // ou <IconName className={cn("...", "size-4", ...)} />
-  const iconRegex = /<([A-Z][a-zA-Z]+)\s+([^>]*className=(?:"[^"]*size-4[^"]*"|`[^`]*size-4[^`]*`|\{[^}]*size-4[^}]*\})[^>]*)\s*\/?>/g;
+  const iconRegex = /<([A-Z][a-zA-Z]+)\s+([^>]*className=(?:"[^"]*size-4[^"]*"|`[^`]*size-4[^`]*`|\{[^}]*size-4[^}]*\})[^>]*?)(\s*\/?>)/g;
   
-  newContent = newContent.replace(iconRegex, (match, iconName, attrs) => {
+  newContent = newContent.replace(iconRegex, (match, iconName, attrs, closing) => {
     if (!INTERACTIVE_ICONS.has(iconName) || DECORATIVE_ICONS.has(iconName)) {
       return match; // Pas dans notre liste ou décoratif
     }
@@ -186,7 +186,7 @@ function fixFile(filePath: string): { changed: boolean; changes: number } {
     
     if (newAttrs !== attrs) {
       changes++;
-      return `<${iconName} ${newAttrs} />`;
+      return `<${iconName} ${newAttrs}${closing}`;
     }
     return match;
   });
@@ -218,7 +218,7 @@ function main() {
           let newContent = content;
           
           // Apply the same replacement logic
-          newContent = newContent.replace(/<([A-Z][a-zA-Z]+)\s+([^>]*className=(?:"[^"]*size-4[^"]*"|`[^`]*size-4[^`]*`|\{[^}]*size-4[^}]*\})[^>]*)\s*\/?>/g, (match, iconName, attrs) => {
+          newContent = newContent.replace(/<([A-Z][a-zA-Z]+)\s+([^>]*className=(?:"[^"]*size-4[^"]*"|`[^`]*size-4[^`]*`|\{[^}]*size-4[^}]*\})[^>]*?)(\s*\/?>)/g, (match, iconName, attrs, closing) => {
             if (!INTERACTIVE_ICONS.has(iconName) || DECORATIVE_ICONS.has(iconName)) {
               return match;
             }
@@ -234,7 +234,7 @@ function main() {
               .replace(/className=(\{[^}]*)size-4([^}]*\})/g, (m, before, after) => `className=${before}size-6${after}`)
               .replace(/`([^`]*)size-4([^`]*)`/g, (m, before, after) => `\`${before}size-6${after}\``);
             
-            return newAttrs !== attrs ? `<${iconName} ${newAttrs} />` : match;
+            return newAttrs !== attrs ? `<${iconName} ${newAttrs}${closing}` : match;
           });
           
           writeFileSync(file, newContent);
