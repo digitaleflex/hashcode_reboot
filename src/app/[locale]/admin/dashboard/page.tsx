@@ -145,7 +145,6 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = React.useState<number | null>(null);
-  const [now, setNow] = React.useState(() => Date.now());
 
   // Per-section error tracking for granular recovery
   const [sectionErrors, setSectionErrors] = React.useState<Record<string, string>>({});
@@ -205,12 +204,6 @@ export default function AdminDashboardPage() {
     },
     [],
   );
-
-  // Met à jour l'indication relative sans relancer les requêtes du dashboard.
-  React.useEffect(() => {
-    const interval = window.setInterval(() => setNow(Date.now()), 10_000);
-    return () => window.clearInterval(interval);
-  }, []);
 
   // Polling — un timer à la fois, refresh silencieux
   React.useEffect(() => {
@@ -309,7 +302,7 @@ export default function AdminDashboardPage() {
               title={new Date(lastRefresh).toLocaleTimeString()}
             >
               <Clock className="size-3" />
-              <span aria-live="polite">il y a {Math.floor((now - lastRefresh) / 1000)} s</span>
+              <span>Actualisé à {new Date(lastRefresh).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>
             </span>
           )}
         </div>
