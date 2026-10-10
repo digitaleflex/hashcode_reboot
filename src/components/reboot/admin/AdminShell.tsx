@@ -182,4 +182,4 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
       />
     </div>
   );
-}
+}// #UI-016 TODO: Admin mobile drawer (extend ADMIN_ITEMS ou créer drawer mobile)
