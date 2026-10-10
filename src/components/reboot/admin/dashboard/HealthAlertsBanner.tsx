@@ -158,8 +158,9 @@ export function HealthAlertsBanner({
               {alert.action && (
                 <button
                   onClick={alert.action.onClick}
+                  type="button"
                   className={cn(
-                    "mt-1 text-xs px-2.5 py-1 rounded border transition-colors",
+                    "mt-1 min-h-[44px] text-xs px-3 py-2 rounded border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                     isCritical
                       ? "border-border bg-card hover:border-destructive/40 text-destructive"
                       : "border-border bg-card hover:border-amber-400/40 text-amber-300",

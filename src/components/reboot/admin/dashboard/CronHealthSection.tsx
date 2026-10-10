@@ -51,7 +51,7 @@ export function CronHealthSection({
   if (!crons || crons.length === 0) return null;
 
   return (
-    <section className="mt-6">
+    <section id="admin-cron-health" className="mt-6 scroll-mt-20">
       <div className="flex items-center gap-2 mb-1">
         <Activity className="size-4 text-lime" />
         <h2 className="font-semibold mono-label text-foreground">SANTÉ DES CRONS</h2>

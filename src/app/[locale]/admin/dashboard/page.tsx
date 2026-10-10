@@ -237,6 +237,12 @@ export default function AdminDashboardPage() {
   }, [loadData]);
 
   // Extract deliverability summary for the condensed section
+  const unhandledSectionErrors = React.useMemo(
+    () => Object.entries(sectionErrors).filter(([section]) => !["stats", "emailStats", "activation", "emailOps"].includes(section)),
+    [sectionErrors],
+  );
+
+  // Extract deliverability summary for the condensed section
   const deliverabilitySummary = data?.emailDeliverability?.summary ?? null;
   const deliverabilityAlerts = React.useMemo(() => {
     if (!deliverabilitySummary) return [];
@@ -273,8 +279,8 @@ export default function AdminDashboardPage() {
       )}
 
       {/* ── Header: title + last refresh + manual refresh ───────────── */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <div className="mono-label text-lime text-xs mb-1">HASHCODE · ADMIN</div>
           <h1 className="text-2xl font-bold text-foreground">Dashboard 360°</h1>
           <p className="text-sm text-muted-foreground mt-1">
@@ -296,16 +302,16 @@ export default function AdminDashboardPage() {
               title={new Date(lastRefresh).toLocaleTimeString()}
             >
               <Clock className="size-3" />
-              {Math.round((Date.now() - lastRefresh) / 1000)}s
+              <span>Actualisé à {new Date(lastRefresh).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>
             </span>
           )}
         </div>
       </div>
 
       {/* ── Section-level errors (non-blocking) ──────────────────────── */}
-      {Object.keys(sectionErrors).length > 0 && (
+      {unhandledSectionErrors.length > 0 && (
         <div className="space-y-2">
-          {Object.entries(sectionErrors).map(([section, err]) => (
+          {unhandledSectionErrors.map(([section, err]) => (
             <SectionError
               key={section}
               title={`Alerte: ${section}`}
@@ -324,7 +330,7 @@ export default function AdminDashboardPage() {
         deliverabilityAlerts={deliverabilityAlerts}
         adminAlerts={data?.adminAlerts?.alerts ?? null}
         onQueueClick={() => router.push("/admin/members?status=PENDING")}
-        onCronsClick={() => {}}
+        onCronsClick={() => document.getElementById("admin-cron-health")?.scrollIntoView({ behavior: "smooth", block: "start" })}
       />
 
       {/* Section-level error: stats */}
@@ -343,9 +349,8 @@ export default function AdminDashboardPage() {
           funnel={data?.funnel ?? null}
           loading={loading}
           filters={{}}
-          onFilter={() => {}}
-          onClearFilters={() => {}}
-          onSeeQueue={() => router.push("/admin/members?status=PENDING")}
+          onFilter={(key, value) => router.push(`/admin/members?${encodeURIComponent(key)}=${encodeURIComponent(value)}`)}
+          onClearFilters={() => router.push("/admin/members")}
         />
       </section>
 
