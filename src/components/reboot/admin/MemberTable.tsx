@@ -273,7 +273,7 @@ export function MemberTable({
         <div className="flex items-center justify-between mb-3">
           <MonoLabel className="text-muted-foreground">Filtres</MonoLabel>
           {Object.keys(filters).length > 0 && (
-            <button
+            <button type="button"
               onClick={onClearFilters}
               className="text-xs text-muted-foreground hover:text-lime transition-colors focus-lime mono-label"
             >
@@ -426,7 +426,7 @@ export function MemberTable({
           </div>
           <div className="rounded-md border border-border/60 bg-card/40 divide-y divide-border/40">
             {recentMembers.map((m) => (
-              <button
+              <button type="button"
                 key={m.id}
                 onClick={() => onSelectMember(m.id)}
                 className="row-sweep w-full flex items-center gap-3 p-3.5 hover:bg-elevated/40 transition-colors text-left group"
@@ -492,28 +492,28 @@ export function MemberTable({
               </span>
             )}
             <span className="text-border">·</span>
-            <button
+            <button type="button"
               onClick={() => onBulk("approve")}
               disabled={!!bulkAction}
               className="text-xs px-2.5 py-1 rounded-sm border border-border bg-card text-foreground hover:border-lime/60 hover:text-lime transition-colors focus-lime disabled:opacity-50"
             >
               {bulkAction === "approve" ? "En cours…" : "Valider"}
             </button>
-            <button
+            <button type="button"
               onClick={() => onBulk("invite")}
               disabled={!!bulkAction}
               className="text-xs px-2.5 py-1 rounded-sm border border-border bg-card text-foreground hover:border-lime/60 hover:text-lime transition-colors focus-lime disabled:opacity-50"
             >
               {bulkAction === "invite" ? "En cours…" : "Inviter"}
             </button>
-            <button
+            <button type="button"
               onClick={() => onBulk("waitlist")}
               disabled={!!bulkAction}
               className="text-xs px-2.5 py-1 rounded-sm border border-border bg-card text-foreground hover:border-amber-500/60 hover:text-amber-300 transition-colors focus-lime disabled:opacity-50"
             >
               {bulkAction === "waitlist" ? "En cours…" : "Waitlist"}
             </button>
-            <button
+            <button type="button"
               onClick={() => onBulk("reject")}
               disabled={!!bulkAction}
               className="text-xs px-2.5 py-1 rounded-sm border border-border bg-card text-foreground hover:border-destructive/60 hover:text-destructive transition-colors focus-lime disabled:opacity-50"
@@ -521,7 +521,7 @@ export function MemberTable({
               {bulkAction === "reject" ? "En cours…" : "Rejeter"}
             </button>
             {!confirmBulkDelete ? (
-              <button
+              <button type="button"
                 onClick={() => onConfirmBulkDeleteChange(true)}
                 disabled={!!bulkAction}
                 className="text-xs px-2.5 py-1 rounded-sm border border-destructive/40 bg-destructive/5 text-destructive hover:bg-destructive/15 transition-colors focus-lime disabled:opacity-50"
@@ -533,14 +533,14 @@ export function MemberTable({
                 <span className="text-xs text-foreground">
                   Supprimer {selectedIds.size} membre(s) ?
                 </span>
-                <button
+                <button type="button"
                   onClick={() => onBulk("delete")}
                   disabled={!!bulkAction}
                   className="text-xs px-2 py-0.5 rounded-sm bg-destructive text-white hover:bg-destructive/90 transition-colors focus-lime disabled:opacity-50"
                 >
                   {bulkAction === "delete" ? "Suppression…" : "Confirmer"}
                 </button>
-                <button
+                <button type="button"
                   onClick={() => onConfirmBulkDeleteChange(false)}
                   disabled={!!bulkAction}
                   className="text-xs text-muted-foreground hover:text-foreground transition-colors focus-lime"
@@ -549,7 +549,7 @@ export function MemberTable({
                 </button>
               </span>
             )}
-            <button
+            <button type="button"
               onClick={onCancelSelection}
               className="text-xs text-muted-foreground hover:text-foreground transition-colors focus-lime mono-label ml-auto"
             >
@@ -561,7 +561,7 @@ export function MemberTable({
                 role="status"
               >
                 <span>{bulkResult}</span>
-                <button
+                <button type="button"
                   onClick={onDismissBulkResult}
                   className="text-muted-foreground hover:text-foreground transition-colors focus-lime shrink-0"
                   aria-label="Fermer le message"
@@ -857,7 +857,7 @@ export function MemberTable({
             une ligne pour voir le détail et changer le statut.
           </p>
           <div className="flex items-center gap-2">
-            <button
+            <button type="button"
               onClick={() => onPageChange(page - 1)}
               disabled={page <= 1 || loading}
               className="text-xs px-3 py-1.5 rounded-md border border-border bg-card text-foreground hover:border-lime/60 hover:text-lime transition-colors focus-lime disabled:opacity-50"
@@ -867,7 +867,7 @@ export function MemberTable({
             <span className="mono-label text-muted-foreground tabular-nums">
               {page}/{totalPages}
             </span>
-            <button
+            <button type="button"
               onClick={() => onPageChange(page + 1)}
               disabled={page >= totalPages || loading}
               className="text-xs px-3 py-1.5 rounded-md border border-border bg-card text-foreground hover:border-lime/60 hover:text-lime transition-colors focus-lime disabled:opacity-50"
@@ -964,7 +964,7 @@ function SortHeader({
   align?: "left" | "right";
 }) {
   return (
-    <button
+    <button type="button"
       onClick={onClick}
       className={cn(
         "inline-flex items-center min-h-[44px] gap-1 hover:text-lime transition-colors focus-lime",
