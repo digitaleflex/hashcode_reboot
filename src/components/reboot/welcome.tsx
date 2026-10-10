@@ -449,8 +449,12 @@ function WhatsAppCapture({ memberId }: { memberId: string }) {
             {t("welcome.addToWhatsAppHint")}
           </p>
 
-          <div className="mt-4 flex gap-2">
+          <label htmlFor="whatsapp-phone" className="mt-4 block text-xs font-medium text-muted-foreground">
+            {t("welcome.whatsappNumber")}
+          </label>
+          <div className="mt-2 flex gap-2">
             <input
+              id="whatsapp-phone"
               type="tel"
               inputMode="tel"
               autoComplete="tel"
@@ -459,6 +463,7 @@ function WhatsAppCapture({ memberId }: { memberId: string }) {
               maxLength={40}
               placeholder={t("welcome.whatsappNumberPlaceholder")}
               aria-label={t("welcome.whatsappNumber")}
+              aria-labelledby="whatsapp-phone"
               className="min-w-0 flex-1 rounded-md border border-border/70 bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-lime/50 focus:outline-none focus:ring-1 focus:ring-lime/30"
             />
             <button
