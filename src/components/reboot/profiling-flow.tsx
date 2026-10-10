@@ -54,7 +54,7 @@ export function ProfilingFlow({
   const [direction, setDirection] = React.useState(1);
   const [hydrated, setHydrated] = React.useState(false);
   const [showResumePrompt, setShowResumePrompt] = React.useState(false);
-  const [phase, setPhase] = React.useState<"questions" | "preview">("questions");
+  const [phase, setPhase] = React.useState<"questions" | "review" | "preview">("questions");
   const [localError, setLocalError] = React.useState<string | null>(null);
   const [duplicate, setDuplicate] = React.useState(false);
   const lastQuestionRef = React.useRef<string | null>(null);
@@ -192,7 +192,7 @@ export function ProfilingFlow({
     }
 
     if (q.id === "threeMonthGoal") {
-      setPhase("preview");
+      setPhase("review");  // #UI-008: review before submit
       return;
     }
     setDirection(1);
@@ -260,6 +260,20 @@ export function ProfilingFlow({
         progress={progress}
         answeredCount={answeredIds.length}
         duplicate={duplicate}
+      />
+    );
+  }
+
+  if (phase === "review") {
+    return (
+      <ProfilePreview
+        answers={answers}
+        onFinalize={() => {
+          setPhase("preview");
+          setDirection(1);
+          setStep(visible.length);
+        }}
+        onEdit={goBack}
       />
     );
   }
