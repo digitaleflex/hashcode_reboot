@@ -107,7 +107,7 @@ export function DataSection() {
           disabled={exporting}
           className="shrink-0"
         >
-          {exporting ? <Loader2 className="size-4 animate-spin motion-reduce:animate-none" /> : <Download className="size-4" />}
+          {exporting ? <Loader2 className="size-4 animate-spin motion-reduce:animate-none" /> : <Download className="size-6" />}
           {exporting ? t("dataSection.export.generating") : t("dataSection.export.download")}
         </RebootButton>
       </div>

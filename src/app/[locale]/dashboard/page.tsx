@@ -87,7 +87,7 @@ export default async function DashboardPage() {
               {t("mentoring.subtitle")}
             </p>
           </div>
-          <ArrowRight className="size-4 text-muted-foreground ml-auto group-hover:text-lime transition-colors" />
+          <ArrowRight className="size-6 text-muted-foreground ml-auto group-hover:text-lime transition-colors" />
         </div>
         <div className="text-sm text-muted-foreground">
           {t("mentoring.description")}

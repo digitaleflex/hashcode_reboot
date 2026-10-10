@@ -41,7 +41,7 @@ export async function ProfileSummary({
       value: profile.domainLabel,
     },
     {
-      icon: <BookOpen className="size-4" />,
+      icon: <BookOpen className="size-6" />,
       label: t("profileSummary.levelLabel"),
       value: profile.levelLabel,
     },

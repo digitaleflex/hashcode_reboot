@@ -126,9 +126,9 @@ export function ImportInvitePanel({ onSessionExpired }: { onSessionExpired: () =
           </span>
         </div>
         {expanded ? (
-          <ChevronUp className="size-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+          <ChevronUp className="size-6 text-muted-foreground group-hover:text-foreground transition-colors" />
         ) : (
-          <ChevronDown className="size-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+          <ChevronDown className="size-6 text-muted-foreground group-hover:text-foreground transition-colors" />
         )}
       </button>
 
@@ -174,7 +174,7 @@ export function ImportInvitePanel({ onSessionExpired }: { onSessionExpired: () =
           {dryRun && (
             <div className="rounded-md border border-lime/20 bg-lime/5 p-3 space-y-2">
               <div className="flex items-center gap-2 text-sm font-semibold text-lime">
-                <CheckCircle className="size-4" />
+                <CheckCircle className="size-6" />
                 {t("dryRunTitle")}
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
@@ -215,7 +215,7 @@ export function ImportInvitePanel({ onSessionExpired }: { onSessionExpired: () =
           {result && (
             <div className="rounded-md border border-lime/20 bg-lime/5 p-3 space-y-2">
               <div className="flex items-center gap-2 text-sm font-semibold text-lime">
-                <CheckCircle className="size-4" />
+                <CheckCircle className="size-6" />
                 {t("resultTitle")}
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">

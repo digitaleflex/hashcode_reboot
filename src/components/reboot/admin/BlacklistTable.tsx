@@ -95,7 +95,7 @@ export function BlacklistTable() {
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-6 text-muted-foreground" />
           <input
             type="text"
             placeholder="Rechercher par email…"
@@ -126,7 +126,7 @@ export function BlacklistTable() {
           onClick={() => setAddOpen(true)}
           className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-lime text-black font-medium hover:bg-lime/90 transition-colors whitespace-nowrap"
         >
-          <Plus className="size-4" />
+          <Plus className="size-6" />
           Blacklister un email
         </button>
       </div>

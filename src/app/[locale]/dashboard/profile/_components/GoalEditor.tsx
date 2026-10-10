@@ -117,7 +117,7 @@ export function GoalEditor({ initialGoal }: { initialGoal: string | null }) {
             </>
           ) : (
             <>
-              <Save className="size-4" />
+              <Save className="size-6" />
               {t("goalEditor.saveButton")}
             </>
           )}

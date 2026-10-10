@@ -58,7 +58,7 @@ export function ProfilePreview({
             onClick={onEdit}
             className="w-full sm:w-auto whitespace-nowrap"
           >
-            <ArrowLeft className="size-4 shrink-0" /> {t("preview.edit")}
+            <ArrowLeft className="size-6 shrink-0" /> {t("preview.edit")}
           </RebootButton>
         </div>
         <p className="mt-6 max-w-md mx-auto text-center text-xs text-muted-foreground">

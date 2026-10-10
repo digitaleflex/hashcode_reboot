@@ -870,7 +870,7 @@ function FunnelStep({
 function FunnelConnector() {
   return (
     <div className="hidden sm:flex items-center justify-center text-muted-foreground/50 self-stretch px-1">
-      <ChevronRight className="size-4" />
+      <ChevronRight className="size-6" />
     </div>
   );
 }

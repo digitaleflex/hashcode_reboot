@@ -223,7 +223,7 @@ function ErrorScreen({ message, slug, t }: { message: string; slug: string; t: R
         href={`/dashboard/ateliers/${slug}`}
         className="inline-flex items-center gap-2 rounded-md bg-secondary px-4 py-2.5 text-sm"
       >
-        <ArrowLeft className="size-4" />
+        <ArrowLeft className="size-6" />
         {t("backToPath")}
       </Link>
     </div>
@@ -261,7 +261,7 @@ function SessionContent({
         href={`/dashboard/ateliers/${slug}`}
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
-        <ArrowLeft className="size-4" />
+        <ArrowLeft className="size-6" />
         {t("backToPath")}
       </Link>
 
@@ -540,7 +540,7 @@ function SubmissionSection({
                 (loading || !content.trim()) && "opacity-60 cursor-not-allowed",
               )}
             >
-              {loading ? <Loader2 className="size-4 animate-spin motion-reduce:animate-none" /> : <Send className="size-4" />}
+              {loading ? <Loader2 className="size-4 animate-spin motion-reduce:animate-none" /> : <Send className="size-6" />}
               {latest ? t("resubmit") : t("submit")}
             </button>
           </div>
@@ -661,7 +661,7 @@ function QuizSection({ quiz, reload, t }: { quiz: QuizData; reload: () => Promis
         {/* Questions — options SEULEMENT : les réponses correctes restent serveur */}
         {!quiz.canAttempt && !bestPassed ? (
           <div className="flex items-center gap-2 rounded-md bg-secondary/50 px-4 py-3 text-sm text-muted-foreground">
-            <Lock className="size-4 shrink-0" />
+            <Lock className="size-6 shrink-0" />
             {t("quizLocked")}
           </div>
         ) : (
@@ -720,7 +720,7 @@ function QuizSection({ quiz, reload, t }: { quiz: QuizData; reload: () => Promis
                 (loading || !allAnswered) && "opacity-60 cursor-not-allowed",
               )}
             >
-              {loading ? <Loader2 className="size-4 animate-spin motion-reduce:animate-none" /> : <BookOpen className="size-4" />}
+              {loading ? <Loader2 className="size-4 animate-spin motion-reduce:animate-none" /> : <BookOpen className="size-6" />}
               {loading ? t("quizGrading") : t("quizSubmit")}
             </button>
             {!allAnswered && (

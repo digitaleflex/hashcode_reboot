@@ -236,7 +236,7 @@ export default function AteliersPage() {
                     aria-label={t("ctaAria", { title: workshop.title })}
                   >
                     {enrolled ? t("ctaContinue") : t("ctaDiscover")}
-                    <ArrowRight className="size-4" />
+                    <ArrowRight className="size-6" />
                   </Link>
                 </div>
               </article>

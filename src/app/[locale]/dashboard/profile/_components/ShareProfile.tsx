@@ -49,12 +49,12 @@ export function ShareProfile({ memberId }: { memberId: string }) {
       >
         {copied ? (
           <>
-            <Check className="size-4 text-lime" />
+            <Check className="size-6 text-lime" />
             {t("shareProfile.copied")}
           </>
         ) : (
           <>
-            <Copy className="size-4" />
+            <Copy className="size-6" />
             {t("shareProfile.copyLink")}
           </>
         )}

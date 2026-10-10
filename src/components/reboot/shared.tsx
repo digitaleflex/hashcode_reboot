@@ -61,9 +61,8 @@ export function RebootButton({
 /** Arrow used after CTAs (slight italic feel via skew on hover). */
 export function CtaArrow({ className }: { className?: string }) {
   return (
-    <ArrowRight
-      className={cn(
-        "size-4 transition-transform duration-200 group-hover:translate-x-0.5",
+    <ArrowRight className={cn(
+        "size-6 transition-transform duration-200 group-hover:translate-x-0.5",
         className,
       )}
       strokeWidth={2.2}

@@ -608,7 +608,7 @@ export function AdminEventList({ refreshSignal }: { refreshSignal: number }) {
                   disabled={saving}
                   className="inline-flex items-center gap-2 rounded-md bg-lime px-4 py-2 text-sm font-medium text-background hover:bg-lime/90 disabled:opacity-60 cursor-pointer"
                 >
-                  {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+                  {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-6" />}
                   Enregistrer
                 </button>
               </div>

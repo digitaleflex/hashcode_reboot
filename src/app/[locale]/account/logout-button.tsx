@@ -32,7 +32,7 @@ export function LogoutButton() {
       {loading ? (
         <Loader2 className="size-4 animate-spin" />
       ) : (
-        <LogOut className="size-4" />
+        <LogOut className="size-6" />
       )}
       {t("label")}
     </RebootButton>

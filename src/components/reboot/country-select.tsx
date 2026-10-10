@@ -59,7 +59,7 @@ export function CountrySelect({
               </span>
             )}
           </span>
-          <ChevronDown className="size-4 text-muted-foreground" />
+          <ChevronDown className="size-6 text-muted-foreground" />
         </button>
       </PopoverTrigger>
       <PopoverContent
@@ -71,7 +71,7 @@ export function CountrySelect({
         }}
       >
         <div className="flex items-center gap-2 border-b border-border px-3">
-          <Search className="size-4 text-muted-foreground shrink-0" />
+          <Search className="size-6 text-muted-foreground shrink-0" />
           <input
             ref={inputRef}
             value={q}

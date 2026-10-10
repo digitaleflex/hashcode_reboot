@@ -40,7 +40,7 @@ export async function QuickActions({
               <p className="text-sm font-medium">{t("whatsapp.joined.title")}</p>
               <p className="text-xs text-muted-foreground">{t("whatsapp.joined.description")}</p>
             </div>
-            <ArrowRight className="size-4 text-muted-foreground/40 group-hover:text-lime transition-colors" />
+            <ArrowRight className="size-6 text-muted-foreground/40 group-hover:text-lime transition-colors" />
           </a>
         ) : (
           <a
@@ -54,7 +54,7 @@ export async function QuickActions({
               <p className="text-sm font-medium">{t("whatsapp.notJoined.title")}</p>
               <p className="text-xs text-muted-foreground">{t("whatsapp.notJoined.description")}</p>
             </div>
-            <ArrowRight className="size-4 text-lime/60 group-hover:text-lime transition-colors" />
+            <ArrowRight className="size-6 text-lime/60 group-hover:text-lime transition-colors" />
           </a>
         )}
 
@@ -68,7 +68,7 @@ export async function QuickActions({
             <p className="text-sm font-medium">{t("editProfile.title")}</p>
             <p className="text-xs text-muted-foreground">{t("editProfile.description")}</p>
           </div>
-          <ArrowRight className="size-4 text-muted-foreground/40 group-hover:text-lime transition-colors" />
+          <ArrowRight className="size-6 text-muted-foreground/40 group-hover:text-lime transition-colors" />
         </a>
       </div>
     </section>

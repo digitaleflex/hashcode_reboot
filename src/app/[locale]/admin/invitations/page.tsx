@@ -458,12 +458,12 @@ export default function AdminInvitationsPage() {
             >
               {loading ? (
                 <>
-                  <RefreshCw className="size-4 animate-spin" />
+                  <RefreshCw className="size-6 animate-spin" />
                   {t("relanceDialog.sending")}
                 </>
               ) : (
                 <>
-                  <Send className="size-4" />
+                  <Send className="size-6" />
                   {t("relanceDialog.send")}
                 </>
               )}
@@ -501,7 +501,7 @@ export default function AdminInvitationsPage() {
             onClick={onClearFilter}
             className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-lime hover:text-lime/80 transition-colors"
           >
-            <Filter className="size-4" />
+            <Filter className="size-6" />
             {t("emptyState.seeAll")}
           </button>
         )}
@@ -561,7 +561,7 @@ export default function AdminInvitationsPage() {
             onClick={() => setRelanceOpen(true)}
             className="flex items-center gap-2 px-4 py-2.5 bg-lime text-black font-medium text-sm rounded-lg hover:bg-lime/90 transition-colors shadow-[0_0_0_1px_rgba(197,244,65,0.3)]"
           >
-            <RefreshCw className="size-4" />
+            <RefreshCw className="size-6" />
             {t("header.relanceAll", { count: relanceableIds.length })}
           </button>
         )}
@@ -643,7 +643,7 @@ export default function AdminInvitationsPage() {
 
       {/* Search */}
       <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-6 text-muted-foreground" />
         <input
           type="text"
           placeholder={t("searchPlaceholder")}
@@ -738,7 +738,7 @@ export default function AdminInvitationsPage() {
               className="p-2 rounded border border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 transition-colors"
               aria-label={t("prevPage")}
             >
-              <ChevronLeft className="size-4" />
+              <ChevronLeft className="size-6" />
             </button>
             <button
               type="button"
@@ -747,7 +747,7 @@ export default function AdminInvitationsPage() {
               className="p-2 rounded border border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 transition-colors"
               aria-label={t("nextPage")}
             >
-              <ChevronRight className="size-4" />
+              <ChevronRight className="size-6" />
             </button>
           </div>
         </div>

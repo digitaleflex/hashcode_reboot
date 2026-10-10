@@ -144,7 +144,7 @@ const load = React.useCallback(async (showMore: boolean, signal?: AbortSignal) =
       </div>
 
       <div className="relative mb-3">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/60" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-6 text-muted-foreground/60" />
         <input
           type="search"
           value={query}
@@ -242,8 +242,7 @@ const load = React.useCallback(async (showMore: boolean, signal?: AbortSignal) =
                     minute: "2-digit",
                   })}
                 </span>
-                <ChevronDown
-                  className={cn("size-4 shrink-0 text-muted-foreground transition-transform", isOpen && "rotate-180")}
+                <ChevronDown className={cn("size-6 shrink-0 text-muted-foreground transition-transform", isOpen && "rotate-180")}
                 />
               </button>
 

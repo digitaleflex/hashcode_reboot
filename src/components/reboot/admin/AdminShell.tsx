@@ -144,7 +144,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
               onClick={handleLogout}
               className="gap-2"
             >
-              <LogOut className="size-4" />
+              <LogOut className="size-6" />
               <span className="hidden sm:inline mono-label text-xs">{t("header.logout")}</span>
             </RebootButton>
           </div>

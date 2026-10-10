@@ -30,7 +30,7 @@ export async function NextSteps({ archetype }: { archetype: string | null }) {
               {i + 1}
             </span>
             <p className="text-sm text-foreground flex-1">{step}</p>
-            <ArrowRight className="size-4 text-muted-foreground/40 shrink-0 mt-0.5" />
+            <ArrowRight className="size-6 text-muted-foreground/40 shrink-0 mt-0.5" />
           </li>
         ))}
       </ol>

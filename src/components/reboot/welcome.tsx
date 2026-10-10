@@ -325,7 +325,7 @@ export function Welcome({
               className="w-full sm:w-auto"
             >
               {t("welcome.backToHashcode")}
-              <ArrowUpRight className="size-4" />
+              <ArrowUpRight className="size-6" />
             </RebootButton>
 
             <div className="flex flex-wrap items-center gap-2">
@@ -422,7 +422,7 @@ function WhatsAppCapture({ memberId }: { memberId: string }) {
     return (
       <div className="rounded-xl border border-lime/35 bg-lime/[0.04] px-4 py-4 text-sm text-foreground" role="status">
         <div className="flex items-center gap-2">
-          <Check className="size-4 shrink-0 text-lime" />
+          <Check className="size-6 shrink-0 text-lime" />
           {t("welcome.addedToWhatsApp")}
         </div>
       </div>
@@ -436,7 +436,7 @@ function WhatsAppCapture({ memberId }: { memberId: string }) {
     >
       <div className="flex items-start gap-3">
         <div className="grid size-9 shrink-0 place-items-center rounded-lg border border-lime/25 bg-lime/5 text-lime">
-          <MessageCircle className="size-4" />
+          <MessageCircle className="size-6" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-3">
@@ -474,7 +474,7 @@ function WhatsAppCapture({ memberId }: { memberId: string }) {
               {state === "saving" ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : (
-                <MessageCircle className="size-4" />
+                <MessageCircle className="size-6" />
               )}
               {t("welcome.add")}
             </button>
@@ -534,7 +534,7 @@ function ImmediateBranch({
           className="mt-6"
           onClick={onWhatsAppClick}
         >
-          <MessageCircle className="size-4" />
+          <MessageCircle className="size-6" />
           Rejoindre HASHCODE sur WhatsApp
         </ExternalCta>
 

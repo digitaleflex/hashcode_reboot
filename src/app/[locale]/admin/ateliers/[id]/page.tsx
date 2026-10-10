@@ -390,7 +390,7 @@ export default function AdminAtelierDetailPage() {
           href="/admin/ateliers"
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
         >
-          <ArrowLeft className="size-4" />
+          <ArrowLeft className="size-6" />
           Retour aux ateliers
         </Link>
         <div className="flex items-center gap-2 rounded-md border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
@@ -407,7 +407,7 @@ export default function AdminAtelierDetailPage() {
         href="/admin/ateliers"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
-        <ArrowLeft className="size-4" />
+        <ArrowLeft className="size-6" />
         Retour aux ateliers
       </Link>
 

@@ -213,7 +213,7 @@ export default function AdminMentoringPage() {
                 : "border-border text-muted-foreground hover:text-foreground",
             )}
           >
-            {t === "leads" ? <UserPlus className="size-4" /> : <Users className="size-4" />}
+            {t === "leads" ? <UserPlus className="size-6" /> : <Users className="size-4" />}
             {t === "leads" ? "Leads prioritaires" : "Mentors"}
           </button>
         ))}
@@ -291,7 +291,7 @@ export default function AdminMentoringPage() {
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 min-h-[44px] text-sm hover:border-lime/60 hover:text-lime transition-colors"
                       >
-                        <MessageCircle className="size-4" />
+                        <MessageCircle className="size-6" />
                         WhatsApp
                       </a>
                     )}
@@ -301,7 +301,7 @@ export default function AdminMentoringPage() {
                         disabled={acting === `contact-${l.id}`}
                         className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 min-h-[44px] text-sm hover:border-lime/60 hover:text-lime transition-colors disabled:opacity-40"
                       >
-                        <Check className="size-4" />
+                        <Check className="size-6" />
                         Marquer contacté
                       </button>
                     )}

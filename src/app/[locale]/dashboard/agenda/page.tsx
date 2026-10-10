@@ -49,10 +49,10 @@ export default function AgendaPage() {
 
   const TYPE_CONFIG: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
     session: { label: t("type.session"), icon: <Users className="size-4" />, color: "text-lime" },
-    workshop: { label: t("type.workshop"), icon: <Video className="size-4" />, color: "text-blue-400" },
+    workshop: { label: t("type.workshop"), icon: <Video className="size-6" />, color: "text-blue-400" },
     meetup: { label: t("type.meetup"), icon: <Users className="size-4" />, color: "text-amber-400" },
-    webinar: { label: t("type.webinar"), icon: <Video className="size-4" />, color: "text-purple-400" },
-    other: { label: t("type.other"), icon: <Calendar className="size-4" />, color: "text-muted-foreground" },
+    webinar: { label: t("type.webinar"), icon: <Video className="size-6" />, color: "text-purple-400" },
+    other: { label: t("type.other"), icon: <Calendar className="size-6" />, color: "text-muted-foreground" },
   };
 
   const DOMAIN_LABELS: Record<string, string> = {
@@ -215,7 +215,7 @@ export default function AgendaPage() {
       {/* Filtres */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2">
-          <Filter className="size-4 text-muted-foreground" />
+          <Filter className="size-6 text-muted-foreground" />
           <span className="text-xs text-muted-foreground mono-label">{t("filters.type.label")}</span>
         </div>
         <div className="flex gap-1.5">
@@ -392,7 +392,7 @@ export default function AgendaPage() {
                             title={t("openLinkTitle")}
                             aria-label={t("openLinkTitle")}
                           >
-                            <ExternalLink className="size-4" />
+                            <ExternalLink className="size-6" />
                           </a>
                         )}
                       </div>

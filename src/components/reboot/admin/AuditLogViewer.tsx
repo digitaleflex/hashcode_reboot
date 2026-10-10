@@ -143,7 +143,7 @@ export function AuditLogViewer({
             disabled={logs.length === 0}
               className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground hover:border-lime/60 hover:text-lime transition-colors focus-lime min-h-[44px] disabled:opacity-50"
           >
-            <Download className="size-4" />
+            <Download className="size-6" />
             CSV
           </button>
         </div>

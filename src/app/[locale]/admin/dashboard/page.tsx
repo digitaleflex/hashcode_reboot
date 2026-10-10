@@ -287,7 +287,7 @@ export default function AdminDashboardPage() {
             disabled={loading}
             className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border bg-card text-foreground hover:border-lime/60 hover:text-lime transition-colors focus-lime text-sm mono-label min-h-[40px]"
           >
-            <RefreshCw className={cn("size-4", loading && "animate-spin")} />
+            <RefreshCw className={cn("size-6", loading && "animate-spin")} />
             Rafraîchir
           </button>
           {lastRefresh && (

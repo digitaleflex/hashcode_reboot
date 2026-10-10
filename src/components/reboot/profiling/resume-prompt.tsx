@@ -58,7 +58,7 @@ export function ResumePrompt({
               <CtaArrow />
             </RebootButton>
             <RebootButton size="lg" variant="outline" onClick={onRestart}>
-              <RotateCcw className="size-4" /> {t("resumePrompt.restart")}
+              <RotateCcw className="size-6" /> {t("resumePrompt.restart")}
             </RebootButton>
           </div>
         </div>

@@ -140,7 +140,7 @@ export default async function AtelierDetailPage({
         href="/dashboard/ateliers"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
-        <ArrowLeft className="size-4" />
+        <ArrowLeft className="size-6" />
         {t("back")}
       </Link>
 
@@ -287,7 +287,7 @@ export default async function AtelierDetailPage({
                       )}
                     </div>
                     {s.state !== "LOCKED" && (
-                      <ArrowRight className="size-4 text-muted-foreground group-hover:text-lime shrink-0" />
+                      <ArrowRight className="size-6 text-muted-foreground group-hover:text-lime shrink-0" />
                     )}
                   </>
                 );

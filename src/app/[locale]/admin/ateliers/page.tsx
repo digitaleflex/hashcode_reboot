@@ -234,7 +234,7 @@ export default function AdminAteliersPage() {
     <div className="space-y-8">
       <header className="space-y-1.5">
         <div className="flex items-center gap-2">
-          <BookOpen className="size-4 text-lime" />
+          <BookOpen className="size-6 text-lime" />
           <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">
             Ateliers
           </h1>

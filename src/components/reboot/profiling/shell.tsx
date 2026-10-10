@@ -51,7 +51,7 @@ export function ProfilingShell({
             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors focus-lime"
             aria-label={t("shell.back")}
           >
-            <ArrowLeft className="size-4" />
+            <ArrowLeft className="size-6" />
             <span>{t("shell.back")}</span>
           </button>
           <MonoLabel>{stepLabel}</MonoLabel>

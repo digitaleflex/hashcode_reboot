@@ -214,7 +214,7 @@ export default function EmailDeliverabilityPage() {
             disabled={loading}
             className="flex items-center gap-2 px-4 py-2 bg-lime text-black rounded-sm text-sm font-semibold hover:bg-lime/90 disabled:opacity-50 transition-colors"
           >
-            <RefreshCw className={cn("size-4", loading && "animate-spin")} />
+            <RefreshCw className={cn("size-6", loading && "animate-spin")} />
             Rafraîchir
           </button>
         </div>
@@ -227,7 +227,7 @@ export default function EmailDeliverabilityPage() {
 
         {loading && !data && (
           <div className="flex items-center gap-2 text-muted-foreground text-sm">
-            <RefreshCw className="size-4 animate-spin" /> Chargement des métriques…
+            <RefreshCw className="size-6 animate-spin" /> Chargement des métriques…
           </div>
         )}
 

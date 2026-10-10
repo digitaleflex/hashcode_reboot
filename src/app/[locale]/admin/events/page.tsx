@@ -436,7 +436,7 @@ export default function AdminEventsPage() {
             {loading ? (
               <Loader2 className="size-4 animate-spin" />
             ) : (
-              <Save className="size-4" />
+              <Save className="size-6" />
             )}
             {loading ? "Création…" : "Créer l'événement"}
           </button>

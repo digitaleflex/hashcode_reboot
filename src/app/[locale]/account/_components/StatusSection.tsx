@@ -51,7 +51,7 @@ function Approved({ t }: { t: (key: string, values?: Record<string, string | num
         rel="noopener noreferrer"
         className="inline-flex items-center justify-center gap-2 rounded-md bg-lime text-black hover:bg-lime/90 font-medium border border-transparent min-h-[48px] h-12 px-6 text-base w-full sm:w-auto"
       >
-        <MessageCircle className="size-4" />
+        <MessageCircle className="size-6" />
         {t("approved.whatsappButton")}
       </a>
     </section>

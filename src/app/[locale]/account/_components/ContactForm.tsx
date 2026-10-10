@@ -232,7 +232,7 @@ export function ContactForm({ member }: { member: AccountMember }) {
             </>
           ) : (
             <>
-              <Save className="size-4" />
+              <Save className="size-6" />
               {t("saveButton")}
             </>
           )}
