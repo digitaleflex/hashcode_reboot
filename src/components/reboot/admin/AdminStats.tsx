@@ -476,16 +476,12 @@ export function AdminStats({
                 </>
               );
               return (
-                <button
+                <div
                   key={`archetype-${a.archetype}-${idx}`}
-                  type="button"
-                  onClick={() => onFilter("archetype", a.archetype)}
-                  title={`Filtrer : ${a.archetype}`}
-                  aria-label={`Filtrer la liste : ${a.archetype} (${a.count})`}
-                className="group w-full flex items-center gap-3 rounded-sm px-1 py-0.5 text-left transition-colors hover:bg-lime/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-inset min-h-[44px]"
+                  className="flex w-full items-center gap-3 px-1 py-0.5 min-h-[44px]"
                 >
                   {content}
-                </button>
+                </div>
               );
 })}
            </div>
@@ -493,11 +489,6 @@ export function AdminStats({
          <Breakdown
           title="Par source d'acquisition"
           rows={(stats?.bySource ?? []).map((s) => [s.source, s.count])}
-          onRowClick={onFilter}
-          filterKey="source"
-          filterValues={Object.fromEntries(
-            (stats?.bySource ?? []).map((s) => [s.source, s.source]),
-          )}
         />
       </section>
 
