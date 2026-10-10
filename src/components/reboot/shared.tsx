@@ -194,7 +194,7 @@ export function Tag({
   );
   if (onClick) {
     return (
-      <button type="button" onClick={onClick} className={cls}>
+      <button type="button" onClick={onClick} className={cls} aria-pressed={!!active}>
         {children}
       </button>
     );
