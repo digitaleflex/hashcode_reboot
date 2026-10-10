@@ -47,7 +47,7 @@ export default function AdminMarketingPage() {
   const [loadingStats, setLoadingStats] = React.useState(true);
 
   const handleSessionExpired = React.useCallback(() => {
-    router.push("/?admin=1");
+    router.push("/admin/login");
   }, [router]);
 
   React.useEffect(() => {

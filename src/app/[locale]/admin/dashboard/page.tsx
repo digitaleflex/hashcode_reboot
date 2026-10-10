@@ -172,7 +172,7 @@ export default function AdminDashboardPage() {
         if (currentSignal?.aborted) return;
 
         if (res.status === 401 || code === "UNAUTHORIZED") {
-          window.location.href = "/?admin=1";
+          window.location.href = "/admin/login";
           return;
         }
 

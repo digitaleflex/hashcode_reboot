@@ -196,7 +196,7 @@ export default function EmailTemplatesPage() {
     try {
       const { res, data, code } = await fetchJson("/api/admin/email-templates", { cache: "no-store" });
       if (res.status === 401 || code === "UNAUTHORIZED") {
-        window.location.assign("/?admin=1");
+        window.location.assign("/admin/login");
         return;
       }
       if (!res.ok || !data?.ok) throw new Error(data?.error ?? "Chargement impossible.");

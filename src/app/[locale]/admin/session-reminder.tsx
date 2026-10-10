@@ -221,7 +221,7 @@ export function SessionReminder() {
     } catch {
       /* ignore */
     }
-    window.location.href = "/?admin=1";
+    window.location.href = "/admin/login";
   }
 
   function clearRestoreNotice(clearDrafts: boolean) {

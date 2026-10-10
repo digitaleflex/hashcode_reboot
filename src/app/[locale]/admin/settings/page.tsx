@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { AuditLogViewer } from "@/components/reboot/admin/AuditLogViewer";
+import { AdminAccountsManager } from "@/components/reboot/admin/AdminAccountsManager";
 import { RebootButton, MonoLabel } from "@/components/reboot/shared";
 import { fetchJson } from "@/components/reboot/admin/lib/fetchJson";
 import { Activity, Server, Clock, AlertCircle } from "lucide-react";
@@ -17,7 +18,7 @@ export default function AdminSettingsPage() {
   const [loadingSession, setLoadingSession] = React.useState(true);
 
   const handleSessionExpired = React.useCallback(() => {
-    router.push("/?admin=1");
+    router.push("/admin/login");
   }, [router]);
 
   React.useEffect(() => {
@@ -90,7 +91,19 @@ export default function AdminSettingsPage() {
         )}
       </section>
 
-      
+      {/* Comptes admin (operator only — la section se masque d'elle-même
+          avec un message pour les viewers, cf. AdminAccountsManager) */}
+      <section aria-label="Comptes administrateurs" className="rounded-md border border-border/60 bg-card/40 p-4 sm:p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Server className="size-4 text-lime" aria-hidden />
+          <MonoLabel className="text-muted-foreground">Comptes administrateurs</MonoLabel>
+        </div>
+        <p className="text-sm text-muted-foreground mb-4">
+          Comptes nominatifs (email + mot de passe + 2FA obligatoire pour les opérateurs).
+          Invite un nouvel admin : il recevra un email valable 7 jours pour activer son accès.
+        </p>
+        <AdminAccountsManager onSessionExpired={handleSessionExpired} />
+      </section>
 
       {/* Audit Log */}
       <section aria-label="Journal d'audit" className="rounded-md border border-border/60 bg-card/40 p-4 sm:p-5">

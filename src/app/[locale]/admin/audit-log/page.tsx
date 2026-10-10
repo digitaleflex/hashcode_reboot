@@ -8,7 +8,7 @@ export default function AdminAuditLogPage() {
   const router = useRouter();
 
   const handleSessionExpired = React.useCallback(() => {
-    router.push("/?admin=1");
+    router.push("/admin/login");
   }, [router]);
 
   return (

@@ -22,7 +22,7 @@ export default function AdminMembersPage() {
   const [confirmBulkDelete, setConfirmBulkDelete] = React.useState(false);
 
   const handleSessionExpired = React.useCallback(() => {
-    router.push("/?admin=1");
+    router.push("/admin/login");
   }, [router]);
 
   const {

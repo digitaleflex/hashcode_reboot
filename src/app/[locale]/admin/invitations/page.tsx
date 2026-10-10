@@ -104,7 +104,7 @@ export default function AdminInvitationsPage() {
   type StatusFilter = typeof STATUS_FILTERS[number];
 
   const handleSessionExpired = React.useCallback(() => {
-    router.push("/?admin=1");
+    router.push("/admin/login");
   }, [router]);
 
   const fetchData = React.useCallback(async () => {

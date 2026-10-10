@@ -106,25 +106,32 @@ export function proxy(req: NextRequest) {
     const hasAdminCookie =
       req.cookies.get(ADMIN_AUTH_SESSION_COOKIE) ||
       req.cookies.get("__Secure-" + ADMIN_AUTH_SESSION_COOKIE);
-    if (!hasMemberCookie && !hasAdminCookie) {
-      // Les pages publiques de l'espace admin (login nominatif, setup
-      // invitation, 2FA) ne doivent JAMAIS boucler : elles restent
-      // accessibles sans cookie.
-      const publicAdminPaths = ["/admin/login", "/admin/setup", "/admin/setup-2fa"];
-      if (publicAdminPaths.some((p) => unprefixed === p)) {
-        const res = intlMiddleware(req);
-        // Marqueur lu par AdminLayout (server component) : ces pages sont
-        // publiques, la garde d'accès ne doit PAS s'appliquer — sinon
-        // /admin/login redirigerait vers lui-même en boucle.
-        res.headers.set("x-hc-admin-public", "1");
-        return res;
-      }
+    const hasAnySession = hasMemberCookie || hasAdminCookie;
+
+    // Pages publiques de l'espace admin (login nominatif, activation
+    // d'invitation, enrôlement 2FA) : accessibles SANS cookie, sinon
+    // /admin/login bouclerait sur lui-même.
+    const publicAdminPaths = ["/admin/login", "/admin/setup", "/admin/setup-2fa"];
+    const isPublicAdminPath = publicAdminPaths.some((p) => unprefixed === p);
+
+    if (!hasAnySession && !isPublicAdminPath) {
       const url = req.nextUrl.clone();
       url.pathname = `${localePrefix}/admin/login`;
       const destination = `${localePrefix}${unprefixed}${req.nextUrl.search}`;
       url.search = `?next=${encodeURIComponent(destination)}`;
       return NextResponse.redirect(url);
     }
+
+    const res = intlMiddleware(req);
+    // Chemin demandé, lu par AdminLayout (server component — les layouts
+    // n'ont pas d'accès direct au pathname en App Router).
+    res.headers.set("x-hc-admin-pathname", unprefixed);
+    // Marqueur « page publique, aucun cookie » : la garde d'accès du layout
+    // ne doit PAS s'appliquer (sinon boucle sur /admin/login).
+    if (!hasAnySession && isPublicAdminPath) {
+      res.headers.set("x-hc-admin-public", "1");
+    }
+    return res;
   }
 
   return intlMiddleware(req);

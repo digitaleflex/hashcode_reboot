@@ -7,6 +7,15 @@ import {
 import { getAdminSession } from "@/lib/auth/admin";
 
 /**
+ * Pages publiques de l'espace admin (login nominatif, activation
+ * d'invitation, enrôlement 2FA). Marqueur posé par `proxy.ts`
+ * (`x-hc-admin-public`) : présent uniquement quand AUCUN cookie de session
+ * n'existe et que la page est dans cette liste — sinon la garde
+ * redirigerait /admin/login vers lui-même en boucle.
+ */
+const PUBLIC_ADMIN_PAGES = new Set(["/admin/login", "/admin/setup", "/admin/setup-2fa"]);
+
+/**
  * Layout de l'espace admin — **server component** : porte la garde d'accès.
  *
  * `proxy.ts` s'exécute en Edge runtime, où la base est inaccessible : il ne
@@ -21,9 +30,8 @@ import { getAdminSession } from "@/lib/auth/admin";
  * rendu de l'espace admin.
  *
  * Contrôle 2FA : un operator sans 2FA activée est redirigé vers
- * `/admin/setup-2fa` (enrôlement forcé) — la 2FA est obligatoire pour les
- * operators (cf. src/lib/auth/admin.ts). Les viewers y sont invités, pas
- * forcés.
+ * `/admin/setup-2fa` (enrôlement forcé) — obligatoire pour les operators
+ * (cf. src/lib/auth/admin.ts). Les viewers y sont invités, pas forcés.
  */
 export default async function AdminLayout({
   children,
@@ -32,19 +40,28 @@ export default async function AdminLayout({
 }>) {
   const admin = await getAdminContextFromRequestHeaders();
 
+  // Pages publiques : pas de garde quand personne n'est connecté. Le
+  // marqueur vient du proxy (seule source fiable du chemin demandé ici).
   if (!admin) {
+    const { headers } = await import("next/headers");
+    const isPublicPage = (await headers()).get("x-hc-admin-public") === "1";
+    if (isPublicPage) return <>{children}</>;
     // Une session membre valide mais non-admin atterrit ici : on renvoie vers
     // la connexion admin. `next` permet à l'admin légitime de revenir où il allait.
     redirect("/admin/login?next=%2Fadmin");
   }
 
   // Forçage 2FA operator (nouveau compte ou 2FA désactivée entre-temps).
-  if (admin.role === "operator") {
-    const adminSession = await getAdminSession();
-    if (adminSession && !adminSession.twoFactorEnabled) {
+  // Les pages publiques restent atteignables même en tant qu'operator sans
+  // 2FA : la page setup-2fa EST la destination du forcing.
+  if (admin.role === "operator" && admin.twoFactorEnabled === false) {
+    const { headers } = await import("next/headers");
+    const headerList = await headers();
+    const isPublicPage = headerList.get("x-hc-admin-public") === "1";
+    const pathname = headerList.get("x-hc-admin-pathname") ?? "";
+    if (!isPublicPage && pathname !== "/admin/setup-2fa") {
       redirect("/admin/setup-2fa");
     }
   }
-
   return <AdminShell>{children}</AdminShell>;
 }

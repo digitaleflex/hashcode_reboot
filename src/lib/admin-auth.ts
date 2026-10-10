@@ -34,7 +34,7 @@ export function checkCSRF(req: NextRequest): boolean {
   }
 }
 
-type AdminContext = { email: string; role: AdminRole };
+type AdminContext = { email: string; role: AdminRole; twoFactorEnabled?: boolean };
 
 /**
  * Ancien chemin (compatibilité transition) : session membre + Member.adminRole.
@@ -68,7 +68,12 @@ async function resolveAdminFromHeaders(
   headers: Record<string, string>,
 ): Promise<AdminContext | null> {
   const admin = await getAdminSessionFromHeaders(headers);
-  if (admin) return { email: admin.email, role: admin.role };
+  if (admin) {
+    return { email: admin.email, role: admin.role, twoFactorEnabled: admin.twoFactorEnabled };
+  }
+  // Ancien chemin (transition) : pas d'info 2FA — undefined = indéterminé,
+  // le layout ne force alors rien (les comptes non migrés n'ont pas de 2FA
+  // à enroler ; ils en recevront une à la migration).
   return resolveLegacyAdminSession(headers);
 }
 

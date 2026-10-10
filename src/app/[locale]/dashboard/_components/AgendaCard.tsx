@@ -330,4 +330,4 @@ export function AgendaCard() {
       )}
     </section>
   );
-}
+}// #UI-015 TODO: ajouter EmptyState (icône + texte + CTA) quand agenda vide

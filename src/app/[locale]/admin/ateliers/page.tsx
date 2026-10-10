@@ -151,7 +151,7 @@ async function loadWorkshops(): Promise<WorkshopsResponse> {
     { cache: "no-store" },
   );
   if (res.status === 401 || code === "UNAUTHORIZED") {
-    window.location.href = "/?admin=1";
+    window.location.href = "/admin/login";
     throw new Error("unauthorized");
   }
   if (!res.ok) {
@@ -170,7 +170,7 @@ async function loadStats(): Promise<StatsResponse> {
     { cache: "no-store" },
   );
   if (res.status === 401 || code === "UNAUTHORIZED") {
-    window.location.href = "/?admin=1";
+    window.location.href = "/admin/login";
     throw new Error("unauthorized");
   }
   if (!res.ok) {

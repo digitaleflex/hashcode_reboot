@@ -41,7 +41,7 @@ export default function AdminStatsPage() {
       if (signal?.aborted) return;
 
       if (statsResult.res.status === 401 || statsResult.code === "UNAUTHORIZED") {
-        window.location.href = "/?admin=1";
+        window.location.href = "/admin/login";
         return;
       }
 
