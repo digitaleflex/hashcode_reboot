@@ -36,10 +36,16 @@ export const adminAuth = betterAuth({
     provider: "postgresql",
   }),
 
-  // ── Modèles dédiés (Prisma) ────────────────────────────────────────────
+  // ── Modèles dédiés (Prisma) + session stricte (espace admin) ───────────
   // camelCase = propriété du client Prisma généré (model AdminUser → prisma.adminUser).
   user: { modelName: "adminUser" },
-  session: { modelName: "adminSession" },
+  session: {
+    modelName: "adminSession",
+    cookieCache: { enabled: true, maxAge: 60 * 5 }, // cache cookie 5 min
+    expiresIn: 8 * 60 * 60, // 8 h max
+    updateAge: 60 * 30, // rolling 30 min
+    freshAge: 60 * 5, // re-auth sensible (password) au-delà de 5 min
+  },
   account: { modelName: "adminAccount" },
   verification: { modelName: "adminVerification" },
 
@@ -76,12 +82,7 @@ export const adminAuth = betterAuth({
   },
 
   // ── Session : stricte (espace admin) ───────────────────────────────────
-  session: {
-    cookieCache: { enabled: true, maxAge: 60 * 5 }, // cache cookie 5 min
-    expiresIn: 8 * 60 * 60, // 8 h max
-    updateAge: 60 * 30, // rolling 30 min
-    freshAge: 60 * 5, // re-auth sensible (password) au-delà de 5 min
-  },
+  // (modelName + durée : cf. bloc « Modèles dédiés » plus haut)
 
   // ── Plugins ────────────────────────────────────────────────────────────
   plugins: [
@@ -108,8 +109,8 @@ export const adminAuth = betterAuth({
         // Seuil de création de compte : invitation valide obligatoire.
         // Fail-closed : invitation absente / déjà consommée / expirée ⇒
         // refus (return false).
-        before: async (user) => {
-          const email = String(user.email || "").trim().toLowerCase();
+        before: async (user, _ctx) => {
+          const email = String(user.email ?? "").trim().toLowerCase();
           const invitation = await db.adminInvitation.findUnique({ where: { email } });
           if (!invitation) return false;
           if (invitation.acceptedAt) return false;
@@ -126,11 +127,11 @@ export const adminAuth = betterAuth({
             data: {
               ...user,
               email,
-              name: user.name || invitation.name || null,
+              name: user.name || invitation.name || undefined,
               emailVerified: true,
               // Le rôle invité prime sur le defaultRole du plugin admin.
               role: invitation.role === "operator" ? "operator" : "viewer",
-              // Petite sécurité anti double compte : pas de memberEmail auto.
+              // Pas de memberEmail automatique (aucun lien Member implicite).
               memberEmail: null,
             },
           };
@@ -138,13 +139,17 @@ export const adminAuth = betterAuth({
       },
       update: {
         // Empêche l'auto-promotion depuis un formulaire : le changement de
-        // rôle passe uniquement par l'API admin (POST /api/admin/admins/[id]/role).
-        before: async (user, { data }) => {
-          if (data && typeof data === "object" && "role" in data && data.role !== user.role) {
-            // Les routes Better Auth internes (admin/set-role) ne passent pas
-            // par ce hook de mise à jour générique — seules les mises à jour
-            // user standards (update-user) l'atteignent. On bloque donc ici
-            // tout changement de rôle non autorisé.
+        // rôle passe uniquement par l'API admin (PATCH /api/admin/admins).
+        // Les routes du plugin admin (/admin/set-role) ne passent PAS par ce
+        // hook générique — elles ont leur propre garde operator.
+        before: async (user, ctx) => {
+          const data = (ctx as { body?: Record<string, unknown> } | null)?.body;
+          if (
+            data &&
+            typeof data === "object" &&
+            "role" in data &&
+            data.role !== user.role
+          ) {
             return false;
           }
         },

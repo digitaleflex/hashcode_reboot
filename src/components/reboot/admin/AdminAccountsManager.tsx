@@ -166,7 +166,10 @@ export function AdminAccountsManager({ onSessionExpired }: { onSessionExpired: (
     setBusyId(id);
     setError(null);
     try {
-      const { res } = await fetchJson(`/api/admin/admins/${id}/reset-2fa`, { method: "POST" });
+      const { res } = await fetchJson(`/api/admin/admins/${id}/reset-2fa`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
       if (!res.ok) {
         setError("Réinitialisation 2FA impossible.");
         return;
