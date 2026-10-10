@@ -351,7 +351,6 @@ export default function AdminDashboardPage() {
           filters={{}}
           onFilter={(key, value) => router.push(`/admin/members?${encodeURIComponent(key)}=${encodeURIComponent(value)}`)}
           onClearFilters={() => router.push("/admin/members")}
-          onSeeQueue={() => router.push("/admin/members?status=PENDING")}
         />
       </section>
 
