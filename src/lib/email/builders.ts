@@ -1332,3 +1332,183 @@ export async function sendActivationRelanceEmail({
     forceProvider,
   });
 }
+
+/* ── Emails ADMIN : invitation + reset mot de passe + vérification ───────── */
+
+export interface AdminInvitationEmailInput {
+  to: string;
+  firstName: string;
+  setupUrl: string;
+  invitedBy: string;
+  role: "operator" | "viewer";
+}
+
+/**
+ * Email d'invitation d'un compte admin (espace /admin).
+ * Le lien porte un jeton à usage unique (7 jours) vers /admin/setup.
+ */
+export async function sendAdminInvitationEmail({
+  to,
+  firstName,
+  setupUrl,
+  invitedBy,
+  role,
+}: AdminInvitationEmailInput): Promise<SendEmailResult> {
+  const name = firstName.trim() || "Admin";
+  const safeName = escapeHtml(name);
+  const safeUrl = escapeHtml(setupUrl.trim());
+  const safeInvitedBy = escapeHtml(invitedBy);
+  const roleLabel = role === "operator" ? "Opérateur (accès complet)" : "Lecteur (lecture seule)";
+  const subject = "🔐 Ton accès administrateur HASHCODE";
+  const text = [
+    `Bonjour ${name},`,
+    "",
+    `${invitedBy} t'invite à rejoindre l'espace d'administration HASHCODE.`,
+    "",
+    `Rôle attribué : ${roleLabel}.`,
+    "",
+    "Pour activer ton accès :",
+    "1. Clique sur le lien ci-dessous (valide 7 jours, usage unique)",
+    "2. Choisis un mot de passe fort (12 caractères minimum)",
+    "3. Active l'authentification à deux facteurs (2FA/TOTP)",
+    "",
+    setupUrl.trim(),
+    "",
+    "Si tu n'attendais pas cette invitation, ignore cet email — aucun accès ne sera créé.",
+    "",
+    "— HASHCODE REBOOT",
+  ].join("\n");
+  const inner = [
+    `<tr><td style="padding:24px 32px 28px 32px;background-color:#141414;">`,
+    monoLabel("ACCÈS ADMINISTRATEUR"),
+    `<h1 style="margin:0 0 12px 0;font-family:${MAIL_FONT};font-size:24px;line-height:1.25;font-weight:800;color:#F8FAFC;">${safeName}, ton accès admin t'attend.</h1>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">${safeInvitedBy} t'invite à rejoindre l'espace d'administration HASHCODE REBOOT.</p>`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;background-color:#0A0A0A;border:1px solid #333B1E;border-radius:8px;">`,
+    `<tr><td style="padding:14px 16px;">`,
+    `<div style="font-family:${MAIL_FONT};font-size:11px;font-weight:700;letter-spacing:2px;color:#94A3B8;margin:0 0 4px 0;">RÔLE ATTRIBUÉ</div>`,
+    `<div style="font-family:${MAIL_FONT};font-size:16px;font-weight:700;color:#C5F441;margin:0;">${roleLabel}</div>`,
+    `</td></tr>`,
+    `</table>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:14px;line-height:1.65;color:#94A3B8;">Pour activer ton accès : choisis un mot de passe fort (12 caractères minimum), puis active l'authentification à deux facteurs (2FA/TOTP) — obligatoire pour les opérateurs.</p>`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;">`,
+    `<tr><td align="center" style="padding:0;">`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">`,
+    `<tr><td align="center" bgcolor="#C5F441" style="background-color:#C5F441;border-radius:8px;padding:14px 32px;">`,
+    `<a href="${safeUrl}" target="_blank" rel="noopener" style="font-family:${MAIL_FONT};font-size:16px;font-weight:800;color:#0A0A0A;text-decoration:none;display:inline-block;">Activer mon accès</a>`,
+    `</td></tr>`,
+    `</table>`,
+    `</td></tr>`,
+    `</table>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:12px;line-height:1.6;color:#94A3B8;text-align:center;word-break:break-all;">Lien valide 7 jours, usage unique. S'il ne fonctionne pas, copie-le :<br /><a href="${safeUrl}" target="_blank" rel="noopener" style="color:#C5F441;text-decoration:underline;">${safeUrl}</a></p>`,
+    `<p style="margin:0;font-family:${MAIL_FONT};font-size:12px;line-height:1.6;color:#64748B;text-align:center;">Si tu n'attendais pas cette invitation, ignore cet email — aucun accès ne sera créé.</p>`,
+    `</td></tr>`,
+  ].join("");
+  const html = emailShell(
+    "Ton accès administrateur HASHCODE — active-le en 3 étapes.",
+    inner,
+  );
+  return sendEmail({ to, subject, html, text, category: "notification" });
+}
+
+export interface AdminPasswordResetEmailInput {
+  to: string;
+  firstName: string;
+  resetUrl: string;
+}
+
+/** Email de réinitialisation du mot de passe admin (demandé depuis /admin/login). */
+export async function sendAdminPasswordResetEmail({
+  to,
+  firstName,
+  resetUrl,
+}: AdminPasswordResetEmailInput): Promise<SendEmailResult> {
+  const name = firstName.trim() || "Admin";
+  const safeName = escapeHtml(name);
+  const safeUrl = escapeHtml(resetUrl.trim());
+  const subject = "🔑 Réinitialisation de ton mot de passe admin";
+  const text = [
+    `Bonjour ${name},`,
+    "",
+    "Tu as demandé la réinitialisation de ton mot de passe administrateur.",
+    "",
+    "Clique sur ce lien pour en choisir un nouveau (valide 1 heure) :",
+    resetUrl.trim(),
+    "",
+    "Si tu n'es pas à l'origine de cette demande, ignore cet email — ton mot de passe actuel reste valide.",
+    "",
+    "— HASHCODE REBOOT",
+  ].join("\n");
+  const inner = [
+    `<tr><td style="padding:24px 32px 28px 32px;background-color:#141414;">`,
+    monoLabel("MOT DE PASSE"),
+    `<h1 style="margin:0 0 12px 0;font-family:${MAIL_FONT};font-size:24px;line-height:1.25;font-weight:800;color:#F8FAFC;">Réinitialise ton mot de passe, ${safeName}.</h1>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">Tu as demandé la réinitialisation de ton mot de passe administrateur. Le lien expire dans 1 heure.</p>`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;">`,
+    `<tr><td align="center" style="padding:0;">`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">`,
+    `<tr><td align="center" bgcolor="#C5F441" style="background-color:#C5F441;border-radius:8px;padding:14px 32px;">`,
+    `<a href="${safeUrl}" target="_blank" rel="noopener" style="font-family:${MAIL_FONT};font-size:16px;font-weight:800;color:#0A0A0A;text-decoration:none;display:inline-block;">Choisir un nouveau mot de passe</a>`,
+    `</td></tr>`,
+    `</table>`,
+    `</td></tr>`,
+    `</table>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:12px;line-height:1.6;color:#94A3B8;text-align:center;word-break:break-all;">S'il expire, redemande un lien depuis la page de connexion :<br /><a href="${safeUrl}" target="_blank" rel="noopener" style="color:#C5F441;text-decoration:underline;">${safeUrl}</a></p>`,
+    `<p style="margin:0;font-family:${MAIL_FONT};font-size:12px;line-height:1.6;color:#64748B;text-align:center;">Tu n'es pas à l'origine de cette demande ? Ignore cet email.</p>`,
+    `</td></tr>`,
+  ].join("");
+  const html = emailShell(
+    "Réinitialise ton mot de passe administrateur — lien valide 1 heure.",
+    inner,
+  );
+  return sendEmail({ to, subject, html, text, category: "notification" });
+}
+
+export interface AdminVerificationEmailInput {
+  to: string;
+  firstName: string;
+  verifyUrl: string;
+}
+
+/** Email de vérification d'adresse admin (changement d'email). */
+export async function sendAdminVerificationEmail({
+  to,
+  firstName,
+  verifyUrl,
+}: AdminVerificationEmailInput): Promise<SendEmailResult> {
+  const name = firstName.trim() || "Admin";
+  const safeName = escapeHtml(name);
+  const safeUrl = escapeHtml(verifyUrl.trim());
+  const subject = "✉️ Vérifie ton adresse admin HASHCODE";
+  const text = [
+    `Bonjour ${name},`,
+    "",
+    "Confirme ta nouvelle adresse email administrateur :",
+    verifyUrl.trim(),
+    "",
+    "Ce lien expire dans 1 heure.",
+    "",
+    "— HASHCODE REBOOT",
+  ].join("\n");
+  const inner = [
+    `<tr><td style="padding:24px 32px 28px 32px;background-color:#141414;">`,
+    monoLabel("VÉRIFICATION EMAIL"),
+    `<h1 style="margin:0 0 12px 0;font-family:${MAIL_FONT};font-size:24px;line-height:1.25;font-weight:800;color:#F8FAFC;">Confirme ton adresse, ${safeName}.</h1>`,
+    `<p style="margin:0 0 16px 0;font-family:${MAIL_FONT};font-size:15px;line-height:1.65;color:#F8FAFC;">Clique sur le bouton pour vérifier ta nouvelle adresse email administrateur.</p>`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px 0;">`,
+    `<tr><td align="center" style="padding:0;">`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">`,
+    `<tr><td align="center" bgcolor="#C5F441" style="background-color:#C5F441;border-radius:8px;padding:14px 32px;">`,
+    `<a href="${safeUrl}" target="_blank" rel="noopener" style="font-family:${MAIL_FONT};font-size:16px;font-weight:800;color:#0A0A0A;text-decoration:none;display:inline-block;">Vérifier mon adresse</a>`,
+    `</td></tr>`,
+    `</table>`,
+    `</td></tr>`,
+    `</table>`,
+    `<p style="margin:0;font-family:${MAIL_FONT};font-size:12px;line-height:1.6;color:#64748B;text-align:center;">Lien valide 1 heure.</p>`,
+    `</td></tr>`,
+  ].join("");
+  const html = emailShell(
+    "Vérifie ton adresse email administrateur — lien valide 1 heure.",
+    inner,
+  );
+  return sendEmail({ to, subject, html, text, category: "notification" });
+}

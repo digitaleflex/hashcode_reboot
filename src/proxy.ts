@@ -39,6 +39,9 @@ function stripLocalePrefix(pathname: string): { unprefixed: string; localePrefix
  * et les API routes via auth.api.getSession() — impossible en Edge (DB non dispo).
  */
 const BETTER_AUTH_SESSION_COOKIE = "better-auth.session_token";
+// Cookie de session admin nominatif (cf. src/lib/auth/admin.ts). Distinct du
+// cookie membre : un cookie membre ne peut PAS ouvrir /admin.
+const ADMIN_AUTH_SESSION_COOKIE = "hashcode-admin.session_token";
 
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -71,18 +74,12 @@ export function proxy(req: NextRequest) {
   // 2. Pages : auth (locale-aware) puis i18n.
   const { unprefixed, localePrefix } = stripLocalePrefix(pathname);
 
-  // /account, /dashboard & /admin : redirige si pas de cookie Better Auth.
-  // Le préfixe de locale est conservé (/en/dashboard → /en/login).
-  //
-  // `next` porte la destination d'origine : les deux pages du parcours de
-  // connexion le lisent et le propagent jusqu'à la redirection finale
-  // (`login/page.tsx` puis `verify-otp/page.tsx`). Sans lui, se connecter
-  // depuis une URL profonde renverrait toujours vers /dashboard.
-  //
-  // L'ancien commentaire affirmait que `next` n'était lu nulle part et
-  // redirigeait `/admin` vers la landing : les deux affirmations étaient
-  // fausses depuis la refonte du parcours OTP.
-  if (unprefixed.startsWith("/account") || unprefixed.startsWith("/dashboard") || unprefixed.startsWith("/admin")) {
+  // /account & /dashboard : redirige si pas de cookie Better Auth membre.
+  // /admin : redirige si NI cookie membre NI cookie admin nominatif — la
+  // validation du rôle se fait ensuite côté serveur (AdminLayout → base
+  // inaccessible en Edge). Les anciennes sessions membres admin restent
+  // valides le temps de la migration (cf. src/lib/admin-auth.ts).
+  if (unprefixed.startsWith("/account") || unprefixed.startsWith("/dashboard")) {
     // En HTTPS (prod), Better Auth préfixe le cookie de `__Secure-` ; ne
     // vérifier que la forme nue ferait boucler les pages protégées vers
     // /login alors même que la session existe (cf. get-session qui, lui,
@@ -95,6 +92,35 @@ export function proxy(req: NextRequest) {
       url.pathname = `${localePrefix}/login`;
       // `next` est validé côté client : seuls les chemins internes sont
       // acceptés (les esquemas externes et `//` sont rejetés).
+      const destination = `${localePrefix}${unprefixed}${req.nextUrl.search}`;
+      url.search = `?next=${encodeURIComponent(destination)}`;
+      return NextResponse.redirect(url);
+    }
+    return intlMiddleware(req);
+  }
+
+  if (unprefixed.startsWith("/admin")) {
+    const hasMemberCookie =
+      req.cookies.get(BETTER_AUTH_SESSION_COOKIE) ||
+      req.cookies.get("__Secure-" + BETTER_AUTH_SESSION_COOKIE);
+    const hasAdminCookie =
+      req.cookies.get(ADMIN_AUTH_SESSION_COOKIE) ||
+      req.cookies.get("__Secure-" + ADMIN_AUTH_SESSION_COOKIE);
+    if (!hasMemberCookie && !hasAdminCookie) {
+      // Les pages publiques de l'espace admin (login nominatif, setup
+      // invitation, 2FA) ne doivent JAMAIS boucler : elles restent
+      // accessibles sans cookie.
+      const publicAdminPaths = ["/admin/login", "/admin/setup", "/admin/setup-2fa"];
+      if (publicAdminPaths.some((p) => unprefixed === p)) {
+        const res = intlMiddleware(req);
+        // Marqueur lu par AdminLayout (server component) : ces pages sont
+        // publiques, la garde d'accès ne doit PAS s'appliquer — sinon
+        // /admin/login redirigerait vers lui-même en boucle.
+        res.headers.set("x-hc-admin-public", "1");
+        return res;
+      }
+      const url = req.nextUrl.clone();
+      url.pathname = `${localePrefix}/admin/login`;
       const destination = `${localePrefix}${unprefixed}${req.nextUrl.search}`;
       url.search = `?next=${encodeURIComponent(destination)}`;
       return NextResponse.redirect(url);

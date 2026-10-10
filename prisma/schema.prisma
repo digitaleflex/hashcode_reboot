@@ -207,6 +207,156 @@ model Verification {
   @@index([expiresAt])
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// AUTH ADMIN — compte nominatif (email/mot de passe) + 2FA TOTP.
+//
+// Remplace le passcode partagé (`AdminKey`) : chaque admin a son propre
+// compte, sa session révocable, son audit traçable et — pour les operators —
+// une 2FA obligatoire. Modèles dédiés SÉPARÉS de l'auth membre (User/Session/
+// Account/Verification) : deux instances Better Auth, deux espaces de
+// sessions, deux cookies (cf. src/lib/auth/admin.ts, cookiePrefix
+// « hashcode-admin »).
+//
+// Conventions maison : pas d'enums Prisma (role = String + union TS validée
+// côté applicatif), index sur les colonnes de filtre, cascade sur les enfants.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Compte admin nominatif. `role` : operator (accès complet) | viewer
+/// (lecture seule) — union TS côté applicatif, fail-closed partout ailleurs.
+model AdminUser {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastSignInAt  DateTime?
+
+  /// Role admin : operator | viewer. Posé à la création depuis l'invitation
+  /// (jamais depuis le formulaire de sign-up — input: false côté Better Auth).
+  role String @default("viewer")
+  /// Champs du plugin admin Better Auth (ban temporaire/définitif).
+  banned     Boolean   @default(false)
+  banReason  String?
+  banExpires DateTime?
+
+  /// 2FA TOTP (plugin two-factor Better Auth) :
+  /// `twoFactorEnabled` vit sur le user, le secret dans `TwoFactor`.
+  twoFactorEnabled Boolean @default(false)
+
+  /// Email du Member lié (affichage nom/avatar). Sans FK — pattern maison.
+  memberEmail String? @unique
+  /// Email de l'operator ayant créé le compte (traçabilité).
+  createdBy   String?
+
+  sessions      AdminSession[]
+  accounts      AdminAccount[]
+  verifications AdminVerification[]
+  twoFactors    TwoFactor[]
+
+  @@index([email])
+  @@index([memberEmail])
+  @@index([role])
+}
+
+/// Sessions admin — une ligne = un cookie = un appareil.
+model AdminSession {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Champ du plugin admin (impersonation — désactivée mais présent).
+  impersonatedBy String?
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+/// Comptes liés (credentials Better Auth : le hash du mot de passe vit ici,
+/// providerId = "credential").
+model AdminAccount {
+  id                String    @id @default(cuid())
+  accountId         String
+  providerId        String
+  userId            String
+  accessToken       String?
+  refreshToken      String?
+  idToken           String?
+  accessTokenExpiresAt DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope             String?
+  password          String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  user              AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+}
+
+/// Vérifications admin (email verification, password reset, flux 2FA).
+model AdminVerification {
+  id         String    @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  userId     String?
+  user       AdminUser? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([identifier])
+  @@index([expiresAt])
+}
+
+/// Secrets 2FA TOTP (plugin two-factor Better Auth).
+/// Table nommée `TwoFactor` (et non `AdminTwoFactor`) : en better-auth 1.7.6
+/// le nom de table est codé en dur côté runtime — le renommer casserait les
+/// requêtes de l'adapter. Elle reste isolée des membres : eux n'utilisent pas
+/// ce plugin.
+model TwoFactor {
+  id                      String    @id @default(cuid())
+  secret                  String
+  backupCodes             String
+  userId                  String
+  verified                Boolean   @default(true)
+  failedVerificationCount Int       @default(0)
+  lockedUntil             DateTime?
+  user                    AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([secret])
+}
+
+/// Invitations admin — nominatif, expirant, traçable.
+/// Le jeton brut (32 bytes aléatoires) n'existe que dans l'email ; seul son
+/// SHA-256 est stocké. Un compte ne peut être créé (sign-up) que si une
+/// invitation non expirée existe pour l'email (hook Better Auth).
+model AdminInvitation {
+  id         String    @id @default(cuid())
+  createdAt  DateTime  @default(now())
+  email      String    @unique
+  name       String?
+  role       String    @default("viewer")
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  /// Email de l'operator ayant émis l'invitation.
+  invitedBy  String?
+
+  @@index([email])
+  @@index([tokenHash])
+  @@index([expiresAt])
+  @@index([acceptedAt])
+}
+
 model RateLimit {
   id         String   @id @default(cuid())
   key        String   @unique

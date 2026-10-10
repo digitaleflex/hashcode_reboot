@@ -1,6 +1,25 @@
+// HASHCODE REBOOT — garde d'accès admin (routes API + server components).
+//
+// Source de vérité : la session Better Auth ADMIN (`hashcode-admin.session_token`,
+// cf. src/lib/auth/admin.ts) — compte nominatif avec rôle operator/viewer.
+//
+// PÉRIODE DE TRANSITION (migration passcode → comptes nominatifs) : à
+// défaut de session admin, on tente l'ancien chemin (session membre +
+// `Member.adminRole`) pour ne pas couper les sessions déjà ouvertes. Cette
+// branche de compatibilité sera retirée une fois tous les admins migrés
+// (voir scripts/migrate-admin-keys.ts et la migration follow-up qui supprime
+// AdminKey).
+
 import { NextRequest } from "next/server";
 import { auth, getMemberFromRequest } from "@/lib/auth";
 import { db } from "@/lib/db";
+import {
+  getAdminSessionFromHeaders,
+  getAdminSessionFromRequest,
+  type AdminRole,
+} from "@/lib/auth/admin";
+
+export type { AdminRole } from "@/lib/auth/admin";
 
 /** Check if the request origin matches the host (CSRF protection). */
 export function checkCSRF(req: NextRequest): boolean {
@@ -15,35 +34,24 @@ export function checkCSRF(req: NextRequest): boolean {
   }
 }
 
+type AdminContext = { email: string; role: AdminRole };
+
 /**
- * Resolve the current Better Auth session and the admin role for it, if admin.
- *
- * Accepte soit un `NextRequest` (routes API), soit un objet `headers` — les
- * server components n'ont pas de `NextRequest` mais lisent `next/headers`.
- *
- * La colonne `Member.adminRole` est la seule source de vérité : seuls les
- * rôles exacts `"operator"` et `"viewer"` (après normalisation
- * casse/espaces) ouvrent l'espace admin. Tout le reste — rôle `null`,
- * membre introuvable, valeur inconnue, erreur DB, session absente — vaut
- * `null` ⇒ pas admin (fail-closed, jamais de défaut vers operator).
+ * Ancien chemin (compatibilité transition) : session membre + Member.adminRole.
+ * Fail-closed partout : membre absent, rôle null/inconnu, erreur DB ⇒ null.
  */
-async function resolveAdminSessionFromHeaders(headers: Record<string, string>) {
+async function resolveLegacyAdminSession(
+  headers: Record<string, string>,
+): Promise<AdminContext | null> {
   try {
-    const session = await auth.api.getSession({ headers: headers as any });
+    const session = await auth.api.getSession({ headers: headers as never });
     const email = session?.user?.email?.toLowerCase();
     if (!email) return null;
-    let member: { adminRole: string | null } | null;
-    try {
-      member = await db.member.findUnique({
-        where: { email },
-        select: { adminRole: true },
-      });
-    } catch {
-      return null;
-    }
-    const role = String(member?.adminRole ?? "")
-      .trim()
-      .toLowerCase();
+    const member = await db.member.findUnique({
+      where: { email },
+      select: { adminRole: true },
+    });
+    const role = String(member?.adminRole ?? "").trim().toLowerCase();
     if (role === "operator") return { email, role: "operator" as const };
     if (role === "viewer") return { email, role: "viewer" as const };
     return null;
@@ -52,50 +60,63 @@ async function resolveAdminSessionFromHeaders(headers: Record<string, string>) {
   }
 }
 
-async function resolveAdminSession(req: NextRequest) {
-  const member = await getMemberFromRequest(req);
-  if (!member) return null;
-  const role = String(member.adminRole ?? "").trim().toLowerCase();
-  if (role === "operator") return { email: member.email, role: "operator" as const };
-  if (role === "viewer") return { email: member.email, role: "viewer" as const };
-  return null;
+/**
+ * Résout le contexte admin depuis des headers bruts (routes API, SC).
+ * Ordre : session admin nominative (vérité), puis ancien chemin membre.
+ */
+async function resolveAdminFromHeaders(
+  headers: Record<string, string>,
+): Promise<AdminContext | null> {
+  const admin = await getAdminSessionFromHeaders(headers);
+  if (admin) return { email: admin.email, role: admin.role };
+  return resolveLegacyAdminSession(headers);
 }
 
 /**
  * Rôle admin pour un server component.
  *
- * `proxy.ts` tourne en Edge runtime, où la base de données n'est pas
- * accessible : le rôle ne peut donc pas y être évalué. Cette
- * fonction comble ce trou côté serveur (runtime Node) pour que `/admin`
- * refuse un membre authentifié mais non-admin — un cookie Better Auth valide
- * ne suffit pas à ouvrir l'espace admin.
+ * `proxy.ts` tourne en Edge runtime, où la base n'est pas accessible : le
+ * rôle ne peut pas y être évalué. Cette fonction comble ce trou côté serveur
+ * (runtime Node) pour que `/admin` refuse un membre authentifié mais
+ * non-admin — un cookie Better Auth membre valide ne suffit PAS à ouvrir
+ * l'espace admin (seul `hashcode-admin.session_token` le fait ; l'ancien
+ * chemin Member.adminRole est conservé le temps de la migration).
  */
-export async function getAdminRoleFromRequestHeaders(): Promise<{
-  email: string;
-  role: "viewer" | "operator";
-} | null> {
+export async function getAdminRoleFromRequestHeaders(): Promise<AdminContext | null> {
   try {
     const { headers } = await import("next/headers");
     const headersObj = Object.fromEntries((await headers()).entries());
-    return resolveAdminSessionFromHeaders(headersObj);
+    return resolveAdminFromHeaders(headersObj);
   } catch {
     return null;
   }
 }
 
+/** Contexte admin complet (email + rôle) pour un server component. */
+export async function getAdminContextFromRequestHeaders(): Promise<AdminContext | null> {
+  return getAdminRoleFromRequestHeaders();
+}
+
 /** Check if the current request is from an authenticated admin (any role). */
 export async function isAdminAuthed(req: NextRequest): Promise<boolean> {
-  return (await resolveAdminSession(req)) !== null;
+  return (await resolveAdminFromRequest(req)) !== null;
+}
+
+async function resolveAdminFromRequest(req: NextRequest): Promise<AdminContext | null> {
+  const headers = Object.fromEntries(req.headers.entries()) as Record<string, string>;
+  const admin = await getAdminSessionFromRequest(req);
+  if (admin) return { email: admin.email, role: admin.role };
+  return resolveLegacyAdminSession(headers);
 }
 
 /** Get the admin role for this request, or null if not an admin. */
-export async function getAdminRole(req: NextRequest): Promise<"viewer" | "operator" | null> {
-  return (await resolveAdminSession(req))?.role ?? null;
+export async function getAdminRole(req: NextRequest): Promise<AdminRole | null> {
+  return (await resolveAdminFromRequest(req))?.role ?? null;
 }
 
 /** Get the admin identity (email) for this request, or "unknown". */
 export async function getAdminIdentity(req: NextRequest): Promise<string> {
-  return (await resolveAdminSession(req))?.email ?? "unknown";
+  return (await resolveAdminFromRequest(req))?.email ?? "unknown";
 }
 
 /**
@@ -106,7 +127,7 @@ export async function requireAdminRole(
   req: NextRequest,
   allowedRole: "viewer" | "operator" = "operator",
 ): Promise<boolean> {
-  const ctx = await resolveAdminSession(req);
+  const ctx = await resolveAdminFromRequest(req);
   if (!ctx) return false;
   return ctx.role === "operator" || ctx.role === allowedRole;
 }
