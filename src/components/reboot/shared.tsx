@@ -29,15 +29,15 @@ export function RebootButton({
   variant?: "primary" | "ghost" | "outline";
 }) {
   const sizes = {
-    sm: "min-h-[44px] h-11 px-4 text-sm",
-    md: "min-h-[44px] h-11 px-5 text-sm",
-    lg: "min-h-[48px] h-12 px-6 text-base",
+    sm: "min-h-[44px] h-11 min-w-[44px] px-4 text-sm",
+    md: "min-h-[44px] h-11 min-w-[44px] px-5 text-sm",
+    lg: "min-h-[48px] h-12 min-w-[48px] px-6 text-base",
   };
   const variants = {
     primary:
-      "bg-lime text-black hover:bg-lime/90 font-medium border border-transparent",
+      "bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs transition-colors focus-visible:ring-ring focus-visible:ring-[3px] rounded-md font-medium",
     ghost:
-      "bg-transparent text-foreground hover:bg-secondary hover:text-foreground border border-transparent",
+      "bg-transparent text-foreground hover:text-foreground hover:bg-secondary transition-colors focus-visible:ring-ring focus-visible:ring-[3px] rounded-md font-medium",
     outline:
       "bg-transparent text-foreground border border-border hover:border-lime/60 hover:text-lime",
   };
@@ -145,9 +145,9 @@ export function ExternalCta({
   onClick?: () => void;
 }) {
   const sizes = {
-    sm: "min-h-[44px] h-11 px-4 text-sm",
-    md: "min-h-[44px] h-11 px-5 text-sm",
-    lg: "min-h-[48px] h-12 px-6 text-base",
+    sm: "min-h-[44px] h-11 min-w-[44px] px-4 text-sm",
+    md: "min-h-[44px] h-11 min-w-[44px] px-5 text-sm",
+    lg: "min-h-[48px] h-12 min-w-[48px] px-6 text-base",
   };
 
   return (
