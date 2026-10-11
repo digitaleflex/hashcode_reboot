@@ -11,13 +11,14 @@
 // AdminKey).
 
 import { NextRequest } from "next/server";
-import { auth, getMemberFromRequest } from "@/lib/auth";
+import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
   getAdminSessionFromHeaders,
   getAdminSessionFromRequest,
   type AdminRole,
 } from "@/lib/auth/admin";
+import { normalizeAdminRole } from "@/lib/admin-roles";
 
 export type { AdminRole } from "@/lib/auth/admin";
 
@@ -51,10 +52,9 @@ async function resolveLegacyAdminSession(
       where: { email },
       select: { adminRole: true },
     });
-    const role = String(member?.adminRole ?? "").trim().toLowerCase();
-    if (role === "operator") return { email, role: "operator" as const };
-    if (role === "viewer") return { email, role: "viewer" as const };
-    return null;
+    const role = normalizeAdminRole(member?.adminRole);
+    if (!role) return null;
+    return { email, role };
   } catch {
     return null;
   }

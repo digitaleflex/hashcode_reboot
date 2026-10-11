@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 interface Event {
@@ -202,60 +203,65 @@ export default function AgendaPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <header>
-        <h1 className="font-display font-bold text-2xl tracking-tight">
-          {t("title")}
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          {t("subtitle")}
-        </p>
+      {/* En-tête professionnel */}
+      <header className="border-b border-border/60 pb-6 mb-8">
+        <h1 className="font-display font-bold text-3xl tracking-tight text-foreground">{t("title")}</h1>
+        <p className="text-sm text-muted-foreground mt-2 max-w-xl">{t("subtitle")}</p>
       </header>
 
-      {/* Filtres */}
-      <div className="flex items-center gap-3 flex-wrap">
+      {/* Filtres regroupés */}
+      <div className="flex flex-wrap items-center gap-3 mb-2">
         <div className="flex items-center gap-2">
-          <Filter className="size-6 text-muted-foreground" />
-          <span className="text-xs text-muted-foreground mono-label">{t("filters.type.label")}</span>
+          <Filter className="size-4 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground mono-label uppercase tracking-wide">{t("filters.type.label")}</span>
         </div>
-        <div className="flex gap-1.5">
+        <div className="flex gap-2 flex-wrap">
           {typeOptions.map((opt) => (
             <button
               key={opt.value}
               onClick={() => setFilterType(opt.value)}
               className={cn(
-                "px-3 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer",
+                "px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border",
                 filterType === opt.value
-                  ? "bg-lime/15 text-lime border border-lime/30"
-                  : "text-muted-foreground border border-border/60 hover:border-lime/30",
+                  ? "bg-lime/15 text-lime border-lime/40 shadow-sm shadow-lime/10"
+                  : "text-muted-foreground border-border/50 hover:border-lime/30 hover:text-foreground",
               )}
+              aria-pressed={filterType === opt.value}
             >
               {opt.label}
             </button>
           ))}
         </div>
-
-        <div className="w-px h-4 bg-border/60 mx-1" />
-
+        <div className="w-px h-5 bg-border/40 hidden sm:block" />
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground mono-label">{t("filters.domain.label")}</span>
+          <span className="text-xs text-muted-foreground mono-label uppercase tracking-wide">{t("filters.domain.label")}</span>
         </div>
-        <div className="flex gap-1.5">
+        <div className="flex gap-2 flex-wrap">
           {domainOptions.map((opt) => (
             <button
               key={opt.value}
               onClick={() => setFilterDomain(opt.value)}
               className={cn(
-                "px-3 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer",
+                "px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border",
                 filterDomain === opt.value
-                  ? "bg-lime/15 text-lime border border-lime/30"
-                  : "text-muted-foreground border border-border/60 hover:border-lime/30",
+                  ? "bg-lime/15 text-lime border-lime/40 shadow-sm shadow-lime/10"
+                  : "text-muted-foreground border-border/50 hover:border-lime/30 hover:text-foreground",
               )}
+              aria-pressed={filterDomain === opt.value}
             >
               {opt.label}
             </button>
           ))}
         </div>
+        {(filterType !== "all" || filterDomain !== "all") && (
+          <button
+            onClick={() => { setFilterType("all"); setFilterDomain("all"); }}
+            className="ml-auto text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 cursor-pointer"
+            aria-label={t("filters.resetAria") ?? "Réinitialiser"}
+          >
+            Réinitialiser
+          </button>
+        )}
       </div>
 
       {/* Contenu */}
@@ -287,12 +293,15 @@ export default function AgendaPage() {
       )}
 
       {!loading && !error && events.length === 0 && (
-        <div className="text-center py-12">
-          <Calendar className="size-12 text-muted-foreground/20 mx-auto mb-4" />
-          <p className="text-muted-foreground">{t("empty.title")}</p>
-          <p className="text-xs text-muted-foreground/60 mt-1">
-            {t("empty.description")}
-          </p>
+        <div className="rounded-xl border border-border/60 bg-card/25 p-10 text-center space-y-4">
+          <div className="mx-auto size-12 rounded-full bg-muted/30 flex items-center justify-center">
+            <Calendar className="size-6 text-muted-foreground/40" />
+          </div>
+          <h3 className="font-display font-semibold text-lg">{t("empty.title")}</h3>
+          <p className="text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed">{t("empty.description")}</p>
+          <Link href="/dashboard/ateliers" className="inline-flex items-center gap-1.5 rounded-md bg-lime px-4 py-2.5 text-sm font-medium text-background hover:bg-lime/90 transition-colors">
+            Découvrir les ateliers
+          </Link>
         </div>
       )}
 
@@ -314,11 +323,25 @@ export default function AgendaPage() {
                     <div
                       key={event.id}
                       className={cn(
-                        "rounded-lg border border-border/60 bg-card/40 p-5",
-                        "hover:border-lime/30 transition-colors",
+                        "rounded-xl border border-border/60 bg-card p-5 transition-colors",
+                        "hover:border-lime/30 hover:bg-card/80",
                         event.status === "live" && "border-red-500/30 bg-red-500/5",
                       )}
                     >
+                      {/* Date proéminente */}
+                      <div className="flex items-center gap-3 mb-3">
+                        <span className="inline-flex items-center gap-2 rounded-lg bg-lime/10 border border-lime/20 px-3 py-1 text-sm font-medium text-lime tracking-tight">
+                          <Calendar className="size-4" />
+                          {formatEventDate(event.startsAt)}
+                        </span>
+                        {event.status === "live" && (
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-500/10 px-2.5 py-0.5 text-xs font-medium text-red-400">
+                            <span className="inline-block size-1.5 rounded-full bg-red-400 animate-pulse" />
+                            En cours
+                          </span>
+                        )}
+                      </div>
+
                       <div className="flex items-start gap-4">
                         {/* Icône type */}
                         <span className={cn("shrink-0 mt-0.5", config.color)}>

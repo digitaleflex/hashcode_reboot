@@ -8,7 +8,7 @@ import { Logo } from "@/components/brand/logo";
 
 /**
  * Connexion admin nominative — email + mot de passe, puis code 2FA (TOTP)
- * si le compte l'a activée (obligatoire pour les operators).
+ * si le compte l'a activée (optionnelle, désactivée par défaut).
  *
  * Better Auth renvoie `twoFactorRedirect` après un sign-in réussi quand la
  * 2FA est active : le handler global (setTwoFactorRedirectHandler) bascule
@@ -118,7 +118,7 @@ export default function AdminLoginPage() {
                 <Shield className="mx-auto size-10 text-lime mb-3" aria-hidden />
                 <h1 className="text-2xl font-bold text-foreground">Espace admin</h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Connexion nominative — 2FA obligatoire pour les opérateurs
+                  Connexion nominative — email + mot de passe
                 </p>
               </div>
 

@@ -167,7 +167,7 @@
 2. Créer modèles `AdminUser`, `AdminSession` (remplace `AdminKey`)
 3. Routes `/api/auth/*` (signin, callback, signout)
 4. Middleware `requireAdminRole` → `getServerSession`
-5. UI `/admin/login` → formulaire email/mot de passe + 2FA (TOTP)
+5. UI `/admin/login` → formulaire email/mot de passe (+ 2FA TOTP optionnelle)
 6. Migration données : passcode → comptes nominatifs (invitation unique)
 7. Supprimer `admin-passcode.ts`, `admin-auth.ts`, `admin-roles.ts`
 

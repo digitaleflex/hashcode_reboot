@@ -192,7 +192,7 @@ export function ProfilingFlow({
     }
 
     if (q.id === "threeMonthGoal") {
-      setPhase("review");  // #UI-008: review before submit
+      setPhase("review");  // #UI-008: review obligatoire avant soumission (I6-clair)
       return;
     }
     setDirection(1);
@@ -213,6 +213,18 @@ export function ProfilingFlow({
     setStep((s) => Math.max(0, s - 1));
     setLocalError(null);
   }
+
+  // Keyboard shortcut for Back (I1)
+  React.useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape" || (e.key === "ArrowLeft" && document.activeElement?.tagName !== "TEXTAREA" && document.activeElement?.tagName !== "INPUT")) {
+        e.preventDefault();
+        goBack();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [goBack]);
 
   function resume() {
     track({ type: "profiling_resumed" });

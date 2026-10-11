@@ -96,11 +96,11 @@ function formatRemaining(ms: number): string {
 }
 
 export function SessionReminder() {
-  const t = useTranslations("admin.sessionReminder");
+  const t = useTranslations("admin.sidebar.sessionReminder");
   const [expiry] = React.useState<number>(() =>
     typeof window === "undefined" ? Date.now() + SESSION_MS : readStart() + SESSION_MS,
   );
-  const [now, setNow] = React.useState<number>(() => Date.now());
+  const [now, setNow] = React.useState<number>(0);
   const [dismissedFirst, setDismissedFirst] = React.useState(false);
   const [dismissedLast, setDismissedLast] = React.useState(false);
   const [restoreInfo, setRestoreInfo] = React.useState<string | null>(null);
@@ -109,6 +109,7 @@ export function SessionReminder() {
 
   // Horloge + sauvegarde périodique discrète.
   React.useEffect(() => {
+    setNow(Date.now());
     const t = window.setInterval(() => {
       setNow(Date.now());
       saveDrafts(false);

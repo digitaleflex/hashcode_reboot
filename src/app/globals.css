@@ -44,7 +44,7 @@
      Sans cette ligne, il n'existe aucun `--color-lime` et les utilitaires `text-lime`,
      `bg-lime`, `border-lime`, `ring-lime`… ne génèrent AUCUN CSS. Alias sur --primary
      pour que la marque reste HASH LIME (#C5F441) et non le lime par défaut de Tailwind. */
-  --color-lime: var(--primary);
+  --color-lime: var(--primary); /* ⚠️ V1 : alias dépendant de --primary. Si --primary change, la marque lime change silencieusement. */
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -60,30 +60,30 @@
 :root {
   --radius: 8px;
 
-  --background: oklch(0.16 0 0);          /* #0A0A0A — VOID */
-  --foreground: oklch(0.97 0.005 120);    /* #F8FAFC — TEXT PRIMARY */
-  --card: oklch(0.20 0 0);                /* SURFACE #141414 */
-  --card-foreground: oklch(0.97 0.005 120);
+  --background: #080A0C;          /* VOID premium */
+  --foreground: #F5F7FA;         /* texte principal */
+  --card: #111418;                /* surface principale */
+  --card-foreground: #F5F7FA;
   --popover: oklch(0.18 0 0);
   --popover-foreground: oklch(0.97 0.005 120);
 
-  --primary: oklch(0.92 0.21 125);        /* HASH LIME #C5F441 */
-  --primary-foreground: oklch(0.16 0 0);  /* dark text on lime */
+  --primary: #C5F441;               /* HASH LIME premium */
+  --primary-foreground: #080A0C;    /* texte sombre sur lime */
 
-  --secondary: oklch(0.24 0 0);           /* ELEVATED #1A1A1A */
+  --secondary: #171B1F;              /* surface secondaire */
   --secondary-foreground: oklch(0.97 0.005 120);
 
-  --muted: oklch(0.22 0 0);
-  --muted-foreground: oklch(0.82 0.01 240); /* #C8CDD5 — TEXT SECONDARY (4.8:1 sur card 0.20) */
+  --muted: #171B1F;                  /* surface secondaire (muted) */
+  --muted-foreground: #9AA3AD;       /* texte secondaire */
 
   --accent: oklch(0.27 0 0);
   --accent-foreground: oklch(0.97 0.005 120);
 
   --destructive: oklch(0.62 0.22 25);
 
-  --border: oklch(0.42 0 0);              /* #5A5A5A — BORDER (3.3:1 sur card 0.20) */
+  --border: #2A3036;                 /* bordure premium */
   --input: oklch(0.42 0 0);
-  --ring: oklch(0.92 0.21 125);           /* lime ring */
+  --ring: #C5F441;                    /* lime ring */
 
   --chart-1: oklch(0.92 0.21 125);         /* lime */
   --chart-2: oklch(0.70 0.12 200);
@@ -245,7 +245,7 @@
 
 /* Lime focus ring for keyboard nav */
 .focus-lime:focus-visible {
-  outline: 2px solid var(--primary);
+  outline: 3px solid var(--primary);
   outline-offset: 2px;
 }
 
@@ -323,6 +323,10 @@
 }
 .animate-hash-pulse {
   animation: hash-pulse 2s ease-in-out infinite;
+}
+.animate-hash-pulse:hover,
+.animate-hash-pulse:focus-within {
+  animation-play-state: paused;
 }
 
 /* Counter rollup */

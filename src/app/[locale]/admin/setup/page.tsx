@@ -15,9 +15,9 @@ import { Logo } from "@/components/brand/logo";
  *    l'invitation en base, vérifie l'email et pose le rôle. Aucun compte ne
  *    peut être créé sans invitation : le endpoint sign-up est public mais
  *    gardé par ce hook.
- * 3. autoSignIn:true → session immédiate → l'operator est redirigé vers
- *    l'enrôlement 2FA obligatoire (/admin/setup-2fa), le viewer vers le
- *    dashboard.
+ * 3. autoSignIn:true → session immédiate → redirection directe vers le
+ *    dashboard. La 2FA est OPTIONNELLE (désactivée par défaut) : l'admin
+ *    peut l'activer plus tard depuis /admin/settings.
  */
 
 type Invitation = {
@@ -104,12 +104,9 @@ export default function AdminSetupPage() {
         return;
       }
 
-      // Session créée (autoSignIn) : l'operator DOIT enroler sa 2FA
-      // (le layout /admin l'y renverrait de toute façon), le viewer va au
-      // dashboard.
-      const destination =
-        invitation.role === "operator" ? "/admin/setup-2fa" : "/admin/dashboard";
-      router.push(destination);
+      // Session créée (autoSignIn) : direction le dashboard. La 2FA est
+      // optionnelle — l'admin l'active plus tard s'il le souhaite.
+      router.push("/admin/dashboard");
       router.refresh();
     } catch {
       setError("Activation impossible. Réessaye.");
@@ -221,17 +218,13 @@ export default function AdminSetupPage() {
                   className="w-full rounded-md bg-lime px-4 py-2.5 text-sm font-medium text-lime-foreground hover:bg-lime/90 focus:outline-none focus:ring-2 focus:ring-lime focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] flex items-center justify-center gap-2"
                 >
                   {submitting && <Loader2 className="size-4 animate-spin" aria-hidden />}
-                  {invitation.role === "operator"
-                    ? "Créer mon compte et activer la 2FA"
-                    : "Créer mon compte"}
+                  Créer mon compte
                 </button>
 
-                {invitation.role === "operator" && (
-                  <p className="text-xs text-muted-foreground text-center">
-                    Étape suivante : configuration de l'authentification à deux facteurs
-                    (obligatoire pour les opérateurs).
-                  </p>
-                )}
+                <p className="text-xs text-muted-foreground text-center">
+                  La 2FA est optionnelle — tu pourras l&apos;activer depuis les
+                  paramètres après ta première connexion.
+                </p>
               </form>
             </>
           )}

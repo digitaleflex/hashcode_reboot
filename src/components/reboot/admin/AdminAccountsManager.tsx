@@ -350,7 +350,6 @@ export function AdminAccountsManager({ onSessionExpired }: { onSessionExpired: (
                     size="sm"
                     disabled={busyId === a.id}
                     onClick={() => void handleReset2fa(a.id, a.email)}
-                    title="Réinitialiser la 2FA (téléphone perdu) et fermer les sessions"
                     className="gap-1.5"
                   >
                     <KeyRound className="size-3.5" aria-hidden />
@@ -361,7 +360,6 @@ export function AdminAccountsManager({ onSessionExpired }: { onSessionExpired: (
                     size="sm"
                     disabled={busyId === a.id}
                     onClick={() => void handleRevoke(a.id, a.email)}
-                    title="Révoquer l'accès"
                     className="gap-1.5 text-destructive hover:text-destructive"
                   >
                     <Trash2 className="size-3.5" aria-hidden />
@@ -398,10 +396,11 @@ export function AdminAccountsManager({ onSessionExpired }: { onSessionExpired: (
                   variant="ghost"
                   size="sm"
                   disabled={busyId === i.id}
-                  onClick={() => handleRevokeInvitation(i)}
-                  title="Annuler l'invitation"
+                  onClick={() => void handleRevokeInvitation(i)}
+                  className="gap-1.5 text-muted-foreground hover:text-foreground"
                 >
                   <Trash2 className="size-3.5" aria-hidden />
+                  <span className="hidden sm:inline">Annuler</span>
                 </RebootButton>
               </li>
             ))}

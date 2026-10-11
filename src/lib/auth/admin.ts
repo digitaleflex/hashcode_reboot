@@ -3,10 +3,11 @@
 // Instance SÉPARÉE de l'auth membre (src/lib/auth/index.ts) :
 //   - modèles dédiés (AdminUser/AdminSession/AdminAccount/AdminVerification,
 //     cf. `modelName` ci-dessous) — aucune donnée partagée avec User/Session ;
-//   - cookie dédié `hashcode-admin.session_token` (advanced.cookiePrefix) —
-     //     un cookie membre ne peut donc PAS ouvrir l'espace admin ;
+//   - cookie dédié `hashcode-admin.session_token` (advanced.cookiePrefix) :
+//     un cookie membre ne peut donc PAS ouvrir l'espace admin ;
 //   - méthodes : email + mot de passe (scrypt côté Better Auth) + 2FA TOTP
-//     (obligatoire pour les operators, voir middleware.ts + setup-2fa).
+//     OPTIONNELLE (désactivée par défaut — l'admin l'active volontairement
+//     depuis /admin/settings ou /admin/setup-2fa).
 //
 // Invitation = seul chemin de création de compte : `databaseHooks.user.create`
 // refuse toute inscription dont l'email n'a pas une AdminInvitation valide
@@ -15,7 +16,7 @@
 
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { admin, twoFactor } from "better-auth/plugins";
+import { admin, twoFactor, createAccessControl } from "better-auth/plugins";
 import { toNextJsHandler } from "better-auth/next-js";
 import type { NextRequest } from "next/server";
 import { db } from "@/lib/db";
@@ -30,6 +31,45 @@ export const ADMIN_SESSION_COOKIE = `${ADMIN_COOKIE_PREFIX}.session_token`;
 export type AdminRole = "operator" | "viewer";
 
 const DEFAULT_BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+
+// Contrôle d'accès du plugin admin. Statements alignées sur ses routes
+// internes (list-users, ban, set-role, revoke-session…). L'impersonation est
+// volontairement absente des deux rôles : aucun admin ne peut prendre la
+// place d'un autre.
+const adminAc = createAccessControl({
+  user: [
+    "create",
+    "list",
+    "set-role",
+    "ban",
+    "delete",
+    "set-password",
+    "set-email",
+    "get",
+    "update",
+  ],
+  session: ["list", "revoke", "delete"],
+} as const);
+
+const operatorRole = adminAc.newRole({
+  user: [
+    "create",
+    "list",
+    "set-role",
+    "ban",
+    "delete",
+    "set-password",
+    "set-email",
+    "get",
+    "update",
+  ],
+  session: ["list", "revoke", "delete"],
+});
+
+const viewerRole = adminAc.newRole({
+  user: ["list", "get"],
+  session: ["list"],
+});
 
 export const adminAuth = betterAuth({
   database: prismaAdapter(db, {
@@ -81,17 +121,19 @@ export const adminAuth = betterAuth({
     autoSignInAfterVerification: true,
   },
 
-  // ── Session : stricte (espace admin) ───────────────────────────────────
-  // (modelName + durée : cf. bloc « Modèles dédiés » plus haut)
-
   // ── Plugins ────────────────────────────────────────────────────────────
+  // Rôles natifs : operator (accès complet) | viewer (lecture seule).
+  // `roles` DOIT être fourni avec des adminRoles personnalisés, sinon le
+  // plugin rejette la config au démarrage (rôles inconnus de son AC par
+  // défaut). Impersonation désactivée (aucun bouton "devenir" un admin).
   plugins: [
-    // Rôles natifs : operator (accès complet) | viewer (lecture seule).
-    // Impersonation désactivée (pas de bouton "devenir" un autre admin).
     admin({
       defaultRole: "viewer",
       adminRoles: ["operator", "viewer"],
-      impersonationSessionDuration: 0,
+      roles: {
+        operator: operatorRole,
+        viewer: viewerRole,
+      },
     }),
     // 2FA TOTP — le secret est chiffré au repos (symétrique, clé = secret
     // d'app). `skipVerificationOnEnable: false` : la 2FA n'est active
@@ -102,13 +144,18 @@ export const adminAuth = betterAuth({
     }),
   ],
 
-  // ── Hooks de sécurité ──────────────────────────────────────────────────
+  // ── Hook de création de compte : invitation obligatoire ────────────────
+  // Seuil unique de création (fail-closed) : invitation absente, déjà
+  // consommée ou expirée ⇒ refus. L'invitation fait office de preuve
+  // d'email (reçue à cette adresse) et porte le rôle attribué.
+  //
+  // Pas de hook `user.update` : `role` est en `input: false` dans le schéma
+  // du plugin admin (parseUserInput le retire des corps `/update-user`), et
+  // le changement de rôle passe par PATCH /api/admin/admins qui écrit en
+  // Prisma direct. Moins de surface, pas de blocage des routes internes.
   databaseHooks: {
     user: {
       create: {
-        // Seuil de création de compte : invitation valide obligatoire.
-        // Fail-closed : invitation absente / déjà consommée / expirée ⇒
-        // refus (return false).
         before: async (user, _ctx) => {
           const email = String(user.email ?? "").trim().toLowerCase();
           const invitation = await db.adminInvitation.findUnique({ where: { email } });
@@ -116,8 +163,7 @@ export const adminAuth = betterAuth({
           if (invitation.acceptedAt) return false;
           if (invitation.expiresAt.getTime() < Date.now()) return false;
 
-          // L'invitation fait office de preuve d'email : on vérifie et on
-          // consomme (un ancien jeton ne peut plus créer de second compte).
+          // Consommation : un jeton ne crée qu'un seul compte.
           await db.adminInvitation.update({
             where: { email },
             data: { acceptedAt: new Date() },
@@ -129,29 +175,10 @@ export const adminAuth = betterAuth({
               email,
               name: user.name || invitation.name || undefined,
               emailVerified: true,
-              // Le rôle invité prime sur le defaultRole du plugin admin.
+              // Le rôle invité prime sur le defaultRole du plugin.
               role: invitation.role === "operator" ? "operator" : "viewer",
-              // Pas de memberEmail automatique (aucun lien Member implicite).
-              memberEmail: null,
             },
           };
-        },
-      },
-      update: {
-        // Empêche l'auto-promotion depuis un formulaire : le changement de
-        // rôle passe uniquement par l'API admin (PATCH /api/admin/admins).
-        // Les routes du plugin admin (/admin/set-role) ne passent PAS par ce
-        // hook générique — elles ont leur propre garde operator.
-        before: async (user, ctx) => {
-          const data = (ctx as { body?: Record<string, unknown> } | null)?.body;
-          if (
-            data &&
-            typeof data === "object" &&
-            "role" in data &&
-            data.role !== user.role
-          ) {
-            return false;
-          }
         },
       },
     },
@@ -177,6 +204,11 @@ export const adminAuth = betterAuth({
   },
 
   baseURL: DEFAULT_BASE_URL,
+  // basePath DÉDIÉ (`/api/admin-auth`) et non `/api/auth/admin` : ce dernier
+  // est intercepté par le catch-all de l'auth MEMRE (`/api/auth/[...betterAuth]`)
+  // qui répond 404 avant d'atteindre la route admin — deux catch-alls sous le
+  // même préfixe ne coexistent pas en App Router.
+  basePath: "/api/admin-auth",
   trustedOrigins: [DEFAULT_BASE_URL],
 });
 
@@ -236,12 +268,12 @@ export async function getAdminSession() {
 
 /** Exige un operator — pour les routes d'administration sensibles. */
 export async function requireAdminOperator(req: NextRequest) {
-  const admin = await getAdminSessionFromRequest(req);
-  if (!admin || admin.role !== "operator") return null;
-  return admin;
+  const adminUser = await getAdminSessionFromRequest(req);
+  if (!adminUser || adminUser.role !== "operator") return null;
+  return adminUser;
 }
 
 export type AdminSessionUser = NonNullable<Awaited<ReturnType<typeof getAdminSessionFromHeaders>>>;
 
-/** Handler Next.js pour toutes les routes /api/auth/admin/* */
+/** Handler Next.js pour toutes les routes /api/admin-auth/* */
 export const adminAuthHandler = toNextJsHandler(adminAuth.handler);

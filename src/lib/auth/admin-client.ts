@@ -17,12 +17,12 @@ export function setTwoFactorRedirectHandler(handler: TwoFactorRedirectHandler | 
 
 export const adminAuthClient = createAuthClient({
   baseURL: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
-  basePath: "/api/auth/admin",
+  basePath: "/api/admin-auth",
   plugins: [
     adminClient(),
     twoFactorClient({
       onTwoFactorRedirect: ({ twoFactorMethods }) => {
-        onTwoFactorRedirect?.(twoFactorMethods);
+        onTwoFactorRedirect?.(twoFactorMethods ?? []);
       },
     }),
   ],

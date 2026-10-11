@@ -36,7 +36,7 @@ export default async function DashboardPage() {
   const data = buildAccountData(member);
 
   return (
-    <div className="mx-auto max-w-4xl w-full px-5 sm:px-8 py-8 space-y-6">
+    <div className="mx-auto max-w-7xl w-full px-5 sm:px-8 lg:px-12 py-8 lg:py-10">
       {/* Nudge WhatsApp : le numéro n'est plus demandé à l'inscription —
           on le récupère ici s'il manque (ajout direct au groupe). */}
       {!member.phone && (
@@ -56,43 +56,44 @@ export default async function DashboardPage() {
         status={data.status}
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <StatusCard status={data.status} />
-        <ProfileSummary profile={data.profile} member={data.member} />
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+        <div className="lg:col-span-8 space-y-6">
+          <WelcomeCard
+            firstName={data.member.firstName}
+            profile={data.profile}
+            status={data.status}
+          />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <StatusCard status={data.status} />
+            <ProfileSummary profile={data.profile} member={data.member} />
+          </div>
+          <OrientationSection memberId={session.member.id} member={member} />
+          <NextSteps archetype={data.profile?.archetype ?? null} />
+        </div>
+        <aside className="lg:col-span-4 space-y-6">
+          <AgendaCard />
+          <QuickActions
+            communityStatus={data.status.communityStatus}
+            profileStatus={data.status.profileStatus}
+          />
+          <Link
+            href="/dashboard/mentoring"
+            className="block rounded-xl border border-border/60 bg-card/40 p-6 space-y-4 hover:border-lime/40 transition-colors group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-lime/10 group-hover:bg-lime/20 transition-colors">
+                <GraduationCap className="size-5 text-lime" />
+              </div>
+              <div>
+                <h3 className="font-display font-semibold text-lg">{t("mentoring.title")}</h3>
+                <p className="text-sm text-muted-foreground">{t("mentoring.subtitle")}</p>
+              </div>
+              <ArrowRight className="size-6 text-muted-foreground ml-auto group-hover:text-lime transition-colors" />
+            </div>
+            <div className="text-sm text-muted-foreground">{t("mentoring.description")}</div>
+          </Link>
+        </aside>
       </div>
-
-      <OrientationSection memberId={session.member.id} member={member} />
-
-      <NextSteps archetype={data.profile?.archetype ?? null} />
-
-      <QuickActions
-        communityStatus={data.status.communityStatus}
-        profileStatus={data.status.profileStatus}
-      />
-
-      <AgendaCard />
-
-      {/* Mentorship preview — links to dedicated mentoring page */}
-      <Link
-        href="/dashboard/mentoring"
-        className="block rounded-xl border border-border/60 bg-card/40 p-6 space-y-4 hover:border-lime/40 transition-colors group"
-      >
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-lime/10 group-hover:bg-lime/20 transition-colors">
-            <GraduationCap className="size-5 text-lime" />
-          </div>
-          <div>
-            <h3 className="font-display font-semibold text-lg">{t("mentoring.title")}</h3>
-            <p className="text-sm text-muted-foreground">
-              {t("mentoring.subtitle")}
-            </p>
-          </div>
-          <ArrowRight className="size-6 text-muted-foreground ml-auto group-hover:text-lime transition-colors" />
-        </div>
-        <div className="text-sm text-muted-foreground">
-          {t("mentoring.description")}
-        </div>
-      </Link>
 
       {/* Membre depuis */}
       <p className="text-center text-xs text-muted-foreground pt-4">

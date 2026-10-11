@@ -27,7 +27,7 @@ export default async function DashboardProfilePage() {
   const data = buildAccountData(member);
 
   return (
-    <div className="mx-auto max-w-4xl w-full px-5 sm:px-8 py-8 space-y-6">
+    <div className="mx-auto max-w-7xl w-full px-5 sm:px-8 lg:px-12 py-8 lg:py-10">
       <header>
         <h1 className="font-display font-bold text-2xl tracking-tight">
           {t("pageTitle")}
@@ -37,33 +37,36 @@ export default async function DashboardProfilePage() {
         </p>
       </header>
 
-      <AccountHeader
-        member={data.member}
-        profile={data.profile}
-        status={data.status}
-      />
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <ProfileSummary profile={data.profile} member={data.member} />
-        <StatusCard status={data.status} />
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+        <div className="lg:col-span-8 space-y-6">
+          <AccountHeader
+            member={data.member}
+            profile={data.profile}
+            status={data.status}
+          />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <ProfileSummary profile={data.profile} member={data.member} />
+            <StatusCard status={data.status} />
+          </div>
+          <section className="rounded-xl border border-border/60 bg-card p-5 sm:p-6">
+            <h2 className="font-display font-bold text-base tracking-tight text-foreground mb-4">
+              {t("goalSectionTitle")}
+            </h2>
+            <GoalEditor initialGoal={data.member.threeMonthGoal} />
+          </section>
+        </div>
+        <aside className="lg:col-span-4 space-y-6">
+          <section className="rounded-xl border border-border/60 bg-card p-5 sm:p-6">
+            <h2 className="font-display font-bold text-base tracking-tight text-foreground mb-4">
+              {t("publicProfileSectionTitle")}
+            </h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              {t("publicProfileDescription")}
+            </p>
+            <ShareProfile memberId={data.member.id} />
+          </section>
+        </aside>
       </div>
-
-      <section className="rounded-lg border border-border/60 bg-card/40 p-5 sm:p-6">
-        <h2 className="font-display font-bold text-sm tracking-tight mono-label text-muted-foreground uppercase mb-4">
-          {t("goalSectionTitle")}
-        </h2>
-        <GoalEditor initialGoal={data.member.threeMonthGoal} />
-      </section>
-
-      <section className="rounded-lg border border-border/60 bg-card/40 p-5 sm:p-6">
-        <h2 className="font-display font-bold text-sm tracking-tight mono-label text-muted-foreground uppercase mb-2">
-          {t("publicProfileSectionTitle")}
-        </h2>
-        <p className="text-sm text-muted-foreground mb-4">
-          {t("publicProfileDescription")}
-        </p>
-        <ShareProfile memberId={data.member.id} />
-      </section>
     </div>
   );
 }

@@ -8,10 +8,12 @@ import { adminAuthClient, adminTwoFactor } from "@/lib/auth/admin-client";
 import { Logo } from "@/components/brand/logo";
 
 /**
- * Enrôlement 2FA (TOTP) — page atteinte :
- *   1. juste après l'activation d'une invitation operator (setup → ici) ;
- *   2. à chaque connexion d'un operator sans 2FA (forçage serveur dans
- *      AdminLayout — la 2FA est obligatoire pour les operators).
+ * Enrôlement 2FA (TOTP) — page 100% VOLONTAIRE.
+ *
+ * La 2FA est désactivée par défaut et ne bloque jamais l'accès : aucun
+ * forçage serveur (cf. AdminLayout). Cette page est atteinte uniquement par
+ * choix de l'admin, depuis `/admin/settings` (section Sécurité). Si la 2FA
+ * est déjà active, on renvoie vers les paramètres.
  *
  * Le secret est généré par Better Auth (`/two-factor/enable`) et chiffré au
  * repos. Le QR code est rendu LOCALEMENT (qrcode.react) : le secret ne
@@ -44,8 +46,8 @@ export default function AdminSetup2faPage() {
           return;
         }
         if (session.user.twoFactorEnabled) {
-          // Déjà enrolé : direction le dashboard.
-          router.replace("/admin/dashboard");
+          // Déjà enrollé : retour aux paramètres (rien à faire ici).
+          router.replace("/admin/settings");
           return;
         }
         setPhase("password");
@@ -79,7 +81,7 @@ export default function AdminSetup2faPage() {
         return;
       }
 
-      if (data?.totpURI) {
+      if (data?.method === "totp" && data.totpURI) {
         setTotpUri(data.totpURI);
         setBackupCodes(data.backupCodes ?? []);
         setPhase("scan");
@@ -267,11 +269,11 @@ export default function AdminSetup2faPage() {
               </p>
               <button
                 type="button"
-                onClick={() => router.push("/admin/dashboard")}
+                onClick={() => router.push("/admin/settings")}
                 className="w-full rounded-md bg-lime px-4 py-2.5 text-sm font-medium text-lime-foreground hover:bg-lime/90 transition-colors min-h-[44px] inline-flex items-center justify-center gap-2"
               >
                 <KeyRound className="size-4" aria-hidden />
-                Accéder au dashboard
+                Retour aux paramètres
               </button>
             </div>
           )}

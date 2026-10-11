@@ -656,7 +656,7 @@ function MiniStat({
 }) {
   return (
     <div className="flex min-w-0 items-center gap-3 rounded-lg border border-border/80 bg-background/45 p-3.5">
-      <span className="grid size-8 shrink-0 place-items-center rounded-md border border-border text-muted-foreground">
+      <span className="grid min-h-[44px] min-w-[44px] size-11 shrink-0 place-items-center rounded-md border border-border text-muted-foreground">
         {icon}
       </span>
       <div className="min-w-0">

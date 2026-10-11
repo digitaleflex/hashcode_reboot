@@ -62,7 +62,7 @@ function NavLink({
       title={collapsed ? t(item.label) : undefined}
       className={cn(
         "w-full flex items-center gap-3 rounded-md text-sm transition-colors duration-150 cursor-pointer group relative",
-        collapsed ? "justify-center px-0 py-2.5 mx-auto w-10" : "px-3 py-2.5",
+        collapsed ? "justify-center px-0 py-2.5 mx-auto w-11 min-w-[44px] min-h-[44px]" : "px-3 py-2.5 min-h-[44px]",
         active
           ? "bg-lime/10 text-lime font-medium"
           : "text-muted-foreground hover:text-foreground hover:bg-secondary",
@@ -129,11 +129,19 @@ export function DashboardSidebar({ firstName }: DashboardSidebarProps) {
     }
   }, [mobileOpen]);
 
-  // Lock body scroll quand mobile ouvert
+  // Lock body scroll + focus trap quand mobile ouvert
   React.useEffect(() => {
     if (mobileOpen) {
       document.body.style.overflow = "hidden";
-      return () => { document.body.style.overflow = ""; };
+      // Focus first interactive element in drawer
+      const timer = setTimeout(() => {
+        const first = document.querySelector('#dashboard-mobile-nav button, #dashboard-mobile-nav a') as HTMLElement | null;
+        first?.focus();
+      }, 50);
+      return () => {
+        document.body.style.overflow = "";
+        clearTimeout(timer);
+      };
     }
   }, [mobileOpen]);
 
