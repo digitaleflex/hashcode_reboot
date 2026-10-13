@@ -1,4 +1,7 @@
 import { redirect } from "next/navigation";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
+import { selectMessages } from "@/i18n/client-messages";
 import AdminShell from "@/components/reboot/admin/AdminShell";
 import { getAdminContextFromRequestHeaders } from "@/lib/admin-auth";
 import { isPublicAdminPath } from "@/lib/admin-roles";
@@ -39,14 +42,22 @@ export default async function AdminLayout({
   const headerList = await headers();
   const isPublicPageNoSession = headerList.get("x-hc-admin-public") === "1";
 
+  // Le layout racine exclut `admin` du payload public : on le réinjecte ici.
+  const locale = await getLocale();
+  const messages = selectMessages(await getMessages({ locale }), ["dashboard"]);
+
   // Pages publiques : pas de garde quand personne n'est connecté.
   if (!admin && isPublicPageNoSession) {
-    return <>{children}</>;
+    return <NextIntlClientProvider messages={messages}>{children}</NextIntlClientProvider>;
   }
 
   if (!admin) {
     redirect("/admin/login?next=%2Fadmin");
   }
 
-  return <AdminShell>{children}</AdminShell>;
+  return (
+    <NextIntlClientProvider messages={messages}>
+      <AdminShell>{children}</AdminShell>
+    </NextIntlClientProvider>
+  );
 }

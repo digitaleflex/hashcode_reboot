@@ -5,6 +5,7 @@ import NextTopLoader from "nextjs-toploader";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
+import { selectMessages, HEAVY_AUTH_NAMESPACES } from "@/i18n/client-messages";
 import { Toaster } from "@/components/ui/toaster";
 import { routing } from "@/i18n/routing";
 import { Providers } from "../providers";
@@ -144,7 +145,10 @@ export default async function LocaleLayout({
   }
 
   setRequestLocale(locale);
-  const messages = await getMessages({ locale });
+  // Pages publiques : on exclut les gros namespaces réservés aux routes
+  // authentifiées (`admin` ~50 Ko, `dashboard` ~19 Ko). Leurs layouts les
+  // réinjectent via un `NextIntlClientProvider` imbriqué.
+  const messages = selectMessages(await getMessages({ locale }), HEAVY_AUTH_NAMESPACES);
 
   return (
     <html lang={locale} suppressHydrationWarning>
@@ -168,7 +172,10 @@ export default async function LocaleLayout({
           <NextIntlClientProvider messages={messages}>{children}</NextIntlClientProvider>
           <Toaster />
         </Providers>
-        <SpeedInsights />
+        {/* Vercel Speed Insights n'existe que sur Vercel : hors Vercel
+            (VPS/Traefik), le script `/_vercel/speed-insights/script.js`
+            répond 404 avec un MIME `text/html` → erreur console. */}
+        {process.env.VERCEL ? <SpeedInsights /> : null}
       </body>
     </html>
   );

@@ -1,4 +1,7 @@
 import { redirect } from "next/navigation";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
+import { selectMessages } from "@/i18n/client-messages";
 import { getSession } from "@/lib/account-auth";
 import { db } from "@/lib/db";
 import { buildAccountData } from "@/lib/account-data";
@@ -32,8 +35,14 @@ export default async function DashboardLayout({
 
   const data = buildAccountData(member);
 
+  // Le layout racine exclut `dashboard` du payload public : on le réinjecte ici
+  // (avec le reste, moins `admin` qui ne sert pas dans l'espace membre).
+  const locale = await getLocale();
+  const messages = selectMessages(await getMessages({ locale }), ["admin"]);
+
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
+    <NextIntlClientProvider messages={messages}>
+      <div className="min-h-screen bg-background text-foreground flex flex-col">
       {/* Top bar */}
       <header className="sticky top-0 z-40 h-14 border-b border-border/60 bg-card/80 backdrop-blur-sm">
         <div className="h-full px-4 flex items-center justify-between">
@@ -63,6 +72,7 @@ export default async function DashboardLayout({
         </main>
       </div>
       <MobileBottomNav />
-    </div>
+      </div>
+    </NextIntlClientProvider>
   );
 }
