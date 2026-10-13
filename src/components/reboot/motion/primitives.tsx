@@ -68,6 +68,7 @@ export function Reveal({
   y = 16,
   duration = 0.5,
   viewport,
+  initial = true,
   ...rest
 }: {
   children: React.ReactNode;
@@ -79,6 +80,8 @@ export function Reveal({
   y?: number;
   duration?: number;
   viewport?: Viewport;
+  /** `false` : ne pas partir de l'état masqué (`opacity:0`), pour le contenu above-the-fold. */
+  initial?: boolean;
 } & RestProps) {
   const reduced = useReducedMotion();
   const { once = true, amount = 0.25 } = viewport ?? {};
@@ -97,7 +100,7 @@ export function Reveal({
   return (
     <Comp
       className={className}
-      initial={{ opacity: 0, y }}
+      initial={initial ? { opacity: 0, y } : false}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once, amount }}
       transition={{ duration, delay, ease: EASE }}
@@ -208,12 +211,15 @@ export function Fade({
   delay = 0,
   duration = 0.45,
   viewport,
+  initial = true,
 }: {
   children: React.ReactNode;
   className?: string;
   delay?: number;
   duration?: number;
   viewport?: Viewport;
+  /** `false` : ne pas partir de l'état masqué (`opacity:0`), pour le contenu above-the-fold. */
+  initial?: boolean;
 }) {
   const reduced = useReducedMotion();
   const { once = true, amount = 0.25 } = viewport ?? {};
@@ -222,7 +228,7 @@ export function Fade({
   return (
     <motion.div
       className={className}
-      initial={{ opacity: 0 }}
+      initial={initial ? { opacity: 0 } : false}
       whileInView={{ opacity: 1 }}
       viewport={{ once, amount }}
       transition={{ duration, delay, ease: EASE }}
@@ -240,6 +246,7 @@ export function Slide({
   delay = 0,
   duration = 0.55,
   viewport,
+  initial = true,
 }: {
   children: React.ReactNode;
   className?: string;
@@ -248,6 +255,8 @@ export function Slide({
   delay?: number;
   duration?: number;
   viewport?: Viewport;
+  /** `false` : ne pas partir de l'état masqué (`opacity:0`), pour le contenu above-the-fold. */
+  initial?: boolean;
 }) {
   const reduced = useReducedMotion();
   const { once = true, amount = 0.25 } = viewport ?? {};
@@ -263,7 +272,7 @@ export function Slide({
   return (
     <motion.div
       className={className}
-      initial={{ opacity: 0, ...offset[from] }}
+      initial={initial ? { opacity: 0, ...offset[from] } : false}
       whileInView={{ opacity: 1, x: 0, y: 0 }}
       viewport={{ once, amount }}
       transition={{ duration, delay, ease: EASE }}

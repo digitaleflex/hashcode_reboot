@@ -316,6 +316,17 @@
   animation: hash-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* Entrée du wordmark hero : translate uniquement, SANS opacity.
+   Le hero est above-the-fold : démarrer à opacity:0 masquerait le H1 dans le
+   HTML SSR (contenu invisible sans JS, LCP retardé). */
+@keyframes hero-rise {
+  from { transform: translateY(10px); }
+  to { transform: translateY(0); }
+}
+.animate-hero-rise {
+  animation: hero-rise 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 /* Subtle pulse for live/active indicators */
 @keyframes hash-pulse {
   0%, 100% { opacity: 1; }
@@ -395,6 +406,7 @@
   .animate-bounce-slow,
   .animate-hash-slide-up,
   .animate-hash-draw,
+  .animate-hero-rise,
   .animate-hash-sweep::after {
     animation: none !important;
   }

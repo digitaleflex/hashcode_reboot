@@ -59,29 +59,29 @@ export function Hero({ onJoin }: { onJoin: (ref?: string) => void }) {
               {/* Colonne éditoriale                                        */}
               {/* -------------------------------------------------------- */}
               <div className="lg:col-span-7 lg:pr-8">
-                <Fade>
+                <Fade initial={false}>
                   <Eyebrow>{t("eyebrow")}</Eyebrow>
                 </Fade>
 
                 <div id="hero-title">
-                  <Slide from="up" distance={18}>
+                  <Slide from="up" distance={18} initial={false}>
                     <RebootTitle className="mt-4" />
                   </Slide>
                 </div>
 
-                <Slide from="up" distance={16} delay={0.08}>
+                <Slide from="up" distance={16} delay={0.08} initial={false}>
                   <h2 className="mt-7 max-w-xl text-2xl font-display font-bold leading-tight text-balance text-foreground sm:text-4xl">
                     {t("subtitle")}
                   </h2>
                 </Slide>
 
-                <Fade delay={0.14}>
+                <Fade delay={0.14} initial={false}>
                   <p className="mt-3 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
                     {t("description")}
                   </p>
                 </Fade>
 
-                <Slide from="up" distance={12} delay={0.2}>
+                <Slide from="up" distance={12} delay={0.2} initial={false}>
                   <div className="mt-8 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
                     <RebootButton
                       size="lg"
@@ -102,7 +102,7 @@ export function Hero({ onJoin }: { onJoin: (ref?: string) => void }) {
                   </div>
                 </Slide>
 
-                <Fade delay={0.26}>
+                <Fade delay={0.26} initial={false}>
                   <p className="mt-6 flex flex-wrap items-center gap-2 text-sm leading-relaxed text-foreground">
                     <span className="inline-flex size-5 items-center justify-center rounded-full border border-lime/40 bg-lime/10">
                       <Check className="size-3.5 text-lime" strokeWidth={2.5} />
@@ -116,7 +116,7 @@ export function Hero({ onJoin }: { onJoin: (ref?: string) => void }) {
               {/* Visuel — Ecosystem Core                                    */}
               {/* -------------------------------------------------------- */}
               <div className="lg:col-span-5">
-                <Reveal delay={0.1} y={26}>
+                <Reveal delay={0.1} y={26} initial={false}>
                   <EcosystemCore />
                 </Reveal>
               </div>

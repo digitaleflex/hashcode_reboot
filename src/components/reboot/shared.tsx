@@ -218,13 +218,13 @@ export function RebootTitle({
       )}
     >
       <span
-        className="block animate-hash-in"
+        className="block animate-hero-rise"
         style={{ animationDelay: "0ms", animationFillMode: "both" }}
       >
         {t("brandTitle1")}
       </span>
       <span
-        className="block text-lime text-glow-lime mt-1 animate-hash-in"
+        className="block text-lime text-glow-lime mt-1 animate-hero-rise"
         style={{ animationDelay: "120ms", animationFillMode: "both" }}
       >
         {t("brandTitle2")}
