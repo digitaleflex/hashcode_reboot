@@ -171,7 +171,7 @@ export function Activity() {
                       {typeLabel(e.type)}
                     </span>
                     {e.level && (
-                      <span className="text-[11px] text-muted-foreground">
+                      <span className="ds-meta">
                         {levelLabel(e.level)}
                       </span>
                     )}

@@ -25,7 +25,7 @@ export function Faq({ onOpenPrivacy }: { onOpenPrivacy?: () => void }) {
             <AccordionTrigger className="min-h-[56px] py-4 text-left font-display text-base font-medium text-foreground transition-colors hover:text-lime hover:no-underline sm:text-lg">
               {f.q}
             </AccordionTrigger>
-            <AccordionContent className="pb-4 text-sm leading-relaxed text-muted-foreground sm:text-base">
+            <AccordionContent className="pb-4 ds-body text-muted-foreground">
               {f.a}
               {isPrivacy && onOpenPrivacy && (
                 <>

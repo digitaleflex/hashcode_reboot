@@ -135,13 +135,13 @@ export function Hero({ onJoin }: { onJoin: (ref?: string) => void }) {
                 return (
                   <li
                     key={s.n}
-                    className="flex items-start gap-3 rounded-md border border-border/60 bg-card/70 p-4"
+                    className="flex items-start gap-3 rounded-lg border border-border/60 bg-card/70 p-4"
                   >
                     <span className="flex size-10 shrink-0 items-center justify-center rounded-md border border-lime/40 bg-lime/5 text-lime">
                       <Icon className="size-5" aria-hidden />
                     </span>
                     <span className="min-w-0">
-                      <span className="font-mono text-[12px] leading-none tracking-[0.06em] text-lime">
+                      <span className="ds-overlabel ds-overlabel--accent leading-none">
                         {t("stepLabel", { n: s.n })}
                       </span>
                       <span className="mt-1.5 block font-display text-[15px] font-semibold leading-snug text-foreground">
@@ -172,7 +172,7 @@ export function Hero({ onJoin }: { onJoin: (ref?: string) => void }) {
         className="group absolute bottom-6 left-1/2 hidden -translate-x-1/2 flex-col items-center gap-1.5 text-muted-foreground transition-colors hover:text-lime focus-lime sm:flex"
         aria-label={t("scrollAria")}
       >
-        <span className="text-[12px] tracking-[0.06em]">{t("scrollLabel")}</span>
+        <span className="ds-meta tracking-[0.06em]">{t("scrollLabel")}</span>
         <ChevronDown className="size-4 animate-bounce-slow" aria-hidden />
       </button>
     </section>

@@ -83,16 +83,49 @@ en 20px semibold.
 
 > Note de méthode : un scan axe lancé avant stabilisation de la page (révélations
 > en cours) peut remonter un faux `color-contrast` transitoire ; le scan doit
-> porter sur une page stabilisée (`networkidle` + attente).
+> porter sur une page stabilisée (`networkidle` + attente). Le test
+> `tests/a11y/landing-a11y.spec.ts` a été corrigé en ce sens (voir §6).
 
 ---
 
 ## 5. Limites
 
-- Les classes `.ds-*` restent **décentralisées** : beaucoup de `text-sm` /
-  `text-[Npx]` subsistent dans les sections non concernées (FAQ, footer, hero).
-  Une passe ultérieure pourra les migrer vers `.ds-body-sm` / `.ds-caption`.
+- Les classes `.ds-*` restent **décentralisées** : quelques `text-sm` /
+  `text-[Npx]` subsistent dans les composants non concernés (site-header,
+  sticky-cta, account-link, chips engine). Les rôles principaux (titres, corps,
+  légendes, méta, overlines) sont désormais tokenisés (voir §6).
 - Les `H3` de cartes compactes (16px) ne sont pas alignés sur `.ds-h3` : choix
   assumé (hiérarchie), à revoir si la charte évolue.
 - Les captures sont des PNG pleine page (≈ 3,7 Mo) ; pas d'optimisation d'image
   dans ce lot.
+
+---
+
+## 6. Passe de nettoyage typographique (suivi)
+
+Objectif : éliminer les dernières tailles arbitraires hors sections déjà
+adoptées et stabiliser le scan axe.
+
+- **`globals.css`** : les rôles typographiques (`.ds-display/h1/h2/h3/lead/
+  body/body-sm/caption/meta`) sont déplacés dans `@layer components` → les
+  utilitaires Tailwind (couleur, interligne) peuvent désormais les surcharger
+  (`ds-meta tracking-[0.06em]`, `ds-caption leading-snug`…). Aucun changement de
+  rendu (vérifié).
+- **Suppression des dernières tailles arbitraires** :
+  - `ecosystem-core` : overline orbites `text-[10px]` → `.ds-overlabel` (11px,
+    plancher de lisibilité) ; description `text-[11px]` → `.ds-meta`.
+  - `activity` : niveau `text-[11px]` → `.ds-meta`.
+  - `hero` : label d'étape `text-[12px]` mono → `.ds-overlabel--accent` ;
+    libellé de scroll `text-[12px]` → `.ds-meta` ; pas (chip) rayon 6px → 8px.
+  - `site-footer` : copyright/tagline `text-[12px]` → `.ds-meta`.
+  - `final-cta` : chapô `text-base sm:text-lg` → `.ds-lead`.
+  - `faq` : contenu accordéon `text-sm sm:text-base` → `.ds-body` (16px, plus
+    lisible sur mobile).
+- **Test axe stabilisé** : `tests/a11y/landing-a11y.spec.ts` passe de
+  `waitUntil: 'domcontentloaded'` + scan immédiat à `networkidle` + `load` +
+  fermeture du bandeau cookies + attente 1200 ms avant scan. Fini les faux
+  `color-contrast` transitoires.
+
+Vérifications de la passe : typecheck, lint, build, 491 tests unitaires, 12/12
+e2e, axe 0 violation (desktop + mobile), aucun débordement horizontal,
+`check:contrast` OK.
