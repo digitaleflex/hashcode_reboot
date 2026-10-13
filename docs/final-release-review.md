@@ -9,6 +9,25 @@
 
 ---
 
+## ⚠️ MISE À JOUR — 2026-10-13 — verdict révisé : `GO`
+
+Les deux blocages du verdict initial (`PARTIAL`) sont **levés** :
+
+| Condition initiale | Résultat | Preuve |
+|---|---|---|
+| `validate` (typecheck + lint + test:unit) | ✅ PASS | `tsc --noEmit` 0 erreur ; `eslint .` 0 erreur / 0 warning ; `test:unit` **491/491** |
+| `resolve.ts` + exclusions #204 | ✅ PASS | `src/lib/orientation/resolve.ts` présent, exclusions absentes (`docs/blocker-report-deploy-prod.md` §7) |
+| `build` | ✅ PASS | `next build` — toutes les routes générées |
+| `test:e2e` | ✅ PASS | **29 passés / 0 échec / 36 ignorés** (Postgres éphémère + serveur prod) |
+
+Les 36 tests ignorés sont les scénarios **EN** (site FR-only par design, `src/i18n/routing.ts`) et les tests d'auth simulée pré-Better Auth (déjà `fixme`).
+
+**Correctifs de cette itération :** warning a11y `PipelineStages` (`aria-pressed` sur `role=tab`), suite E2E réparée (obsolète, pas de régression app ; détails dans les commits `test(e2e)`), frontière d'erreur `/dashboard` branchée, workflow `docker-publish.yml` corrigé, `backups/` ignoré.
+
+> Les sections A–E ci-dessous conservent l'état **au 2026-10-10** (piste d'audit). Le verdict de la section E est remplacé par `GO`.
+
+---
+
 ## A. État du dépôt
 
 | Élément | Valeur | Preuve |
@@ -116,10 +135,10 @@
 | Tests unitaires (qualification) | PASS | `node --test tests/qualification-acquisition.test.cjs` (25/25) |
 | Tests unitaires (acquisition foundation) | PASS | `node --test tests/acquisition-foundation.test.cjs` |
 | Tests d'intégration | PASS (partiel) | `tests/integration.test.cjs` présent, non lancé séparément mais couvert par `test:unit` |
-| Tests E2E | SKIPPED | `test:e2e` non lancé (hors périmètre immédiat, pas de régression connue) |
-| Typecheck | BLOCKED | `npm run typecheck` timeout >120s (pas d'échec de type signalé) |
-| Lint | BLOCKED | `npm run lint` timeout >60s (pas d'échec de lint signalé) |
-| Build | BLOCKED | `npm run build` non lancé (timeout probable) |
+| Tests E2E | PASS (2026-10-13) | `test:e2e` : 29 passés / 0 échec / 36 ignorés (EN + auth simulée) |
+| Typecheck | PASS (2026-10-13) | `tsc --noEmit` 0 erreur |
+| Lint | PASS (2026-10-13) | `eslint .` 0 erreur / 0 warning |
+| Build | PASS (2026-10-13) | `next build` réussi |
 | Migrations | PASS | `20261008120000_qualification_acquisition_fields` : additive PostgreSQL, rollback documenté |
 | Sécurité (routes publiques) | PASS | Zod (`EVENT_TYPES`), rate-limit (`bodyLimit`), séparation `SERVER_ONLY_*`, audit `toServerEventData` |
 | Boundary (C1) | PASS | `docs/architecture/reboot-joinhashcode-boundary.md` respectée : `REUSE` partout, aucune table créée sans preuve |
@@ -135,20 +154,22 @@
 
 ### Importants
 
-1. **Build / Typecheck / Lint non prouvés** (`#215`). Le code est cohérent et les tests passent, mais la preuve de compilation complète manque. **Mitigation :** relancer `npm run validate` (typecheck + lint + test:unit) dans un environnement non limité.
-2. **#204 Extraction ciblée non complètement vérifiée** (`resolve.ts`, exclusions). **Mitigation :** inspection ligne par ligne de `src/lib/resolve.ts` et confirmation de l'absence de `ProfileSnapshot`, `snapshots.ts`, `recordSnapshot`, hunk signup et migration `20261008000000` dans `main`.
+1. **✅ RÉSOLU (2026-10-13)** — Build / Typecheck / Lint non prouvés (`#215`). Prouvés `PASS` (`tsc`, `eslint`, `next build`, `test:unit` 491/491).
+2. **✅ RÉSOLU (2026-10-13)** — #204 Extraction ciblée vérifiée (`resolve.ts` présent, exclusions absentes).
 
 ### Améliorations non bloquantes
 
 3. **Commentaire `prisma/schema.prisma` corrigé** (SQLite → PostgreSQL) — fait dans le commit `efb4ab8`.
 4. **PR #216 finalisée** — nécessite la fermeture après confirmation que `00-master-autonomous-orchestrator.md` reflète bien l'état `main` (déjà fait dans `docs/reconciliation-pr-216.md`).
-5. **Tests E2E** (`test:e2e`) — non exécutés ; recommandés avant release `GO` si le parcours utilisateur complet est critique.
+5. **✅ RÉSOLU (2026-10-13)** — Tests E2E (`test:e2e`) exécutés : 29 passés / 0 échec / 36 ignorés.
 
 ---
 
 ## E. Verdict final
 
-**`PARTIAL`**
+**`GO`**
+
+> Révisé le **2026-10-13** (cf. §MISE À JOUR en tête) : `validate`, `resolve.ts`/#204, `build` et `test:e2e` sont désormais **prouvés PASS**. La justification `PARTIAL` ci-dessous est conservée à titre historique.
 
 **Justification :**
 
@@ -171,4 +192,4 @@
 ---
 
 *Rapport produit conformément au master prompt (§19 — rapport final obligatoire avec sections A à E, tableau C, risques résiduels, verdict unique `GO` / `NO-GO` / `PARTIAL`).*  
-*Le verdict `PARTIAL` est choisi car des preuves d'exécution (`typecheck`, `lint`, `build`, `test:e2e`, inspection `resolve.ts`) manquent encore, bien que le code et la sécurité soient cohérents.*
+*Verdict initial `PARTIAL` (2026-10-10) : des preuves d'exécution manquaient encore. **Révisé `GO` le 2026-10-13** après obtention de toutes les preuves (cf. §MISE À JOUR).*
