@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useTranslations } from "next-intl";
+import { fetchJsonWithRetry } from "@/lib/fetch-retry";
 
 /* ------------------------------------------------------------------ */
 /* Social proof stat — footer stats bar                                */
@@ -25,12 +26,15 @@ export function LiveMemberCount() {
   const t = useTranslations("landing.footer.liveCount");
   const [count, setCount] = React.useState<number | null>(null);
   React.useEffect(() => {
-    fetch("/api/community/count", { cache: "no-store" })
-      .then((r) => r.json())
+    const ctrl = new AbortController();
+    fetchJsonWithRetry<{ count?: number }>("/api/community/count", {
+      signal: ctrl.signal,
+    })
       .then((d) =>
         setCount(typeof d.count === "number" && d.count > 0 ? d.count : null),
       )
       .catch(() => setCount(null));
+    return () => ctrl.abort();
   }, []);
   return (
     <div className="flex flex-col items-center gap-1">

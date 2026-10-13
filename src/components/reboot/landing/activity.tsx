@@ -8,6 +8,7 @@ import { SectionHeader, CtaArrow } from "../shared";
 import { Reveal } from "../motion/primitives";
 import { useLocale, useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
+import { fetchJsonWithRetry } from "@/lib/fetch-retry";
 
 /** Miroir de `PublicEvent` (src/lib/public-events.ts) — sous-ensemble utilisé. */
 type PublicEvent = {
@@ -41,23 +42,23 @@ export function Activity() {
 
   const [events, setEvents] = React.useState<PublicEvent[] | null>(null);
   const [failed, setFailed] = React.useState(false);
+  const [attempt, setAttempt] = React.useState(0);
 
   React.useEffect(() => {
     const ctrl = new AbortController();
-    fetch(`/api/public/events?limit=${LIMIT}`, {
-      cache: "no-store",
-      signal: ctrl.signal,
-    })
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((d: { ok?: boolean; events?: PublicEvent[] }) => {
-        setEvents(Array.isArray(d.events) ? d.events : []);
-      })
+    setFailed(false);
+    setEvents(null);
+    fetchJsonWithRetry<{ ok?: boolean; events?: PublicEvent[] }>(
+      `/api/public/events?limit=${LIMIT}`,
+      { signal: ctrl.signal },
+    )
+      .then((d) => setEvents(Array.isArray(d.events) ? d.events : []))
       .catch((e: unknown) => {
         if (e instanceof DOMException && e.name === "AbortError") return;
         setFailed(true);
       });
     return () => ctrl.abort();
-  }, []);
+  }, [attempt]);
 
   const dateFmt = React.useMemo(
     () =>
@@ -131,9 +132,19 @@ export function Activity() {
             </ul>
           </>
         ) : failed ? (
-          <p role="status" className="mt-12 text-sm text-muted-foreground">
-            {t("error")}
-          </p>
+          <div
+            role="status"
+            className="mt-12 flex flex-wrap items-center gap-3 text-sm text-muted-foreground"
+          >
+            <span>{t("error")}</span>
+            <button
+              type="button"
+              onClick={() => setAttempt((n) => n + 1)}
+              className="inline-flex min-h-[44px] items-center rounded-md border border-border px-3 text-foreground transition-colors hover:border-lime/60 hover:text-lime focus-lime"
+            >
+              {t("retry")}
+            </button>
+          </div>
         ) : list.length === 0 ? (
           <p role="status" className="mt-12 text-sm text-muted-foreground">
             {t("empty")}

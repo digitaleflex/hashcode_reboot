@@ -152,7 +152,7 @@ export default async function LocaleLayout({
   const messages = selectMessages(await getMessages({ locale }), HEAVY_AUTH_NAMESPACES);
 
   return (
-    <html lang={locale} suppressHydrationWarning>
+    <html lang={locale}>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${sora.variable} font-sans antialiased bg-background text-foreground`}
       >

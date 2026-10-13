@@ -281,6 +281,7 @@
       "loading": "Chargement des sessions…",
       "empty": "Aucune session programmée pour le moment.",
       "error": "Sessions indisponibles pour le moment.",
+      "retry": "Réessayer",
       "going": "{count, plural, one {1 inscrit} other {{count} inscrits}}",
       "interest": "{count, plural, one {1 intéressé} other {{count} intéressés}}",
       "statusLive": "En direct",
