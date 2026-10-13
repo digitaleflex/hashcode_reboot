@@ -1,9 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { motion, useReducedMotion, useScroll, useSpring } from "framer-motion";
 import { SectionHeader } from "../shared";
 import { Reveal } from "../motion/primitives";
+import { useScrollFill } from "../motion/use-scroll-fill";
 import { useTranslations } from "next-intl";
 
 /**
@@ -20,16 +20,8 @@ export function Evolves() {
   const steps = t.raw("steps") as Array<{ k: string; t: string; d: string }>;
 
   const ref = React.useRef<HTMLDivElement>(null);
-  const reduced = !!useReducedMotion();
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start 0.75", "end 0.5"],
-  });
-  const fill = useSpring(scrollYProgress, {
-    stiffness: 140,
-    damping: 32,
-    mass: 0.4,
-  });
+  // Ligne dessinée au scroll via var CSS `--fill` (sans framer-motion).
+  useScrollFill(ref);
 
   return (
     <section className="section" aria-labelledby="evolves-title">
@@ -53,12 +45,8 @@ export function Evolves() {
             <div ref={ref} className="timeline">
               {/* Piste neutre */}
               <span className="timeline__spine" aria-hidden />
-              {/* Lime = progression accomplishments, pas décoration. */}
-              <motion.span
-                className="timeline__spine timeline__spine--fill"
-                style={{ scaleY: reduced ? 1 : fill }}
-                aria-hidden
-              />
+              {/* Lime = progression accomplie (var --fill), pas décoration. */}
+              <span className="timeline__spine timeline__spine--fill" aria-hidden />
 
               <ol className="relative flex flex-col gap-9 sm:gap-10">
                 {steps.map((s, i) => (

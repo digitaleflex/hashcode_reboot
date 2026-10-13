@@ -1,32 +1,32 @@
 ﻿"use client";
 
 import * as React from "react";
-import { motion, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 /* ============================================================
-   HASHCODE REBOOT â€” Motion primitives
-   Un seul langage de motion pour toute l'interface.
+   HASHCODE REBOOT — Motion primitives (sans framer-motion)
 
-   RÃ¨gles (cf. audit motion) :
-   - transform / opacity UNIQUEMENT (jamais de blur, filter ou
-     box-shadow animÃ©s : coÃ»t de paint trop Ã©levÃ© sur mobile).
-   - useReducedMotion() respectÃ© PAR PRIMITIVE, pas seulement via
-     les classes `motion-reduce:` de globals.css (qui ne coverent
-     pas les variants Framer Motion).
-   - Amplitude faible. Le site doit rester professionnel, jamais
-     "dÃ©mo de librairie d'animations".
+   Un seul langage de motion pour toute l'interface, implémenté en
+   CSS + IntersectionObserver. Objectif : sortir framer-motion du bundle
+   initial de la landing (poids + TBT) tout en gardant le même rendu.
+
+   Règles :
+   - `transform` / `opacity` uniquement (compositor-friendly).
+   - Le contenu est VISIBLE dans le HTML SSR (aucun `opacity:0` rendu
+     côté serveur) : les révélations ne sont « armées » qu'après montage,
+     et uniquement pour les éléments hors viewport. Sans JS → tout visible.
+   - `prefers-reduced-motion` géré à la fois en CSS (cf. globals.css) et
+     en JS (on n'arme aucune révélation).
    ============================================================ */
 
-/** Courbe maison â€” identique Ã  celle dÃ©jÃ  utilisÃ©e dans globals.css. */
+/** Courbe maison — identique à celle utilisée dans globals.css. */
 export const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
 type Viewport = { once?: boolean; amount?: number };
 
 /**
- * Balises cibles. Utile quand l'animation enveloppe un Ã©lÃ©ment qui doit
- * respecter la structure du document : animer un `<li>` avec un `<div>`
- * intermÃ©diaire casserait la sÃ©mantique de `<ol>` / `<ul>`.
+ * Balises cibles (animer un `<li>` avec un `<div>` intermédiaire casserait
+ * la sémantique de `<ol>` / `<ul>`).
  */
 export type MotionTag =
   | "div"
@@ -40,24 +40,140 @@ export type MotionTag =
   | "figure"
   | "header";
 
-const MOTION_TAGS = {
-  div: motion.div,
-  li: motion.li,
-  span: motion.span,
-  p: motion.p,
-  ul: motion.ul,
-  ol: motion.ol,
-  section: motion.section,
-  article: motion.article,
-  figure: motion.figure,
-  header: motion.header,
-} as const;
-
-/** Props HTML additionnelles acceptÃ©es par les primitives (`role`, `aria-*`â€¦). */
+/** Props HTML additionnelles acceptées par les primitives (`role`, `aria-*`…). */
 type RestProps = Omit<React.ComponentPropsWithoutRef<"div">, "children">;
 
+const EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
+
 /* ------------------------------------------------------------------ */
-/* Reveal â€” entrÃ©e gÃ©nÃ©rique au scroll                                  */
+/* Hook interne : état de révélation                                   */
+/* ------------------------------------------------------------------ */
+
+type RevealState = "idle" | "hidden" | "shown";
+
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
+/**
+ * Renvoie l'état de révélation d'un élément.
+ *
+ * `idle` = non armé (visible, état SSR par défaut) ; `hidden` = caché en
+ * attente d'entrée ; `shown` = révélé. Un élément déjà dans le viewport au
+ * montage reste `shown` (jamais masqué) : c'est ce qui évite tout flash et
+ * garantit qu'un élément above-the-fold est peint immédiatement.
+ */
+function useRevealState(
+  ref: React.RefObject<HTMLElement | null>,
+  {
+    amount = 0.25,
+    once = true,
+    disabled = false,
+  }: { amount?: number; once?: boolean; disabled?: boolean } = {},
+): RevealState {
+  const [state, setState] = React.useState<RevealState>(
+    disabled ? "shown" : "idle",
+  );
+
+  React.useEffect(() => {
+    if (disabled) {
+      setState("shown");
+      return;
+    }
+    const el = ref.current;
+    if (!el) return;
+    if (prefersReducedMotion()) {
+      setState("shown");
+      return;
+    }
+
+    const rect = el.getBoundingClientRect();
+    const vh = window.innerHeight || 0;
+    const inView = rect.top < vh && rect.bottom > 0;
+    if (inView) {
+      setState("shown");
+      return;
+    }
+
+    setState("hidden");
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setState("shown");
+          if (once) io.disconnect();
+        } else if (!once) {
+          setState("hidden");
+        }
+      },
+      { threshold: Math.min(1, Math.max(0, amount)) },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [ref, amount, once, disabled]);
+
+  return state;
+}
+
+/** Rendu générique d'une « boîte » révélée, avec variables CSS. */
+function RevealBox({
+  as = "div",
+  delay = 0,
+  duration = 0.5,
+  x = 0,
+  y = 0,
+  scale = 1,
+  initial = true,
+  amount = 0.25,
+  once = true,
+  className,
+  style,
+  children,
+  ...rest
+}: {
+  as?: MotionTag;
+  delay?: number;
+  duration?: number;
+  x?: number;
+  y?: number;
+  scale?: number;
+  initial?: boolean;
+  amount?: number;
+  once?: boolean;
+  className?: string;
+  style?: React.CSSProperties;
+  children: React.ReactNode;
+} & RestProps) {
+  const ref = React.useRef<HTMLElement | null>(null);
+  const state = useRevealState(ref, { amount, once, disabled: !initial });
+  const Comp = as as React.ElementType;
+
+  const vars = {
+    "--reveal-delay": `${delay}s`,
+    "--reveal-duration": `${duration}s`,
+    "--reveal-x": `${x}px`,
+    "--reveal-y": `${y}px`,
+    "--reveal-scale": `${scale}`,
+    "--reveal-ease": EASING,
+  } as React.CSSProperties;
+
+  return (
+    <Comp
+      ref={ref}
+      className={className}
+      style={{ ...vars, ...style }}
+      data-reveal={state === "idle" ? undefined : state}
+      {...rest}
+    >
+      {children}
+    </Comp>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Reveal — entrée générique au scroll                                 */
 /* ------------------------------------------------------------------ */
 
 export function Reveal({
@@ -74,45 +190,37 @@ export function Reveal({
   children: React.ReactNode;
   className?: string;
   as?: MotionTag;
-  /** Retard en secondes. */
   delay?: number;
-  /** Distance verticale de dÃ©part, en px. */
   y?: number;
   duration?: number;
   viewport?: Viewport;
-  /** `false` : ne pas partir de l'état masqué (`opacity:0`), pour le contenu above-the-fold. */
+  /**
+   * `false` : ne jamais masquer (contenu above-the-fold). Conservé pour
+   * compatibilité d'API ; le nouveau modèle laisse déjà visible tout élément
+   * présent dans le viewport au montage.
+   */
   initial?: boolean;
 } & RestProps) {
-  const reduced = useReducedMotion();
   const { once = true, amount = 0.25 } = viewport ?? {};
-  const Comp = MOTION_TAGS[as] as React.ElementType;
-
-  // reduced motion : on part directement de l'Ã©tat final, rien n'est masquÃ©.
-  if (reduced) {
-    const Plain = as as React.ElementType;
-    return (
-      <Plain className={className} {...rest}>
-        {children}
-      </Plain>
-    );
-  }
-
   return (
-    <Comp
+    <RevealBox
+      as={as}
+      delay={delay}
+      duration={duration}
+      y={y}
+      initial={initial}
+      once={once}
+      amount={amount}
       className={className}
-      initial={initial ? { opacity: 0, y } : false}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once, amount }}
-      transition={{ duration, delay, ease: EASE }}
       {...rest}
     >
       {children}
-    </Comp>
+    </RevealBox>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/* Stagger + StaggerItem â€” cascade                                     */
+/* Stagger + StaggerItem                                               */
 /* ------------------------------------------------------------------ */
 
 export function Stagger({
@@ -131,29 +239,18 @@ export function Stagger({
   delayChildren?: number;
   viewport?: Viewport;
 } & RestProps) {
-  const reduced = useReducedMotion();
-  const { once = true, amount = 0.15 } = viewport ?? {};
-  const Comp = MOTION_TAGS[as] as React.ElementType;
-
-  if (reduced) {
-    const Plain = as as React.ElementType;
-    return (
-      <Plain className={className} {...rest}>
-        {children}
-      </Plain>
-    );
-  }
-
+  void viewport;
+  const Comp = as as React.ElementType;
   return (
     <Comp
       className={className}
-      initial="hidden"
-      whileInView="show"
-      viewport={{ once, amount }}
-      variants={{
-        hidden: {},
-        show: { transition: { staggerChildren: stagger, delayChildren } },
-      }}
+      style={
+        {
+          "--stagger-step": `${stagger}s`,
+          "--stagger-delay": `${delayChildren}s`,
+        } as React.CSSProperties
+      }
+      data-stagger
       {...rest}
     >
       {children}
@@ -175,34 +272,15 @@ export function StaggerItem({
   y?: number;
   duration?: number;
 } & RestProps) {
-  const reduced = useReducedMotion();
-  const Comp = MOTION_TAGS[as] as React.ElementType;
-
-  if (reduced) {
-    const Plain = as as React.ElementType;
-    return (
-      <Plain className={className} {...rest}>
-        {children}
-      </Plain>
-    );
-  }
-
   return (
-    <Comp
-      className={className}
-      variants={{
-        hidden: { opacity: 0, y },
-        show: { opacity: 1, y: 0, transition: { duration, ease: EASE } },
-      }}
-      {...rest}
-    >
+    <RevealBox as={as} y={y} duration={duration} className={className} {...rest}>
       {children}
-    </Comp>
+    </RevealBox>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/* Fade / Slide / Scale â€” Ã©lÃ©ments uniques                             */
+/* Fade / Slide / Scale                                                */
 /* ------------------------------------------------------------------ */
 
 export function Fade({
@@ -218,23 +296,20 @@ export function Fade({
   delay?: number;
   duration?: number;
   viewport?: Viewport;
-  /** `false` : ne pas partir de l'état masqué (`opacity:0`), pour le contenu above-the-fold. */
   initial?: boolean;
 }) {
-  const reduced = useReducedMotion();
   const { once = true, amount = 0.25 } = viewport ?? {};
-  if (reduced) return <div className={className}>{children}</div>;
-
   return (
-    <motion.div
+    <RevealBox
+      delay={delay}
+      duration={duration}
+      initial={initial}
+      once={once}
+      amount={amount}
       className={className}
-      initial={initial ? { opacity: 0 } : false}
-      whileInView={{ opacity: 1 }}
-      viewport={{ once, amount }}
-      transition={{ duration, delay, ease: EASE }}
     >
       {children}
-    </motion.div>
+    </RevealBox>
   );
 }
 
@@ -255,30 +330,29 @@ export function Slide({
   delay?: number;
   duration?: number;
   viewport?: Viewport;
-  /** `false` : ne pas partir de l'état masqué (`opacity:0`), pour le contenu above-the-fold. */
   initial?: boolean;
 }) {
-  const reduced = useReducedMotion();
   const { once = true, amount = 0.25 } = viewport ?? {};
-  if (reduced) return <div className={className}>{children}</div>;
-
-  const offset: Record<NonNullable<typeof from>, { x: number; y: number }> = {
+  const offset: Record<typeof from, { x: number; y: number }> = {
     up: { x: 0, y: distance },
     down: { x: 0, y: -distance },
     left: { x: distance, y: 0 },
     right: { x: -distance, y: 0 },
   };
-
+  const { x, y } = offset[from];
   return (
-    <motion.div
+    <RevealBox
+      delay={delay}
+      duration={duration}
+      x={x}
+      y={y}
+      initial={initial}
+      once={once}
+      amount={amount}
       className={className}
-      initial={initial ? { opacity: 0, ...offset[from] } : false}
-      whileInView={{ opacity: 1, x: 0, y: 0 }}
-      viewport={{ once, amount }}
-      transition={{ duration, delay, ease: EASE }}
     >
       {children}
-    </motion.div>
+    </RevealBox>
   );
 }
 
@@ -297,30 +371,27 @@ export function Scale({
   duration?: number;
   viewport?: Viewport;
 }) {
-  const reduced = useReducedMotion();
   const { once = true, amount = 0.25 } = viewport ?? {};
-  if (reduced) return <div className={className}>{children}</div>;
-
   return (
-    <motion.div
+    <RevealBox
+      delay={delay}
+      duration={duration}
+      scale={from}
+      once={once}
+      amount={amount}
       className={className}
-      initial={{ opacity: 0, scale: from }}
-      whileInView={{ opacity: 1, scale: 1 }}
-      viewport={{ once, amount }}
-      transition={{ duration, delay, ease: EASE }}
     >
       {children}
-    </motion.div>
+    </RevealBox>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/* Glow â€” respiration lime (opacity + scale uniquement)               */
+/* Glow — respiration lime (opacity + scale uniquement, CSS)           */
 /* ------------------------------------------------------------------ */
 
 export function Glow({
   className,
-  /** OpacitÃ© maximale. Garde â‰¤ 0.08 : au-delÃ  Ã§a devient du "vert partout". */
   intensity = 0.06,
   duration = 7,
   scale = 1.05,
@@ -330,31 +401,24 @@ export function Glow({
   duration?: number;
   scale?: number;
 }) {
-  const reduced = useReducedMotion();
-
-  if (reduced) {
-    return (
-      <div
-        aria-hidden
-        className={cn("pointer-events-none absolute", className)}
-        style={{ background: "var(--primary)", opacity: intensity }}
-      />
-    );
-  }
-
   return (
-    <motion.div
+    <div
       aria-hidden
-      className={cn("pointer-events-none absolute", className)}
-      style={{ background: "var(--primary)" }}
-      animate={{ opacity: [intensity * 0.55, intensity, intensity * 0.55], scale: [1, scale, 1] }}
-      transition={{ duration, repeat: Infinity, ease: "easeInOut" }}
+      className={cn("motion-glow pointer-events-none absolute", className)}
+      style={
+        {
+          background: "var(--primary)",
+          "--glow-intensity": `${intensity}`,
+          "--glow-duration": `${duration}s`,
+          "--glow-scale": `${scale}`,
+        } as React.CSSProperties
+      }
     />
   );
 }
 
 /* ------------------------------------------------------------------ */
-/* Float â€” micro flottement (Â± few px)                                */
+/* Float — micro flottement (CSS)                                      */
 /* ------------------------------------------------------------------ */
 
 export function Float({
@@ -370,17 +434,18 @@ export function Float({
   duration?: number;
   delay?: number;
 }) {
-  const reduced = useReducedMotion();
-
-  if (reduced) return <div className={className}>{children}</div>;
-
   return (
-    <motion.div
-      className={className}
-      animate={{ y: [0, -distance, 0] }}
-      transition={{ duration, repeat: Infinity, ease: "easeInOut", delay }}
+    <div
+      className={cn("motion-float", className)}
+      style={
+        {
+          "--float-distance": `${distance}px`,
+          "--float-duration": `${duration}s`,
+          "--float-delay": `${delay}s`,
+        } as React.CSSProperties
+      }
     >
       {children}
-    </motion.div>
+    </div>
   );
 }

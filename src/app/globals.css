@@ -327,6 +327,39 @@
   animation: hero-rise 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* ------------------------------------------------------------
+   Motion primitives (CSS, sans framer-motion)
+   Le HTML SSR ne porte PAS [data-reveal] : le contenu est visible avant
+   hydratation. Le JS n'arme la révélation que pour les éléments hors viewport.
+   ------------------------------------------------------------ */
+[data-reveal] {
+  opacity: 0;
+  transform: translate(var(--reveal-x, 0), var(--reveal-y, 0)) scale(var(--reveal-scale, 1));
+  transition:
+    opacity var(--reveal-duration, 0.5s) var(--reveal-ease, cubic-bezier(0.22, 1, 0.36, 1)) var(--reveal-delay, 0s),
+    transform var(--reveal-duration, 0.5s) var(--reveal-ease, cubic-bezier(0.22, 1, 0.36, 1)) var(--reveal-delay, 0s);
+  will-change: opacity, transform;
+}
+[data-reveal="shown"] {
+  opacity: 1;
+  transform: translate(0, 0) scale(1);
+}
+
+.motion-glow {
+  animation: motion-glow-breathe var(--glow-duration, 7s) ease-in-out infinite;
+}
+@keyframes motion-glow-breathe {
+  0%, 100% { opacity: calc(var(--glow-intensity, 0.06) * 0.55); transform: scale(1); }
+  50% { opacity: var(--glow-intensity, 0.06); transform: scale(var(--glow-scale, 1.05)); }
+}
+.motion-float {
+  animation: motion-float var(--float-duration, 8s) ease-in-out var(--float-delay, 0s) infinite;
+}
+@keyframes motion-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(calc(-1 * var(--float-distance, 4px))); }
+}
+
 /* Subtle pulse for live/active indicators */
 @keyframes hash-pulse {
   0%, 100% { opacity: 1; }
@@ -415,8 +448,25 @@
   .hero-hash {
     transition: none !important;
   }
-  /* NE PAS forcer transition-duration: 0.01ms sur * — casse Framer Motion layout animations.
-     Les composants React doivent utiliser useReducedMotion() pour désactiver leurs propres transitions. */
+  /* Motion primitives (CSS) : tout est révélé, rails pleins, zéro animation. */
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  .motion-glow,
+  .motion-float {
+    animation: none !important;
+  }
+  .motion-glow {
+    opacity: var(--glow-intensity, 0.06);
+  }
+  .method-rail__fill,
+  .timeline__spine--fill {
+    transform: none !important;
+  }
+  /* NE PAS forcer transition-duration: 0.01ms sur `*` : casse les transitions
+     ciblées. Chaque primitive désactive ses propres transitions via ce bloc. */
 }
 
 /* Mobile : allège le grain pour économiser la peinture (l'aura est déjà desktop-only) */
@@ -684,6 +734,7 @@
   background: var(--primary);
   /* Vertical : on pousse vers le bas depuis le haut. */
   transform-origin: top center;
+  transform: scaleY(var(--fill, 1));
 }
 @media (min-width: 768px) {
   .method-rail__track {
@@ -697,6 +748,7 @@
   .method-rail__fill {
     /* Horizontal : on pousse vers la droite depuis la gauche. */
     transform-origin: left center;
+    transform: scaleX(var(--fill, 1));
   }
 }
 .method-rail__step {
@@ -732,6 +784,7 @@
 }
 .timeline__spine--fill {
   background: var(--primary);
+  transform: scaleY(var(--fill, 1));
 }
 .timeline__item {
   position: relative;

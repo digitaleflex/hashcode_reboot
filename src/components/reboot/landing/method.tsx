@@ -1,9 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { motion, useReducedMotion, useScroll, useSpring } from "framer-motion";
 import { SectionHeader } from "../shared";
 import { Reveal } from "../motion/primitives";
+import { useScrollFill } from "../motion/use-scroll-fill";
 import { useTranslations } from "next-intl";
 
 /**
@@ -21,18 +21,9 @@ export function Method() {
   const items = t.raw("items") as Array<{ k: string; t: string; d: string }>;
 
   const railRef = React.useRef<HTMLDivElement>(null);
-  const reduced = !!useReducedMotion();
-  const { scrollYProgress } = useScroll({
-    target: railRef,
-    offset: ["start 0.85", "end 0.6"],
-  });
-  // Un seul ressort pilote le remplissage ; l'axe dépend du breakpoint
-  // (vertical en mobile, horizontal en desktop) — voir globals.css.
-  const fill = useSpring(scrollYProgress, {
-    stiffness: 150,
-    damping: 32,
-    mass: 0.4,
-  });
+  // Remplissage du rail piloté par le scroll (var CSS `--fill`), sans
+  // framer-motion. Voir globals.css `.method-rail__fill`.
+  useScrollFill(railRef);
 
   return (
     <section
@@ -51,10 +42,7 @@ export function Method() {
           {/* Rail purement décoratif : il ne doit pas voler la sémantique
               de la <ol> ci-dessous aux lecteurs d'écran. */}
           <div className="method-rail__track" aria-hidden>
-            <motion.span
-              className="method-rail__fill"
-              style={reduced ? { scale: 1 } : { scaleX: fill, scaleY: fill }}
-            />
+            <span className="method-rail__fill" />
           </div>
 
           <ol className="relative grid gap-9 md:grid-cols-4 md:gap-6">
