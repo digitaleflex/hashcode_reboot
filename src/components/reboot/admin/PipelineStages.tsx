@@ -91,7 +91,6 @@ export function PipelineStages({ activeStage, onSelect }: PipelineStagesProps) {
               type="button"
               role="tab"
               aria-selected={active}
-              aria-pressed={active}
               onClick={() => onSelect(s)}
               className={cn(
                 "rounded-md border px-3 py-1.5 text-sm transition-colors focus-lime",
