@@ -38,6 +38,7 @@ test.describe('Locale routing', () => {
   });
 
   test('EN root (/en) loads in English', async ({ page }) => {
+    test.fixme(true, "EN désactivé (FR-only) : /en redirige 301 vers FR — voir src/i18n/routing.ts.");
     await page.goto('/en');
     await page.waitForLoadState('domcontentloaded');
     
@@ -55,11 +56,13 @@ test.describe('Locale routing', () => {
     expect(response?.status()).toBeLessThan(400);
   });
 
-  test('/en/dashboard redirects to /en/login (auth required)', async ({ page }) => {
+  test('/en/dashboard → FR (auth required)', async ({ page }) => {
     const response = await page.goto('/en/dashboard', { waitUntil: 'domcontentloaded' });
-    
-    // Doit rediriger vers login EN avec locale préservée
-    expect(page.url()).toMatch(/\/en\/login/);
+
+    // EN désactivé : /en/dashboard → 301 /dashboard → 307 /login?next=… (FR).
+    const { pathname } = new URL(page.url());
+    expect(pathname).toMatch(/\/login$/);
+    expect(pathname).not.toMatch(/\/en\//);
     expect(response?.status()).toBeLessThan(400);
   });
 
@@ -92,6 +95,7 @@ test.describe('Locale routing', () => {
   });
 
   test('Navigation links preserve locale (EN)', async ({ page }) => {
+    test.fixme(true, "EN désactivé (FR-only) : /en/* redirige vers FR — voir src/i18n/routing.ts.");
     await page.goto('/en');
     await page.waitForLoadState('domcontentloaded');
     
@@ -144,6 +148,7 @@ test.describe('SEO meta tags per locale', () => {
   });
 
   test('EN page has English meta tags', async ({ page }) => {
+    test.fixme(true, "EN désactivé (FR-only) : /en redirige 301 vers FR — voir src/i18n/routing.ts.");
     await page.goto('/en');
     await page.waitForLoadState('domcontentloaded');
     

@@ -23,6 +23,42 @@ import { test, expect, type Page } from '@playwright/test';
 test.describe('Landing (FR)', () => {
   test.use({ locale: 'fr-FR' });
 
+  // `navigator.sendBeacon` envoie un Blob dont Playwright ne peut lire ni le
+  // corps (`postData()` ni `postDataBuffer()`). On capture les payloads côté
+  // page (wrapper sur `sendBeacon`) pour pouvoir les asserter ensuite.
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      // Neutralise le bandeau cookies (localStorage = source de vérité) : sinon
+      // il recouvre les CTA bas de page sur mobile et intercepte les clics.
+      try {
+        localStorage.setItem(
+          'hashcode:reboot:consent',
+          JSON.stringify({ choice: 'declined', ts: Date.now() }),
+        );
+      } catch {
+        /* ignore */
+      }
+
+      const w = window as unknown as { __beacons?: string[] };
+      w.__beacons = [];
+      const original = navigator.sendBeacon?.bind(navigator);
+      if (original) {
+        navigator.sendBeacon = (url: string | URL, data?: BodyInit | null) => {
+          try {
+            if (data instanceof Blob) {
+              void data.text().then((t) => w.__beacons!.push(t));
+            } else if (typeof data === 'string') {
+              w.__beacons!.push(data);
+            }
+          } catch {
+            /* ignore */
+          }
+          return original(url, data);
+        };
+      }
+    });
+  });
+
   /** Ferme le bandeau cookies s'il recouvre les CTA (contexte frais = visible). */
   async function dismissCookies(page: Page) {
     const close = page.getByRole('button', { name: 'Fermer et refuser' });
@@ -32,20 +68,23 @@ test.describe('Landing (FR)', () => {
   }
 
   /**
-   * Attend une requête analytics (sendBeacon ou fetch keepalive) de type
-   * donné. L'écoute DOIT être armée avant l'action déclenchante.
+   * Attend qu'un événement analytics de type donné (et `ref` optionnel) ait été
+   * capturé. L'écoute DOIT être armée avant l'action déclenchante.
    */
-  function waitForAnalytics(page: Page, type: string, ref?: string, timeout = 15000) {
-    return page.waitForRequest(
-      (r) => {
-        if (!r.url().includes('/api/analytics') || r.method() !== 'POST') return false;
-        try {
-          const body = JSON.parse(r.postData() ?? '{}') as { type?: string; ref?: string };
-          return body.type === type && (ref === undefined || body.ref === ref);
-        } catch {
-          return false;
-        }
+  async function waitForAnalytics(page: Page, type: string, ref?: string, timeout = 15000) {
+    await page.waitForFunction(
+      ({ type, ref }) => {
+        const arr = (window as unknown as { __beacons?: string[] }).__beacons ?? [];
+        return arr.some((raw) => {
+          try {
+            const b = JSON.parse(raw) as { type?: string; ref?: string };
+            return b.type === type && (ref === undefined || b.ref === ref);
+          } catch {
+            return false;
+          }
+        });
       },
+      { type, ref },
       { timeout },
     );
   }
@@ -56,9 +95,13 @@ test.describe('Landing (FR)', () => {
     await dismissCookies(page);
 
     const hero = page.locator('section[aria-labelledby="hero-title"]');
-    await expect(hero.locator('h1')).toContainText('Bienvenue dans le Reboot', {
+    // Le `h1` est le logotype ; le message d'accueil est l'eyebrow de section.
+    await expect(hero.locator('h1')).toContainText('HASHCODE', {
       timeout: 15000,
     });
+    await expect(
+      hero.getByText('Bienvenue dans le Reboot', { exact: false }),
+    ).toBeVisible();
 
     const heroCta = hero.getByRole('button', { name: 'Construire mon profil' });
     await Promise.all([
@@ -226,8 +269,10 @@ test.describe('Landing (FR)', () => {
       await page.waitForLoadState('domcontentloaded');
 
       const activity = page.locator('#activite');
+      // `role="status"` n'a pas de nom accessible dérivé de son contenu :
+      // on cible le texte visible directement.
       await expect(
-        activity.getByRole('status', { name: 'Aucune session programmée pour le moment.' }),
+        activity.getByText('Aucune session programmée pour le moment.'),
       ).toBeVisible({ timeout: 15000 });
 
       const footer = page.locator('footer');
@@ -243,7 +288,7 @@ test.describe('Landing (FR)', () => {
 
       const activity = page.locator('#activite');
       await expect(
-        activity.getByRole('status', { name: 'Sessions indisponibles pour le moment.' }),
+        activity.getByText('Sessions indisponibles pour le moment.'),
       ).toBeVisible({ timeout: 15000 });
     });
 

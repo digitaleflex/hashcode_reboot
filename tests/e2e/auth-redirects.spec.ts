@@ -1,8 +1,12 @@
 /* FIXME: partie de suite obsolète (post-migration Better Auth).
-   Les 3 tests marqués `fixme` simulaient l'auth via localStorage
-   ('hashcode:mock:auth'). Rien dans src/ ne lit cette clé : l'app utilise
-   Better Auth (cookies de session). Les tests de redirection anonyme et de
-   rendu des pages d'auth restent actifs. */
+   Les tests marqués `fixme` le sont pour deux raisons :
+   1. auth simulée via localStorage ('hashcode:mock:auth') — rien dans src/ ne
+      lit cette clé : l'app utilise Better Auth (cookies de session) ;
+   2. scénarios EN — le site est FR-only (voir `src/i18n/routing.ts` :
+      `locales: ["fr"]`, `/en/*` redirige 301 vers FR). Ces tests seront
+      réactivés le jour où EN est rétabli.
+   Les tests de redirection anonyme et de rendu des pages d'auth FR restent
+   actifs. */
 
 import { test, expect } from '@playwright/test';
 
@@ -23,8 +27,11 @@ test.describe('Auth redirects preserve locale', () => {
     await page.goto('/dashboard');
     await page.waitForLoadState('domcontentloaded');
     
-    expect(page.url()).toMatch(/\/login$/);
-    expect(page.url()).not.toMatch(/\/en\//);
+    // On teste le pathname : la redirection ajoute `?next=…` pour renvoyer
+    // l'utilisateur vers son tableau de bord après connexion.
+    const { pathname } = new URL(page.url());
+    expect(pathname).toMatch(/\/login$/);
+    expect(pathname).not.toMatch(/\/en\//);
     
     // Page login en FR. Locator sur le titre (rôle heading) et non `text=` :
     // le sous-titre contient aussi « connexion », ce qui rend `text=` ambigu.
@@ -33,6 +40,7 @@ test.describe('Auth redirects preserve locale', () => {
   });
 
   test('EN /en/dashboard → /en/login (EN)', async ({ page }) => {
+    test.fixme(true, "EN désactivé (FR-only) : /en/* redirige vers FR — voir src/i18n/routing.ts.");
     await page.goto('/en/dashboard');
     await page.waitForLoadState('domcontentloaded');
     
@@ -48,27 +56,39 @@ test.describe('Auth redirects preserve locale', () => {
     await page.goto('/account');
     await page.waitForLoadState('domcontentloaded');
     
-    expect(page.url()).toMatch(/\/login$/);
-    expect(page.url()).not.toMatch(/\/en\//);
+    const { pathname } = new URL(page.url());
+    expect(pathname).toMatch(/\/login$/);
+    expect(pathname).not.toMatch(/\/en\//);
   });
 
   test('EN /en/account → /en/login (EN)', async ({ page }) => {
+    test.fixme(true, "EN désactivé (FR-only) : /en/* redirige vers FR — voir src/i18n/routing.ts.");
     await page.goto('/en/account');
     await page.waitForLoadState('domcontentloaded');
     
     expect(page.url()).toMatch(/\/en\/login/);
   });
 
-  test('FR /verify-otp accessible directly', async ({ page }) => {
+  test('FR /verify-otp sans email → redirige vers /login', async ({ page }) => {
     await page.goto('/verify-otp');
     await page.waitForLoadState('domcontentloaded');
-    
-    // Page OTP en FR
-    await expect(page.locator('text=Saisis ton code')).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('text=Valider')).toBeVisible();
+
+    // Sans `?email=`, aucun code ne peut être vérifié : retour à l'étape 1.
+    await page.waitForURL(/\/login/, { timeout: 10000 });
+    await expect(page.getByRole('heading', { name: 'Connexion' })).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('input[type="email"]')).toBeVisible();
+  });
+
+  test('FR /verify-otp?email=… affiche l’étape code', async ({ page }) => {
+    await page.goto('/verify-otp?email=test%40example.com');
+    await page.waitForLoadState('domcontentloaded');
+
+    await expect(page.getByRole('heading', { name: 'Saisis ton code' })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('button', { name: 'Valider' })).toBeVisible();
   });
 
   test('EN /en/verify-otp accessible directly', async ({ page }) => {
+    test.fixme(true, "EN désactivé (FR-only) : /en/* redirige vers FR — voir src/i18n/routing.ts.");
     await page.goto('/en/verify-otp');
     await page.waitForLoadState('domcontentloaded');
     
@@ -87,6 +107,7 @@ test.describe('Auth redirects preserve locale', () => {
   });
 
   test('EN /en/verify-email accessible directly', async ({ page }) => {
+    test.fixme(true, "EN désactivé (FR-only) : /en/* redirige vers FR — voir src/i18n/routing.ts.");
     await page.goto('/en/verify-email');
     await page.waitForLoadState('domcontentloaded');
 
@@ -109,6 +130,7 @@ test.describe('Auth redirects preserve locale', () => {
   });
 
   test('Login form submits email (EN)', async ({ page }) => {
+    test.fixme(true, "EN désactivé (FR-only) : /en/* redirige vers FR — voir src/i18n/routing.ts.");
     await page.goto('/en/login');
     await page.waitForLoadState('domcontentloaded');
     
