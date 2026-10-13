@@ -64,6 +64,8 @@ server.log
 
 # local SQLite (legacy dev DB — never commit)
 db/*.db
+# Sauvegardes base de données (dumps prod — jamais commitées)
+backups/
 .vercel
 *.csv
 *.xlsx
