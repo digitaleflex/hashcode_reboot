@@ -82,36 +82,37 @@
       ]
     },
     "evolves": {
-      "index": "01 · Pourquoi on revient",
+      "index": "01 · Notre philosophie",
       "title": "HASHCODE évolue.",
-      "intro": "Le contenu seul ne suffit plus. On veut un environnement où l'on apprend, pratique et construit.",
+      "intro": "Le contenu seul ne suffit pas : le Reboot remet la pratique et la progression au centre.",
       "steps": [
         {
           "k": "Avant",
-          "t": "Consommer",
+          "t": "Consommer ne suffit pas",
           "d": "Des contenus dispersés, sans point de départ commun ni progression visible."
         },
         {
           "k": "Le pivot",
-          "t": "Se situer",
-          "d": "Un profil qui replace chacun là où il est vraiment : niveau, objectif, rythme."
+          "t": "Se situer avant d'agir",
+          "d": "Un profil qui replace chacun : domaine, objectif, rythme."
         },
         {
           "k": "Maintenant",
-          "t": "Construire",
-          "d": "Apprendre, pratique, construire — puis continuer avec un accompagnement."
+          "t": "Apprendre en pratiquant",
+          "d": "Challenges concrets, workshops live et projets, puis mentorat."
         }
       ]
     },
     "axes": {
-      "index": "02 · Les trois axes",
+      "index": "02 · Les trois domaines",
       "title": "Trois terrains. Un seul système.",
       "intro": "Choisis ton terrain. Tu pourras en croiser d'autres plus tard.",
+      "practiceLabel": "Ce que tu y pratiques",
       "items": [
         {
           "id": "01",
           "title": "Web Development",
-          "desc": "Créer des applications, produits et expériences numériques.",
+          "desc": "Concevoir des interfaces, des applications et des produits web.",
           "signal": "ARCHITECTURE",
           "points": [
             "Interfaces",
@@ -122,7 +123,7 @@
         {
           "id": "02",
           "title": "Cybersecurity",
-          "desc": "Comprendre, protéger, analyser et expérimenter.",
+          "desc": "Comprendre, protéger et analyser systèmes, réseaux et applications.",
           "signal": "DÉFENSE",
           "points": [
             "Réseaux",
@@ -133,7 +134,7 @@
         {
           "id": "03",
           "title": "Applied AI",
-          "desc": "Construire avec l'IA, l'automatisation et les agents.",
+          "desc": "Construire avec des modèles, des agents et l'automatisation.",
           "signal": "MODÈLES",
           "points": [
             "Données",
@@ -148,27 +149,32 @@
     "method": {
       "index": "03 · La méthode",
       "title": "Apprendre. Pratiquer. Construire. Évoluer.",
-      "intro": "Quatre états, pas quatre promesses. Le lime montre où tu en es.",
+      "intro": "Quatre étapes, pas quatre promesses. Le lime montre où tu en es.",
+      "goalLabel": "Objectif",
       "items": [
         {
           "k": "01",
           "t": "Apprendre",
-          "d": "Les fondamentaux, clairs et solides."
+          "d": "Comprendre les concepts clés de ton domaine.",
+          "g": "Des bases solides."
         },
         {
           "k": "02",
           "t": "Pratiquer",
-          "d": "Des challenges concrets pour progresser."
+          "d": "Résoudre des challenges concrets avec la communauté.",
+          "g": "Ancrer les acquis par la pratique."
         },
         {
           "k": "03",
           "t": "Construire",
-          "d": "De vrais projets, pas des démos."
+          "d": "Mener de vrais projets, en équipe.",
+          "g": "Passer de l'exercice au projet."
         },
         {
           "k": "04",
           "t": "Évoluer",
-          "d": "Un accompagnement selon ton rythme et tes besoins."
+          "d": "Être accompagné en mentorat, à ton rythme.",
+          "g": "Progresser dans la durée."
         }
       ]
     },

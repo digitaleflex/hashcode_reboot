@@ -18,7 +18,7 @@ import { useTranslations } from "next-intl";
  */
 export function Method() {
   const t = useTranslations("landing.method");
-  const items = t.raw("items") as Array<{ k: string; t: string; d: string }>;
+  const items = t.raw("items") as Array<{ k: string; t: string; d: string; g: string }>;
 
   const railRef = React.useRef<HTMLDivElement>(null);
   // Remplissage du rail piloté par le scroll (var CSS `--fill`), sans
@@ -62,6 +62,9 @@ export function Method() {
                 </h3>
                 <p className="mt-1.5 max-w-[26ch] ds-body-sm leading-relaxed text-muted-foreground">
                   {it.d}
+                </p>
+                <p className="mt-2 ds-caption">
+                  {t("goalLabel")} : {it.g}
                 </p>
               </Reveal>
             ))}
