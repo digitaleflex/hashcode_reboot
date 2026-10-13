@@ -82,7 +82,7 @@
   --destructive: oklch(0.62 0.22 25);
 
   --border: #2A3036;                 /* bordure premium */
-  --input: oklch(0.42 0 0);
+  --input: #5C636B;                  /* bordure de champ : ≥3:1 vs page/carte (WCAG 1.4.11) */
   --ring: #C5F441;                    /* lime ring */
 
   --chart-1: oklch(0.92 0.21 125);         /* lime */
@@ -975,4 +975,139 @@
   .ds-loading-bar::after {
     animation: none !important;
   }
+}
+
+/* ============================================================
+   DS-FOUNDATIONS — échelle typographique et rôles sémantiques
+   (lot fondations design system, 2026-10-13)
+
+   RÈGLE : bloc ADDITIF. Les classes `.ds-*` ci-dessous reproduisent à
+   l'identique les rendus live quand elles sont appliquées (elles servent
+   à remplacer les tailles arbitraires `text-[10px]` / `text-[13px]`… par
+   des rôles nommés). Aucune valeur de marque n'est modifiée.
+
+   Trois familles : display (titres éditoriaux), body (lecture), mono
+   (labels techniques). La hiérarchie est volontairement courte :
+   un seul niveau de titre par section (`ds-h2`), `ds-h3` pour les
+   sous-titres de carte.
+   ============================================================ */
+
+:root {
+  /* Échelle de tailles — alignée sur les usages live les plus fréquents. */
+  --ds-text-2xs: 11px; /* micro-méta, plancher de lisibilité */
+  --ds-text-xs: 12px; /* méta, labels mono courts */
+  --ds-text-sm: 13px; /* légendes, notes secondaires */
+  --ds-text-base: 15px; /* corps landing */
+  --ds-text-md: 16px; /* corps par défaut */
+  --ds-text-lg: 18px; /* chapô / introduction */
+  --ds-text-xl: 20px; /* h3 (titre de carte) */
+  --ds-text-2xl: 24px; /* h2 mobile */
+  --ds-text-3xl: 30px; /* h2 desktop */
+  --ds-text-4xl: 36px; /* h1 secondaire */
+
+  /* Interlignes */
+  --ds-leading-tight: 1.1;
+  --ds-leading-snug: 1.3;
+  --ds-leading-normal: 1.55;
+  --ds-leading-relaxed: 1.65;
+
+  /* Interlettrage */
+  --ds-tracking-tight: -0.02em;
+  --ds-tracking-normal: 0;
+  --ds-tracking-wide: 0.08em;
+
+  /* Surfaces : rayons et gabarits de carte (cartes = 8px, contrôles = 6px) */
+  --ds-card-radius: var(--radius-lg); /* 8px */
+  --ds-control-radius: var(--radius-md); /* 6px */
+  --ds-card-pad: 20px; /* p-5 — carte compacte */
+  --ds-card-pad-lg: 24px; /* p-6 — carte standard */
+
+  /* Interaction — durée/easing uniques (compositor-safe : couleur/bordure/opacité) */
+  --ds-duration-fast: 160ms;
+  --ds-duration-base: 240ms;
+  --ds-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* — Display (hero / wordmark). Reproduit RebootTitle. — */
+.ds-display {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-style: italic;
+  letter-spacing: var(--ds-tracking-tight);
+  line-height: 0.92;
+  font-size: clamp(2.75rem, 13vw, 6rem);
+}
+@media (min-width: 640px) {
+  .ds-display { font-size: 4.5rem; } /* text-7xl */
+}
+@media (min-width: 1024px) {
+  .ds-display { font-size: 6rem; } /* text-8xl */
+}
+
+/* — Titres — */
+.ds-h1 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: var(--ds-tracking-tight);
+  line-height: 1.05;
+  font-size: var(--ds-text-3xl);
+}
+@media (min-width: 640px) {
+  .ds-h1 { font-size: var(--ds-text-4xl); }
+}
+.ds-h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: var(--ds-tracking-tight);
+  line-height: 1.15;
+  font-size: var(--ds-text-2xl);
+}
+@media (min-width: 640px) {
+  .ds-h2 { font-size: var(--ds-text-3xl); }
+}
+.ds-h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: var(--ds-leading-snug);
+  font-size: var(--ds-text-xl);
+}
+
+/* — Corps — */
+.ds-body {
+  font-size: var(--ds-text-md);
+  line-height: var(--ds-leading-relaxed);
+}
+/* Chapô de section : 16px → 18px (reproduit `text-base sm:text-lg`). */
+.ds-lead {
+  font-size: var(--ds-text-md);
+  line-height: var(--ds-leading-relaxed);
+}
+@media (min-width: 640px) {
+  .ds-lead { font-size: var(--ds-text-lg); }
+}
+.ds-body-sm {
+  font-size: var(--ds-text-base);
+  line-height: var(--ds-leading-normal);
+}
+.ds-caption {
+  font-size: var(--ds-text-sm);
+  line-height: var(--ds-leading-normal);
+  color: var(--muted-foreground);
+}
+.ds-meta {
+  font-size: var(--ds-text-xs);
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+
+/* — Carte canonique (surface + rayon + gabarit). Base d'adoption des sections. — */
+.ds-card {
+  border: 1px solid var(--border);
+  border-radius: var(--ds-card-radius);
+  background: color-mix(in oklab, var(--card) 40%, transparent);
+  padding: var(--ds-card-pad);
+}
+@media (min-width: 640px) {
+  .ds-card { padding: var(--ds-card-pad-lg); }
 }
