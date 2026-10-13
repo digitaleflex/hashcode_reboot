@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Info } from "lucide-react";
-import { SectionHeader } from "../shared";
+import { CtaArrow, RebootButton, SectionHeader } from "../shared";
 import { ProfileCard } from "../profile-card";
 import { generateProfile } from "@/lib/profiling/engine";
 import type { ProfileAnswers } from "@/lib/profiling/types";
@@ -42,7 +42,7 @@ const DEMO_ANSWERS: ProfileAnswers = {
  * pour ça que la carte est affichée et que la wording précise qu'il n'y a
  * pas de modèle d'IA derrière — `generateProfile` est 100 % déterministe.
  */
-export function Engine() {
+export function Engine({ onJoin }: { onJoin: (ref?: string) => void }) {
   const t = useTranslations("landing.engine");
   const path = t.raw("path") as Array<{ k: string; t: string; m: string }>;
   const archetypes = t.raw("archetypes") as Array<{ t: string; m: string }>;
@@ -108,11 +108,30 @@ export function Engine() {
                 <ProfileCard
                   profile={demoProfile}
                   firstName={DEMO_ANSWERS.firstName}
+                  fields={["domain", "goal", "availability"]}
+                  showTags={false}
                 />
 
-                <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
+                <p className="mt-4 ds-caption leading-relaxed">
                   {t("demoNote")}
                 </p>
+              </div>
+            </Reveal>
+
+            <Reveal delay={0.06}>
+              <div className="mt-6">
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {t("profileUse")}
+                </p>
+                <RebootButton
+                  size="lg"
+                  onClick={() => onJoin("engine")}
+                  ariaLabel={t("ctaAria")}
+                  className="group mt-4 w-full sm:w-auto"
+                >
+                  {t("cta")}
+                  <CtaArrow />
+                </RebootButton>
               </div>
             </Reveal>
 

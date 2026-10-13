@@ -55,8 +55,8 @@ export function Landing({
         <Evolves />
         <Axes onJoin={onJoin} />
         <Method />
-        <Engine />
-        <Community />
+        <Engine onJoin={onJoin} />
+        <Community onJoin={onJoin} />
         <Activity />
         <Roadmap />
         <FaqSection onJoin={onJoin} onOpenPrivacy={onOpenPrivacy} />

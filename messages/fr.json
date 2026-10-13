@@ -219,8 +219,11 @@
           "m": "Ce que tu veux avoir accompli"
         }
       ],
-      "demoLabel": "Exemple de carte de profil — démonstration",
-      "demoNote": "Les données de cette carte sont fictives. Elles illustrent uniquement le format de sortie.",
+      "demoLabel": "Profil d'orientation — démonstration",
+      "demoNote": "Données fictives. Ce profil sert à t'orienter (domaine, objectif, rythme) — ni une certification, ni une évaluation de tes compétences.",
+      "profileUse": "Il oriente ton parcours : un axe de départ et un rythme adaptés à ton point de départ.",
+      "cta": "Construire mon profil",
+      "ctaAria": "Construire mon profil — depuis la section profil",
       "archetypesTitle": "Cinq archétypes",
       "archetypesNote": "Attribués par des règles fixes, jamais par un modèle.",
       "archetypes": [
@@ -249,20 +252,34 @@
     "community": {
       "index": "05 · La communauté",
       "title": "On construit à plusieurs.",
-      "intro": "Des profils, des sessions, des challenges — et des gens qui avancent ensemble.",
+      "intro": "Des profils, des challenges, des workshops et du mentorat — selon ce qui est ouvert.",
       "liveAria": "Nombre de profils déjà créés",
-      "cardChallenge": {
-        "t": "Challenge",
-        "d": "Des problèmes concrets à résoudre, régulièrement."
-      },
-      "cardWorkshop": {
-        "t": "Workshops",
-        "d": "Des sessions live pour apprendre ensemble."
-      },
-      "cardMentoring": {
-        "t": "Mentorat",
-        "d": "De l'accompagnement pour celles et ceux qui en ont besoin."
-      },
+      "cards": [
+        {
+          "t": "Challenges",
+          "d": "Des problèmes concrets à résoudre, régulièrement.",
+          "how": "Tu y accèdes après avoir créé ton profil.",
+          "status": "Disponible",
+          "available": true
+        },
+        {
+          "t": "Workshops",
+          "d": "Des sessions live pour apprendre ensemble.",
+          "how": "Ouverts au fil de la programmation.",
+          "status": "Bientôt",
+          "available": false
+        },
+        {
+          "t": "Mentorat",
+          "d": "De l'accompagnement pour celles et ceux qui en ont besoin.",
+          "how": "Proposé selon ton besoin exprimé au profil.",
+          "status": "Bientôt",
+          "available": false
+        }
+      ],
+      "ctaNote": "Tout commence par ton profil : il te place sur un terrain et ouvre l'accès à la communauté.",
+      "cta": "Construire mon profil",
+      "ctaAria": "Construire mon profil — depuis la section communauté",
       "audiencesLabel": "À qui ça s'adresse",
       "audiences": [
         "Débutants",
