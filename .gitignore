@@ -64,6 +64,9 @@ server.log
 
 # local SQLite (legacy dev DB — never commit)
 db/*.db
+# Rapports Lighthouse CI (générés)
+/.lighthouseci/
+/lhci/
 # Sauvegardes base de données (dumps prod — jamais commitées)
 backups/
 .vercel

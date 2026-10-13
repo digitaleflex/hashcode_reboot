@@ -4,8 +4,12 @@
     "collect": {
       "url": ["http://localhost:3000/"],
       "numberOfRuns": 1,
+      "startServerCommand": "npm run start",
+      "startServerReadyPattern": "Ready in",
+      "startServerReadyTimeout": 120000,
       "settings": {
         "locale": "fr-FR",
+        "chromeFlags": "--no-sandbox --disable-dev-shm-usage",
         "onlyCategories": ["performance", "accessibility", "best-practices", "seo"]
       }
     },
@@ -14,7 +18,9 @@
         "categories:accessibility": ["error", { "minScore": 0.9 }],
         "categories:best-practices": ["warn", { "minScore": 0.8 }],
         "categories:seo": ["warn", { "minScore": 0.9 }],
-        "categories:performance": ["warn", { "minScore": 0.7 }]
+        "categories:performance": ["warn", { "minScore": 0.7 }],
+        "largest-contentful-paint": ["warn", { "maxNumericValue": 3000 }],
+        "cumulative-layout-shift": ["error", { "maxNumericValue": 0.1 }]
       }
     },
     "upload": {

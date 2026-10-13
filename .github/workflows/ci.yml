@@ -128,3 +128,37 @@ jobs:
       - run: npx prisma migrate deploy
       - run: node --test tests/integration.test.cjs
         timeout-minutes: 15
+
+  lighthouse:
+    name: Lighthouse CI (landing)
+    runs-on: ubuntu-latest
+    # Autonome : n'exige aucun secret (la landing ne touche pas la base au
+    # rendu). Verrouille des seuils de perf/a11y/SEO sur `/` (lighthouserc.json).
+    needs: [validate]
+    env:
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      NEXT_PUBLIC_URL: http://localhost:3000
+      NEXT_PUBLIC_APP_VERSION: ci
+      NEXT_PUBLIC_WHATSAPP_URL: https://chat.whatsapp.com/IDcosEG4jjOK4mTAYsX92D
+      NEXT_PUBLIC_MEET_URL: https://meet.google.com/pdr-qjei-zkk
+      BETTER_AUTH_SECRET: ci-not-a-real-secret-only-for-build
+      DATABASE_URL: postgresql://user:pass@localhost:5432/db
+      NEXT_TELEMETRY_DISABLED: "1"
+      NODE_ENV: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run build
+      - name: Lighthouse CI
+        run: npx --yes @lhci/cli@0.15.1 autorun --config=./lighthouserc.json
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: lighthouse-report
+          path: lhci/
+          retention-days: 7

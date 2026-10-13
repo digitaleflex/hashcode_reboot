@@ -32,7 +32,7 @@
     "test:e2e:report": "playwright show-report",
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:headed": "playwright test --headed",
-    "test:perf": "lhci autorun --config ./lighthouserc.json || echo \"[perf] LHCI indisponible ou seuils non atteints — mesure locale, non bloquante (cf. ROADMAP_RESPONSIVE.md)\"",
+    "test:perf": "npx --yes @lhci/cli@0.15.1 autorun --config ./lighthouserc.json || echo \"[perf] LHCI indisponible ou seuils non atteints — mesure locale, non bloquante (cf. ROADMAP_RESPONSIVE.md)\"",
     "test:orientation-hardening": "tsx --test tests/orientation-hardening.test.ts",
     "test:recommendation-presentation": "tsx --test tests/recommendation-presentation.test.ts",
     "test:orientation-catalogue": "tsx --test tests/orientation-catalogue.test.ts"
