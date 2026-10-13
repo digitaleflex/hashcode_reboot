@@ -5,7 +5,7 @@ import NextTopLoader from "nextjs-toploader";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
-import { selectMessages, HEAVY_AUTH_NAMESPACES } from "@/i18n/client-messages";
+import { pickMessages, ROOT_CLIENT_NAMESPACES } from "@/i18n/client-messages";
 import { Toaster } from "@/components/ui/toaster";
 import { routing } from "@/i18n/routing";
 import { Providers } from "../providers";
@@ -146,10 +146,11 @@ export default async function LocaleLayout({
   }
 
   setRequestLocale(locale);
-  // Pages publiques : on exclut les gros namespaces réservés aux routes
-  // authentifiées (`admin` ~50 Ko, `dashboard` ~19 Ko). Leurs layouts les
-  // réinjectent via un `NextIntlClientProvider` imbriqué.
-  const messages = selectMessages(await getMessages({ locale }), HEAVY_AUTH_NAMESPACES);
+  // Payload client minimal : seuls les namespaces consommés par la landing et
+  // les pages publiques sans provider dédié. Les autres (auth ~3 Ko, account
+  // ~5 Ko, admin ~49 Ko, dashboard ~19 Ko, legal ~20 Ko) sont injectés par le
+  // layout de leur route, ou restent strictement serveur (`getTranslations`).
+  const messages = pickMessages(await getMessages({ locale }), ROOT_CLIENT_NAMESPACES);
 
   return (
     <html lang={locale}>
