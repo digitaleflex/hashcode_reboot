@@ -23,12 +23,11 @@ type LinkAction =
 type FooterColumn = { title: string; links: Array<{ t: string; a: string }> };
 
 /**
- * Pages légales : /cgu, /mentions-legales, /cookies et /confidentialite
- * ont bien une route, mais leur namespace i18n `legal.*` est absent de
- * messages/{fr,en}.json — elles échouent au rendu et font échouer
- * `next build`. Elles ne sont donc pas encore liées depuis le footer : on
- * préfère zéro lien mort à trois liens cassés. À réactiver dès que le
- * contenu juridique réel est fourni (ici : `legal.privacy`).
+ * Pages légales : les routes existent (/cgu, /mentions-legales, /cookies,
+ * /confidentialite) et le namespace i18n `legal` est désormais fourni. Elles
+ * ne sont pas encore liées depuis le footer (validation produit de la
+ * destination par entrée de colonne). Renseigner `LEGAL_HREF` les activera ;
+ * tant qu'il est vide, une action inconnue retombe sur /evenements.
  */
 const LEGAL_HREF: Record<string, string> = {};
 
@@ -128,6 +127,8 @@ export function SiteFooter({
       <SocialProofBar />
 
       <div className="shell py-12 lg:py-14">
+        {/* Titre unique du footer : les colonnes sont des sous-sections. */}
+        <h2 className="sr-only">{t("heading")}</h2>
         <div className="grid gap-10 lg:grid-cols-12 lg:gap-8">
           {/* Marque */}
           <div className="lg:col-span-4">
@@ -144,9 +145,9 @@ export function SiteFooter({
           >
             {columns.map((col) => (
               <div key={col.title}>
-                <h2 className="font-display text-[13px] font-semibold uppercase tracking-[0.08em] text-foreground">
+                <h3 className="font-display text-[13px] font-semibold uppercase tracking-[0.08em] text-foreground">
                   {col.title}
-                </h2>
+                </h3>
                 <ul role="list" className="mt-2 flex flex-col">
                   {col.links.map((l, i) => (
                     <li key={`${l.a}-${i}`}>{renderLink(l.a, l.t)}</li>
@@ -161,9 +162,9 @@ export function SiteFooter({
         <div className="mt-12 border-t border-border/60 pt-8">
           <div className="flex flex-wrap items-start justify-between gap-6">
             <div className="max-w-md">
-              <h2 className="font-display text-sm font-semibold text-foreground">
+              <h3 className="font-display text-sm font-semibold text-foreground">
                 {t("privacyTitle")}
-              </h2>
+              </h3>
               <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
                 {t("privacyDesc")}
               </p>

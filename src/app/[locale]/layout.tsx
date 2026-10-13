@@ -27,7 +27,8 @@ const sora = Sora({
   preload: false,
 });
 
-const SITE_URL = "https://reboot.joinhashcode.com";
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://reboot.joinhashcode.com";
 
 export const viewport: Viewport = {
   width: "device-width",

@@ -10,6 +10,9 @@
     "backHome": "Retourner à HASHCODE"
   },
   "landing": {
+    "a11y": {
+      "skipToContent": "Aller au contenu principal"
+    },
     "meta": {
       "title": "HASHCODE REBOOT — Rejoins la communauté dev, cyber & IA",
       "description": "Rejoins la communauté dev, cyber & IA. Crée ton profil en 2 min, reçois ton accès WhatsApp et accède aux sessions.",
@@ -17,6 +20,7 @@
       "ogDescription": "Crée ton profil en 2 min, reçois ton accès WhatsApp et accède aux sessions."
     },
     "siteHeader": {
+      "homeAria": "HASHCODE REBOOT — retour à l'accueil",
       "navAria": "Navigation",
       "links": [
         "Les axes",
@@ -380,6 +384,7 @@
     "footer": {
       "description": "La nouvelle communauté dev, cyber & IA. Où que tu sois.",
       "navAria": "Pied de page",
+      "heading": "Pied de page",
       "columns": [
         {
           "title": "Produit",

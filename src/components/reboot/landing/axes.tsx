@@ -95,6 +95,7 @@ export function Axes({ onJoin }: { onJoin: (ref?: string) => void }) {
                   <RebootButton
                     size="md"
                     onClick={() => onJoin(`axes-${a.id}`)}
+                    ariaLabel={`${t("cta")} — ${a.title}`}
                     className="group/btn w-full"
                   >
                     {t("cta")}

@@ -52,7 +52,13 @@ export function SiteHeader({ onJoin }: { onJoin: (ref?: string) => void }) {
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur-md">
       <div className="shell flex h-16 items-center justify-between gap-3">
-        <Logo variant="full" size="sm" />
+        <I18nLink
+          href="/"
+          className="inline-flex items-center rounded-md focus-lime"
+          aria-label={t("homeAria")}
+        >
+          <Logo variant="full" size="sm" />
+        </I18nLink>
 
         {/* Desktop : nav complète + compte + CTA */}
         <div className="hidden items-center gap-5 md:flex">

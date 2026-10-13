@@ -13,6 +13,8 @@ import { FaqSection } from "./landing/faq-section";
 import { FinalCta } from "./landing/final-cta";
 import { SiteFooter } from "./landing/site-footer";
 import { StickyMobileCta } from "./landing/sticky-cta";
+import { SkipLink } from "./shared";
+import { useTranslations } from "next-intl";
 
 /**
  * Orchestrateur de la landing.
@@ -39,8 +41,12 @@ export function Landing({
   onJoin: (ref?: string) => void;
   onOpenPrivacy?: () => void;
 }) {
+  const t = useTranslations("landing.a11y");
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
+      {/* Premier élément focusable : permet de sauter la nav vers <main>. */}
+      <SkipLink targetId="contenu" label={t("skipToContent")} />
       <SiteHeader onJoin={onJoin} />
 
       {/* Le <main> était absent : aucune landmark de contenu sur la page. */}

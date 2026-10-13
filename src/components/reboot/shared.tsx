@@ -19,6 +19,7 @@ export function RebootButton({
   disabled,
   size = "md",
   variant = "primary",
+  ariaLabel,
 }: {
   children: React.ReactNode;
   onClick?: () => void;
@@ -27,6 +28,8 @@ export function RebootButton({
   disabled?: boolean;
   size?: "sm" | "md" | "lg";
   variant?: "primary" | "ghost" | "outline";
+  /** Nom accessible explicite quand plusieurs CTA partagent le même libellé. */
+  ariaLabel?: string;
 }) {
   const sizes = {
     sm: "min-h-[44px] h-11 min-w-[44px] px-4 text-sm",
@@ -46,6 +49,7 @@ export function RebootButton({
       type={type}
       onClick={onClick}
       disabled={disabled}
+      aria-label={ariaLabel}
       className={cn(
         "inline-flex items-center justify-center gap-2 rounded-md transition-colors duration-200 focus-lime disabled:opacity-50 disabled:pointer-events-none min-h-[44px] cursor-pointer",
         sizes[size],
