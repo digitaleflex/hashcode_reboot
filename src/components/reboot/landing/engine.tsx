@@ -77,7 +77,7 @@ export function Engine() {
                   key={p.k}
                   className="flex gap-4 border-t border-border/60 py-4 first:border-t-0 first:pt-0 last:pb-0"
                 >
-                  <span className="font-mono text-[11px] leading-5 tracking-[0.12em] text-lime">
+                  <span className="ds-overlabel ds-overlabel--accent leading-5">
                     {p.k}
                   </span>
                   <span className="min-w-0">
@@ -97,10 +97,10 @@ export function Engine() {
           <div className="lg:col-span-7">
             <Reveal>
               <div
-                className="relative rounded-lg border border-border/70 bg-card/40 p-4 sm:p-6"
+                className="ds-card relative"
               >
                 {/* Étiquette de démonstration — non ambiguë. */}
-                <p className="mono-label mb-4 flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                <p className="ds-overlabel mb-4 flex items-center gap-2">
                   <Info className="size-3.5 shrink-0" aria-hidden />
                   {t("demoLabel")}
                 </p>

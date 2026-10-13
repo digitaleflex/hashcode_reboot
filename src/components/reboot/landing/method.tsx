@@ -54,13 +54,13 @@ export function Method() {
                 delay={i * 0.08}
               >
                 <span className="method-rail__dot" aria-hidden />
-                <span className="mt-4 block font-mono text-[11px] leading-none tracking-[0.16em] text-muted-foreground md:mt-0">
+                <span className="ds-overlabel mt-4 block leading-none md:mt-0">
                   {it.k}
                 </span>
-                <h3 className="mt-2 font-display text-lg font-bold tracking-tight text-foreground">
+                <h3 className="mt-2 ds-h3 text-foreground">
                   {it.t}
                 </h3>
-                <p className="mt-1.5 max-w-[26ch] text-[15px] leading-relaxed text-muted-foreground">
+                <p className="mt-1.5 max-w-[26ch] ds-body-sm leading-relaxed text-muted-foreground">
                   {it.d}
                 </p>
               </Reveal>

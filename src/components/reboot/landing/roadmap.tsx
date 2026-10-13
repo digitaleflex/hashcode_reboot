@@ -51,12 +51,12 @@ export function Roadmap() {
             >
               <div className="flex items-center gap-2">
                 {it.live ? (
-                  <span className="mono-label inline-flex items-center gap-1.5 rounded-sm border border-lime/50 bg-lime/5 px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-lime">
+                  <span className="ds-badge ds-badge--accent">
                     <Check className="size-3" aria-hidden />
                     {t("liveBadge")}
                   </span>
                 ) : (
-                  <span className="mono-label rounded-sm border border-border px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                  <span className="ds-badge">
                     {it.status}
                   </span>
                 )}

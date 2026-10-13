@@ -53,14 +53,14 @@ export function Evolves() {
                   <Reveal as="li" key={s.k} className="timeline__item" delay={i * 0.06}>
                     <span className="timeline__node" aria-hidden />
                     <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                      <h3 className="font-display text-lg font-bold tracking-tight text-foreground sm:text-xl">
+                      <h3 className="ds-h3 text-foreground">
                         {s.t}
                       </h3>
-                      <span className="mono-label text-[10px] uppercase tracking-[0.16em] text-lime">
+                      <span className="ds-overlabel ds-overlabel--accent">
                         {s.k}
                       </span>
                     </div>
-                    <p className="mt-2 max-w-lg text-[15px] leading-relaxed text-muted-foreground">
+                    <p className="mt-2 max-w-lg ds-body-sm leading-relaxed text-muted-foreground">
                       {s.d}
                     </p>
                   </Reveal>

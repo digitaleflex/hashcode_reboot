@@ -42,7 +42,7 @@ export function Community() {
         <div className="mt-12 grid gap-4 lg:grid-cols-12">
           {/* Tuile principale : le compteur réel. */}
           <Reveal className="lg:col-span-5">
-            <div className="relative flex h-full flex-col justify-between gap-8 overflow-hidden rounded-lg border border-border/70 bg-card/40 p-6 sm:p-8">
+            <div className="ds-card relative flex h-full flex-col justify-between gap-8 overflow-hidden sm:p-8">
               {/* Aura lime très faible — profondeur, pas décoration. */}
               <div
                 className="pointer-events-none absolute -left-16 -top-16 size-48 rounded-full blur-3xl"
@@ -51,7 +51,7 @@ export function Community() {
               />
               <div className="flex items-center gap-2.5 text-muted-foreground">
                 <Users className="size-4 shrink-0" aria-hidden />
-                <span className="mono-label text-[10px] uppercase tracking-[0.16em]">
+                <span className="ds-overlabel">
                   {t("liveAria")}
                 </span>
               </div>
@@ -69,7 +69,7 @@ export function Community() {
               return (
                 <StaggerItem
                   key={c.t}
-                  className="group flex items-start gap-4 rounded-lg border border-border/70 bg-card/40 p-5 transition-colors hover:border-lime/40 sm:block lg:flex lg:gap-0 lg:p-6"
+                  className="ds-card group flex items-start gap-4 transition-colors hover:border-lime/40 sm:block lg:flex lg:gap-0 lg:p-6"
                 >
                   <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors group-hover:text-lime sm:mb-3 lg:mb-4">
                     <Icon className="size-4" aria-hidden />
@@ -90,7 +90,7 @@ export function Community() {
 
         {/* Profils types — ancienne section « audience », replacée ici. */}
         <Reveal delay={0.06} className="mt-12">
-          <h3 className="mono-label text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+          <h3 className="ds-overlabel">
             {t("audiencesLabel")}
           </h3>
           <ul role="list" className="mt-4 flex flex-wrap gap-2">
