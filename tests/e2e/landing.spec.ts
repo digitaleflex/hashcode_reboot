@@ -283,6 +283,18 @@ test.describe('Landing (FR)', () => {
     }
   });
 
+  test('Skip link → #contenu', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('domcontentloaded');
+
+    await page.keyboard.press('Tab');
+    const skip = page.getByRole('link', { name: 'Aller au contenu principal' });
+    await expect(skip).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/#contenu$/);
+    await expect(page.locator('#contenu')).toBeInViewport();
+  });
+
   test.describe('activité temps réel (API mockées)', () => {
     const COUNT_URL = '**/api/community/count';
 
