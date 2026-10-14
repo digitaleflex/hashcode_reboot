@@ -57,6 +57,15 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          # NEXT_PUBLIC_* inlinés au build : sans ces args l'image cuirait
+          # des valeurs vides (CTA WhatsApp cassé, build KO sur /fr).
+          # Source : Repository Variables (publiques, non-secrets).
+          build-args: |
+            NEXT_PUBLIC_SITE_URL=${{ vars.NEXT_PUBLIC_SITE_URL }}
+            NEXT_PUBLIC_URL=${{ vars.NEXT_PUBLIC_URL }}
+            NEXT_PUBLIC_APP_VERSION=${{ steps.buildtag.outputs.tag }}
+            NEXT_PUBLIC_WHATSAPP_URL=${{ vars.NEXT_PUBLIC_WHATSAPP_URL }}
+            NEXT_PUBLIC_MEET_URL=${{ vars.NEXT_PUBLIC_MEET_URL }}
 
       - name: Image digest
         run: echo ${{ steps.build.outputs.digest }}
