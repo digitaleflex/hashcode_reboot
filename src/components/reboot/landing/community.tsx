@@ -1,10 +1,11 @@
 "use client";
 
 import { Users, Swords, Video, LifeBuoy } from "lucide-react";
-import { SectionHeader, Tag } from "../shared";
+import { CtaArrow, RebootButton, SectionHeader, Tag } from "../shared";
 import { LiveMemberCount } from "./social-proof";
 import { Reveal, Stagger, StaggerItem } from "../motion/primitives";
 import { useTranslations } from "next-intl";
+import { cn } from "@/lib/utils";
 
 const CARD_ICONS = [Swords, Video, LifeBuoy] as const;
 
@@ -17,14 +18,16 @@ const CARD_ICONS = [Swords, Video, LifeBuoy] as const;
  *
  * Seule donnée dynamique : `LiveMemberCount` (GET /api/community/count).
  */
-export function Community() {
+export function Community({ onJoin }: { onJoin: (ref?: string) => void }) {
   const t = useTranslations("landing.community");
   const audiences = t.raw("audiences") as string[];
-  const cards = [
-    { t: t("cardChallenge.t"), d: t("cardChallenge.d") },
-    { t: t("cardWorkshop.t"), d: t("cardWorkshop.d") },
-    { t: t("cardMentoring.t"), d: t("cardMentoring.d") },
-  ];
+  const cards = t.raw("cards") as Array<{
+    t: string;
+    d: string;
+    how: string;
+    status: string;
+    available: boolean;
+  }>;
 
   return (
     <section
@@ -69,18 +72,27 @@ export function Community() {
               return (
                 <StaggerItem
                   key={c.t}
-                  className="ds-card group flex items-start gap-4 transition-colors hover:border-lime/40 sm:block lg:flex lg:gap-0 lg:p-6"
+                  className="ds-card group flex flex-col gap-3 transition-colors hover:border-lime/40"
                 >
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors group-hover:text-lime sm:mb-3 lg:mb-4">
+                  <span className="flex size-9 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors group-hover:text-lime">
                     <Icon className="size-4" aria-hidden />
                   </span>
-                  <span className="sm:mt-0 lg:mt-0 block min-w-0">
+                  <span className="min-w-0">
                     <span className="block font-display text-base font-semibold text-foreground">
                       {c.t}
                     </span>
                     <span className="mt-1 block text-sm leading-snug text-muted-foreground">
                       {c.d}
                     </span>
+                    <span className="mt-2 block ds-caption">{c.how}</span>
+                  </span>
+                  <span
+                    className={cn(
+                      "ds-badge mt-auto self-start",
+                      c.available && "ds-badge--accent",
+                    )}
+                  >
+                    {c.status}
                   </span>
                 </StaggerItem>
               );
@@ -101,6 +113,24 @@ export function Community() {
             ))}
           </ul>
           <p className="mt-4 text-sm text-muted-foreground">{t("note")}</p>
+        </Reveal>
+
+        <Reveal
+          delay={0.08}
+          className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
+            {t("ctaNote")}
+          </p>
+          <RebootButton
+            size="lg"
+            onClick={() => onJoin("community")}
+            ariaLabel={t("ctaAria")}
+            className="group w-full sm:w-auto"
+          >
+            {t("cta")}
+            <CtaArrow />
+          </RebootButton>
         </Reveal>
       </div>
     </section>

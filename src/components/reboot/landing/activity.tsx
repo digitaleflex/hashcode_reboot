@@ -121,7 +121,7 @@ export function Activity() {
             <p role="status" className="sr-only">
               {t("loading")}
             </p>
-            <ul role="list" className="mt-12 grid gap-4 md:grid-cols-3">
+            <ul role="list" aria-busy="true" className="mt-12 grid gap-4 md:grid-cols-3">
               {Array.from({ length: LIMIT }).map((_, i) => (
                 <li
                   key={i}

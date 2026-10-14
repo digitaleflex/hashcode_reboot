@@ -194,6 +194,36 @@ test.describe('Landing (FR)', () => {
     ]);
   });
 
+  test('CTA profil (section engine) → profiling_started', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('domcontentloaded');
+    await dismissCookies(page);
+
+    const cta = page
+      .locator('#engine')
+      .getByRole('button', { name: 'Construire mon profil' });
+    await Promise.all([
+      waitForAnalytics(page, 'reboot_cta_clicked', 'engine'),
+      waitForAnalytics(page, 'profiling_started'),
+      cta.click(),
+    ]);
+  });
+
+  test('CTA communauté → profiling_started', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('domcontentloaded');
+    await dismissCookies(page);
+
+    const cta = page
+      .locator('#community')
+      .getByRole('button', { name: 'Construire mon profil' });
+    await Promise.all([
+      waitForAnalytics(page, 'reboot_cta_clicked', 'community'),
+      waitForAnalytics(page, 'profiling_started'),
+      cta.click(),
+    ]);
+  });
+
   test.describe('activité temps réel (API mockées)', () => {
     const COUNT_URL = '**/api/community/count';
 

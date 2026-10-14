@@ -11,16 +11,30 @@ import { useTranslations } from "next-intl";
  * The HASHCODE profile card — the "reward" for completing the flow.
  * Engineered, not a generic SaaS confirmation. Resembles an ID card.
  */
+type ProfileField =
+  | "domain"
+  | "level"
+  | "goal"
+  | "availability"
+  | "style"
+  | "mentoring";
+
 export function ProfileCard({
   profile,
   goal,
   firstName,
   variant = "default",
+  fields,
+  showTags = true,
 }: {
   profile: GeneratedProfile;
   goal?: string;
   firstName?: string;
   variant?: "default" | "compact";
+  /** Sous-ensemble de champs affichés. Défaut : tous (comportement historique). */
+  fields?: ProfileField[];
+  /** Afficher les tags d'intérêt. Défaut : oui. */
+  showTags?: boolean;
 }) {
   const t = useTranslations("profiling");
 
@@ -42,28 +56,34 @@ export function ProfileCard({
     }
   }
 
-  const rows: { label: string; value: string }[] = [
+  const allRows: { field: ProfileField; label: string; value: string }[] = [
     {
+      field: "domain",
       label: t("profileCard.domain"),
       value: localized("domain", profile.domain, profile.domainLabel),
     },
     {
+      field: "level",
       label: t("profileCard.level"),
       value: localized("level", profile.level, profile.levelLabel),
     },
     {
+      field: "goal",
       label: t("profileCard.goal"),
       value: localized("goal", profile.goal, profile.goalLabel),
     },
     {
+      field: "availability",
       label: t("profileCard.availability"),
       value: localized("availability", profile.availability, profile.availabilityLabel),
     },
     {
+      field: "style",
       label: t("profileCard.style"),
       value: localized("style", profile.learningStyle, profile.styleLabel),
     },
     {
+      field: "mentoring",
       label: t("profileCard.mentoring"),
       value: localized(
         "mentoring",
@@ -72,6 +92,9 @@ export function ProfileCard({
       ),
     },
   ];
+  const rows = fields
+    ? allRows.filter((r) => fields.includes(r.field))
+    : allRows;
 
   return (
     <div
@@ -143,7 +166,7 @@ export function ProfileCard({
           </div>
         )}
 
-        {profile.tags.length > 0 && (
+        {showTags && profile.tags.length > 0 && (
           <div className="mt-5 flex flex-wrap gap-1.5">
             {profile.tags.slice(0, 8).map((tag) => (
               <Tag key={tag}>{tag}</Tag>
