@@ -1,0 +1,116 @@
+name: Deploy to production
+
+# Déploiement automatisé vers le serveur prod (runner self-hosted).
+#
+# Fonctionnement :
+#   - Déclenché à la FIN du workflow "Build and Push Docker Image" sur main
+#     (jamais en parallèle du build : pas de course sur le tag).
+#   - Job `plan` (ubuntu-latest, lecture seule) : résout le tag immuable
+#     `sha-<sha7>` et vérifie que l'image existe dans GHCR. Toujours exécuté.
+#   - Job `deploy` (runner self-hosted `prod-deploy`, environment
+#     `production`) : backup DB, pull du tag épinglé, recreate, prune.
+#     INACTIF tant que la Variable repo DEPLOY_DRY_RUN vaut "true"
+#     (comportement actuel : dry-run, zéro toucher prod).
+#
+# Garde-fous anti-plantage serveur :
+#   - Concurrence 1, jamais d'annulation en cours (cancel-in-progress: false).
+#   - timeout-minutes: 10 sur chaque job.
+#   - AUCUN build sur le serveur : uniquement pull + recreate.
+#   - Tag immuable épinglé (jamais `main`/latest mobile).
+#   - Prune des vieux tags APRES succès seulement.
+#
+# Mise en service :
+#   1. Installer UN runner sur le serveur prod avec les labels
+#      [self-hosted, prod-deploy] (Settings → Actions → Runners).
+#   2. Vérifier quelques runs en dry-run (job `plan` vert, `deploy` skippé).
+#   3. Basculer : `gh variable set DEPLOY_DRY_RUN --body "false"`.
+#      Optionnel : ajouter un reviewer requis sur l'environment `production`.
+
+on:
+  workflow_run:
+    workflows: ["Build and Push Docker Image"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag GHCR immuable à déployer (ex. sha-abc1234)"
+        required: true
+      dry_run:
+        description: "true = plan seulement, false = déploie vraiment"
+        default: "true"
+
+concurrency:
+  group: prod-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  plan:
+    name: Plan (dry-run, lecture seule)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+    steps:
+      - name: Resolve image tag
+        id: resolve
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            SHA="${{ github.event.workflow_run.head_sha }}"
+            TAG="sha-${SHA:0:7}"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Image cible : ghcr.io/${{ github.repository_owner }}/hashcode-reboot:$TAG"
+
+      - name: Login to GHCR (lecture seule)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify image exists in GHCR
+        run: |
+          docker manifest inspect \
+            "ghcr.io/${{ github.repository_owner }}/hashcode-reboot:${{ steps.resolve.outputs.tag }}" \
+            > /dev/null
+          echo "✔ image présente dans GHCR"
+
+      - name: Dry-run summary
+        run: |
+          echo "DRY-RUN : aucune action sur la prod."
+          echo "Avec DEPLOY_DRY_RUN=false, le job deploy exécuterait :"
+          echo "  1. ./scripts/backup.sh (sauvegarde DB)"
+          echo "  2. GHCR_TAG=${{ steps.resolve.outputs.tag }} ./scripts/deploy-ghcr.sh (pull + recreate)"
+          echo "  3. docker image prune des tags précédents (après succès)"
+
+  deploy:
+    name: Deploy (serveur prod)
+    needs: [plan]
+    # Inactif tant que le dry-run est demandé (défaut sûr).
+    if: ${{ vars.DEPLOY_DRY_RUN != 'true' && inputs.dry_run != 'true' }}
+    runs-on: [self-hosted, prod-deploy]
+    environment: production
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Sanity check scripts
+        run: bash -n scripts/deploy-ghcr.sh && bash -n scripts/backup.sh
+
+      - name: Backup database
+        run: ./scripts/backup.sh
+
+      - name: Pull + recreate (tag épinglé)
+        run: GHCR_TAG="${{ needs.plan.outputs.tag }}" ./scripts/deploy-ghcr.sh
+
+      - name: Prune old images (après succès)
+        run: docker image prune -af --filter "until=168h"
