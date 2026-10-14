@@ -18,18 +18,24 @@ type LinkAction =
   | "privacy"
   | "cgu"
   | "legal"
+  | "confidentialite"
   | "cookies";
 
 type FooterColumn = { title: string; links: Array<{ t: string; a: string }> };
 
 /**
- * Pages légales : les routes existent (/cgu, /mentions-legales, /cookies,
- * /confidentialite) et le namespace i18n `legal` est désormais fourni. Elles
- * ne sont pas encore liées depuis le footer (validation produit de la
- * destination par entrée de colonne). Renseigner `LEGAL_HREF` les activera ;
- * tant qu'il est vide, une action inconnue retombe sur /evenements.
+ * Pages légales : les routes existent (/mentions-legales, /cgu,
+ * /confidentialite, /cookies). Les libellés viennent des colonnes i18n
+ * (`landing.footer.columns`) ; la destination est résolue ici, en code, pour
+ * garder des liens conscients de la locale (`next-intl`). Une action inconnue
+ * retombe sur /evenements.
  */
-const LEGAL_HREF: Record<string, string> = {};
+const LEGAL_HREF: Record<string, string> = {
+  legal: "/mentions-legales",
+  cgu: "/cgu",
+  confidentialite: "/confidentialite",
+  cookies: "/cookies",
+};
 
 /** ancres de la landing (cf. ids structurels dans les sections). */
 const ANCHOR: Record<string, string> = {
@@ -130,9 +136,15 @@ export function SiteFooter({
         {/* Titre unique du footer : les colonnes sont des sous-sections. */}
         <h2 className="sr-only">{t("heading")}</h2>
         <div className="grid gap-10 lg:grid-cols-12 lg:gap-8">
-          {/* Marque */}
+          {/* Marque — logo cliquable vers l'accueil localisé. */}
           <div className="lg:col-span-4">
-            <Logo variant="full" size="sm" />
+            <I18nLink
+              href="/"
+              aria-label={t("homeAria")}
+              className="inline-flex items-center rounded-md focus-lime"
+            >
+              <Logo variant="full" size="sm" />
+            </I18nLink>
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">
               {t("description")}
             </p>
