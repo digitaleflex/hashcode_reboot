@@ -68,6 +68,13 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "Image cible : ghcr.io/${{ github.repository_owner }}/hashcode-reboot:$TAG"
 
+      - name: Login to GHCR (lecture seule)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Verify image exists in GHCR
         run: |
           docker manifest inspect \
