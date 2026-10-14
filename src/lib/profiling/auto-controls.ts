@@ -114,7 +114,10 @@ export const REASON_LABELS = getReasonLabels();
 /**
  * Canonical WhatsApp URL (server-side).
  * Requires WHATSAPP_URL or NEXT_PUBLIC_WHATSAPP_URL to be set.
- * Throws at module load if missing — fail fast instead of silent fallback.
+ * LAZY : ne jette qu'à l'appel, jamais au chargement du module — un
+ * `export const` évalué à l'import faisait tomber TOUTE la route
+ * importatrice (ex. GET /api/members → 500 y compris sur le chemin 401)
+ * dès que la variable manquait (CI sans .env local).
  */
 function getRequiredServerWhatsAppUrl(): string {
   const url = process.env.WHATSAPP_URL ?? process.env.NEXT_PUBLIC_WHATSAPP_URL;
@@ -127,4 +130,6 @@ function getRequiredServerWhatsAppUrl(): string {
   return url;
 }
 
-export const WHATSAPP_URL = getRequiredServerWhatsAppUrl();
+export function getWhatsAppUrl(): string {
+  return getRequiredServerWhatsAppUrl();
+}

@@ -119,6 +119,9 @@ jobs:
       DATABASE_URL: postgresql://hashcode:hashcode@localhost:5432/hashcode_reboot_test?schema=public
       BETTER_AUTH_SECRET: integration-test-secret-32-chars-minimum-ok
       NODE_ENV: test
+      # Parité avec le job lighthouse : certaines routes exigent l'URL
+      # WhatsApp à l'exécution (ex. GET /api/community/join → 503 sinon).
+      NEXT_PUBLIC_WHATSAPP_URL: https://chat.whatsapp.com/IDcosEG4jjOK4mTAYsX92D
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { toServerEventData } from "@/lib/analytics";
 import { getSession } from "@/lib/account-auth";
-import { WHATSAPP_URL } from "@/lib/profiling/auto-controls";
+import { getWhatsAppUrl } from "@/lib/profiling/auto-controls";
 import { audit } from "@/lib/admin-audit";
 import { ForbiddenError } from "@/lib/errors";
 import {
@@ -97,5 +97,14 @@ export async function GET(req: NextRequest) {
     }
   })();
 
-  return NextResponse.redirect(WHATSAPP_URL);
+  let whatsappUrl: string;
+  try {
+    whatsappUrl = getWhatsAppUrl();
+  } catch {
+    return NextResponse.json(
+      { error: "Communauté indisponible (configuration manquante)." },
+      { status: 503 },
+    );
+  }
+  return NextResponse.redirect(whatsappUrl);
 }
