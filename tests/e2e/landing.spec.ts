@@ -173,7 +173,7 @@ test.describe('Landing (FR)', () => {
     await faq.getByRole('button', { name: "C'est quoi le Reboot exactement ?" }).click();
     // `.last()` : l'innermost (contenu de l'accordéon), les ancêtres portent
     // le même texte et feraient échouer le mode strict.
-    await expect(faq.getByText('Le Reboot est le nouveau point', { exact: false }).last()).toBeVisible();
+    await expect(faq.getByText("Le point d'entrée de la communauté HASHCODE", { exact: false }).last()).toBeVisible();
 
     await faq.getByRole('button', { name: 'Mes données sont protégées ?' }).click();
     const privacyLink = faq.getByRole('button', { name: 'Voir la politique de confidentialité' });
@@ -222,6 +222,65 @@ test.describe('Landing (FR)', () => {
       waitForAnalytics(page, 'profiling_started'),
       cta.click(),
     ]);
+  });
+
+  test('CTA final → profiling_started', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('domcontentloaded');
+    await dismissCookies(page);
+
+    const cta = page
+      .locator('#rejoindre')
+      .getByRole('button', { name: 'Construire mon profil' });
+    await Promise.all([
+      waitForAnalytics(page, 'reboot_cta_clicked', 'final'),
+      waitForAnalytics(page, 'profiling_started'),
+      cta.click(),
+    ]);
+  });
+
+  test('FAQ — accordéon pilotable au clavier + état ARIA', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('domcontentloaded');
+    await dismissCookies(page);
+
+    const faq = page.locator('#faq');
+    const trigger = faq.getByRole('button', {
+      name: "C'est quoi le Reboot exactement ?",
+    });
+    await trigger.scrollIntoViewIfNeeded();
+    await trigger.focus();
+    await expect(trigger).toBeFocused();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+
+    await page.keyboard.press('Enter');
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    await expect(
+      faq.getByText("Le point d'entrée de la communauté HASHCODE", { exact: false }).last(),
+    ).toBeVisible();
+
+    await page.keyboard.press('Enter');
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  test('Footer — logo cliquable + destinations légales', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('domcontentloaded');
+
+    const footer = page.locator('footer');
+    await expect(
+      footer.getByRole('link', { name: "HASHCODE REBOOT — retour à l'accueil" }),
+    ).toHaveAttribute('href', '/');
+
+    const legal = [
+      ['Mentions légales', '/mentions-legales'],
+      ['CGU', '/cgu'],
+      ['Confidentialité', '/confidentialite'],
+      ['Cookies', '/cookies'],
+    ] as const;
+    for (const [name, href] of legal) {
+      await expect(footer.getByRole('link', { name, exact: true })).toHaveAttribute('href', href);
+    }
   });
 
   test.describe('activité temps réel (API mockées)', () => {

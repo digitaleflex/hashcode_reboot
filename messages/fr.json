@@ -368,32 +368,37 @@
         {
           "id": "what",
           "q": "C'est quoi le Reboot exactement ?",
-          "a": "Le Reboot est le nouveau point d'entrée de la communauté HASHCODE. Tu construis ton profil en 2 minutes, tu reçois une première orientation, et tu rejoins la communauté officielle. C'est la première étape du nouveau HASHCODE."
-        },
-        {
-          "id": "duration",
-          "q": "Combien de temps ça prend ?",
-          "a": "Environ 2 minutes. La majorité des réponses se font par clic. On ne te demande que ce qui est nécessaire pour comprendre ton profil — rien de superflu."
-        },
-        {
-          "id": "expert",
-          "q": "Faut-il être expert pour rejoindre ?",
-          "a": "Non. HASHCODE est ouvert aux débutants, aux étudiants, aux développeurs, aux professionnels, aux entrepreneurs et aux autodidactes. On part de là où tu es vraiment."
+          "a": "Le point d'entrée de la communauté HASHCODE : tu construis un profil qui te situe, tu reçois un axe de départ, puis tu rejoins la communauté. C'est la première étape du nouveau HASHCODE."
         },
         {
           "id": "free",
           "q": "C'est gratuit ?",
-          "a": "Oui. Le Reboot est gratuit : profil + accès communauté. Si un jour une option payante existe, ce sera optionnel et annoncé clairement. Rien n'est prélevé, rien n'est caché."
+          "a": "Oui. Profil et accès à la communauté sont gratuits. Aucune option payante n'est active aujourd'hui ; toute évolution serait annoncée clairement."
+        },
+        {
+          "id": "expert",
+          "q": "Faut-il être expert pour rejoindre ?",
+          "a": "Non. Le Reboot s'adresse aux débutants comme aux plus avancés — étudiants, développeurs, professionnels, entrepreneurs, autodidactes. On part de là où tu es."
+        },
+        {
+          "id": "make",
+          "q": "Qu'est-ce que je peux y faire ?",
+          "a": "Des challenges concrets pour pratiquer, et l'accès à la communauté. Les ateliers live et le mentorat arrivent au fil des ouvertures — rien n'est annoncé comme disponible avant de l'être."
         },
         {
           "id": "after",
           "q": "Que se passe-t-il après mon inscription ?",
-          "a": "Tu réponds par clic (~2 min), tu reçois ton axe proposé, puis ton accès WhatsApp si ton profil est compatible. Sinon, on te recontacte par email pour une invitation personnalisée. Zéro spam, suppression en 1 message."
+          "a": "Tu réponds par clic (~2 min), tu reçois ton axe proposé, puis ton accès WhatsApp si ton profil est compatible — sinon on te recontacte par email. Zéro spam, suppression en 1 message."
+        },
+        {
+          "id": "duration",
+          "q": "Combien de temps ça prend ?",
+          "a": "Environ 2 minutes. La plupart des réponses se font par clic ; on ne demande que le nécessaire pour te situer."
         },
         {
           "id": "privacy",
           "q": "Mes données sont protégées ?",
-          "a": "Oui. On collecte le minimum nécessaire, aucune revente, aucune publicité. Tu peux demander la suppression de tes données à tout moment."
+          "a": "Oui. On collecte le minimum nécessaire, sans revente ni publicité. Tu peux demander la suppression de tes données à tout moment."
         }
       ],
       "privacyLink": "Voir la politique de confidentialité",
@@ -401,14 +406,15 @@
     },
     "finalCta": {
       "title": "FAIS PARTIE DU REBOOT.",
-      "description": "Crée ton profil en 2 min et reçois ton accès WhatsApp.",
+      "description": "Un profil qui te situe, un axe de départ, et une communauté pour progresser.",
       "cta": "Construire mon profil",
-      "reassurance": "Gratuit · Environ 2 minutes · Zéro spam"
+      "reassurance": "Gratuit · Sans engagement · Zéro spam"
     },
     "footer": {
       "description": "La nouvelle communauté dev, cyber & IA. Où que tu sois.",
       "navAria": "Pied de page",
       "heading": "Pied de page",
+      "homeAria": "HASHCODE REBOOT — retour à l'accueil",
       "columns": [
         {
           "title": "Produit",
@@ -446,6 +452,27 @@
             {
               "t": "Mon espace",
               "a": "account"
+            }
+          ]
+        },
+        {
+          "title": "Légal",
+          "links": [
+            {
+              "t": "Mentions légales",
+              "a": "legal"
+            },
+            {
+              "t": "CGU",
+              "a": "cgu"
+            },
+            {
+              "t": "Confidentialité",
+              "a": "confidentialite"
+            },
+            {
+              "t": "Cookies",
+              "a": "cookies"
             }
           ]
         }
