@@ -54,10 +54,10 @@ export function Axes({ onJoin }: { onJoin: (ref?: string) => void }) {
               <StaggerItem
                 as="li"
                 key={a.id}
-                className="group flex flex-col rounded-lg border border-border/70 bg-card/40 p-6 transition-colors hover:border-lime/45"
+                className="ds-card group flex flex-col transition-colors hover:border-lime/45"
               >
                 <div className="flex items-center justify-between gap-3">
-                  <span className="font-mono text-[11px] leading-none tracking-[0.16em] text-lime">
+                  <span className="ds-overlabel ds-overlabel--accent leading-none">
                     {a.id}
                   </span>
                   {Icon && (
@@ -68,15 +68,15 @@ export function Axes({ onJoin }: { onJoin: (ref?: string) => void }) {
                 </div>
 
                 {/* Signal : ce que le produit appelle ce terrain. */}
-                <span className="mono-label mt-6 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                <span className="ds-overlabel mt-6">
                   {a.signal}
                 </span>
 
-                <h3 className="mt-2 font-display text-xl font-bold tracking-tight text-foreground">
+                <h3 className="mt-2 ds-h3 text-foreground">
                   {a.title}
                 </h3>
 
-                <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
+                <p className="mt-2 ds-body-sm leading-relaxed text-muted-foreground">
                   {a.desc}
                 </p>
 
@@ -84,7 +84,7 @@ export function Axes({ onJoin }: { onJoin: (ref?: string) => void }) {
                   {a.points.map((p) => (
                     <li
                       key={p}
-                      className="rounded-sm border border-border/80 px-2 py-1 text-[12px] leading-none text-muted-foreground"
+                      className="rounded-sm border border-border/80 px-2 py-1 ds-meta leading-none"
                     >
                       {p}
                     </li>

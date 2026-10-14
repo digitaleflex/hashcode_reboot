@@ -153,16 +153,11 @@ export function Activity() {
           <ul role="list" className="mt-12 grid gap-4 md:grid-cols-3">
             {list.map((e, i) => (
               <Reveal as="li" key={e.id} delay={i * 0.07} className="flex">
-                <article className="flex w-full flex-col rounded-lg border border-border/70 bg-card/40 p-5 transition-colors hover:border-lime/40">
+                <article className="ds-card flex w-full flex-col transition-colors hover:border-lime/40">
                   {/* Badges : statut réel + type réel */}
                   <div className="flex flex-wrap items-center gap-2">
                     <span
-                      className={cn(
-                        "mono-label inline-flex items-center gap-1.5 rounded-sm border px-2 py-0.5 text-[10px] uppercase tracking-[0.14em]",
-                        e.status === "live"
-                          ? "border-lime/50 bg-lime/5 text-lime"
-                          : "border-border text-muted-foreground",
-                      )}
+                      className={cn("ds-badge", e.status === "live" && "ds-badge--accent")}
                     >
                       {e.status === "live" && (
                         <span
@@ -172,7 +167,7 @@ export function Activity() {
                       )}
                       {e.status === "live" ? t("statusLive") : t("statusScheduled")}
                     </span>
-                    <span className="mono-label rounded-sm border border-border px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                    <span className="ds-badge">
                       {typeLabel(e.type)}
                     </span>
                     {e.level && (
@@ -186,7 +181,7 @@ export function Activity() {
                     {e.title}
                   </h3>
 
-                  <dl className="mt-4 flex flex-col gap-1.5 text-[13px] text-muted-foreground">
+                  <dl className="mt-4 flex flex-col gap-1.5 ds-caption">
                     <div className="flex items-center gap-2">
                       <CalendarDays className="size-3.5 shrink-0" aria-hidden />
                       <dt className="sr-only">{t("metaDate")}</dt>
