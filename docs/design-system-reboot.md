@@ -1,5 +1,12 @@
 # Design System Reboot — consolidation (Issue #127, Phase 1 Agent B)
 
+> ⚠️ **Archive historique.** Les valeurs de tokens décrites ici datent d'une
+> révision antérieure et **ne correspondent plus** au CSS live (ex.
+> `--background` est aujourd'hui `#080A0C`, `--border` `#2A3036`,
+> `--muted-foreground` `#9AA3AD`, `--input` `#5C636B`). Pour l'état courant et
+> les fondations (rôles typographiques, cartes, boutons, contraste) :
+> `docs/design-system/foundations-2026-10-13.md`.
+
 > Périmètre BORNÉ : consolidation des tokens dark/lime/shadcn **déjà live**.
 > Aucune valeur live modifiée (preuve : `git diff` de cette issue ne contient
 > que des `+`). Archive historique : `docs/interface-utilisateur.md`

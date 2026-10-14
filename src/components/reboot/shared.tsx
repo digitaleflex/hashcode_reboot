@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 /* ============================================================
@@ -17,6 +17,7 @@ export function RebootButton({
   className,
   type = "button",
   disabled,
+  loading = false,
   size = "md",
   variant = "primary",
   ariaLabel,
@@ -26,6 +27,8 @@ export function RebootButton({
   className?: string;
   type?: "button" | "submit";
   disabled?: boolean;
+  /** État d'attente : désactive l'action, affiche un spinner et pose `aria-busy`. */
+  loading?: boolean;
   size?: "sm" | "md" | "lg";
   variant?: "primary" | "ghost" | "outline";
   /** Nom accessible explicite quand plusieurs CTA partagent le même libellé. */
@@ -36,20 +39,24 @@ export function RebootButton({
     md: "min-h-[44px] h-11 min-w-[44px] px-5 text-sm",
     lg: "min-h-[48px] h-12 min-w-[48px] px-6 text-base",
   };
+  // États : hover / active / disabled portés par le variant ; focus unifié via
+  // `.focus-lime` sur le conteneur (un seul indicateur, identique partout).
   const variants = {
     primary:
-      "bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs transition-colors focus-visible:ring-ring focus-visible:ring-[3px] rounded-md font-medium",
+      "bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/85 shadow-xs rounded-md font-medium",
     ghost:
-      "bg-transparent text-foreground hover:text-foreground hover:bg-secondary transition-colors focus-visible:ring-ring focus-visible:ring-[3px] rounded-md font-medium",
+      "bg-transparent text-foreground hover:bg-secondary active:bg-secondary/80 rounded-md font-medium",
     outline:
-      "bg-transparent text-foreground border border-border hover:border-lime/60 hover:text-lime",
+      "bg-transparent text-foreground border border-border hover:border-lime/60 hover:text-lime active:border-lime/70 active:text-lime",
   };
+  const isDisabled = disabled || loading;
   return (
     <button
       type={type}
       onClick={onClick}
-      disabled={disabled}
+      disabled={isDisabled}
       aria-label={ariaLabel}
+      aria-busy={loading || undefined}
       className={cn(
         "inline-flex items-center justify-center gap-2 rounded-md transition-colors duration-200 focus-lime disabled:opacity-50 disabled:pointer-events-none min-h-[44px] cursor-pointer",
         sizes[size],
@@ -57,6 +64,7 @@ export function RebootButton({
         className,
       )}
     >
+      {loading && <Loader2 className="size-4 animate-spin" aria-hidden />}
       {children}
     </button>
   );
@@ -116,11 +124,11 @@ export function SectionHeader({
   return (
     <div className={cn("max-w-2xl", className)}>
       <Eyebrow>{index}</Eyebrow>
-      <h2 className="mt-3 font-display font-bold text-2xl sm:text-3xl tracking-tight text-foreground text-balance">
+      <h2 className="mt-3 ds-h2 text-foreground text-balance">
         {title}
       </h2>
       {intro && (
-        <p className="mt-3 text-muted-foreground text-base sm:text-lg leading-relaxed">
+        <p className="mt-3 ds-lead text-muted-foreground">
           {intro}
         </p>
       )}
@@ -217,7 +225,7 @@ export function RebootTitle({
   return (
     <h1
       className={cn(
-        "font-display font-extrabold italic tracking-tight leading-[0.92] text-foreground text-balance break-words text-[clamp(2.75rem,13vw,6rem)] sm:text-7xl lg:text-8xl",
+        "ds-display text-foreground text-balance break-words",
         className,
       )}
     >
@@ -248,7 +256,7 @@ export function Card({
   [key: string]: unknown;
 }) {
   return (
-    <div className={cn("rounded-md border border-border/60 bg-card/40", className)} {...rest}>
+    <div className={cn("rounded-lg border border-border/60 bg-card/40", className)} {...rest}>
       {children}
     </div>
   );

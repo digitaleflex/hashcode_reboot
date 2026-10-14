@@ -31,6 +31,8 @@ jobs:
       - run: npm run test:orientation-catalogue
       - name: Validate translation keys
         run: node scripts/check-messages.mjs
+      - name: Validate design token contrast
+        run: node scripts/check-contrast.mjs
 
   detect-secrets:
     name: Detect CI secrets
