@@ -1028,6 +1028,10 @@
   --ds-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* Rôles typographiques — dans `@layer components` pour que les utilitaires
+   Tailwind (couleur, interligne) puissent les surcharger localement :
+   `.ds-meta tracking-[0.06em]`, `.ds-caption leading-snug`, etc. */
+@layer components {
 /* — Display (hero / wordmark). Reproduit RebootTitle. — */
 .ds-display {
   font-family: var(--font-display);
@@ -1100,6 +1104,7 @@
   line-height: 1.5;
   color: var(--muted-foreground);
 }
+} /* fin @layer components — rôles typographiques */
 
 /* — Carte canonique (surface + rayon + gabarit). Base d'adoption des sections. —
    Dans `@layer components` pour que les utilitaires Tailwind (`sm:p-8`,

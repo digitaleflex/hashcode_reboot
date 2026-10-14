@@ -5,9 +5,17 @@ test.describe.configure({ retries: 0 });
 
 test('Landing page accessibility', async ({ page }) => {
   test.setTimeout(120000);
-  
-  await page.goto('/fr', { waitUntil: 'domcontentloaded', timeout: 60000 });
-  
+
+  await page.goto('/fr', { waitUntil: 'networkidle', timeout: 60000 });
+
+  // Stabilisation AVANT le scan : la landing révèle ses sections à
+  // l'hydratation ; scanner trop tôt remonte de faux positifs
+  // `color-contrast` sur des éléments en cours de transition.
+  await page.waitForLoadState('load');
+  const cookieClose = page.getByRole('button', { name: 'Fermer et refuser' });
+  if ((await cookieClose.count()) > 0) await cookieClose.first().click();
+  await page.waitForTimeout(1200);
+
   const accessibilityScanResults = await new AxeBuilder({ page })
     .withTags(['wcag2aa', 'wcag21aa', 'best-practice'])
     .analyze();

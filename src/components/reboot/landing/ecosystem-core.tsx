@@ -59,11 +59,11 @@ export function EcosystemCore() {
             key={o.k}
             className={`ecosystem-core__orbit ecosystem-core__orbit--${classes[i] ?? "web"}`}
           >
-            <span className="mono-label text-[10px] leading-none text-muted-foreground">{o.k}</span>
+            <span className="ds-overlabel leading-none">{o.k}</span>
             <span className="font-display text-[13px] font-semibold leading-tight text-foreground">
               {o.t}
             </span>
-            <span className="text-[11px] leading-tight text-muted-foreground">{o.m}</span>
+            <span className="ds-meta leading-tight">{o.m}</span>
           </li>
         ))}
       </ul>

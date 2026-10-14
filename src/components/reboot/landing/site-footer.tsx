@@ -182,10 +182,10 @@ export function SiteFooter({
 
       <div className="border-t border-border/60">
         <div className="shell flex flex-col items-center justify-between gap-2 py-4 sm:flex-row">
-          <span className="text-[12px] tracking-[0.06em] text-muted-foreground">
+          <span className="ds-meta tracking-[0.06em]">
             {t("copyright", { year })}
           </span>
-          <span className="text-[12px] tracking-[0.06em] text-muted-foreground">
+          <span className="ds-meta tracking-[0.06em]">
             {t("tagline")}
           </span>
         </div>

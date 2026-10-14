@@ -50,7 +50,7 @@ export function FinalCta({ onJoin }: { onJoin: (ref?: string) => void }) {
         </Reveal>
 
         <Reveal delay={0.12}>
-          <p className="mx-auto mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
+          <p className="mx-auto mt-4 max-w-xl ds-lead text-muted-foreground">
             {t("description")}
           </p>
         </Reveal>
