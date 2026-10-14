@@ -108,9 +108,10 @@ test.describe('Locale routing', () => {
   });
 
   test('API routes accessible without locale prefix', async ({ page }) => {
-    // /api/* ne doit PAS être réécrit par le middleware i18n
+    // /api/* ne doit PAS être réécrit par le middleware i18n.
+    // 503 possible : /api/health est dégradé quand la base est absente (CI/local).
     const response = await page.request.get('/api/health');
-    expect([200, 404]).toContain(response.status()); // 404 si route n'existe pas, mais pas redirect 307
+    expect([200, 404, 503]).toContain(response.status()); // jamais un redirect 307
   });
 
   test('Static assets not redirected', async ({ page }) => {

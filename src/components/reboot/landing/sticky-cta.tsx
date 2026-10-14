@@ -50,9 +50,11 @@ export function StickyMobileCta({ onJoin }: { onJoin: (ref?: string) => void }) 
 
   return (
     <div
-      // `inert` retire le sous-arbre de l'ordre de tabulation ET de
-      // l'accessibility tree — exactement ce qu'il faut pour un éléments
-      // simplement décalé hors écran.
+      // Landmark nommé : sans rôle, son contenu visible sort des landmarks
+      // (règle axe `region`). `inert` retire le sous-arbre de l'ordre de
+      // tabulation ET de l'accessibility tree quand la barre est masquée.
+      role="region"
+      aria-label={t("regionAria")}
       inert={!visible}
       aria-hidden={!visible}
       className={cn(

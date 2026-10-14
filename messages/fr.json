@@ -501,7 +501,8 @@
     "stickyCta": {
       "title": "2 min · Gratuit",
       "subtitle": "Ton profil, en quelques clics",
-      "cta": "Construire mon profil"
+      "cta": "Construire mon profil",
+      "regionAria": "Appel à l'action"
     },
     "accountLink": {
       "authenticated": "Mon espace",
