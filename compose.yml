@@ -168,6 +168,14 @@ services:
       - "traefik.http.routers.hashcode.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}"
       - "traefik.http.routers.hashcode.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}"
       - "traefik.http.services.hashcode.loadbalancer.server.port=3000"
+      # Page de maintenance : servie par Traefik quand le backend est
+      # injoignable (502–504 : trou de redéploiement, conteneur qui boote).
+      # Borné à 502–504 (jamais 500) pour ne pas masquer les erreurs
+      # applicatives — une 500 métier garde son corps JSON d'origine.
+      - "traefik.http.routers.hashcode.middlewares=hashcode-errors"
+      - "traefik.http.middlewares.hashcode-errors.errors.status=502-504"
+      - "traefik.http.middlewares.hashcode-errors.errors.service=maintenance"
+      - "traefik.http.middlewares.hashcode-errors.errors.query=/maintenance.html"
     # Aucun `ports:` — Traefik route via le réseau « proxy ».
     networks:
       - backend
@@ -196,6 +204,31 @@ services:
     logging:
       driver: json-file
       options: { max-size: "10m", max-file: "5" }
+
+  # Page de maintenance statique (nginx ~10 Mo RAM) : ne sert QU'À Traefik
+  # via le middleware `hashcode-errors` (502–504). Jamais exposée directement
+  # (pas de router Host) : injoignable depuis l'extérieur sauf par Traefik.
+  maintenance:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    volumes:
+      - ./ops/maintenance:/usr/share/nginx/html:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=${TRAEFIK_NETWORK:-proxy}"
+      - "traefik.http.services.maintenance.loadbalancer.server.port=80"
+    networks:
+      - proxy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 64m
+        reservations:
+          memory: 16m
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "2" }
 
   # Ordonnanceur interne — remplace cron-job.org (SaaS tiers, 5 configs
   # manuelles) ET l'ancien service `backup` (boucle `sleep 86400` dont le

@@ -35,6 +35,10 @@ echo "▸ Digest : $(docker inspect --format '{{index .RepoDigests 0}}' "${IMAGE
 docker tag "${IMAGE}" hashcode-reboot:local
 echo "▸ Re-tag → hashcode-reboot:local (nom attendu par compose.yml)"
 
+echo "▸ Migrations + vérification schéma + rôles admin (service migrate)"
+echo "  (échoue → arrêt AVANT de toucher web ; web dépend de son succès)"
+docker compose -p "${PROJECT}" -f compose.yml up migrate
+
 echo "▸ Recréation du service web (projet ${PROJECT})"
 docker compose -p "${PROJECT}" -f compose.yml up -d --force-recreate --no-deps web
 

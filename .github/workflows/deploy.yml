@@ -22,9 +22,10 @@ name: Deploy to production
 # Mise en service :
 #   1. Installer UN runner sur le serveur prod avec les labels
 #      [self-hosted, prod-deploy] (Settings → Actions → Runners).
-#   2. Vérifier quelques runs en dry-run (job `plan` vert, `deploy` skippé).
-#   3. Basculer : `gh variable set DEPLOY_DRY_RUN --body "false"`.
-#      Optionnel : ajouter un reviewer requis sur l'environment `production`.
+#   2. `gh variable set PROD_PATH --body <clone prod>` + auth git du clone.
+#   3. Vérifier des runs en dry-run (job `plan` vert, `deploy` skippé).
+#   4. Basculer : `gh variable set DEPLOY_DRY_RUN --body "false"`.
+#      Optionnel : reviewer requis sur l'environment `production`.
 
 on:
   workflow_run:
@@ -86,9 +87,11 @@ jobs:
         run: |
           echo "DRY-RUN : aucune action sur la prod."
           echo "Avec DEPLOY_DRY_RUN=false, le job deploy exécuterait :"
-          echo "  1. ./scripts/backup.sh (sauvegarde DB)"
-          echo "  2. GHCR_TAG=${{ steps.resolve.outputs.tag }} ./scripts/deploy-ghcr.sh (pull + recreate)"
-          echo "  3. docker image prune des tags précédents (après succès)"
+          echo "  1. git sync du checkout prod (PROD_PATH) sur le sha déployé"
+          echo "  2. ./scripts/backup.sh (sauvegarde DB)"
+          echo "  3. GHCR_TAG=${{ steps.resolve.outputs.tag }} ./scripts/deploy-ghcr.sh"
+          echo "     (pull + migrate + vérif schéma + recreate web)"
+          echo "  4. docker image prune des tags précédents (après succès)"
 
   deploy:
     name: Deploy (serveur prod)
@@ -99,17 +102,33 @@ jobs:
     environment: production
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      # Le checkout Actions NE CONTIENT PAS .env.prod (git-ignoré) : on
+      # déploie depuis le clone prod du serveur, synchronisé sur le sha.
+      # Pré-requis à renseigner une fois :
+      #   gh variable set PROD_PATH --body /opt/hashcode_reboot
+      # + auth git du clone (deploy key recommandée, PAT en dépannage).
+      - name: Guard PROD_PATH
+        run: |
+          [ -n "${{ vars.PROD_PATH }}" ] || { echo "Variable repo PROD_PATH non configurée — arrêt sûr."; exit 1; }
+          [ -d "${{ vars.PROD_PATH }}/.git" ] || { echo "PROD_PATH n'est pas un clone git — arrêt sûr."; exit 1; }
+
+      - name: Sync prod checkout
+        run: |
+          cd "${{ vars.PROD_PATH }}"
+          git fetch origin
+          git checkout "${{ github.event.workflow_run.head_sha || github.sha }}"
+          git log --oneline -1
 
       - name: Sanity check scripts
+        working-directory: ${{ vars.PROD_PATH }}
         run: bash -n scripts/deploy-ghcr.sh && bash -n scripts/backup.sh
 
       - name: Backup database
+        working-directory: ${{ vars.PROD_PATH }}
         run: ./scripts/backup.sh
 
-      - name: Pull + recreate (tag épinglé)
+      - name: Pull + migrate + recreate (tag épinglé)
+        working-directory: ${{ vars.PROD_PATH }}
         run: GHCR_TAG="${{ needs.plan.outputs.tag }}" ./scripts/deploy-ghcr.sh
 
       - name: Prune old images (après succès)
