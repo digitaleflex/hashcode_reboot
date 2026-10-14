@@ -1,6 +1,6 @@
 "use client";
 
-import { Code2, Shield, Sparkles, type LucideIcon } from "lucide-react";
+import { BrainCircuit, Code2, Shield, type LucideIcon } from "lucide-react";
 import { RebootButton, CtaArrow, SectionHeader } from "../shared";
 import { Stagger, StaggerItem } from "../motion/primitives";
 import { useTranslations } from "next-intl";
@@ -18,7 +18,7 @@ import { useTranslations } from "next-intl";
 const AXIS_ICONS: Record<string, LucideIcon> = {
   web: Code2,
   cybersecurity: Shield,
-  ai: Sparkles,
+  ai: BrainCircuit,
 };
 
 type AxisItem = {
@@ -80,7 +80,8 @@ export function Axes({ onJoin }: { onJoin: (ref?: string) => void }) {
                   {a.desc}
                 </p>
 
-                <ul role="list" className="mt-5 flex flex-wrap gap-1.5">
+                <p className="mt-5 ds-overlabel">{t("practiceLabel")}</p>
+                <ul role="list" className="mt-2 flex flex-wrap gap-1.5">
                   {a.points.map((p) => (
                     <li
                       key={p}
