@@ -58,7 +58,7 @@ export function Hero({ onJoin }: { onJoin: (ref?: string) => void }) {
               {/* -------------------------------------------------------- */}
               {/* Colonne éditoriale                                        */}
               {/* -------------------------------------------------------- */}
-              <div className="lg:col-span-7 lg:pr-8">
+              <div className="min-w-0 lg:col-span-7 lg:pr-8">
                 <Fade initial={false}>
                   <Eyebrow>{t("eyebrow")}</Eyebrow>
                 </Fade>
@@ -115,7 +115,7 @@ export function Hero({ onJoin }: { onJoin: (ref?: string) => void }) {
               {/* -------------------------------------------------------- */}
               {/* Visuel — Ecosystem Core                                    */}
               {/* -------------------------------------------------------- */}
-              <div className="lg:col-span-5">
+              <div className="min-w-0 lg:col-span-5">
                 <Reveal delay={0.1} y={26} initial={false}>
                   <EcosystemCore />
                 </Reveal>

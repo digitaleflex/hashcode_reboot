@@ -90,9 +90,13 @@ export function SiteHeader({ onJoin }: { onJoin: (ref?: string) => void }) {
           </RebootButton>
         </div>
 
-        {/* Mobile : CTA raccourci, pas de menu (le sticky CTA couvre l'entrée) */}
+        {/* Mobile : CTA raccourci, pas de menu (le sticky CTA couvre l'entrée).
+            < 390px : on masque « Se connecter » (l'espace reste accessible via
+            le footer) pour éviter le débordement du header très étroit. */}
         <div className="flex items-center gap-2 sm:hidden">
-          <AccountLink />
+          <span className="max-[389px]:hidden">
+            <AccountLink />
+          </span>
           <RebootButton
             size="md"
             onClick={() => onJoin("header-mobile")}

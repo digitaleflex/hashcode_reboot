@@ -666,7 +666,9 @@
   .ecosystem-core {
     aspect-ratio: auto;
     max-width: none;
-    grid-template-columns: repeat(3, 1fr);
+    /* auto-fit + minmax : 2 tuiles sur très petit écran (< ~370px), 3 au-delà
+       — évite le débordement du hero (ex. 320px) sans couper les mots. */
+    grid-template-columns: repeat(auto-fit, minmax(108px, 1fr));
     gap: 0.5rem;
     align-items: start;
   }
