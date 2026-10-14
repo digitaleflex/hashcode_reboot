@@ -567,19 +567,6 @@ describe("GET /api/events/notify-count — auth + params", () => {
   });
 });
 
-// ── POST /api/account/phone ──────────────────────────────────────
-
-describe("POST /api/account/phone — middleware auth + validation", () => {
-  before(ensureServer);
-
-  test("→ 401 without session cookie (middleware blocks /api/account/*)", async () => {
-    const res = await httpRequest("POST", "/api/account/phone", {
-      body: { memberId: "test", phone: "+22991000000" },
-    });
-    assert.equal(res.status, 401);
-  });
-});
-
 // ── GET /api/admin/audit-log ─────────────────────────────────────
 
 describe("GET /api/admin/audit-log — auth + format", () => {

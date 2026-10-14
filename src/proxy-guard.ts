@@ -58,6 +58,12 @@ export function proxy(req: NextRequest) {
   }
 
   // 1. API : auth seule, pas d'i18n.
+  // L'endpoint /api/account/phone est public par design (remplissage post-
+  // inscription via ticket HMAC, pas de session requise) — on le laisse
+  // passer sans garde cookie.
+  if (pathname === "/api/account/phone") {
+    return NextResponse.next();
+  }
   if (pathname.startsWith("/api/account/")) {
     const hasCookie =
       req.cookies.get(BETTER_AUTH_SESSION_COOKIE) ||
