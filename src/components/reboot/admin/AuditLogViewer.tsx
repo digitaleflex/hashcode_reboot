@@ -4,6 +4,7 @@ import * as React from "react";
 import { MonoLabel } from "../shared";
 import { cn } from "@/lib/utils";
 import { fetchJson, isAbortError } from "./lib/fetchJson";
+import { formatFullFr, formatShortFr } from "./lib/dates";
 import { Download, Search, Filter, AlertCircle } from "lucide-react";
 
 interface AuditMember {
@@ -56,6 +57,7 @@ export function AuditLogViewer({
   const [error, setError] = React.useState<string | null>(null);
   const [filter, setFilter] = React.useState("");
   const [expandedId, setExpandedId] = React.useState<string | null>(null);
+  const [exporting, setExporting] = React.useState(false);
 
   const loadLogs = React.useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
@@ -102,6 +104,8 @@ export function AuditLogViewer({
   }, [logs, filter]);
 
   async function handleExportCsv() {
+    if (exporting) return;
+    setExporting(true);
     try {
       const res = await fetch("/api/admin/audit-log?format=csv&limit=10000", { cache: "no-store" });
       if (!res.ok) throw new Error("Échec de l'export.");
@@ -116,6 +120,8 @@ export function AuditLogViewer({
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch {
       setError("Échec de l'export CSV.");
+    } finally {
+      setExporting(false);
     }
   }
 
@@ -140,11 +146,11 @@ export function AuditLogViewer({
           <button
             type="button"
             onClick={() => void handleExportCsv()}
-            disabled={logs.length === 0}
+            disabled={logs.length === 0 || exporting}
               className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground hover:border-lime/60 hover:text-lime transition-colors focus-lime min-h-[44px] disabled:opacity-50"
           >
             <Download className="size-6" />
-            CSV
+            {exporting ? "Export…" : "CSV"}
           </button>
         </div>
       </div>
@@ -251,12 +257,7 @@ export function AuditLogViewer({
                       </span>
                     )}
                     <span className="mono-label text-xs text-muted-foreground tabular-nums admin-num">
-                      {new Date(entry.createdAt).toLocaleString("fr-FR", {
-                        day: "2-digit",
-                        month: "short",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                      {formatShortFr(entry.createdAt)}
                     </span>
                   </div>
                 </button>
@@ -301,9 +302,7 @@ export function AuditLogViewer({
                       )}
                       <div>
                         <span className="text-muted-foreground">Date: </span>
-                        <span className="text-foreground">
-                          {new Date(entry.createdAt).toLocaleString("fr-FR")}
-                        </span>
+                        <span className="text-foreground">{formatFullFr(entry.createdAt)}</span>
                       </div>
                       {parsedMeta && (
                         <div>
