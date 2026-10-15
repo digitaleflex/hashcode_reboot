@@ -993,6 +993,54 @@ describe("GET /api/admin/dashboard — agrégats #237", () => {
   });
 });
 
+// ── Missions admin UI #222 : contrôle d'accès + validation ───────
+// Sans cookie → 403 (requireAdminRole, comme workshops). Slug invalide → 422.
+// Zéro coût auth, aucune écriture.
+
+describe("Missions admin — accès et validation #222", () => {
+  before(ensureServer);
+
+  test("sans session → 403 (liste, création, revue)", async () => {
+    const list = await httpRequest("GET", "/api/admin/missions");
+    assert.equal(list.status, 403);
+    const create = await httpRequest("POST", "/api/admin/missions", {
+      body: { slug: "x", title: "y" },
+    });
+    assert.equal(create.status, 403);
+    const rev = await httpRequest("POST", "/api/admin/mission-submissions/nope/review", {
+      body: { decision: "APPROVED", feedback: "ok !" },
+    });
+    assert.equal(rev.status, 403);
+  });
+
+  test("slug normalisé (casse tolérée), formes invalides → 422", async () => {
+    const jar = await authedJar();
+    const db = getPrisma();
+    // Casse tolérée : normalisée en minuscules (UX, pas d'erreur).
+    const upper = await httpRequest("POST", "/api/admin/missions", {
+      cookies: jar,
+      body: { slug: `Majuscules-222-${RUN_TOKEN}`, title: "t" },
+    });
+    assert.equal(upper.status, 201);
+    assert.equal(upper.json?.mission?.slug, `majuscules-222-${RUN_TOKEN.toLowerCase()}`);
+    for (const slug of ["avec espaces", "ponctuation!", ""]) {
+      const res = await httpRequest("POST", "/api/admin/missions", {
+        cookies: jar,
+        body: { slug, title: "t" },
+      });
+      assert.equal(res.status, 422, `slug rejeté : ${slug}`);
+    }
+    const empty = await httpRequest("POST", "/api/admin/missions", {
+      cookies: jar,
+      body: { slug: `ok-slug-222-${RUN_TOKEN}`, title: "" },
+    });
+    assert.equal(empty.status, 422);
+    await db.mission.deleteMany({
+      where: { slug: { in: [`majuscules-222-${RUN_TOKEN.toLowerCase()}`] } },
+    });
+  });
+});
+
 // ── /api/admin/logout (LAST: it kills the shared session) ───────
 
 describe("POST /api/admin/logout", () => {
