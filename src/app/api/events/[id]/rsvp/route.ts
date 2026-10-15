@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/account-auth";
+import { checkCSRF } from "@/lib/admin-auth";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
 import { decideRsvp } from "@/lib/events-validation";
@@ -9,6 +10,7 @@ import {
   AppError,
   AuthError,
   ConflictError,
+  ForbiddenError,
   NotFoundError,
   RateLimitError,
   ValidationError,
@@ -55,6 +57,11 @@ export async function POST(
   const session = await getSession(req);
   if (!session) {
     throw new AuthError("Non authentifié.", "UNAUTHENTICATED");
+  }
+
+  // CSRF : même origine obligatoire (défense en profondeur sur SameSite=Lax).
+  if (!checkCSRF(req)) {
+    throw new ForbiddenError("CSRF validation failed.");
   }
 
   // Rate-limit: 5 rsvp per member per 10 minutes
@@ -152,6 +159,11 @@ export async function DELETE(
   const session = await getSession(req);
   if (!session) {
     throw new AuthError("Non authentifié.", "UNAUTHENTICATED");
+  }
+
+  // CSRF : même origine obligatoire (écriture même idempotente).
+  if (!checkCSRF(req)) {
+    throw new ForbiddenError("CSRF validation failed.");
   }
 
   const { id } = await params;

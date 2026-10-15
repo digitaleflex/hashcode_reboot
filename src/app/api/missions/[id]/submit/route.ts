@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/account-auth";
+import { checkCSRF } from "@/lib/admin-auth";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
 import { bodyLimit } from "@/lib/body-limit";
@@ -12,6 +13,7 @@ import {
 import {
   AppError,
   AuthError,
+  ForbiddenError,
   errorToResponse,
   NotFoundError,
   parseJsonBody,
@@ -55,6 +57,11 @@ export async function POST(
 
     const session = await getSession(req);
     if (!session) throw new AuthError("Non authentifié.", "UNAUTHENTICATED");
+
+    // CSRF : même origine obligatoire (#233).
+    if (!checkCSRF(req)) {
+      throw new ForbiddenError("CSRF validation failed.");
+    }
 
     const body = await parseJsonBody(req);
     const parsed = submitSchema.safeParse(body);
