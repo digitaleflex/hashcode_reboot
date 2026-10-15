@@ -4,6 +4,7 @@ import * as React from "react";
 import { MonoLabel } from "../shared";
 import { cn } from "@/lib/utils";
 import { fetchJson, isAbortError } from "./lib/fetchJson";
+import { formatFullFr, formatShortFr } from "./lib/dates";
 import { useToast } from "@/hooks/use-toast";
 import { ActivityLogSkeleton } from "./skeletons/ActivityLogSkeleton";
 import { ChevronDown, Search } from "lucide-react";
@@ -235,12 +236,7 @@ const load = React.useCallback(async (showMore: boolean, signal?: AbortSignal) =
                   </div>
                 </div>
                 <span className="shrink-0 mono-label text-muted-foreground tabular-nums admin-num hidden sm:inline">
-                  {new Date(ev.createdAt).toLocaleString("fr-FR", {
-                    day: "2-digit",
-                    month: "short",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                  {formatShortFr(ev.createdAt)}
                 </span>
                 <ChevronDown className={cn("size-6 shrink-0 text-muted-foreground transition-transform", isOpen && "rotate-180")}
                 />
@@ -296,7 +292,7 @@ const load = React.useCallback(async (showMore: boolean, signal?: AbortSignal) =
                     </div>
                     <div className="flex justify-between gap-2">
                       <dt className="text-muted-foreground">Date complète</dt>
-                      <dd className="font-mono">{new Date(ev.createdAt).toLocaleString("fr-FR")}</dd>
+                      <dd className="font-mono">{formatFullFr(ev.createdAt)}</dd>
                     </div>
                     <div className="flex justify-between gap-2">
                       <dt className="text-muted-foreground">Event ID</dt>
