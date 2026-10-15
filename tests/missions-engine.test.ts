@@ -15,11 +15,13 @@ import {
   reviewDecisionSchema,
   missionStatusSchema,
   type AssignmentStatus,
+  type MissionStatus,
   type SubmissionStatus,
 } from "../src/lib/missions/types";
 import {
   applyReview,
   canTransitionAssignment,
+  canTransitionMission,
   canTransitionSubmission,
   deriveProgress,
   isTerminalAssignmentStatus,
@@ -27,8 +29,7 @@ import {
   nextAttempt,
 } from "../src/lib/missions/engine";
 
-describe("unions : statuts fermés, jamais d'enum Prisma", () => {
-  test("schémas Zod rejettent l'inconnu", () => {
+describe("unions : statuts fermés, jamais d'enum Prisma", () => {  test("schémas Zod rejettent l'inconnu", () => {
     assert.ok(!assignmentStatusSchema.safeParse("DONE").success);
     assert.ok(!submissionStatusSchema.safeParse("DONE").success);
     assert.ok(!reviewDecisionSchema.safeParse("MAYBE").success);
@@ -145,6 +146,28 @@ describe("applyReview : idempotent, sans effet de bord", () => {
       const once = applyReview("PENDING", d);
       const twice = applyReview(once.submissionStatus, d);
       assert.deepEqual(twice, once, `idempotence ${d}`);
+    }
+  });
+});
+
+describe("mission éditoriale : DRAFT → PUBLISHED → ARCHIVED", () => {
+  test("publier, dépublier, archiver, republication", () => {
+    assert.equal(canTransitionMission("DRAFT", "PUBLISHED"), true);
+    assert.equal(canTransitionMission("PUBLISHED", "ARCHIVED"), true);
+    assert.equal(canTransitionMission("PUBLISHED", "DRAFT"), true);
+    assert.equal(canTransitionMission("ARCHIVED", "PUBLISHED"), true);
+  });
+
+  test("refusés : archiver un brouillon, toucher un archivé autrement", () => {
+    const bad: Array<[MissionStatus, MissionStatus]> = [
+      ["DRAFT", "ARCHIVED"],
+      ["DRAFT", "DRAFT"],
+      ["ARCHIVED", "DRAFT"],
+      ["ARCHIVED", "ARCHIVED"],
+      ["PUBLISHED", "PUBLISHED"],
+    ];
+    for (const [from, to] of bad) {
+      assert.equal(canTransitionMission(from, to), false, `${from} → ${to}`);
     }
   });
 });

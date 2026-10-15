@@ -19,6 +19,7 @@
  */
 import type {
   AssignmentStatus,
+  MissionStatus,
   ReviewDecision,
   SubmissionStatus,
 } from "./types";
@@ -38,6 +39,13 @@ const SUBMISSION_TRANSITIONS: Record<SubmissionStatus, readonly SubmissionStatus
   APPROVED: [],
   REVISION: [],
   REJECTED: [],
+};
+
+/** Transitions éditoriales d'une mission (référentiel admin). */
+const MISSION_TRANSITIONS: Record<MissionStatus, readonly MissionStatus[]> = {
+  DRAFT: ["PUBLISHED"],
+  PUBLISHED: ["DRAFT", "ARCHIVED"],
+  ARCHIVED: ["PUBLISHED"],
 };
 
 /** Décision de revue → statut de soumission résultant. */
@@ -66,6 +74,10 @@ export function canTransitionSubmission(
   to: SubmissionStatus,
 ): boolean {
   return SUBMISSION_TRANSITIONS[from].includes(to);
+}
+
+export function canTransitionMission(from: MissionStatus, to: MissionStatus): boolean {
+  return MISSION_TRANSITIONS[from].includes(to);
 }
 
 /** Statuts terminaux (aucune sortie : repartir = nouvelle ligne). */
