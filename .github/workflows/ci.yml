@@ -32,6 +32,7 @@ jobs:
       - run: npm run test:anti-abuse
       - run: npm run test:turnstile
       - run: npm run test:retention
+      - run: npm run test:missions-engine
       - name: Validate translation keys
         run: node scripts/check-messages.mjs
       - name: Validate design token contrast
