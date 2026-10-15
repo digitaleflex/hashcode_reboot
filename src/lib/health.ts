@@ -112,11 +112,8 @@ export async function runStartupBanner(): Promise<void> {
     const port = process.env.PORT ?? "3000";
     const base = `http://localhost:${port}`;
     const bar = "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━";
-    // CAPTCHA non implémenté (clés Cloudflare absentes) : simple avertissement,
-    // jamais de secret — noms d'env uniquement.
-    const turnstileConfigured =
-      !!process.env.TURNSTILE_SECRET_KEY ||
-      !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+    // Anti-bot : Turnstile retiré (décision produit) — rate-limit seul.
+    // Réactiver si spam constaté (voir docs/security-anti-abuse).
     const dbLine = dbCheck.ok
       ? `OK · connectée (${dbCheck.latencyMs}ms)`
       : "HORS LIGNE";
@@ -140,11 +137,7 @@ export async function runStartupBanner(): Promise<void> {
         `  ▸ Health    ${base}/api/health`,
         `  ${dbCheck.ok ? "●" : "○"} Database  ${dbLine}`,
         `  ${mail.status === "valid" ? "●" : "○"} Mail      ${mailLine}`,
-        ...(turnstileConfigured
-          ? [`  ● Captcha   Turnstile · configuré`]
-          : [
-              `  ○ Captcha   Turnstile non configuré (TURNSTILE_SECRET_KEY absente — anti-bot à prévoir)`,
-            ]),
+        `  ○ Captcha   désactivé (rate-limit seul — voir docs/security-anti-abuse)`,
         `  ▸ Routes    ${ROUTES.length} déclarées`,
         bar,
       ].join("\n"),

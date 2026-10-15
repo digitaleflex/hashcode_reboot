@@ -38,7 +38,6 @@
     "test:recommendation-presentation": "tsx --test tests/recommendation-presentation.test.ts",
     "test:orientation-catalogue": "tsx --test tests/orientation-catalogue.test.ts",
     "test:anti-abuse": "tsx --test tests/anti-abuse.test.ts",
-    "test:turnstile": "tsx --test tests/turnstile.test.ts",
     "test:retention": "tsx --test tests/retention.test.ts",
     "test:missions-engine": "tsx --test tests/missions-engine.test.ts"
   },

@@ -11,7 +11,7 @@ Légende : RL = rate-limit, V = validation Zod serveur, BT = blockIfTesting, TS 
 
 | Endpoint public en écriture | Auth | RL | V | BT | TS | Notes |
 |---|---|---|---|---|---|---|
-| `POST /api/members` (création) | non | ✅ 5/10min | ✅ | ✅ | ✅ (fail-open dev / fail-closed prod) | endpoint le plus coûteux, le plus gardé |
+| `POST /api/members` (création) | non | ✅ 5/10min | ✅ | ✅ | ❌ retiré (décision produit) | endpoint le plus coûteux : rate-limit seul |
 | `POST /api/verify-email` (envoi lien) | non | ✅ 5/10min + cooldown | ✅ | ✅ (ce lot) | — | fire-and-forget, réponse `ok` générique |
 | `GET /api/verify-email` (confirm) | non | ✅ bucket dédié | ✅ token | — (lecture+confirm idempotente) | — | usage unique |
 | `POST /api/consents` | non | ✅ | ✅ | ✅ | — | anti-énumération |
@@ -26,12 +26,14 @@ Légende : RL = rate-limit, V = validation Zod serveur, BT = blockIfTesting, TS 
 | `POST /api/auth/*` (Better Auth) | — | ✅ budget 5/10min partagé | ✅ | n/a | — | 6e appel → 500 (documenté dans le fichier d'intégration) |
 | Webhooks brevo/resend | signature fournisseur | — (voir §4) | ✅ signature | — | — | HMAC fournisseur, pas d'acquisition |
 
-## 3. Posture Turnstile (critère « captcha seulement si justifié »)
-- Exigé **uniquement** sur `POST /api/members` (création = coût DB + email + profil).
-- Pas de captcha global : la conversion et la **reprise légitime ne sont jamais bloquées**
-  (dev fail-open prouvé par test ; prod fail-closed prouvé par test).
-- Step-up adaptatif (exiger un token après N refus) : non implémenté — le rate-limit
-  couvre le besoin à coût nul ; réévaluer si spam constaté en prod.
+## 3. Posture anti-bot (décision produit — Turnstile RETIRÉ)
+- **Turnstile supprimé** (lib, gate `POST /api/members`, tests, vars d'env) : il
+  bloquait 100 % des inscriptions en prod (clés jamais configurées, fail-closed).
+- Seul le **rate-limit** protège la création (5/IP/10min). Pas de captcha :
+  conversion et reprise jamais bloquées.
+- **Réactiver si spam constaté** (signes : vagues de `POST /api/members` 200/IP
+  tournantes, emails jetables en masse) : recâbler `verifyTurnstile` + clés
+  Cloudflare. En attendant, surveiller `admin_announce_dashboard`/logs signup.
 
 ## 4. Choix assumés (non-corrections)
 - Pas de `blockIfTesting` sur `community/join` : flux GET légitime ; la suite
