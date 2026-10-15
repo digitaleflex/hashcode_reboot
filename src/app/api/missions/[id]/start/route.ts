@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/account-auth";
+import { checkCSRF } from "@/lib/admin-auth";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
-import { AuthError, errorToResponse, NotFoundError } from "@/lib/errors";
+import { AuthError, ForbiddenError, errorToResponse, NotFoundError } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,6 +38,11 @@ export async function POST(
 
     const session = await getSession(req);
     if (!session) throw new AuthError("Non authentifié.", "UNAUTHENTICATED");
+
+    // CSRF : même origine obligatoire (#233).
+    if (!checkCSRF(req)) {
+      throw new ForbiddenError("CSRF validation failed.");
+    }
 
     const { id } = await params;
     const mission = await db.mission.findUnique({

@@ -889,6 +889,68 @@ describe("Missions — parcours membre + revue admin #232c", () => {
   });
 });
 
+// ── Participation unifiée + CSRF #233 ────────────────────────────
+// Zéro coût auth (jar caché). Origin étrangère → 403 avant toute écriture
+// (jamais d'email ni de ligne créée). Placé avant le logout qui tue la session.
+
+describe("Participation unifiée + CSRF #233", () => {
+  before(ensureServer);
+
+  const EVIL = "https://evil.example";
+
+  test("Origin étrangère → 403 (start, rsvp, enroll)", async () => {
+    const jar = await authedJar();
+    const evil = { Origin: EVIL };
+    const s = await httpRequest("POST", `/api/missions/it-nope-${RUN_TOKEN}/start`, {
+      cookies: jar,
+      headers: evil,
+    });
+    assert.equal(s.status, 403);
+    assert.equal(s.json?.code, "FORBIDDEN");
+    const r = await httpRequest("POST", "/api/events/nope/rsvp", {
+      cookies: jar,
+      headers: { ...evil, "Content-Type": "application/json" },
+      body: { status: "going" },
+    });
+    assert.equal(r.status, 403);
+    const e = await httpRequest("POST", "/api/workshops/nope/enroll", {
+      cookies: jar,
+      headers: evil,
+    });
+    assert.equal(e.status, 403);
+  });
+
+  test("unifiée : start → participation contient la mission ; cleanup", async () => {
+    const jar = await authedJar();
+    const slug = `it-part-${RUN_TOKEN}`;
+    const created = await httpRequest("POST", "/api/admin/missions", {
+      cookies: jar,
+      body: { slug, title: "Participation", domain: "web", level: "beginner" },
+    });
+    assert.equal(created.status, 201);
+    const mid = created.json.mission.id;
+    await httpRequest("PATCH", `/api/admin/missions/${mid}`, {
+      cookies: jar,
+      body: { status: "PUBLISHED" },
+    });
+    const started = await httpRequest("POST", `/api/missions/${mid}/start`, { cookies: jar });
+    assert.ok([200, 201].includes(started.status));
+    const part = await httpRequest("GET", "/api/account/participation", { cookies: jar });
+    assert.equal(part.status, 200);
+    const mine = (part.json?.missions ?? []).find((m) => m.mission?.slug === slug);
+    assert.ok(mine, "mission démarrée présente dans la vue unifiée");
+    assert.equal(mine.status, "ACTIVE");
+    assert.ok((part.json?.counts?.missions ?? 0) >= 1);
+    assert.ok(Array.isArray(part.json?.workshops) && Array.isArray(part.json?.events));
+    // Pas de PII d'autrui : que mes lignes.
+    for (const m of part.json.missions ?? []) {
+      assert.ok(!("email" in (m.mission ?? {})), "pas d'email dans la vue");
+    }
+    const db = getPrisma();
+    await db.mission.deleteMany({ where: { slug } });
+  });
+});
+
 // ── /api/admin/logout (LAST: it kills the shared session) ───────
 
 describe("POST /api/admin/logout", () => {
