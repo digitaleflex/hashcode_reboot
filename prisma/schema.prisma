@@ -119,6 +119,10 @@ model Member {
   workshopQuizAttempts WorkshopQuizAttempt[]
   workshopEnrollments  WorkshopEnrollment[]
 
+  // Missions persistées (#232) — progression membre durable.
+  missionAssignments MissionAssignment[]
+  missionSubmissions MissionSubmission[]
+
   // Mentorat (#61)
   mentorshipsAsMentor Mentorship[] @relation("Mentor")
   mentorshipsAsMentee Mentorship[] @relation("Mentee")
@@ -1005,10 +1009,121 @@ model WorkshopReview {
 
   submission WorkshopSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
 
+
+  @@index([submissionId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MISSIONS / CHALLENGES persistés (#232-a — socle, moteur en (b), API en (c))
+//
+// Conventions maison (miroir WorkshopSubmission/WorkshopReview) : statuts =
+// String + unions TS/Zod côté applicatif (JAMAIS d'enum Prisma), soumissions
+// append-only (resoumission = nouvelle ligne, attempt n+1), revues
+// append-only (la dernière fait foi), onDelete Cascade vers Member/Mission,
+// index sur les colonnes de filtre. Aucun score psychométrique ni CORE.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Référentiel des missions (éditorial admin, lecture publique des PUBLISHED).
+model Mission {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Slug stable public (ex "first-interface") — référencé par landing/features.
+  slug String @unique
+  /// Titre FR.
+  title String
+  /// Description courte FR.
+  description String?
+  /// Domaine : web | cybersecurity | ai (union TS/Zod).
+  domain String @default("web")
+  /// Niveau : beginner | practicing | autonomous | advanced (union TS/Zod).
+  level String @default("beginner")
+  /// Statut éditorial : DRAFT | PUBLISHED | ARCHIVED (union TS/Zod).
+  status String @default("DRAFT")
+  /// Référence libre vers la source (feature statique, URL, …).
+  sourceRef String?
+  /// Ordre d'affichage.
+  sortOrder Int @default(0)
+
+  assignments MissionAssignment[]
+  submissions MissionSubmission[]
+
+  @@index([status])
+  @@index([domain, status])
+}
+
+/// Démarrage d'une mission par un membre. Redémarrer après abandon =
+/// NOUVELLE ligne (historique conservé, jamais d'update destructrice).
+model MissionAssignment {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  missionId String
+  memberId  String
+
+  /// UPCOMING | ACTIVE | SUBMITTED | VALIDATED | REJECTED | ABANDONED
+  /// (union TS/Zod — transitions dans le moteur (b)).
+  status String @default("ACTIVE")
+  abandonedAt DateTime?
+  validatedAt DateTime?
+
+  mission Mission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  member  Member  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId, status])
+  @@index([missionId, status])
+}
+
+/// Soumission append-only : resoumission = nouvelle ligne (attempt n+1).
+model MissionSubmission {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  missionId String
+  memberId  String
+  /// Assignation d'origine (traçabilité, optionnelle).
+  assignmentId String?
+
+  attempt Int    @default(1)
+  content String
+
+  /// PENDING | IN_REVIEW | APPROVED | REVISION | REJECTED (union TS/Zod).
+  status String @default("PENDING")
+
+  submittedAt DateTime
+  reviewedAt  DateTime?
+
+  mission Mission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  member  Member  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  reviews MissionReview[]
+
+  @@unique([missionId, memberId, attempt])
+  @@index([memberId])
+  @@index([missionId, status])
+}
+
+/// Revue append-only : la dernière review d'une soumission fait foi.
+/// reviewer = identité admin ; decision : APPROVED | REVISION | REJECTED.
+model MissionReview {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  submissionId String
+
+  reviewer String
+  decision String
+  feedback String
+
+  submission MissionSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
   @@index([submissionId])
 }
 
 model WorkshopQuiz {
+
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

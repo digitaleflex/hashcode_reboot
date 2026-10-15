@@ -64,3 +64,14 @@ Seul le **payload handoff versionné** quitte Reboot (consentement `handoff`
 requis, idempotent, reçu sans PII). Tout le reste : lecture admin interne ou
 export à la demande du membre. Aucun contenu pédagogique stocké dans Reboot
 (les ateliers référencent, ne recopient pas).
+
+## Delta #232(a) — Missions persistées (2026-10-15, v1.1)
+| Table | Finalité | Rétention | Accès | Transmission | Droits |
+|---|---|---|---|---|---|
+| Mission (slug unique, DRAFT/PUBLISHED/ARCHIVED) | référentiel éditorial | **illimitée** (référentiel) | public si PUBLISHED / opérateurs sinon | slug+titre si PUBLISHED (landing) | n/a (pas de donnée membre) |
+| MissionAssignment (UPCOMING/ACTIVE/SUBMITTED/VALIDATED/REJECTED/ABANDONED) | progression membre | vie du compte | membre/admin | NON (statut seul requêtable, cf. #232b) | export oui |
+| MissionSubmission (append-only, attempt n+1) | preuves de réalisation | vie du compte | membre/admin | NON | export oui |
+| MissionReview (append-only, reviewer admin) | validation | vie du compte | opérateurs (+membre : sa décision) | NON | export décision |
+Règles : pas d'enum Prisma (unions TS/Zod), cascades Member/Mission, migration
+`20261015091230_add_mission_models` purement additive (rollback : DROP dans
+l'ordre Review → Submission → Assignment → Mission, prouvé sur base scratch).
