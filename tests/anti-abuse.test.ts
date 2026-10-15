@@ -4,8 +4,8 @@
  * Couvre les 4 preuves exigées par l'issue :
  *   1. dépassement de quota → 429 non révélateur ;
  *   2. trafic normal → autorisé ;
- *   3. automation évidente → bloquée (bucket épuisé, Turnstile prod fail-closed) ;
- *   4. reprise légitime → non bloquée (Turnstile dev fail-open, session intacte).
+ *   3. automation évidente → bloquée (bucket épuisé) ;
+ *   4. reprise légitime → non bloquée (pas de captcha : Turnstile retiré).
  * Plus : 403 TESTING sans écriture, logs sans PII (asserté par revue — voir
  * docs/security-anti-abuse-2026-10-15.md, §5).
  *
@@ -18,19 +18,11 @@ import assert from "node:assert/strict";
 
 import { rateLimit } from "../src/lib/rate-limit";
 import { blockIfTesting } from "../src/lib/test-guard";
-import { verifyTurnstile } from "../src/lib/turnstile";
 import {
   RateLimitError,
   ValidationError,
   errorToResponse,
 } from "../src/lib/errors";
-
-const devEnv = { NODE_ENV: "development" } as NodeJS.ProcessEnv;
-const prodEnv = { NODE_ENV: "production" } as NodeJS.ProcessEnv;
-
-const noFetch = (async () => {
-  throw new Error("network must not be touched");
-}) as unknown as typeof fetch;
 
 describe("quota dépassé → 429 non révélateur", () => {
   test("bucket épuisé après capacity, isolation par clé", async () => {
@@ -89,18 +81,5 @@ describe("TESTING guard : 403 sans écriture", () => {
       else process.env.TESTING = prev;
     }
     assert.equal(blockIfTesting(), null, "laissé passer hors TESTING");
-  });
-});
-
-describe("Turnstile : prod fail-closed, dev fail-open (reprise légitime)", () => {
-  test("clé absente + prod → refusé (automation bloquée)", async () => {
-    const r = await verifyTurnstile(null, { env: prodEnv, fetchFn: noFetch });
-    assert.equal(r.ok, false);
-  });
-
-  test("clé absente + dev → accepté sans réseau (reprise légitime non bloquée)", async () => {
-    const r = await verifyTurnstile(null, { env: devEnv, fetchFn: noFetch });
-    assert.equal(r.ok, true);
-    assert.equal(r.skipped, true);
   });
 });

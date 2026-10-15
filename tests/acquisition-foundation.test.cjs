@@ -479,28 +479,11 @@ describe("funnel acquisition #213 (correspondance, preuve — jamais vérité)",
   });
 });
 
-describe("turnstile #215 — anti-bot POST /api/members (câblage source)", () => {
-  test("helper pur : extraction + fail-open dev / fail-closed prod", () => {
-    const src = read("src/lib/turnstile.ts");
-    assert.ok(src.includes("extractTurnstileToken"), "extracteur manquant");
-    assert.ok(src.includes("shouldBypassTurnstile"), "bypass dev manquant");
-    assert.ok(src.includes("verifyTurnstile"), "vérificateur manquant");
-    assert.ok(src.includes("TURNSTILE_SECRET_KEY"), "clé secrète manquante");
-    assert.ok(src.includes('NODE_ENV !== "production"'), "fail-open dev manquant");
-    assert.ok(src.includes("siteverify"), "endpoint Cloudflare manquant");
-  });
-
-  test("members POST : token optionnel vérifié avant toute écriture, 403 sinon", () => {
+describe("turnstile RETIRÉ — POST /api/members sans gate (décision produit)", () => {
+  test("lib supprimée, route sans gate", () => {
+    assert.ok(!fs.existsSync(path.join(ROOT, "src/lib/turnstile.ts")), "lib supprimée");
     const src = read("src/app/api/members/route.ts");
-    assert.ok(src.includes("extractTurnstileToken"), "extraction manquante");
-    assert.ok(src.includes("verifyTurnstile"), "vérification manquante");
-    const checkPos = src.indexOf("await verifyTurnstile(");
-    const createPos = src.indexOf("db.member");
-    const createCall = src.indexOf(".create({", createPos);
-    assert.ok(checkPos >= 0, "appel verifyTurnstile manquant");
-    assert.ok(createCall > checkPos, "la vérif doit précéder la création");
-    assert.ok(src.includes("ForbiddenError"), "403 fail-closed manquant");
-    // Jamais bloquant côté client : aucun champ requis dans le schéma profil.
-    assert.ok(!src.includes("turnstileToken:"), "le token ne doit pas entrer au schéma");
+    assert.ok(!src.includes("verifyTurnstile"), "gate retiré de la route");
+    assert.ok(!src.includes("turnstile"), "aucune référence restante dans la route");
   });
 });
