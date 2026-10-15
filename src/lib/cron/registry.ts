@@ -110,6 +110,17 @@ export const CRON_JOBS: readonly CronJob[] = [
     eventKey: "cron_event_reminders",
   },
   {
+    slug: "purge",
+    label: "Purge de rétention (#153)",
+    // Hebdo dimanche 05:00 : après backup (03:00) et collect-metrics (04:30
+    // quotidien), jamais pendant les relances (06:00–07:45). Le backup
+    // précède toujours la purge du jour (sécurité en cas d'erreur).
+    schedule: "0 5 * * 0",
+    // Littéral exigé (le test parse un nombre, pas une expression) : 174 = 24*7+6.
+    expectedEveryH: 174,
+    eventKey: "cron_purge",
+  },
+  {
     slug: "keepalive",
     label: "Ping de santé",
     // Ping de santé. base

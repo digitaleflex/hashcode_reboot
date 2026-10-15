@@ -66,6 +66,7 @@ export const SERVER_ONLY_EVENT_TYPES = [
   "cron_admin_alerts",
   "cron_email_alerts",
   "cron_event_reminders",
+  "cron_purge",
 ] as const;
 
 export type ServerOnlyEventType = (typeof SERVER_ONLY_EVENT_TYPES)[number];

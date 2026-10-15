@@ -96,6 +96,9 @@ const SERVER_START_TIMEOUT_MS = 90_000;
 // Unique per-run token: every row created by this file carries it, so
 // `after` deletes exactly what this run created (never another run's).
 const RUN_TOKEN = `it${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`.toLowerCase();
+// Secret cron du run (hérité par le serveur spawné — #153) : n'écrase jamais
+// un secret réel déjà posé dans l'environnement.
+process.env.CRON_SECRET ??= `integration-cron-${RUN_TOKEN}`;
 const ADMIN_EMAIL = `integration-${RUN_TOKEN}-adm@example.com`;
 const unknownEmail = (i) => `integration-${RUN_TOKEN}-unk${i}@example.com`;
 
@@ -702,6 +705,37 @@ describe("GET /api/community/join — anti-abus #118", () => {
       }
     }
     assert.ok(seen429, "la rafale doit finir en 429 (bucket 30/10min)");
+  });
+});
+
+// ── GET /api/cron/purge — rétention #153 ──────────────────────────
+// Zéro coût auth (aucun appel /api/auth/*). Placé avant le logout (aucun
+// lien, mais le logout DOIT rester dernier : il tue la session partagée).
+
+describe("GET /api/cron/purge — rétention #153", () => {
+  before(ensureServer);
+
+  test("→ 401 sans header Bearer", async () => {
+    const res = await httpRequest("GET", "/api/cron/purge");
+    assert.equal(res.status, 401);
+  });
+
+  test("→ 401 avec un mauvais secret", async () => {
+    const res = await httpRequest("GET", "/api/cron/purge", {
+      headers: { Authorization: "Bearer wrong-secret" },
+    });
+    assert.equal(res.status, 401);
+  });
+
+  test("→ 200 avec le secret, forme des compteurs (zéro écriture métier)", async () => {
+    const res = await httpRequest("GET", "/api/cron/purge", {
+      headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` },
+    });
+    assert.equal(res.status, 200);
+    assert.equal(res.json?.ok, true);
+    for (const k of ["drafts", "analytics", "emailLogs", "providerMetrics"]) {
+      assert.equal(typeof res.json?.purged?.[k], "number", `compteur ${k}`);
+    }
   });
 });
 

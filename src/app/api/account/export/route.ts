@@ -41,9 +41,29 @@ export async function GET(req: NextRequest) {
     const memberId = session.member.id;
     const email = session.member.email;
 
-    const [member, rsvps, enrollments, submissions, quizAttempts, emailLogs, sessions, draft, analytics] =
+    const [member, rsvps, enrollments, submissions, quizAttempts, emailLogs, sessions, draft, analytics, consents, qualifications, notes] =
       await Promise.all([
-        db.member.findUnique({ where: { id: memberId } }),
+        // Allowlist explicite (#153) : JAMAIS adminNote ni adminRole (internes).
+        db.member.findUnique({
+          where: { id: memberId },
+          select: {
+            id: true, createdAt: true, updatedAt: true,
+            firstName: true, lastName: true, email: true, phone: true,
+            country: true, city: true, gender: true,
+            primaryDomain: true, secondaryDomains: true, domainSpecialty: true,
+            level: true, goal: true, goalProjectStage: true, goalSituation: true,
+            availability: true, availabilityTimes: true, learningStyle: true,
+            mentoringInterest: true, mentoringMaybeReason: true,
+            mentoringTypes: true, mentoringFrequency: true, mentoringDomain: true,
+            budgetWillingness: true, budgetRange: true, threeMonthGoal: true,
+            profileArchetype: true, tags: true, customTags: true, source: true,
+            profileStatus: true, communityStatus: true, accessLane: true,
+            deletedAt: true, mentorContactedAt: true, userEmail: true,
+            invitationStatus: true, invitedAt: true, invitationClicks: true,
+            lastClickedAt: true, refusedAt: true, refusedReason: true,
+            bouncedAt: true, acceptedAt: true, approvedAt: true, joinedAt: true,
+          },
+        }),
         db.eventRsvp.findMany({
           where: { memberId },
           select: { id: true, status: true, createdAt: true, event: { select: { id: true, title: true, startsAt: true } } },
@@ -88,6 +108,28 @@ export async function GET(req: NextRequest) {
           orderBy: { createdAt: "desc" },
           take: EXPORT_ANALYTICS_MAX + 1,
         }),
+        // Preuves de consentement du membre (historique complet, versions incluses).
+        db.consent.findMany({
+          where: { email },
+          select: { id: true, purpose: true, choice: true, textVersion: true, createdAt: true },
+          orderBy: { createdAt: "desc" },
+        }),
+        // Résultats le concernant (jamais de scoring d'autrui).
+        db.qualification.findMany({
+          where: { memberId },
+          select: {
+            id: true, archetype: true, scores: true, reasons: true,
+            confidence: true, engineVersion: true, qualificationScore: true,
+            status: true, ruleVersion: true, createdAt: true,
+          },
+          orderBy: { createdAt: "desc" },
+        }),
+        // Notes admin le concernant : contenu + date, SANS l'auteur (#153).
+        db.memberNote.findMany({
+          where: { memberId },
+          select: { id: true, content: true, createdAt: true },
+          orderBy: { createdAt: "desc" },
+        }),
       ]);
 
     if (!member || member.deletedAt) {
@@ -105,6 +147,9 @@ export async function GET(req: NextRequest) {
       draft,
       analytics: truncated ? analytics.slice(0, EXPORT_ANALYTICS_MAX) : analytics,
       analyticsTruncated: truncated,
+      consents,
+      qualifications,
+      notes,
     });
 
     return NextResponse.json(payload, {
