@@ -275,6 +275,7 @@ export default function AdminInvitationsPage() {
       <button
         type="button"
         onClick={onClick}
+        {...(onClick ? { "aria-pressed": !!active } : {})}
         className={cn(
           "flex flex-col items-center gap-1.5 p-4 rounded-xl border transition-colors text-center min-w-0 relative overflow-hidden",
           active
@@ -429,6 +430,9 @@ export default function AdminInvitationsPage() {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="relance-dialog-title"
           className="bg-card border border-border/60 rounded-xl p-6 max-w-sm w-full mx-4 shadow-xl"
           onClick={(e) => e.stopPropagation()}
         >
@@ -436,7 +440,7 @@ export default function AdminInvitationsPage() {
             <div className="w-10 h-10 rounded-full bg-lime/10 flex items-center justify-center">
               <Send className="size-5 text-lime" />
             </div>
-            <h3 className="text-lg font-bold">{t("relanceDialog.title", { count })}</h3>
+            <h3 id="relance-dialog-title" className="text-lg font-bold">{t("relanceDialog.title", { count })}</h3>
           </div>
           <p className="text-sm text-muted-foreground mb-6">
             {t("relanceDialog.description")}
