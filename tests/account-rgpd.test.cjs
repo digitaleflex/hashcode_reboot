@@ -32,10 +32,14 @@ function isDeleteConfirmed(body) {
 }
 
 function buildExportPayload(member, relations) {
+  // Miroir de src/lib/account-rgpd.ts (#153) : expurge défensive incluse.
+  const { adminNote: _dropNote, adminRole: _dropRole, ...safeMember } = member;
+  void _dropNote;
+  void _dropRole;
   return {
     exportedAt: new Date().toISOString(),
     format: EXPORT_FORMAT,
-    member,
+    member: safeMember,
     rsvps: relations.rsvps,
     enrollments: relations.enrollments,
     submissions: relations.submissions,
@@ -45,6 +49,9 @@ function buildExportPayload(member, relations) {
     draft: relations.draft,
     analytics: relations.analytics,
     analyticsTruncated: relations.analyticsTruncated,
+    consents: relations.consents,
+    qualifications: relations.qualifications,
+    notes: relations.notes,
   };
 }
 
@@ -74,18 +81,28 @@ describe("buildExportPayload", () => {
   const empty = {
     rsvps: [], enrollments: [], submissions: [], quizAttempts: [],
     emailLogs: [], sessions: [], draft: null, analytics: [],
-    analyticsTruncated: false,
+    analyticsTruncated: false, consents: [], qualifications: [], notes: [],
   };
 
-  test("contient les 9 blocs + format + date ISO", () => {
+  test("contient les 11 blocs + format + date ISO", () => {
     const out = buildExportPayload(member, empty);
     assert.deepEqual(out.member, member);
     assert.equal(out.format, EXPORT_FORMAT);
     assert.ok(!Number.isNaN(Date.parse(out.exportedAt)), out.exportedAt);
-    for (const k of ["rsvps", "enrollments", "submissions", "quizAttempts", "emailLogs", "sessions", "draft", "analytics"]) {
+    for (const k of ["rsvps", "enrollments", "submissions", "quizAttempts", "emailLogs", "sessions", "draft", "analytics", "consents", "qualifications", "notes"]) {
       assert.ok(k in out, `bloc manquant : ${k}`);
     }
     assert.equal(out.analyticsTruncated, false);
+  });
+
+  test("expurge adminNote/adminRole même si la requête les fuit (#153)", () => {
+    const out = buildExportPayload(
+      { ...member, adminNote: "interne", adminRole: "operator" },
+      empty,
+    );
+    assert.ok(!("adminNote" in out.member), "adminNote ne part pas");
+    assert.ok(!("adminRole" in out.member), "adminRole ne part pas");
+    assert.equal(out.member.email, "a@x.y");
   });
 
   test("sérialisable JSON (téléchargeable tel quel)", () => {
