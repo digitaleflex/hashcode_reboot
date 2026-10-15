@@ -314,6 +314,7 @@ export default function AdminAteliersPage() {
             <button
               key={f.value}
               type="button"
+              aria-pressed={filter === f.value}
               onClick={() => setFilter(f.value)}
               className={cn(
                 "min-h-[44px] rounded-md border px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer",
