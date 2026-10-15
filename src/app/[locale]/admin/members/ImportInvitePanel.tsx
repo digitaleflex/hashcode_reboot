@@ -114,6 +114,8 @@ export function ImportInvitePanel({ onSessionExpired }: { onSessionExpired: () =
     <section className="rounded-lg border border-border bg-card p-4 space-y-4">
       <button
         onClick={() => setExpanded(!expanded)}
+        aria-expanded={expanded}
+        aria-controls="import-invite-panel"
         className="w-full flex items-center justify-between text-left group"
       >
         <div className="flex items-center gap-2">
@@ -133,7 +135,7 @@ export function ImportInvitePanel({ onSessionExpired }: { onSessionExpired: () =
       </button>
 
       {expanded && (
-        <div className="space-y-4">
+        <div id="import-invite-panel" className="space-y-4">
           <p className="text-xs text-muted-foreground">
             {t("descriptionIntro")}
             <strong className="text-foreground"> {t("descriptionFields.email")}</strong>,
