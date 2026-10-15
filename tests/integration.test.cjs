@@ -1041,6 +1041,27 @@ describe("Missions admin — accès et validation #222", () => {
   });
 });
 
+// ── Actions sensibles #224 : garde serveur opérateur ─────────────
+// Sans session → 403 (jamais 401/200) AVANT toute lecture/écriture.
+// Zéro coût auth, aucune écriture (garde en tête de route).
+
+describe("Actions sensibles — garde opérateur #224", () => {
+  before(ensureServer);
+
+  test("reset-2fa, revoke admin, blacklist → 403 sans session", async () => {
+    const r1 = await httpRequest("POST", "/api/admin/admins/nope/reset-2fa");
+    assert.equal(r1.status, 403);
+    const r2 = await httpRequest("DELETE", "/api/admin/admins?id=nope");
+    assert.equal(r2.status, 403);
+    const r3 = await httpRequest("POST", "/api/admin/blacklist", {
+      body: { email: "x@y.zz" },
+    });
+    assert.equal(r3.status, 403);
+    const r4 = await httpRequest("DELETE", "/api/admin/blacklist/nope");
+    assert.equal(r4.status, 403);
+  });
+});
+
 // ── /api/admin/logout (LAST: it kills the shared session) ───────
 
 describe("POST /api/admin/logout", () => {

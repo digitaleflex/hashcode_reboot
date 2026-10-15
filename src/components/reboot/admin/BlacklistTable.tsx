@@ -493,13 +493,16 @@ function RemoveConfirmDialog({
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="blacklist-remove-title"
         className="w-full max-w-full sm:max-w-sm rounded-lg border border-border bg-card p-5 space-y-3"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start gap-3">
           <AlertTriangle className="size-5 text-amber-400 shrink-0 mt-0.5" />
           <div>
-            <h2 className="font-display font-bold text-base">
+            <h2 id="blacklist-remove-title" className="font-display font-bold text-base">
               Retirer de la blacklist ?
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -508,22 +511,27 @@ function RemoveConfirmDialog({
           </div>
         </div>
         {error && (
-          <div className="rounded-md border border-destructive/40 bg-destructive/5 p-2.5 text-sm text-destructive">
+          <div
+            role="alert"
+            className="rounded-md border border-destructive/40 bg-destructive/5 p-2.5 text-sm text-destructive"
+          >
             {error.message}
           </div>
         )}
         <div className="flex justify-end gap-2 pt-2">
           <button
+            type="button"
             onClick={onClose}
             disabled={loading}
-            className="px-4 py-2 rounded-md border border-border bg-card text-sm"
+            className="min-h-[44px] px-4 py-2 rounded-md border border-border bg-card text-sm disabled:opacity-50"
           >
             Annuler
           </button>
           <button
+            type="button"
             onClick={handle}
             disabled={loading}
-            className="px-4 py-2 rounded-md bg-lime text-black font-medium hover:bg-lime/90 disabled:opacity-50"
+            className="min-h-[44px] px-4 py-2 rounded-md bg-lime text-black font-medium hover:bg-lime/90 disabled:opacity-50"
           >
             {loading ? <Loader2 className="size-4 animate-spin" /> : "Confirmer"}
           </button>

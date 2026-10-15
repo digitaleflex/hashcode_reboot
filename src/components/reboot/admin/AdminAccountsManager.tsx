@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { fetchJson } from "@/components/reboot/admin/lib/fetchJson";
+import { ConfirmDialog } from "@/components/reboot/admin/ConfirmDialog";
 import { RebootButton, MonoLabel } from "@/components/reboot/shared";
 import {
   Users,
@@ -61,6 +62,10 @@ export function AdminAccountsManager({ onSessionExpired }: { onSessionExpired: (
   const [inviteFeedback, setInviteFeedback] = React.useState<string | null>(null);
 
   const [busyId, setBusyId] = React.useState<string | null>(null);
+  const [pending, setPending] = React.useState<
+    { kind: "reset2fa" | "revoke"; id: string; email: string } | null
+  >(null);
+  const [dialogError, setDialogError] = React.useState<string | null>(null);
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -155,14 +160,7 @@ export function AdminAccountsManager({ onSessionExpired }: { onSessionExpired: (
     }
   };
 
-  const handleReset2fa = async (id: string, email: string) => {
-    if (
-      !window.confirm(
-        `Réinitialiser la 2FA de ${email} ? Ses sessions seront fermées et il devra réenroler sa 2FA.`,
-      )
-    ) {
-      return;
-    }
+  const handleReset2fa = async (id: string) => {
     setBusyId(id);
     setError(null);
     try {
@@ -171,21 +169,19 @@ export function AdminAccountsManager({ onSessionExpired }: { onSessionExpired: (
         headers: { "Content-Type": "application/json" },
       });
       if (!res.ok) {
-        setError("Réinitialisation 2FA impossible.");
+        setDialogError("Réinitialisation 2FA impossible.");
         return;
       }
+      setPending(null);
       void load();
     } catch {
-      setError("Réinitialisation 2FA impossible.");
+      setDialogError("Réinitialisation 2FA impossible.");
     } finally {
       setBusyId(null);
     }
   };
 
-  const handleRevoke = async (id: string, email: string) => {
-    if (!window.confirm(`Révoquer l'accès admin de ${email} ? Cette action est définitive.`)) {
-      return;
-    }
+  const handleRevoke = async (id: string) => {
     setBusyId(id);
     setError(null);
     try {
@@ -193,7 +189,7 @@ export function AdminAccountsManager({ onSessionExpired }: { onSessionExpired: (
         method: "DELETE",
       });
       if (!res.ok) {
-        setError(
+        setDialogError(
           code === "LAST_OPERATOR"
             ? "Impossible : c'est le dernier operator."
             : code === "SELF_REVOKE"
@@ -202,9 +198,10 @@ export function AdminAccountsManager({ onSessionExpired }: { onSessionExpired: (
         );
         return;
       }
+      setPending(null);
       void load();
     } catch {
-      setError("Révocation impossible.");
+      setDialogError("Révocation impossible.");
     } finally {
       setBusyId(null);
     }
@@ -349,7 +346,10 @@ export function AdminAccountsManager({ onSessionExpired }: { onSessionExpired: (
                     variant="outline"
                     size="sm"
                     disabled={busyId === a.id}
-                    onClick={() => void handleReset2fa(a.id, a.email)}
+                    onClick={() => {
+                      setDialogError(null);
+                      setPending({ kind: "reset2fa", id: a.id, email: a.email });
+                    }}
                     className="gap-1.5"
                   >
                     <KeyRound className="size-3.5" aria-hidden />
@@ -359,7 +359,10 @@ export function AdminAccountsManager({ onSessionExpired }: { onSessionExpired: (
                     variant="ghost"
                     size="sm"
                     disabled={busyId === a.id}
-                    onClick={() => void handleRevoke(a.id, a.email)}
+                    onClick={() => {
+                      setDialogError(null);
+                      setPending({ kind: "revoke", id: a.id, email: a.email });
+                    }}
                     className="gap-1.5 text-destructive hover:text-destructive"
                   >
                     <Trash2 className="size-3.5" aria-hidden />
@@ -406,6 +409,32 @@ export function AdminAccountsManager({ onSessionExpired }: { onSessionExpired: (
             ))}
           </ul>
         </div>
+      )}
+
+      {pending && (
+        <ConfirmDialog
+          title={
+            pending.kind === "reset2fa"
+              ? `Réinitialiser la 2FA de ${pending.email} ?`
+              : `Révoquer l'accès admin de ${pending.email} ?`
+          }
+          description={
+            pending.kind === "reset2fa"
+              ? "Ses sessions seront fermées et il devra réenroler sa 2FA."
+              : "Cette action est définitive."
+          }
+          confirmLabel={pending.kind === "reset2fa" ? "Réinitialiser" : "Révoquer"}
+          pending={busyId === pending.id}
+          error={dialogError}
+          onClose={() => {
+            if (busyId !== pending.id) setPending(null);
+          }}
+          onConfirm={() =>
+            pending.kind === "reset2fa"
+              ? void handleReset2fa(pending.id)
+              : void handleRevoke(pending.id)
+          }
+        />
       )}
     </div>
   );

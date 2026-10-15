@@ -23,9 +23,7 @@ const geistMono = Geist_Mono({
 const sora = Sora({
   variable: "--font-sora",
   subsets: ["latin"],
-  // Test LCP : poids utiles + `optional` (pas de repaint tardif au swap).
-  weight: ["500", "600", "700", "800"],
-  display: "optional",
+  weight: ["400", "500", "600", "700", "800"],
   preload: false,
 });
 
