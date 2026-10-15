@@ -426,6 +426,9 @@ model AnalyticsEvent {
   @@index([type])
   @@index([sessionId])
   @@index([createdAt])
+  // Perf dashboard (#237) : requêtes type + regroupement ref/sessionId.
+  @@index([type, ref])
+  @@index([type, sessionId])
 }
 
 /// Email engagement events (sent, opened, clicked) via Resend webhooks
