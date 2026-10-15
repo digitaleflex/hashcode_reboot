@@ -951,6 +951,48 @@ describe("Participation unifiée + CSRF #233", () => {
   });
 });
 
+// ── Dashboard admin #237 : agrégats SQL, forme stable ─────────────
+// Lignes déterministes (ref unique par run) + nettoyage. Zéro coût auth.
+
+describe("GET /api/admin/dashboard — agrégats #237", () => {
+  before(ensureServer);
+
+  const ref = `it-q-${RUN_TOKEN}`;
+
+  test("→ 200, forme funnel/timing inchangée", async () => {
+    const jar = await authedJar();
+    const res = await httpRequest("GET", "/api/admin/dashboard", { cookies: jar });
+    assert.equal(res.status, 200);
+    // Forme réelle : fetchFunnel() est niché sous la clé `funnel`.
+    assert.equal(typeof res.json?.funnel?.funnel?.sessionsStarted, "number");
+    assert.equal(typeof res.json?.funnel?.funnel?.completionRate, "number");
+    assert.ok(Array.isArray(res.json?.funnel?.timing));
+  });
+
+  test("timing exact sur lignes connues [10,20,30] puis cleanup", async () => {
+    const jar = await authedJar();
+    const db = getPrisma();
+    await db.analyticsEvent.createMany({
+      data: [10, 20, 30].map((value) => ({
+        type: "profiling_question_timed",
+        ref,
+        value,
+        sessionId: `it-sess-${RUN_TOKEN}`,
+      })),
+    });
+    const res = await httpRequest("GET", "/api/admin/dashboard", { cookies: jar });
+    assert.equal(res.status, 200);
+    const row = (res.json?.funnel?.timing ?? []).find((t) => t.questionId === ref);
+    assert.ok(row, "ligne timing présente");
+    // avg=20, p50=tri[floor(3*0.5)]=20, p95=tri[min(2,floor(3*0.95))]=30.
+    assert.deepEqual(
+      { samples: row.samples, avgMs: row.avgMs, p50Ms: row.p50Ms, p95Ms: row.p95Ms },
+      { samples: 3, avgMs: 20, p50Ms: 20, p95Ms: 30 },
+    );
+    await db.analyticsEvent.deleteMany({ where: { ref } });
+  });
+});
+
 // ── /api/admin/logout (LAST: it kills the shared session) ───────
 
 describe("POST /api/admin/logout", () => {

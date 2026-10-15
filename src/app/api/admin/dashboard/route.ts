@@ -115,6 +115,19 @@ async function fetchStats() {
   };
 }
 
+// Types nommés + cast (un générique explicite sur le tag $queryRaw casse
+// le parse TS dès que le template est multi-ligne — contournement éprouvé).
+interface DistinctCountRow {
+  n: number;
+}
+interface TimingRow {
+  questionId: string;
+  samples: number;
+  avgMs: number;
+  p50Ms: number;
+  p95Ms: number;
+}
+
 async function fetchFunnel() {
   const [
     rows, total, startedSessions, completedSessions, whatsappClicks,
@@ -122,16 +135,45 @@ async function fetchFunnel() {
   ] = await Promise.all([
     withPrismaRetry(() => db.analyticsEvent.groupBy({ by: ["type"], _count: true, orderBy: { _count: { type: "desc" } } })),
     withPrismaRetry(() => db.analyticsEvent.count()),
-    withPrismaRetry(() => db.analyticsEvent.groupBy({ by: ["sessionId"], where: { type: "profiling_started" } })),
-    withPrismaRetry(() => db.analyticsEvent.groupBy({ by: ["sessionId"], where: { type: "profiling_completed" } })),
+    // Perf-4 (#237) : seules les CARDINALITÉS servent (length) — COUNT(DISTINCT)
+    // au lieu de charger toutes les sessions. Les sessionId NULL (bots sans
+    // session) sont exclus, contrairement au groupBy qui les comptait comme
+    // une session : plus juste, écart documenté (nul si aucun NULL).
+    withPrismaRetry(async () => {
+      const rows = (await db.$queryRaw`
+        SELECT COUNT(DISTINCT "sessionId")::int AS n FROM "AnalyticsEvent"
+        WHERE "type" = 'profiling_started' AND "sessionId" IS NOT NULL
+      `) as DistinctCountRow[];
+      return rows[0]?.n ?? 0;
+    }),
+    withPrismaRetry(async () => {
+      const rows = (await db.$queryRaw`
+        SELECT COUNT(DISTINCT "sessionId")::int AS n FROM "AnalyticsEvent"
+        WHERE "type" = 'profiling_completed' AND "sessionId" IS NOT NULL
+      `) as DistinctCountRow[];
+      return rows[0]?.n ?? 0;
+    }),
     withPrismaRetry(() => db.analyticsEvent.count({ where: { type: "whatsapp_join_clicked" } })),
     withPrismaRetry(() => db.analyticsEvent.groupBy({ by: ["ref"], _count: true, where: { type: "profiling_question_answered", ref: { not: null } } })),
     withPrismaRetry(() => db.analyticsEvent.groupBy({ by: ["ref"], _count: true, where: { type: "profiling_abandoned", ref: { not: null } } })),
-    withPrismaRetry(() => db.analyticsEvent.findMany({
-      where: { type: "profiling_question_timed", ref: { not: null }, value: { not: null } },
-      select: { ref: true, value: true },
-      take: 5000,
-    })),
+    // Perf-4 (#237) : UNE requête SQL au lieu de ≤5000 lignes + tri JS.
+    // Mathématiques strictement identiques au code remplacé (avg arrondi,
+    // p50 = tri[floor(n*0.5)], p95 = tri[min(n-1, floor(n*0.95))],
+    // tableaux Postgres 1-indexés d'où le +1) — prouvé par test.
+    withPrismaRetry(async () => {
+      const rows = (await db.$queryRaw`
+        SELECT "ref" AS "questionId",
+               COUNT(*)::int AS "samples",
+               ROUND(AVG("value"))::int AS "avgMs",
+               (ARRAY_AGG("value" ORDER BY "value"))[floor(COUNT(*)*0.5)+1]::int AS "p50Ms",
+               (ARRAY_AGG("value" ORDER BY "value"))[LEAST(COUNT(*), floor(COUNT(*)*0.95)+1)]::int AS "p95Ms"
+        FROM "AnalyticsEvent"
+        WHERE "type" = 'profiling_question_timed'
+          AND "ref" IS NOT NULL AND "value" IS NOT NULL AND "value" > 0
+        GROUP BY "ref"
+      `) as TimingRow[];
+      return rows;
+    }),
   ]);
 
   // Drop-off
@@ -147,34 +189,25 @@ async function fetchFunnel() {
     return { questionId: id, answered, abandoned, dropRate: t === 0 ? 0 : Math.round((abandoned / t) * 100) };
   }).sort((a, b) => b.dropRate - a.dropRate);
 
-  // Timing
-  const byQuestion = new Map<string, number[]>();
-  for (const r of timedRows) {
-    if (r.ref && r.value !== null && r.value > 0) {
-      const arr = byQuestion.get(r.ref) ?? [];
-      arr.push(r.value);
-      byQuestion.set(r.ref, arr);
-    }
-  }
-  const timing = [...byQuestion.entries()].map(([id, vals]) => {
-    const sorted = [...vals].sort((a, b) => a - b);
-    return {
-      questionId: id,
-      samples: sorted.length,
-      avgMs: Math.round(sorted.reduce((s, v) => s + v, 0) / sorted.length),
-      p50Ms: sorted[Math.floor(sorted.length * 0.5)] ?? 0,
-      p95Ms: sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))] ?? 0,
-    };
-  }).sort((a, b) => b.avgMs - a.avgMs);
+  // Timing — déjà agrégé en SQL (mêmes mathématiques, voir requête).
+  const timing = [...timedRows]
+    .map((r) => ({
+      questionId: r.questionId,
+      samples: Number(r.samples),
+      avgMs: Number(r.avgMs),
+      p50Ms: Number(r.p50Ms),
+      p95Ms: Number(r.p95Ms),
+    }))
+    .sort((a, b) => b.avgMs - a.avgMs);
 
   return {
     total,
     events: rows.map((r) => ({ type: r.type, count: r._count })),
     funnel: {
-      sessionsStarted: startedSessions.length,
-      sessionsCompleted: completedSessions.length,
+      sessionsStarted: Number(startedSessions),
+      sessionsCompleted: Number(completedSessions),
       whatsappClicks,
-      completionRate: startedSessions.length === 0 ? 0 : Math.round((completedSessions.length / startedSessions.length) * 100),
+      completionRate: Number(startedSessions) === 0 ? 0 : Math.round((Number(completedSessions) / Number(startedSessions)) * 100),
     },
     dropoff,
     timing,
