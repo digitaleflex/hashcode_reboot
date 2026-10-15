@@ -29,6 +29,8 @@ jobs:
       - run: npm run test:orientation-hardening
       - run: npm run test:recommendation-presentation
       - run: npm run test:orientation-catalogue
+      - run: npm run test:anti-abuse
+      - run: npm run test:turnstile
       - name: Validate translation keys
         run: node scripts/check-messages.mjs
       - name: Validate design token contrast

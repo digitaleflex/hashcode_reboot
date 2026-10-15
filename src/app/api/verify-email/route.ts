@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
+import { blockIfTesting } from "@/lib/test-guard";
 import { confirmEmailLink, sendVerificationLink } from "@/lib/verify-email";
 import {
   AppError,
@@ -21,6 +22,9 @@ const sendSchema = z.object({
  * Anti-abus : 5 envois par IP toutes les 10 minutes + cooldown 60 s par email. */
 export async function POST(req: NextRequest) {
   try {
+    // Anti-abus (#118) : aucun envoi d'email en mode TESTING.
+    const blocked = blockIfTesting();
+    if (blocked) return blocked;
     const rl = await rateLimit(`verify-email:${rateKey(req)}`, {
       capacity: 5,
       windowMs: 600000, // 10 minutes

@@ -666,9 +666,44 @@ describe("workshops — auth (read-only, aucune écriture sans session)", () => 
   });
 });
 
+// ── Anti-abus #118 : rate-limit AVANT la session/DB ───────────────
+// Zéro coût sur le budget auth : authedJar() réutilise le jar caché
+// (aucun appel /api/auth/* supplémentaire). Placé avant le logout qui
+// tue la session partagée. Le bucket `community-join` (30/10min) n'est
+// touché par aucun autre test du fichier (clé isolée par endpoint).
 // NOTE: POST /api/workshops/[slug]/enroll avec session intentionally omitted —
 // it would create an enrollment row in the production database. Write-path
 // coverage requires a dedicated test DB (see TESTING_DATABASE_URL note above).
+
+describe("GET /api/community/join — anti-abus #118", () => {
+  before(ensureServer);
+
+  test("trafic normal (3 clics) → redirects, jamais 429/403", async () => {
+    const jar = await authedJar();
+    for (let i = 0; i < 3; i++) {
+      const res = await httpRequest("GET", "/api/community/join", { cookies: jar });
+      assert.ok(
+        [307, 308].includes(res.status),
+        `clic ${i + 1} légitime non bloqué (status=${res.status})`,
+      );
+    }
+  });
+
+  test("rafale (35 hits) → au moins un 429 (flood coupé avant la DB)", async () => {
+    const jar = await authedJar();
+    let seen429 = false;
+    for (let i = 0; i < 35; i++) {
+      const res = await httpRequest("GET", "/api/community/join", { cookies: jar });
+      if (res.status === 429) {
+        seen429 = true;
+        assert.equal(res.json?.code, "RATE_LIMITED");
+        assert.ok(res.headers["retry-after"], "Retry-After présent");
+        break;
+      }
+    }
+    assert.ok(seen429, "la rafale doit finir en 429 (bucket 30/10min)");
+  });
+});
 
 // ── /api/admin/logout (LAST: it kills the shared session) ───────
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { toServerEventData } from "@/lib/analytics";
 import { getSession } from "@/lib/account-auth";
+import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { getWhatsAppUrl } from "@/lib/profiling/auto-controls";
 import { audit } from "@/lib/admin-audit";
 import { ForbiddenError } from "@/lib/errors";
@@ -28,6 +29,23 @@ export const revalidate = 0;
  * (emails, dashboard, account) : utiliser cette route à la place.
  */
 export async function GET(req: NextRequest) {
+  // Anti-abus (#118) : placé AVANT getSession (qui touche la DB) pour que
+  // même un flood non authentifié soit coupé sans travailler la base.
+  // Bucket large (clic humain rare, jamais en boucle légitime).
+  const rl = await rateLimit(`community-join:${rateKey(req)}`, {
+    capacity: 30,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Trop de tentatives. Réessaie dans quelques minutes.", code: "RATE_LIMITED" },
+      {
+        status: 429,
+        headers: { "Retry-After": retryAfterHeader(rl.retryAfterMs) },
+      },
+    );
+  }
+
   const session = await getSession(req);
 
   if (!session) {
