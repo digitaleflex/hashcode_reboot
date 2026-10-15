@@ -739,6 +739,156 @@ describe("GET /api/cron/purge — rétention #153", () => {
   });
 });
 
+// ── Missions #232(c) : membre + revue admin ─────────────────────────
+// Zéro coût auth (jar admin caché = session membre opérateur). Slugs
+// uniques par run ; nettoyage par suppression des missions (cascades).
+// Placé avant le logout qui tue la session partagée.
+
+describe("Missions — parcours membre + revue admin #232c", () => {
+  before(ensureServer);
+
+  const slugA = `it-mission-a-${RUN_TOKEN}`;
+  const slugB = `it-mission-b-${RUN_TOKEN}`;
+  let mA = null;
+  let mB = null;
+
+  test("admin crée 2 missions (DRAFT), slug dupliqué → 409", async () => {
+    const jar = await authedJar();
+    for (const slug of [slugA, slugB]) {
+      const res = await httpRequest("POST", "/api/admin/missions", {
+        cookies: jar,
+        body: { slug, title: `Mission ${slug}`, domain: "web", level: "beginner" },
+      });
+      assert.equal(res.status, 201, JSON.stringify(res.json));
+      assert.equal(res.json?.mission?.status, "DRAFT");
+      if (slug === slugA) mA = res.json.mission;
+      else mB = res.json.mission;
+    }
+    const dup = await httpRequest("POST", "/api/admin/missions", {
+      cookies: jar,
+      body: { slug: slugA, title: "dup" },
+    });
+    assert.equal(dup.status, 409);
+    assert.equal(dup.json?.code, "SLUG_TAKEN");
+  });
+
+  test("admin publie A (DRAFT→PUBLISHED), transition interdite rejetée", async () => {
+    const jar = await authedJar();
+    const pub = await httpRequest("PATCH", `/api/admin/missions/${mA.id}`, {
+      cookies: jar,
+      body: { status: "PUBLISHED" },
+    });
+    assert.equal(pub.status, 200);
+    assert.equal(pub.json?.mission?.status, "PUBLISHED");
+    const bad = await httpRequest("PATCH", `/api/admin/missions/${mB.id}`, {
+      cookies: jar,
+      body: { status: "ARCHIVED" },
+    });
+    assert.equal(bad.status, 422);
+    assert.equal(bad.json?.code, "INVALID_TRANSITION");
+    const pubB = await httpRequest("PATCH", `/api/admin/missions/${mB.id}`, {
+      cookies: jar,
+      body: { status: "PUBLISHED" },
+    });
+    assert.equal(pubB.status, 200);
+  });
+
+  test("public : PUBLISHED listées, DRAFT jamais", async () => {
+    const res = await httpRequest("GET", "/api/missions");
+    assert.equal(res.status, 200);
+    const slugs = res.json?.missions?.map((m) => m.slug) ?? [];
+    assert.ok(slugs.includes(slugA), "mission publiée listée");
+  });
+
+  test("start sans session → 401 ; avec session → ACTIVE idempotent", async () => {
+    const noAuth = await httpRequest("POST", `/api/missions/${mA.id}/start`);
+    assert.equal(noAuth.status, 401);
+    const jar = await authedJar();
+    const s1 = await httpRequest("POST", `/api/missions/${mA.id}/start`, { cookies: jar });
+    assert.ok([200, 201].includes(s1.status));
+    assert.equal(s1.json?.assignment?.status, "ACTIVE");
+    const s2 = await httpRequest("POST", `/api/missions/${mA.id}/start`, { cookies: jar });
+    assert.equal(s2.status, 200);
+    assert.equal(s2.json?.created, false);
+    assert.equal(s2.json?.assignment?.id, s1.json?.assignment?.id);
+  });
+
+  test("soumettre sans démarrer → 422 ; puis 201 attempt 1 ; double → 409", async () => {
+    const jar = await authedJar();
+    const early = await httpRequest("POST", `/api/missions/${mB.id}/submit`, {
+      cookies: jar,
+      body: { content: "trop tôt" },
+    });
+    assert.equal(early.status, 422);
+    assert.equal(early.json?.code, "START_FIRST");
+    const bad = await httpRequest("POST", `/api/missions/${mA.id}/submit`, {
+      cookies: jar,
+      body: { content: "" },
+    });
+    assert.equal(bad.status, 422);
+    const s1 = await httpRequest("POST", `/api/missions/${mA.id}/submit`, {
+      cookies: jar,
+      body: { content: "ma réalisation" },
+    });
+    assert.equal(s1.status, 201);
+    assert.equal(s1.json?.attempt, 1);
+    assert.equal(s1.json?.submission?.status, "PENDING");
+    const s2 = await httpRequest("POST", `/api/missions/${mA.id}/submit`, {
+      cookies: jar,
+      body: { content: "double clic" },
+    });
+    assert.equal(s2.status, 409);
+    assert.equal(s2.json?.code, "ALREADY_SUBMITTED");
+  });
+
+  test("revue APPROVED → VALIDATED + validatedAt ; rejouée → 409 ; progression", async () => {
+    const jar = await authedJar();
+    const list = await httpRequest(
+      "GET",
+      `/api/admin/mission-submissions?missionId=${mA.id}&status=PENDING`,
+      { cookies: jar },
+    );
+    assert.equal(list.status, 200);
+    assert.equal(list.json?.submissions?.length, 1);
+    const subId = list.json.submissions[0].id;
+    const rev = await httpRequest(
+      "POST",
+      `/api/admin/mission-submissions/${subId}/review`,
+      { cookies: jar, body: { decision: "APPROVED", feedback: "Beau travail." } },
+    );
+    assert.equal(rev.status, 200);
+    assert.equal(rev.json?.submission?.status, "APPROVED");
+    const again = await httpRequest(
+      "POST",
+      `/api/admin/mission-submissions/${subId}/review`,
+      { cookies: jar, body: { decision: "REJECTED", feedback: "x" } },
+    );
+    assert.equal(again.status, 409);
+    assert.equal(again.json?.code, "ALREADY_REVIEWED");
+    const prog = await httpRequest("GET", "/api/account/missions", { cookies: jar });
+    assert.equal(prog.status, 200);
+    assert.equal(prog.json?.progress?.validated, 1);
+    assert.ok(prog.json?.progress?.validatedMissionIds?.includes(mA.id));
+  });
+
+  test("abandon après validation → 404 ; nettoyage via Prisma (cascades)", async () => {
+    const jar = await authedJar();
+    const ab = await httpRequest("POST", `/api/missions/${mA.id}/abandon`, { cookies: jar });
+    assert.equal(ab.status, 404);
+    // Nettoyage : suppression des missions du run (cascades assignments,
+    // soumissions, revues). Convention du fichier : plumbing Prisma direct.
+    const db = getPrisma();
+    const gone = await db.mission.deleteMany({
+      where: { slug: { in: [slugA, slugB] } },
+    });
+    assert.equal(gone.count, 2, "missions du run nettoyées");
+    const left = await db.missionAssignment.count({
+      where: { missionId: { in: [mA.id, mB.id] } },
+    });
+    assert.equal(left, 0, "aucune assignation orpheline");
+  });
+});
+
 // ── /api/admin/logout (LAST: it kills the shared session) ───────
 
 describe("POST /api/admin/logout", () => {
