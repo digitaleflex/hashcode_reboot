@@ -50,7 +50,7 @@ export function SiteHeader({ onJoin }: { onJoin: (ref?: string) => void }) {
   const navLinks = t.raw("links") as string[];
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur-md">
+    <header className="sticky top-0 z-40 border-b border-border/40 bg-background/90 backdrop-blur-md">
       <div className="shell flex h-16 items-center justify-between gap-3">
         <I18nLink
           href="/"

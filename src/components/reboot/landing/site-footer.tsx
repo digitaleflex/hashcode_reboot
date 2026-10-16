@@ -128,7 +128,7 @@ export function SiteFooter({
   };
 
   return (
-    <footer className="mt-auto border-t border-border/60 bg-background pb-24 sm:pb-0">
+    <footer className="mt-auto border-t border-border/40 bg-background pb-24 sm:pb-0">
       {/* Compteurs — uniquement des données réelles. */}
       <SocialProofBar />
 
