@@ -39,6 +39,7 @@ jobs:
       - run: npm run test:dedup
       - run: npm run test:trust-collection
       - run: npm run test:analytics-dictionary
+      - run: npm run test:public-events
       - name: Validate translation keys
         run: node scripts/check-messages.mjs
       - name: Validate design token contrast

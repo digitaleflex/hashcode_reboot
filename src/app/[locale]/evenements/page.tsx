@@ -31,7 +31,7 @@ export default async function EvenementsPage() {
   const [session, initial] = await Promise.all([
     getSession().catch(() => null),
     listPublicEvents({ limit: 20 })
-      .then((events) => ({ loaded: true, events }))
+      .then(({ events }) => ({ loaded: true, events }))
       .catch(() => ({ loaded: false, events: [] })),
   ]);
 

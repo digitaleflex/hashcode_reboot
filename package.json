@@ -46,6 +46,7 @@
     "test:dedup": "tsx --test tests/dedup.test.ts",
     "test:trust-collection": "node --test tests/trust-collection.test.cjs",
     "test:analytics-dictionary": "tsx --test tests/analytics-dictionary.test.ts",
+    "test:public-events": "tsx --test tests/public-events.test.ts",
     "test:roadmap-status": "tsx --test tests/roadmap-status.test.ts"
   },
   "dependencies": {

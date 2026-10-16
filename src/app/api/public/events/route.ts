@@ -30,16 +30,18 @@ export async function GET(req: NextRequest) {
   }
 
   const url = new URL(req.url);
-  const filters = normalizeEventFilters({
-    type: url.searchParams.get("type"),
-    domain: url.searchParams.get("domain"),
-    limit: Number(url.searchParams.get("limit") || "20"),
-  });
 
   try {
-    const events = await listPublicEvents(filters);
-    return NextResponse.json({ ok: true, events });
+    const filters = normalizeEventFilters({
+      type: url.searchParams.get("type"),
+      domain: url.searchParams.get("domain"),
+      limit: Number(url.searchParams.get("limit") || "20"),
+      cursor: url.searchParams.get("cursor"),
+    });
+    const { events, nextCursor } = await listPublicEvents(filters);
+    return NextResponse.json({ ok: true, events, nextCursor });
   } catch (err) {
+    if (err instanceof AppError) throw err;
     throw new AppError("Erreur interne.", { status: 500, code: "INTERNAL_ERROR" });
   }
   } catch (err) {
