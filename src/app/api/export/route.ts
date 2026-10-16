@@ -1,195 +1,68 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { toServerEventData } from "@/lib/analytics";
-import { isAdminAuthed, getAdminRole } from "@/lib/admin-auth";
+import { isAdminAuthed } from "@/lib/admin-auth";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
-import { audit } from "@/lib/admin-audit";
-import { AppError, AuthError, RateLimitError, errorToResponse } from "@/lib/errors";
+import { AuthError, RateLimitError, errorToResponse } from "@/lib/errors";
+import {
+  EXPORT_MAX,
+  auditExport,
+  buildExportWhere,
+  parseExportFilters,
+  resolveExportColumns,
+} from "@/lib/admin-export";
 
 export const runtime = "nodejs";
 
-const MAX_EXPORT = 2000;
-
-/** GET /api/export — CSV export of members (admin-only). Accepts the same
- * filter query params as GET /api/members so the admin can export the
- * currently-filtered view, or all members if no params. */
+/** GET /api/export — CSV (admin). Filtres whitelistés + `segment=` + `fields=`.
+ * Colonnes par défaut minimisées (#153) ; `fields=adminNote,adminRole` en opt-in.
+ * Plafond signalé par headers X-Export-*. */
 export async function GET(req: NextRequest) {
   try {
-  if (!(await isAdminAuthed(req))) {
-    throw new AuthError("Non autorisé.", "UNAUTHORIZED");
-  }
-  // Anti-abus : 20 exports par IP toutes les 10 minutes.
-  const rl = await rateLimit(`export:${rateKey(req)}`, {
-    capacity: 20,
-    windowMs: 600000, // 10 minutes
-  });
-  if (!rl.ok) {
-    throw new RateLimitError(
-      "Trop de requêtes. Réessaie dans quelques minutes.",
-      rl.retryAfterMs,
-    );
-  }
-  try {
-    const { searchParams } = new URL(req.url);
-    const domain = searchParams.get("domain");
-    const country = searchParams.get("country");
-    const level = searchParams.get("level");
-    const mentoring = searchParams.get("mentoring");
-    const budget = searchParams.get("budget");
-    const status = searchParams.get("status");
-    const lane = searchParams.get("lane");
-    const type = searchParams.get("type");
-    const invitationStatus = searchParams.get("invitationStatus");
-    const q = searchParams.get("q");
-    const fieldsParam = searchParams.get("fields");
+    if (!(await isAdminAuthed(req))) {
+      throw new AuthError("Non autorisé.", "UNAUTHORIZED");
+    }
+    // Anti-abus : 20 exports par IP toutes les 10 minutes.
+    const rl = await rateLimit(`export:${rateKey(req)}`, {
+      capacity: 20,
+      windowMs: 600000, // 10 minutes
+    });
+    if (!rl.ok) {
+      throw new RateLimitError(
+        "Trop de requêtes. Réessaie dans quelques minutes.",
+        rl.retryAfterMs,
+      );
+    }
 
-    const where: Prisma.MemberWhereInput = {};
-    where.deletedAt = null; // exclude soft-deleted members
-    if (domain) where.primaryDomain = domain;
-    if (country) where.country = country;
-    if (level) where.level = level;
-    if (mentoring) where.mentoringInterest = mentoring;
-    if (budget) where.budgetRange = budget;
-    if (status) where.profileStatus = status;
-    if (lane) where.accessLane = lane;
-    if (invitationStatus) where.invitationStatus = invitationStatus;
-    else if (type === "registered") where.invitationStatus = "NOT_INVITED";
-    else if (type === "invited") where.invitationStatus = { not: "NOT_INVITED" };
-    if (q)
-      where.OR = [
-        { firstName: { contains: q, mode: "insensitive" } },
-        { email: { contains: q, mode: "insensitive" } },
-      ];
+    const { searchParams } = new URL(req.url);
+    const filters = parseExportFilters(searchParams);
+    const headers = resolveExportColumns(filters.fields);
+    const where = await buildExportWhere(filters);
 
     const [total, members] = await Promise.all([
       db.member.count({ where }),
       db.member.findMany({
         where,
         orderBy: { createdAt: "desc" },
-        take: MAX_EXPORT,
+        take: EXPORT_MAX,
       }),
     ]);
 
-    const ALL_HEADERS = [
-      "id",
-      "createdAt",
-      "firstName",
-      "lastName",
-      "email",
-      "phone",
-      "country",
-      "city",
-      "gender",
-      "primaryDomain",
-      "domainSpecialty",
-      "level",
-      "goal",
-      "goalProjectStage",
-      "goalSituation",
-      "availability",
-      "learningStyle",
-      "mentoringInterest",
-      "mentoringMaybeReason",
-      "mentoringTypes",
-      "mentoringFrequency",
-      "mentoringDomain",
-      "budgetRange",
-      "threeMonthGoal",
-      "profileArchetype",
-      "tags",
-      "profileStatus",
-      "communityStatus",
-      "accessLane",
-      "invitationStatus",
-      "source",
-      "adminNote",
-    ];
-
-    // Support optional column filtering via `fields` query param (comma-separated).
-    let headers = ALL_HEADERS;
-    if (fieldsParam) {
-      const requested = fieldsParam
-        .split(",")
-        .map((f) => f.trim())
-        .filter(Boolean);
-      headers = ALL_HEADERS.filter((h) => requested.includes(h));
-    }
-
     const esc = (v: unknown): string => {
-      const s = v === null || v === undefined ? "" : String(v);
+      const s = v === null || v === undefined ? "" : v instanceof Date ? v.toISOString() : String(v);
       // RFC 4180 quoting.
       if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
       return s;
     };
 
-    // Build a map of field → value for each member.
-    const fieldMap = (m: (typeof members)[number]): Record<string, unknown> => ({
-      id: m.id,
-      createdAt: m.createdAt.toISOString(),
-      firstName: m.firstName,
-      lastName: m.lastName,
-      email: m.email,
-      phone: m.phone,
-      country: m.country,
-      city: m.city,
-      gender: m.gender,
-      primaryDomain: m.primaryDomain,
-      domainSpecialty: m.domainSpecialty,
-      level: m.level,
-      goal: m.goal,
-      goalProjectStage: m.goalProjectStage,
-      goalSituation: m.goalSituation,
-      availability: m.availability,
-      learningStyle: m.learningStyle,
-      mentoringInterest: m.mentoringInterest,
-      mentoringMaybeReason: m.mentoringMaybeReason,
-      mentoringTypes: m.mentoringTypes,
-      mentoringFrequency: m.mentoringFrequency,
-      mentoringDomain: m.mentoringDomain,
-      budgetRange: m.budgetRange,
-      threeMonthGoal: m.threeMonthGoal,
-      profileArchetype: m.profileArchetype,
-      tags: m.tags,
-      profileStatus: m.profileStatus,
-      communityStatus: m.communityStatus,
-      accessLane: m.accessLane,
-      invitationStatus: m.invitationStatus,
-      source: m.source,
-      adminNote: m.adminNote,
-    });
-
     const rows = members.map((m) => {
-      const row = fieldMap(m);
+      const row = m as unknown as Record<string, unknown>;
       return headers.map((h) => esc(row[h])).join(",");
     });
 
     const csv = [headers.map(esc).join(","), ...rows].join("\r\n");
+    const truncated = total > EXPORT_MAX;
+    await auditExport(req, { format: "csv", exported: members.length, total, truncated });
 
-    // Audit isolé : ne casse jamais l'export si l'audit échoue.
-    try {
-      await db.analyticsEvent.create({
-        data: toServerEventData({
-          type: "community_cta_clicked",
-          ref: `admin-export-csv:${members.length}/${total}`,
-        }),
-      });
-    } catch {
-      /* ignore */
-    }
-    // Traçabilité RGPD : qui a exporté quoi (AuditLog, fire-and-forget).
-    void audit(
-      "member.export",
-      "member",
-      undefined,
-      { format: "csv", exported: members.length, total },
-      {
-        type: "admin",
-        role: (await getAdminRole(req)) ?? "operator",
-      },
-    );
-
-    const truncated = total > MAX_EXPORT;
     return new NextResponse(csv, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
@@ -200,10 +73,6 @@ export async function GET(req: NextRequest) {
           : {}),
       },
     });
-  } catch (err) {
-    if (err instanceof AppError) throw err;
-    throw new AppError("Erreur interne.", { status: 500, code: "INTERNAL_ERROR" });
-  }
   } catch (err) {
     return errorToResponse(err);
   }

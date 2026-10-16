@@ -168,7 +168,7 @@ function httpRequest(method, path, opts = {}) {
       res.on("end", () => {
         let json = null;
         try { json = JSON.parse(data); } catch { /* not JSON */ }
-        resolve({ status: res.statusCode, headers: res.headers, json, setCookies });
+        resolve({ status: res.statusCode, headers: res.headers, json, setCookies, text: data });
       });
     });
     req.on("error", reject);
@@ -1234,6 +1234,94 @@ describe("Qualité leads — agrégats #105", () => {
     for (const em of [E1, E2, E3]) {
       assert.equal(await db.member.count({ where: { email: em } }), 0);
     }
+  });
+});
+
+// ── Export filtré #101 : whitelist, minimisation, segment, plafond ─
+// Zéro coût auth (jar caché). Seed volumineux nettoyé (préfixe RUN_TOKEN).
+
+describe("Export filtré des leads #101", () => {
+  before(ensureServer);
+
+  const BULK = `bulk101-${RUN_TOKEN}`;
+
+  test("sans session → 401 (csv + json)", async () => {
+    assert.equal((await httpRequest("GET", "/api/export")).status, 401);
+    assert.equal((await httpRequest("GET", "/api/export/json")).status, 401);
+  });
+
+  test("filtre invalide → 422 ; colonnes minimisées par défaut", async () => {
+    const jar = await authedJar();
+    const bad = await httpRequest("GET", "/api/export?domain=cobol", { cookies: jar });
+    assert.equal(bad.status, 422);
+    const csv = await httpRequest("GET", "/api/export?limit=1", { cookies: jar });
+    assert.equal(csv.status, 200);
+    const header = (csv.text ?? "").split("\r\n")[0] ?? "";
+    assert.ok(!header.includes("adminNote"), "adminNote hors défaut CSV");
+    assert.ok(!header.includes("adminRole"), "adminRole hors défaut CSV");
+    assert.ok(header.includes("email"), "email présent");
+    const optin = await httpRequest("GET", "/api/export?fields=email,adminNote", {
+      cookies: jar,
+    });
+    assert.equal(optin.status, 200);
+    assert.ok(((optin.text ?? "").split("\r\n")[0] ?? "").includes("adminNote"));
+    const json = await httpRequest("GET", "/api/export/json?limit=1", { cookies: jar });
+    assert.equal(json.status, 200);
+    assert.ok(!("adminNote" in ((json.json?.members ?? [])[0] ?? {})), "adminNote hors défaut JSON");
+  });
+
+  test("segment + dataset vide (en-têtes seuls) ; audit tracé", async () => {
+    const jar = await authedJar();
+    const db = getPrisma();
+    const seg = await db.segment.create({
+      data: {
+        name: `it-exp-${RUN_TOKEN}`,
+        definition: { version: 1, all: [{ field: "country", op: "eq", value: "ZZ" }] },
+      },
+    });
+    const csv = await httpRequest("GET", `/api/export?segment=${seg.id}`, { cookies: jar });
+    assert.equal(csv.status, 200);
+    assert.deepEqual((csv.text ?? "").split("\r\n").filter(Boolean).length, 1, "en-têtes seuls");
+    const json = await httpRequest("GET", `/api/export/json?segment=${seg.id}`, { cookies: jar });
+    assert.equal(json.json?.count, 0);
+    assert.deepEqual(json.json?.members, []);
+    const badSeg = await httpRequest("GET", "/api/export?segment=nope", { cookies: jar });
+    assert.equal(badSeg.status, 404);
+    // Audit : dernier export tracé (format/volume).
+    const logs = await db.auditLog.findMany({
+      where: { action: "member.export" },
+      orderBy: { createdAt: "desc" },
+      take: 1,
+    });
+    assert.equal(logs.length, 1);
+    assert.ok(String(logs[0].metadata ?? "").includes('"format"'), "filtre+volume audités");
+    await db.segment.delete({ where: { id: seg.id } });
+  });
+
+  test("plafond 2000 signalé ; cleanup", async () => {
+    const jar = await authedJar();
+    const db = getPrisma();
+    const rows = Array.from({ length: 2005 }, (_, i) => ({
+      firstName: "B",
+      email: `${BULK}-${i}@example.com`,
+      country: "BJ",
+      primaryDomain: "web",
+      level: "beginner",
+      goal: "project",
+      availability: "2-5h",
+      learningStyle: "practice",
+    }));
+    await db.member.createMany({ data: rows });
+    const csv = await httpRequest("GET", `/api/export?q=${BULK}`, { cookies: jar });
+    assert.equal(csv.status, 200);
+    assert.equal(csv.headers["x-export-truncated"], "1");
+    assert.equal(csv.headers["x-export-total"], "2005");
+    assert.equal((csv.text ?? "").split("\r\n").filter(Boolean).length - 1, 2000);
+    const json = await httpRequest("GET", `/api/export/json?q=${BULK}`, { cookies: jar });
+    assert.equal(json.json?.count, 2000);
+    assert.equal(json.headers["x-export-truncated"], "1");
+    await db.member.deleteMany({ where: { email: { startsWith: `${BULK}-` } } });
+    assert.equal(await db.member.count({ where: { email: { startsWith: `${BULK}-` } } }), 0);
   });
 });
 
