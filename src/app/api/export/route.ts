@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { isAdminAuthed } from "@/lib/admin-auth";
+import { getAdminRole, isAdminAuthed } from "@/lib/admin-auth";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { AuthError, RateLimitError, errorToResponse } from "@/lib/errors";
 import {
@@ -14,7 +14,8 @@ import {
 export const runtime = "nodejs";
 
 /** GET /api/export — CSV (admin). Filtres whitelistés + `segment=` + `fields=`.
- * Colonnes par défaut minimisées (#153) ; `fields=adminNote,adminRole` en opt-in.
+ * Colonnes par défaut minimisées (#153) ; `fields=adminNote,adminRole`
+ * en opt-in réservé operator (403 sinon, #221). BOM UTF-8 pour Excel FR.
  * Plafond signalé par headers X-Export-*. */
 export async function GET(req: NextRequest) {
   try {
@@ -35,7 +36,8 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const filters = parseExportFilters(searchParams);
-    const headers = resolveExportColumns(filters.fields);
+    const role = await getAdminRole(req);
+    const headers = resolveExportColumns(filters.fields, role);
     const where = await buildExportWhere(filters);
 
     const [total, members] = await Promise.all([
@@ -59,7 +61,8 @@ export async function GET(req: NextRequest) {
       return headers.map((h) => esc(row[h])).join(",");
     });
 
-    const csv = [headers.map(esc).join(","), ...rows].join("\r\n");
+    // BOM UTF-8 : Excel FR ouvre sinon en ANSI (accents cassés).
+    const csv = "\uFEFF" + [headers.map(esc).join(","), ...rows].join("\r\n");
     const truncated = total > EXPORT_MAX;
     await auditExport(req, { format: "csv", exported: members.length, total, truncated });
 

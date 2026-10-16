@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { isAdminAuthed } from "@/lib/admin-auth";
+import { getAdminRole, isAdminAuthed } from "@/lib/admin-auth";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { AuthError, RateLimitError, errorToResponse } from "@/lib/errors";
 import {
@@ -16,7 +16,8 @@ export const runtime = "nodejs";
 /**
  * GET /api/export/json — JSON (admin). Mêmes filtres whitelistés que le CSV
  * (`segment=`, `fields=` inclus). Colonnes minimisées par défaut (#153) :
- * adminNote/adminRole uniquement via `fields=` explicite. Plafond signalé.
+ * adminNote/adminRole uniquement via `fields=` explicite ET rôle operator
+ * (403 FORBIDDEN_FIELDS sinon, #221). Plafond signalé.
  */
 export async function GET(req: NextRequest) {
   try {
@@ -37,7 +38,8 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const filters = parseExportFilters(searchParams);
-    const columns = resolveExportColumns(filters.fields);
+    const role = await getAdminRole(req);
+    const columns = resolveExportColumns(filters.fields, role);
     const where = await buildExportWhere(filters);
 
     const [total, members] = await Promise.all([
