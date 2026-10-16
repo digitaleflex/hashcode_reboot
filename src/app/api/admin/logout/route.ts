@@ -1,17 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkCSRF } from "@/lib/admin-auth";
-import { adminAuth } from "@/lib/auth/admin";
 import { db } from "@/lib/db";
 import { toServerEventData } from "@/lib/analytics";
 
 export const runtime = "nodejs";
 
 /**
- * POST /api/admin/logout — déconnexion admin.
- *
- * Signe d'abord la session ADMIN (cookie `hashcode-admin.session_token`),
- * puis — période de migration — la session membre si elle existe (un admin
- * connecté par l'ancien chemin avait les deux cookies actifs).
+ * POST /api/admin/logout — déconnexion admin (= déconnexion membre).
+ * Source unique : session membre OTP. Purge best-effort de l'ancien
+ * cookie nominatif `hashcode-admin` pour les navigateurs qui l'ont encore.
  */
 export async function POST(req: NextRequest) {
   // CSRF protection: ensure same-origin request (defense in depth alongside SameSite=Lax)
@@ -26,15 +23,16 @@ export async function POST(req: NextRequest) {
   const identity = await getAdminIdentity(req);
 
   try {
-    await adminAuth.api.signOut({ headers: headers as never });
+    const { auth } = await import("@/lib/auth");
+    await auth.api.signOut({ headers: headers as never });
   } catch {
     /* best-effort */
   }
 
-  // Transition : coupe aussi l'ancienne session membre si présente.
+  // Purge best-effort de l'ancien cookie nominatif (système déprécié).
   try {
-    const { auth } = await import("@/lib/auth");
-    await auth.api.signOut({ headers: headers as never });
+    const { adminAuth } = await import("@/lib/auth/admin");
+    await adminAuth.api.signOut({ headers: headers as never });
   } catch {
     /* best-effort */
   }

@@ -45,6 +45,7 @@ export function EmailForm({ next }: { next: string }) {
   const [error, setError] = React.useState<string | null>(null);
   const [status, setStatus] = React.useState<string | null>(null);
   const [sending, setSending] = React.useState(false);
+  const [googleLoading, setGoogleLoading] = React.useState(false);
   const inputRef = React.useRef<HTMLInputElement | null>(null);
 
   function messageFor(kind: AuthErrorKind): string {
@@ -79,6 +80,23 @@ export function EmailForm({ next }: { next: string }) {
     router.push(
       `/verify-otp?email=${encodeURIComponent(trimmedEmail)}&next=${encodeURIComponent(target)}`,
     );
+  }
+
+  async function handleGoogle() {
+    if (googleLoading || sending) return;
+    setGoogleLoading(true);
+    setError(null);
+    try {
+      // La page /auth/callback répartit ensuite : Member existant → next,
+      // nouveau venu (User sans Member) → création du profil via /.
+      await authClient.signIn.social({
+        provider: "google",
+        callbackURL: `/auth/callback?next=${encodeURIComponent(next || DEFAULT_NEXT)}`,
+      });
+    } catch {
+      setError(t("googleFailed"));
+      setGoogleLoading(false);
+    }
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -129,6 +147,33 @@ export function EmailForm({ next }: { next: string }) {
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-5">
+      <RebootButton
+        type="button"
+        size="lg"
+        variant="outline"
+        className="w-full"
+        disabled={sending || googleLoading || status !== null}
+        onClick={handleGoogle}
+      >
+        {googleLoading ? (
+          <>
+            <Loader2 className="size-4 animate-spin motion-reduce:hidden" aria-hidden="true" />
+            <span>{t("loadingText")}</span>
+          </>
+        ) : (
+          <>
+            <GoogleIcon />
+            <span>{t("googleCta")}</span>
+          </>
+        )}
+      </RebootButton>
+
+      <div className="flex items-center gap-3" aria-hidden="true">
+        <span className="h-px flex-1 bg-border" />
+        <span className="text-xs text-muted-foreground">{t("orEmail")}</span>
+        <span className="h-px flex-1 bg-border" />
+      </div>
+
       <div>
         <label
           htmlFor={EMAIL_FIELD_ID}
@@ -160,7 +205,7 @@ export function EmailForm({ next }: { next: string }) {
               if (fieldError) setFieldError(null);
               if (error) setError(null);
             }}
-            disabled={sending || status !== null}
+            disabled={sending || googleLoading || status !== null}
             aria-invalid={fieldError ? true : undefined}
             aria-describedby={
               [fieldError ? EMAIL_ERROR_ID : null, EMAIL_HINT_ID].filter(Boolean).join(" ")
@@ -203,7 +248,7 @@ export function EmailForm({ next }: { next: string }) {
           type="submit"
           size="lg"
           className="group w-full"
-          disabled={sending || !email.trim()}
+          disabled={sending || googleLoading || !email.trim()}
         >
           {sending ? (
             <>
@@ -231,5 +276,29 @@ export function EmailForm({ next }: { next: string }) {
         </Link>
       </p>
     </form>
+  );
+}
+
+/** Logo "G" multicolore (paths officiels, affichage seul). */
+function GoogleIcon() {
+  return (
+    <svg className="size-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="#4285F4"
+        d="M23.5 12.27c0-.85-.08-1.66-.22-2.45H12v4.64h6.45a5.52 5.52 0 0 1-2.39 3.62v3h3.87c2.26-2.09 3.57-5.16 3.57-8.81Z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 24c3.24 0 5.96-1.07 7.94-2.91l-3.87-3c-1.07.72-2.44 1.15-4.07 1.15-3.13 0-5.78-2.11-6.73-4.96H1.29v3.1A12 12 0 0 0 12 24Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.27 14.28A7.2 7.2 0 0 1 4.89 12c0-.79.14-1.56.38-2.28v-3.1H1.29a12 12 0 0 0 0 10.76l3.98-3.1Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 4.76c1.76 0 3.34.6 4.58 1.8l3.44-3.44A11.98 11.98 0 0 0 12 0 12 12 0 0 0 1.29 6.62l3.98 3.1C6.22 6.87 8.87 4.76 12 4.76Z"
+      />
+    </svg>
   );
 }
