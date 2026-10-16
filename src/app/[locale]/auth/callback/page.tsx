@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "@/i18n/routing";
 import { AuthLayout } from "@/components/auth/auth-layout";
@@ -56,7 +57,8 @@ export default function AuthCallbackPage() {
   }, [next, router]);
 
   return (
-    <AuthLayout
+    <Suspense fallback={<p>Loading…</p>}>
+      <AuthLayout
       step={2}
       title="Connexion…"
       subtitle="Finalisation de ta connexion Google."
@@ -75,5 +77,6 @@ export default function AuthCallbackPage() {
         <p className="text-center text-sm text-muted-foreground">Chargement…</p>
       )}
     </AuthLayout>
+    </Suspense>
   );
 }
