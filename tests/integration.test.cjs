@@ -1485,6 +1485,39 @@ describe("POST /api/analytics — validation #156", () => {
   });
 });
 
+// ── Roadmap #234 : statuts pilotés données ────────────────────────
+// Zéro coût auth (route publique). Seed mission publiée + cleanup.
+
+describe("GET /api/public/roadmap — vivacité #234", () => {
+  before(ensureServer);
+
+  test("vide → tout éteint, forme stable", async () => {
+    const res = await httpRequest("GET", "/api/public/roadmap");
+    assert.equal(res.status, 200);
+    assert.deepEqual(res.json?.live, {
+      challenges: false,
+      workshops: false,
+      projects: false,
+      mentoring: false,
+      registry: false,
+    });
+  });
+
+  test("mission publiée → challenges vivant ; cleanup", async () => {
+    const db = getPrisma();
+    const m = await db.mission.create({
+      data: { slug: `it-rm-${RUN_TOKEN}`, title: "RM", status: "PUBLISHED" },
+    });
+    const res = await httpRequest("GET", "/api/public/roadmap");
+    assert.equal(res.status, 200);
+    assert.equal(res.json?.live?.challenges, true);
+    assert.equal(res.json?.live?.workshops, false);
+    await db.mission.delete({ where: { id: m.id } });
+    const back = await httpRequest("GET", "/api/public/roadmap");
+    assert.equal(back.json?.live?.challenges, false);
+  });
+});
+
 // ── /api/admin/logout (LAST: it kills the shared session) ───────
 
 describe("POST /api/admin/logout", () => {
