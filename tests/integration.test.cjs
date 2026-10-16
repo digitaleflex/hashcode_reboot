@@ -1133,6 +1133,110 @@ describe("Segments admin — CRUD et déterminisme #104", () => {
   });
 });
 
+// ── Qualité leads #105 : agrégats exacts sur seed déterministe ────
+// Seed via Prisma (nettoyé), lecture via route. Deltas (base partagée).
+
+describe("Qualité leads — agrégats #105", () => {
+  before(ensureServer);
+
+  const E1 = `it-q1-${RUN_TOKEN}@example.com`;
+  const E2 = `it-q2-${RUN_TOKEN}@example.com`;
+  const E3 = `it-q3-${RUN_TOKEN}@example.com`;
+  const baseProfile = {
+    firstName: "Q",
+    country: "BJ",
+    primaryDomain: "web",
+    level: "beginner",
+    availability: "2-5h",
+    learningStyle: "practice",
+  };
+
+  test("sans session → 403", async () => {
+    assert.equal((await httpRequest("GET", "/api/admin/leads/quality")).status, 403);
+  });
+
+  test("agrégats exacts (deltas), sample scoré, cleanup", async () => {
+    const jar = await authedJar();
+    const db = getPrisma();
+    const before = await (
+      await httpRequest("GET", "/api/admin/leads/quality", { cookies: jar })
+    ).json;
+    // Seed : m1 plein+converti+consenti, m2 minimal, m3 converti sans handoff.
+    const m1 = await db.member.create({
+      data: {
+        ...baseProfile,
+        email: E1,
+        lastName: "Q",
+        phone: "+22990000001",
+        city: "Cotonou",
+        secondaryDomains: '["ai"]',
+        goal: "project",
+        goalProjectStage: "idea",
+        availabilityTimes: "soirs",
+        mentoringInterest: "yes",
+        mentoringTypes: '["technique"]',
+        mentoringFrequency: "hebdo",
+        mentoringDomain: "web",
+        budgetWillingness: "yes",
+        budgetRange: "2500-5000",
+        threeMonthGoal: "Lancer",
+        profileStatus: "APPROVED",
+      },
+    });
+    await db.member.create({
+      data: { ...baseProfile, email: E2, goal: "employment", profileStatus: "PENDING" },
+    });
+    await db.member.create({
+      data: { ...baseProfile, email: E3, goal: "project", profileStatus: "APPROVED" },
+    });
+    await db.consent.createMany({
+      data: [
+        { email: E1, purpose: "profiling", choice: "granted", textVersion: "t-v1" },
+        { email: E1, purpose: "contact", choice: "granted", textVersion: "t-v1" },
+        { email: E1, purpose: "handoff", choice: "granted", textVersion: "t-v1" },
+      ],
+    });
+    await db.qualification.create({
+      data: { memberId: m1.id, archetype: "WEB BUILDER", engineVersion: "t-1", status: "QUALIFIED" },
+    });
+
+    const after = (
+      await httpRequest("GET", "/api/admin/leads/quality", { cookies: jar })
+    ).json;
+    assert.equal(after.totals.members - before.totals.members, 3);
+    assert.equal(after.contactability.withPhone - before.contactability.withPhone, 1);
+    assert.equal(after.totals.converted - before.totals.converted, 2);
+    assert.equal(after.consents.profilingGranted - before.consents.profilingGranted, 1);
+    assert.ok(
+      (after.qualifications ?? []).some(
+        (q) => q.status === "QUALIFIED" && q.n >= 1,
+      ),
+      "distribution qualification",
+    );
+    // m3 converti sans handoff → gap +1 (m1 consenti : hors gap).
+    assert.equal(after.handoffGap - before.handoffGap, 1);
+    // m2 emploi sans situation → incohérence +1.
+    assert.ok(
+      after.coherence.employmentWithoutSituation - before.coherence.employmentWithoutSituation >= 1,
+    );
+    const s1 = (after.sample ?? []).find((m) => m.email === E1);
+    assert.ok(s1, "m1 dans l'échantillon");
+    assert.equal(s1.score, 100);
+    assert.deepEqual(s1.flags, []);
+
+    // Cleanup (consents/qualifications sans FK : explicite).
+    await db.qualification.deleteMany({ where: { memberId: m1.id } });
+    await db.consent.deleteMany({ where: { email: { in: [E1, E2, E3] } } });
+    await db.analyticsEvent.deleteMany({
+      where: { memberId: { in: [m1.id] } },
+    });
+    await db.member.deleteMany({ where: { email: { in: [E1, E2, E3] } } });
+    for (const em of [E1, E2, E3]) {
+      assert.equal(await db.member.count({ where: { email: em } }), 0);
+    }
+  });
+});
+
 // ── /api/admin/logout (LAST: it kills the shared session) ───────
 
 describe("POST /api/admin/logout", () => {
