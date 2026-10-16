@@ -35,7 +35,7 @@ jobs:
       - run: npm run test:admin-dates
       - run: npm run test:segments
       - run: npm run test:lead-quality
-      - run: npm run test:public-events
+      - run: npm run test:roadmap-status
       - run: npm run test:dedup
       - run: npm run test:trust-collection
       - run: npm run test:analytics-dictionary
