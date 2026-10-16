@@ -1325,6 +1325,134 @@ describe("Export filtré des leads #101", () => {
   });
 });
 
+// ── Doublons #103 : prévention, détection, fusion ────────────────
+// Zéro coût auth (jar caché). Paires uniques par run, cleanup explicite
+// (consents/qualifications sans FK + membres).
+
+describe("Doublons — détection et fusion #103", () => {
+  before(ensureServer);
+
+  const E_A = `it-dup-a-${RUN_TOKEN}@example.com`;
+  const E_B = `it-dup-b-${RUN_TOKEN}@example.com`;
+  const E_C = `it-dup-c-${RUN_TOKEN}@example.com`;
+  const PHONE = "+22990000111";
+  const baseProfile = {
+    firstName: "D",
+    country: "BJ",
+    primaryDomain: "web",
+    level: "beginner",
+    goal: "project",
+    availability: "2-5h",
+    learningStyle: "practice",
+  };
+
+  test("sans session → 403 (liste, fusion)", async () => {
+    assert.equal((await httpRequest("GET", "/api/admin/duplicates")).status, 403);
+    assert.equal(
+      (
+        await httpRequest("POST", "/api/admin/duplicates/merge", {
+          body: { loserId: "x", winnerId: "y" },
+        })
+      ).status,
+      403,
+    );
+  });
+
+  test("index unique : doublon de casse refusé en base (P2002)", async () => {
+    const db = getPrisma();
+    const m = await db.member.create({
+      data: { ...baseProfile, email: `It-Case-${RUN_TOKEN}@Example.COM` },
+    });
+    let code = null;
+    try {
+      await db.member.create({
+        data: { ...baseProfile, email: `it-case-${RUN_TOKEN}@example.com` },
+      });
+    } catch (e) {
+      code = e?.code ?? null;
+    }
+    assert.equal(code, "P2002");
+    await db.member.delete({ where: { id: m.id } });
+  });
+
+  test("AMBIGU listé ; fusion sans ack → 422 ; avec ack → 200 + conservation", async () => {
+    const jar = await authedJar();
+    const db = getPrisma();
+    const loser = await db.member.create({
+      data: { ...baseProfile, email: E_A, phone: "+229 90000111", city: "Abomey" },
+    });
+    const winner = await db.member.create({
+      data: { ...baseProfile, email: E_B, phone: PHONE },
+    });
+    await db.consent.create({
+      data: { email: E_A, purpose: "profiling", choice: "granted", textVersion: "t-v1" },
+    });
+
+    const list = await httpRequest("GET", "/api/admin/duplicates", { cookies: jar });
+    assert.equal(list.status, 200);
+    const amb = (list.json?.ambiguous ?? []).find((g) =>
+      g.members?.some((m) => m.email === E_A),
+    );
+    assert.ok(amb, "paire téléphone listée AMBIGUOUS");
+    assert.equal(amb.kind, "AMBIGUOUS");
+
+    const noAck = await httpRequest("POST", "/api/admin/duplicates/merge", {
+      cookies: jar,
+      body: { loserId: loser.id, winnerId: winner.id },
+    });
+    assert.equal(noAck.status, 422);
+    assert.equal(noAck.json?.code, "NEEDS_ACK");
+
+    const merged = await httpRequest("POST", "/api/admin/duplicates/merge", {
+      cookies: jar,
+      body: { loserId: loser.id, winnerId: winner.id, acknowledgeAmbiguous: true },
+    });
+    assert.equal(merged.status, 200);
+    assert.deepEqual(merged.json?.filled?.sort(), ["city"]);
+    const w = await db.member.findUnique({ where: { id: winner.id } });
+    assert.equal(w?.city, "Abomey", "trou comblé, existants intacts");
+    assert.equal(
+      await db.member.findUnique({ where: { id: loser.id }, select: { deletedAt: true } }).then((r) => !!r?.deletedAt),
+      true,
+      "perdant soft-deleted",
+    );
+    assert.equal(
+      await db.consent.count({ where: { email: E_B, purpose: "profiling" } }),
+      1,
+      "consentement re-clé",
+    );
+    const audits = await db.auditLog.findMany({
+      where: { action: "member.merge" },
+      orderBy: { createdAt: "desc" },
+      take: 1,
+    });
+    assert.equal(audits.length, 1);
+    assert.ok(String(audits[0].metadata ?? "").includes(loser.id), "avant/après audités");
+
+    const replay = await httpRequest("POST", "/api/admin/duplicates/merge", {
+      cookies: jar,
+      body: { loserId: loser.id, winnerId: winner.id, acknowledgeAmbiguous: true },
+    });
+    assert.equal(replay.status, 409);
+
+    // Cleanup (lignes sans FK : explicite).
+    const other = await db.member.create({
+      data: { ...baseProfile, email: E_C },
+    });
+    const notDupes = await httpRequest("POST", "/api/admin/duplicates/merge", {
+      cookies: jar,
+      body: { loserId: other.id, winnerId: winner.id, acknowledgeAmbiguous: true },
+    });
+    assert.equal(notDupes.status, 422);
+    assert.equal(notDupes.json?.code, "NOT_DUPLICATES");
+    await db.consent.deleteMany({ where: { email: { in: [E_A, E_B, E_C] } } });
+    await db.member.deleteMany({ where: { email: { in: [E_A, E_B, E_C] } } });
+    for (const em of [E_A, E_B, E_C]) {
+      assert.equal(await db.member.count({ where: { email: em } }), 0);
+    }
+  });
+});
+
 // ── /api/admin/logout (LAST: it kills the shared session) ───────
 
 describe("POST /api/admin/logout", () => {
