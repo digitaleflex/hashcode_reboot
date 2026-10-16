@@ -59,9 +59,10 @@ export function RebootButton({
       aria-label={ariaLabel}
       aria-busy={loading || undefined}
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-md transition-colors duration-200 focus-lime disabled:opacity-50 disabled:pointer-events-none min-h-[44px] cursor-pointer",
-        sizes[size],
-        variants[variant],
+        buttonVariants({ variant: variant === "primary" ? "default" : variant === "outline" ? "outline" : "ghost", size: size === "lg" ? "lg" : size === "md" ? "default" : "sm" }),
+        "min-h-[44px] rounded-md focus-lime shadow-xs",
+        variant === "primary" && "bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/85",
+        variant === "outline" && "border border-border hover:border-lime/60 hover:text-lime active:border-lime/70 active:text-lime",
         className,
       )}
     >
