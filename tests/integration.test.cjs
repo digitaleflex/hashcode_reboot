@@ -1453,6 +1453,38 @@ describe("Doublons — détection et fusion #103", () => {
   });
 });
 
+// ── Analytics #156 : validation + anti-PII ────────────────────────
+// Zéro coût auth (aucune session requise). Cleanup par sessionId marqué.
+
+describe("POST /api/analytics — validation #156", () => {
+  before(ensureServer);
+
+  const SID = `it-an-${RUN_TOKEN}`;
+
+  test("PII-shaped (email/espaces) → 422, rien stocké", async () => {
+    for (const ref of ["a@x.y", "Jean Dupont"]) {
+      const res = await httpRequest("POST", "/api/analytics", {
+        body: { type: "reboot_cta_clicked", sessionId: SID, ref },
+      });
+      assert.equal(res.status, 422);
+    }
+    const db = getPrisma();
+    assert.equal(await db.analyticsEvent.count({ where: { sessionId: SID } }), 0);
+  });
+
+  test("valide → 200 puis cleanup", async () => {
+    const res = await httpRequest("POST", "/api/analytics", {
+      body: { type: "reboot_cta_clicked", sessionId: SID, ref: "hero" },
+    });
+    assert.equal(res.status, 200);
+    assert.equal(res.json?.ok, true);
+    const db = getPrisma();
+    assert.equal(await db.analyticsEvent.count({ where: { sessionId: SID } }), 1);
+    await db.analyticsEvent.deleteMany({ where: { sessionId: SID } });
+    assert.equal(await db.analyticsEvent.count({ where: { sessionId: SID } }), 0);
+  });
+});
+
 // ── /api/admin/logout (LAST: it kills the shared session) ───────
 
 describe("POST /api/admin/logout", () => {
