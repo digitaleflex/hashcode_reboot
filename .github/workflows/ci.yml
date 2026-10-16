@@ -33,6 +33,7 @@ jobs:
       - run: npm run test:retention
       - run: npm run test:missions-engine
       - run: npm run test:admin-dates
+      - run: npm run test:segments
       - name: Validate translation keys
         run: node scripts/check-messages.mjs
       - name: Validate design token contrast

@@ -1125,6 +1125,25 @@ model MissionReview {
   @@index([submissionId])
 }
 
+/// Segments d'acquisition persistés (#104) — vues, jamais de parcours.
+/// `definition` = JSON validé par whitelist (src/lib/segments.ts) :
+/// { version: 1, all: [{ field, op, value }] }. Ne contient AUCUNE PII
+/// (nom + définition + créateur admin). Jamais de SQL libre.
+model Segment {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name       String @unique
+  definition Json
+  /// Incrémentée à chaque modification (traçabilité, pas d'historique).
+  version    Int     @default(1)
+  /// Email admin créateur (traçabilité interne).
+  createdBy  String?
+
+  @@index([createdAt])
+}
+
 model WorkshopQuiz {
 
   id        String   @id @default(cuid())

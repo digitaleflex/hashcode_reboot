@@ -75,3 +75,7 @@ export à la demande du membre. Aucun contenu pédagogique stocké dans Reboot
 Règles : pas d'enum Prisma (unions TS/Zod), cascades Member/Mission, migration
 `20261015091230_add_mission_models` purement additive (rollback : DROP dans
 l'ordre Review → Submission → Assignment → Mission, prouvé sur base scratch).
+## Delta #104 — Segments (v1.2)
+| Table | Finalité | Rétention | Accès | Transmission | Droits |
+|---|---|---|---|---|---|
+| Segment (nom unique, définition JSON whitelistée, version, créateur) | vues d'acquisition persistantes | **illimitée** (référentiel, sans PII) | opérateurs | NON | n/a (pas de donnée membre) |

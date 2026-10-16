@@ -40,7 +40,8 @@
     "test:anti-abuse": "tsx --test tests/anti-abuse.test.ts",
     "test:retention": "tsx --test tests/retention.test.ts",
     "test:missions-engine": "tsx --test tests/missions-engine.test.ts",
-    "test:admin-dates": "tsx --test tests/admin-dates.test.ts"
+    "test:admin-dates": "tsx --test tests/admin-dates.test.ts",
+    "test:segments": "tsx --test tests/segments.test.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
