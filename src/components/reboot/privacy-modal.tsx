@@ -94,6 +94,24 @@ export function PrivacyModal({
             </p>
           </Section>
 
+          <Section title="Qui est responsable">
+            <p>
+              JoinHashCode (contact : privacy@joinhashcode.com). Tes données
+              restent dans Reboot : seul un résumé strictement nécessaire
+              (identifiant opaque, jamais email ni téléphone) peut être
+              transmis à JoinHashCode lors de ta conversion, et uniquement
+              avec ton consentement explicite.
+            </p>
+          </Section>
+
+          <Section title="Ce qu'on ne fait pas">
+            <ul className="space-y-1.5 list-disc list-inside marker:text-lime">
+              <li>Pas de profil psychométrique ni de score caché.</li>
+              <li>Pas d&apos;orientation définitive : une première piste, à valider avec la communauté.</li>
+              <li>Pas de revente, pas de publicité, pas de démarchage sans rapport.</li>
+            </ul>
+          </Section>
+
           <Section title="Combien de temps">
             <p>
               On garde ton profil tant que tu es membre actif. Tu peux demander

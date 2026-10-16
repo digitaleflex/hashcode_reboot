@@ -36,6 +36,7 @@ jobs:
       - run: npm run test:segments
       - run: npm run test:lead-quality
       - run: npm run test:dedup
+      - run: npm run test:trust-collection
       - name: Validate translation keys
         run: node scripts/check-messages.mjs
       - name: Validate design token contrast
