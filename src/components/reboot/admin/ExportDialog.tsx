@@ -48,11 +48,12 @@ export function ExportDialog({
   exporting,
   totalMembers,
 }: ExportDialogProps) {
-  const [columns, setColumns] = React.useState<Set<string>>(
-    new Set(EXPORT_COLUMNS.map((c) => c.key)),
-  );
+  // Par défaut : tout sauf la note interne (PII interne, operator uniquement
+  // côté serveur — la cocher en viewer renvoie 403 explicite).
+  const DEFAULT_COLUMNS = EXPORT_COLUMNS.map((c) => c.key).filter((k) => k !== "adminNote");
+  const [columns, setColumns] = React.useState<Set<string>>(new Set(DEFAULT_COLUMNS));
   const [format, setFormat] = React.useState<"csv" | "json">("csv");
-  const [selectAll, setSelectAll] = React.useState(true);
+  const [selectAll, setSelectAll] = React.useState(false);
 
   function toggleColumn(key: string) {
     setColumns((prev) => {
@@ -154,6 +155,9 @@ export function ExportDialog({
                   className="size-3.5 accent-lime"
                 />
                 <span className="text-sm text-foreground">{col.label}</span>
+                {col.key === "adminNote" && (
+                  <span className="text-xs text-amber-400/90">réservé operator</span>
+                )}
                 <span className="text-xs text-muted-foreground font-mono ml-auto">
                   {col.key}
                 </span>

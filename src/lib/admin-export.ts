@@ -115,13 +115,24 @@ export function parseExportFilters(searchParams: URLSearchParams): ExportFilters
   return parsed.data;
 }
 
-/** Colonnes résolues : défaut minimisé, ou sous-ensemble demandé (sensibles incluses si nommées). */
-export function resolveExportColumns(fieldsParam?: string): string[] {
+/** Colonnes résolues : défaut minimisé, ou sous-ensemble demandé.
+ * Les colonnes internes (adminNote/adminRole) exigent le rôle operator —
+ * un viewer qui les demande reçoit 403 (fail-closed, pas de repli silencieux). */
+export function resolveExportColumns(fieldsParam?: string, role?: string | null): string[] {
   if (!fieldsParam) return [...EXPORT_DEFAULT_COLUMNS];
   const requested = fieldsParam
     .split(",")
     .map((f) => f.trim())
     .filter(Boolean);
+  const wantsSensitive = requested.some((f) =>
+    (EXPORT_SENSITIVE_COLUMNS as readonly string[]).includes(f),
+  );
+  if (wantsSensitive && role !== "operator") {
+    throw new AppError("Colonnes internes réservées aux operators.", {
+      status: 403,
+      code: "FORBIDDEN_FIELDS",
+    });
+  }
   const cols = EXPORT_ALL_COLUMNS.filter((h) => requested.includes(h));
   if (cols.length === 0) {
     throw new AppError("Aucune colonne valide demandée.", {
@@ -150,7 +161,9 @@ export async function buildExportWhere(
   if (f.q) {
     where.OR = [
       { firstName: { contains: f.q, mode: "insensitive" } },
+      { lastName: { contains: f.q, mode: "insensitive" } },
       { email: { contains: f.q, mode: "insensitive" } },
+      { phone: { contains: f.q, mode: "insensitive" } },
     ];
   }
   if (f.segment) {

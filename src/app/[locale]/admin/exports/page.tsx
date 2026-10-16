@@ -32,12 +32,30 @@ export default function AdminExportsPage() {
     if (exporting) return;
     setExporting(kind);
     try {
-      const url = kind === "csv" ? "/api/export" : "/api/export/json";
+      const params = new URLSearchParams();
+      if (columns && columns.length > 0) params.set("fields", columns.join(","));
+      const query = params.toString();
+      const url = (kind === "csv" ? "/api/export" : "/api/export/json") + (query ? `?${query}` : "");
       const res = await fetch(url, { cache: "no-store" });
       if (!res.ok) {
-        toast({ title: "Erreur", description: "Échec de l'export.", variant: "destructive" });
+        const data = (await res.json().catch(() => null)) as { code?: string } | null;
+        const code = data?.code;
+        toast({
+          title: "Erreur",
+          description:
+            res.status === 429
+              ? "Trop d'exports. Attends quelques minutes puis réessaie."
+              : res.status === 401
+                ? "Session expirée. Reconnecte-toi puis réessaie."
+                : code === "FORBIDDEN_FIELDS"
+                  ? "Colonnes internes réservées aux operators."
+                  : "Échec de l'export.",
+          variant: "destructive",
+        });
         return;
       }
+      const truncated = res.headers.get("X-Export-Truncated") === "1";
+      const total = res.headers.get("X-Export-Total");
       const blob = await res.blob();
       const objectUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -47,7 +65,12 @@ export default function AdminExportsPage() {
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
-      toast({ title: `Export ${kind.toUpperCase()} terminé`, description: "Le fichier a été téléchargé." });
+      toast({
+        title: `Export ${kind.toUpperCase()} terminé`,
+        description: truncated
+          ? `Fichier tronqué à 2000 lignes${total ? ` sur ${Number(total).toLocaleString("fr-FR")}` : ""}. Affine via la liste Membres.`
+          : "Le fichier a été téléchargé.",
+      });
     } catch {
       toast({ title: "Erreur", description: "Échec de l'export.", variant: "destructive" });
     } finally {
@@ -63,7 +86,8 @@ export default function AdminExportsPage() {
             <div className="min-w-0">
               <MonoLabel className="text-muted-foreground">Exports & Import</MonoLabel>
               <p className="mt-1 text-sm text-muted-foreground">
-                Exporte la vue filtrée ou tous les membres. CSV et JSON. Importe un CSV pour ajouter des membres.
+                Exporte tous les membres (max 2000 lignes, colonnes choisies dans le dialogue CSV).
+                Le bouton JSON exporte les colonnes par défaut.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
