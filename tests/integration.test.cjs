@@ -1062,6 +1062,77 @@ describe("Actions sensibles — garde opérateur #224", () => {
   });
 });
 
+// ── Segments #104 : CRUD + whitelist + déterminisme ──────────────
+// Zéro coût auth (jar caché). Nettoyage via Prisma (aucune écriture membre).
+
+describe("Segments admin — CRUD et déterminisme #104", () => {
+  before(ensureServer);
+
+  const SEG = `it-seg-${RUN_TOKEN}`;
+  let segId = null;
+
+  test("sans session → 403 (liste, création, preview)", async () => {
+    assert.equal((await httpRequest("GET", "/api/admin/segments")).status, 403);
+    assert.equal(
+      (await httpRequest("POST", "/api/admin/segments", { body: { name: "x", definition: { version: 1, all: [] } } })).status,
+      403,
+    );
+    assert.equal((await httpRequest("GET", "/api/admin/segments/nope/preview")).status, 403);
+  });
+
+  test("création 201, doublon → 409, champ interdit → 422", async () => {
+    const jar = await authedJar();
+    const def = {
+      version: 1,
+      all: [
+        { field: "domain", op: "eq", value: "web" },
+        { field: "profileStatus", op: "in", value: ["PENDING", "APPROVED"] },
+      ],
+    };
+    const created = await httpRequest("POST", "/api/admin/segments", {
+      cookies: jar,
+      body: { name: SEG, definition: def },
+    });
+    assert.equal(created.status, 201);
+    assert.equal(created.json?.segment?.version, 1);
+    segId = created.json.segment.id;
+    const dup = await httpRequest("POST", "/api/admin/segments", {
+      cookies: jar,
+      body: { name: SEG, definition: def },
+    });
+    assert.equal(dup.status, 409);
+    assert.equal(dup.json?.code, "NAME_TAKEN");
+    const forbidden = await httpRequest("POST", "/api/admin/segments", {
+      cookies: jar,
+      body: { name: `${SEG}-bad`, definition: { version: 1, all: [{ field: "email", op: "contains", value: "@" }] } },
+    });
+    assert.equal(forbidden.status, 422);
+  });
+
+  test("preview déterministe (2× mêmes ids), patch → v2, delete", async () => {
+    const jar = await authedJar();
+    const p1 = await httpRequest("GET", `/api/admin/segments/${segId}/preview?limit=50`, { cookies: jar });
+    const p2 = await httpRequest("GET", `/api/admin/segments/${segId}/preview?limit=50`, { cookies: jar });
+    assert.equal(p1.status, 200);
+    assert.deepEqual(
+      p1.json?.sample?.map((m) => m.id),
+      p2.json?.sample?.map((m) => m.id),
+      "même définition → même population",
+    );
+    assert.equal(typeof p1.json?.total, "number");
+    const patched2 = await httpRequest("PATCH", `/api/admin/segments/${segId}`, {
+      cookies: jar,
+      body: { definition: { version: 1, all: [{ field: "domain", op: "eq", value: "ai" }] } },
+    });
+    assert.equal(patched2.status, 200);
+    assert.equal(patched2.json?.segment?.version, 2);
+    const gone = await httpRequest("DELETE", `/api/admin/segments/${segId}`, { cookies: jar });
+    assert.equal(gone.status, 200);
+    const db = getPrisma();
+    assert.equal(await db.segment.count({ where: { id: segId } }), 0);
+  });
+});
+
 // ── /api/admin/logout (LAST: it kills the shared session) ───────
 
 describe("POST /api/admin/logout", () => {
