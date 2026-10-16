@@ -74,14 +74,14 @@
   --secondary-foreground: oklch(0.97 0.005 120);
 
   --muted: #171B1F;                  /* surface secondaire (muted) */
-  --muted-foreground: #9AA3AD;       /* texte secondaire */
+  --muted-foreground: #B0BAC5;       /* texte secondaire (WCAG AA) */
 
   --accent: oklch(0.27 0 0);
   --accent-foreground: oklch(0.97 0.005 120);
 
   --destructive: oklch(0.62 0.22 25);
 
-  --border: #2A3036;                 /* bordure premium */
+  --border: #454A52;                 /* bordure premium (WCAG AA) */
   --input: #5C636B;                  /* bordure de champ : ≥3:1 vs page/carte (WCAG 1.4.11) */
   --ring: #C5F441;                    /* lime ring */
 
