@@ -256,7 +256,7 @@ export function Card({
   [key: string]: unknown;
 }) {
   return (
-    <div className={cn("rounded-lg border border-border/60 bg-card/40", className)} {...rest}>
+    <div className={cn("rounded-xl border border-border/60 bg-card/40 p-6", className)} {...rest}>
       {children}
     </div>
   );
