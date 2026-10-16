@@ -28,13 +28,13 @@ export function PublicProfileCard({ profile }: { profile: PublicProfile }) {
   const availabilityLabels = t.raw("availabilityLabels") as Record<string, string>;
 
   return (
-    <div className="rounded-lg border border-border bg-card overflow-hidden">
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-lime/70 to-transparent" />
+    <div className="rounded-xl border border-border bg-card overflow-hidden">
+
 
       <div className="p-6 sm:p-8">
         <div className="flex items-start justify-between gap-4 mb-8">
           <div className="flex items-center gap-3">
-            <span className="text-lime">
+            <span className="text-muted-foreground">
               <HashSymbol size={32} />
             </span>
             <div>
@@ -44,8 +44,7 @@ export function PublicProfileCard({ profile }: { profile: PublicProfile }) {
               </h1>
             </div>
           </div>
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm border border-lime/40 bg-lime/5 text-lime mono-label text-xs">
-            <span className="size-1.5 rounded-full bg-lime animate-pulse" />
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm border border-border bg-muted/50 text-muted-foreground mono-label text-xs">
             HASHCODE
           </span>
         </div>
@@ -55,7 +54,7 @@ export function PublicProfileCard({ profile }: { profile: PublicProfile }) {
             <span className="text-3xl" aria-hidden>
               #
             </span>
-            <h2 className="text-xl sm:text-2xl font-display font-bold italic text-lime">
+            <h2 className="text-xl sm:text-2xl font-display font-bold italic text-foreground">
               {profile.archetype}
             </h2>
           </div>
@@ -87,8 +86,8 @@ export function PublicProfileCard({ profile }: { profile: PublicProfile }) {
         </div>
 
         {profile.mentoring && (
-          <div className="mb-6 p-4 rounded-md bg-lime/5 border border-lime/20">
-            <p className="text-xs text-lime mb-1 font-medium mono-label">{t("card.mentoringLabel")}</p>
+          <div className="mb-6 p-4 rounded-md bg-muted/30 border border-border">
+            <p className="text-xs text-muted-foreground mb-1 font-medium mono-label">{t("card.mentoringLabel")}</p>
             <p className="text-sm text-foreground">{profile.mentoring}</p>
           </div>
         )}
