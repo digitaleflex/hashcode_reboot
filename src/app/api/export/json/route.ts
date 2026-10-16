@@ -1,113 +1,78 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { toServerEventData } from "@/lib/analytics";
-import { isAdminAuthed, getAdminRole } from "@/lib/admin-auth";
+import { isAdminAuthed } from "@/lib/admin-auth";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
-import { audit } from "@/lib/admin-audit";
-import { AppError, AuthError, RateLimitError, errorToResponse } from "@/lib/errors";
+import { AuthError, RateLimitError, errorToResponse } from "@/lib/errors";
+import {
+  EXPORT_MAX,
+  auditExport,
+  buildExportWhere,
+  parseExportFilters,
+  resolveExportColumns,
+} from "@/lib/admin-export";
 
 export const runtime = "nodejs";
 
-const MAX_EXPORT = 2000;
-
 /**
- * GET /api/export/json — JSON export of members (admin-only). Accepts the same
- * filter query params as GET /api/members. Returns a JSON array of member
- * objects (full detail, same as the CSV export columns). Useful for API
- * integrations or re-importing into another system.
+ * GET /api/export/json — JSON (admin). Mêmes filtres whitelistés que le CSV
+ * (`segment=`, `fields=` inclus). Colonnes minimisées par défaut (#153) :
+ * adminNote/adminRole uniquement via `fields=` explicite. Plafond signalé.
  */
 export async function GET(req: NextRequest) {
   try {
-  if (!(await isAdminAuthed(req))) {
-    throw new AuthError("Non autorisé.", "UNAUTHORIZED");
-  }
-  // Anti-abus : 20 exports par IP toutes les 10 minutes.
-  const rl = await rateLimit(`export-json:${rateKey(req)}`, {
-    capacity: 20,
-    windowMs: 600000, // 10 minutes
-  });
-  if (!rl.ok) {
-    throw new RateLimitError(
-      "Trop de requêtes. Réessaie dans quelques minutes.",
-      rl.retryAfterMs,
-    );
-  }
-  try {
-    const { searchParams } = new URL(req.url);
-    const domain = searchParams.get("domain");
-    const country = searchParams.get("country");
-    const level = searchParams.get("level");
-    const mentoring = searchParams.get("mentoring");
-    const budget = searchParams.get("budget");
-    const status = searchParams.get("status");
-    const lane = searchParams.get("lane");
-    const type = searchParams.get("type");
-    const invitationStatus = searchParams.get("invitationStatus");
-    const q = searchParams.get("q");
+    if (!(await isAdminAuthed(req))) {
+      throw new AuthError("Non autorisé.", "UNAUTHORIZED");
+    }
+    // Anti-abus : 20 exports par IP toutes les 10 minutes.
+    const rl = await rateLimit(`export-json:${rateKey(req)}`, {
+      capacity: 20,
+      windowMs: 600000, // 10 minutes
+    });
+    if (!rl.ok) {
+      throw new RateLimitError(
+        "Trop de requêtes. Réessaie dans quelques minutes.",
+        rl.retryAfterMs,
+      );
+    }
 
-    const where: Prisma.MemberWhereInput = {};
-    where.deletedAt = null; // exclude soft-deleted members
-    if (domain) where.primaryDomain = domain;
-    if (country) where.country = country;
-    if (level) where.level = level;
-    if (mentoring) where.mentoringInterest = mentoring;
-    if (budget) where.budgetRange = budget;
-    if (status) where.profileStatus = status;
-    if (lane) where.accessLane = lane;
-    if (invitationStatus) where.invitationStatus = invitationStatus;
-    else if (type === "registered") where.invitationStatus = "NOT_INVITED";
-    else if (type === "invited") where.invitationStatus = { not: "NOT_INVITED" };
-    if (q)
-      where.OR = [
-        { firstName: { contains: q, mode: "insensitive" } },
-        { email: { contains: q, mode: "insensitive" } },
-      ];
+    const { searchParams } = new URL(req.url);
+    const filters = parseExportFilters(searchParams);
+    const columns = resolveExportColumns(filters.fields);
+    const where = await buildExportWhere(filters);
 
     const [total, members] = await Promise.all([
       db.member.count({ where }),
       db.member.findMany({
         where,
         orderBy: { createdAt: "desc" },
-        take: MAX_EXPORT,
+        take: EXPORT_MAX,
       }),
     ]);
 
     const decode = <T,>(s: string, fallback: T): T => {
-      try { return JSON.parse(s) as T; } catch { return fallback; }
+      try {
+        return JSON.parse(s) as T;
+      } catch {
+        return fallback;
+      }
     };
 
-    const clean = members.map((m) => ({
-      ...m,
-      secondaryDomains: decode<string[]>(m.secondaryDomains, []),
-      domainSpecialty: decode<string[]>(m.domainSpecialty, []),
-      mentoringTypes: decode<string[]>(m.mentoringTypes, []),
-      tags: decode<string[]>(m.tags, []),
-    }));
+    const clean = members.map((m) => {
+      const row = m as unknown as Record<string, unknown>;
+      const out: Record<string, unknown> = {};
+      for (const c of columns) {
+        let v = c === "createdAt" && row[c] instanceof Date ? row[c] : row[c];
+        if (["secondaryDomains", "domainSpecialty", "mentoringTypes", "tags"].includes(c)) {
+          v = decode<string[]>(String(row[c] ?? "[]"), []);
+        }
+        out[c] = v instanceof Date ? v.toISOString() : v;
+      }
+      return out;
+    });
 
-    // Audit isolé : ne casse jamais l'export si l'audit échoue.
-    try {
-      await db.analyticsEvent.create({
-        data: toServerEventData({
-          type: "community_cta_clicked",
-          ref: `admin-export-json:${clean.length}/${total}`,
-        }),
-      });
-    } catch {
-      /* ignore */
-    }
-    void audit(
-      "member.export",
-      "member",
-      undefined,
-      { format: "json", exported: clean.length, total },
-      {
-        type: "admin",
-        role: (await getAdminRole(req)) ?? "operator",
-      },
-    );
+    const truncated = total > EXPORT_MAX;
+    await auditExport(req, { format: "json", exported: clean.length, total, truncated });
 
-    const truncated = total > MAX_EXPORT;
     return NextResponse.json(
       { exportedAt: new Date().toISOString(), count: clean.length, members: clean },
       {
@@ -120,10 +85,6 @@ export async function GET(req: NextRequest) {
         },
       },
     );
-  } catch (err) {
-    if (err instanceof AppError) throw err;
-    throw new AppError("Erreur interne.", { status: 500, code: "INTERNAL_ERROR" });
-  }
   } catch (err) {
     return errorToResponse(err);
   }
