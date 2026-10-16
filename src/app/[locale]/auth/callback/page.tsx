@@ -9,15 +9,7 @@ import { sanitizeNext } from "@/lib/auth-ui";
 
 export const dynamic = "force-dynamic";
 
-/**
- * Répartition post-OAuth (Google) — Better Auth a déjà créé la session User.
- *
- * - Member existant (même email) → `next` (ex /dashboard, /admin).
- * - Nouveau venu (User sans Member — le profil exige ~10 champs NOT NULL que
- *   Google ne fournit pas) → `/` pour créer son profil via le parcours
- *   habituel, avec l'email pré-rempli.
- */
-export default function AuthCallbackPage() {
+function CallbackBody() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = sanitizeNext(searchParams.get("next"));
@@ -33,7 +25,6 @@ export default function AuthCallbackPage() {
           router.replace(`/login?next=${encodeURIComponent(next)}`);
           return;
         }
-        // Sonde Member (fail-closed : toute erreur ⇒ retour login).
         const res = await fetch("/api/account/me", {
           cache: "no-store",
           credentials: "same-origin",
@@ -75,5 +66,27 @@ export default function AuthCallbackPage() {
         <p className="text-center text-sm text-muted-foreground">Chargement…</p>
       )}
     </AuthLayout>
+  );
+}
+
+function CallbackFallback() {
+  return (
+    <AuthLayout
+      step={2}
+      title="Connexion…"
+      subtitle="Finalisation de ta connexion Google."
+      backHref="/login"
+      backLabel="Retour"
+    >
+      <p className="text-center text-sm text-muted-foreground">Chargement…</p>
+    </AuthLayout>
+  );
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <React.Suspense fallback={<CallbackFallback />}>
+      <CallbackBody />
+    </React.Suspense>
   );
 }
