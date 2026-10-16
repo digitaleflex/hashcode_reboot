@@ -62,8 +62,12 @@ export function isConsentProofValid(proof: unknown): boolean {
 export const consentBodySchema = z.object({
   // Optionnel : bandeau cookies + modale privacy postent sans email.
   email: z.string().trim().toLowerCase().email().max(200).optional(),
-  purpose: z.enum(CONSENT_PURPOSES),
-  choice: z.enum(CONSENT_CHOICES),
+  purpose: z.enum(CONSENT_PURPOSES, {
+    error: "Finalité inconnue (cookies, contact, profiling, handoff).",
+  }),
+  choice: z.enum(CONSENT_CHOICES, {
+    error: "Choix inconnu (granted, withdrawn).",
+  }),
   textVersion: z.string().trim().min(1).max(60),
   proof: z
     .record(z.string(), z.unknown())

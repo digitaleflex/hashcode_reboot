@@ -188,7 +188,7 @@ export const QUESTIONS: Question[] = [
     type: "email",
     title: "Où t'envoyer ton profil et ton accès ?",
     description:
-      "Ton adresse email. On l'utilise pour t'envoyer ton profil et t'inviter à la communauté.",
+      "Ton adresse email. On l'utilise pour t'envoyer ton profil et t'inviter à la communauté. Responsable : JoinHashCode — jamais revendue, jamais de publicité. Nom, WhatsApp, ville et genre restent facultatifs.",
     placeholder: "toi@exemple.com",
     required: true,
     mapsTo: "email",
