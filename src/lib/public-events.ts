@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { AppError } from "@/lib/errors";
 
 /**
  * Événements publics à venir — logique partagée entre la route
@@ -30,6 +31,35 @@ export interface PublicEvent {
 const EVENT_TYPES = ["session", "workshop", "meetup", "webinar", "other"];
 const DOMAINS = ["web", "cybersecurity", "ai"];
 
+/**
+ * Curseur de pagination opaque (#236) : `base64url(startsAtISO|id)`.
+ * Ordre stable (startsAt asc, id asc) : pas de doublon ni de trou entre pages,
+ * même si des événements sont ajoutés entre deux appels.
+ */
+export function encodeEventCursor(startsAt: Date | string, id: string): string {
+  const iso = startsAt instanceof Date ? startsAt.toISOString() : startsAt;
+  return Buffer.from(`${iso}|${id}`, "utf8").toString("base64url");
+}
+
+export function decodeEventCursor(
+  cursor: unknown,
+): { startsAt: Date; id: string } | null {
+  if (typeof cursor !== "string" || cursor.length === 0 || cursor.length > 200) {
+    return null;
+  }
+  try {
+    const raw = Buffer.from(cursor, "base64url").toString("utf8");
+    const sep = raw.lastIndexOf("|");
+    if (sep <= 0) return null;
+    const startsAt = new Date(raw.slice(0, sep));
+    const id = raw.slice(sep + 1);
+    if (Number.isNaN(startsAt.getTime()) || !id) return null;
+    return { startsAt, id };
+  } catch {
+    return null;
+  }
+}
+
 /** Plafond de sécurité du nombre d'événements renvoyés (usage interne). */
 const PUBLIC_EVENTS_MAX = 50;
 
@@ -37,23 +67,38 @@ export function normalizeEventFilters(args: {
   type?: string | null;
   domain?: string | null;
   limit?: number | null;
-}): { type?: string; domain?: string; limit: number } {
+  cursor?: string | null;
+}): { type?: string; domain?: string; limit: number; cursor?: { startsAt: Date; id: string } } {
   const rawLimit = Number(args.limit ?? 20);
   const limit = Number.isFinite(rawLimit)
     ? Math.min(Math.max(Math.trunc(rawLimit), 1), PUBLIC_EVENTS_MAX)
     : 20;
-  return {
+  const out: {
+    type?: string;
+    domain?: string;
+    limit: number;
+    cursor?: { startsAt: Date; id: string };
+  } = {
     type: args.type && EVENT_TYPES.includes(args.type) ? args.type : undefined,
     domain: args.domain && DOMAINS.includes(args.domain) ? args.domain : undefined,
     limit,
   };
+  if (args.cursor != null && args.cursor !== "") {
+    const decoded = decodeEventCursor(args.cursor);
+    if (!decoded) {
+      throw new AppError("Curseur invalide.", { status: 422, code: "INVALID_CURSOR" });
+    }
+    out.cursor = decoded;
+  }
+  return out;
 }
 
 export async function listPublicEvents(filters: {
   type?: string;
   domain?: string;
   limit?: number;
-}): Promise<PublicEvent[]> {
+  cursor?: { startsAt: Date; id: string };
+}): Promise<{ events: PublicEvent[]; nextCursor: string | null }> {
   const limit = Math.min(Math.max(filters.limit ?? 20, 1), PUBLIC_EVENTS_MAX);
 
   const where: Record<string, unknown> = {
@@ -62,11 +107,20 @@ export async function listPublicEvents(filters: {
   };
   if (filters.type) where.type = filters.type;
   if (filters.domain) where.domain = filters.domain;
+  if (filters.cursor) {
+    // Au-delà du curseur (ordre stable startsAt, id).
+    where.OR = [
+      { startsAt: { gt: filters.cursor.startsAt } },
+      { startsAt: filters.cursor.startsAt, id: { gt: filters.cursor.id } },
+    ];
+    // Note : le AND implicite avec les conditions ci-dessus s'applique
+    // (Prisma combine les clés de même niveau en AND).
+  }
 
   const events = await db.event.findMany({
     where,
-    orderBy: { startsAt: "asc" },
-    take: limit,
+    orderBy: [{ startsAt: "asc" }, { id: "asc" }],
+    take: limit + 1,
     select: {
       id: true,
       title: true,
@@ -85,7 +139,15 @@ export async function listPublicEvents(filters: {
     },
   });
 
-  const eventIds = events.map((e) => e.id);
+  // Page + 1 ligne de détection : nextCursor nul en fin de liste.
+  const page = events.slice(0, limit);
+  const last = page[page.length - 1];
+  const nextCursor =
+    events.length > limit && last
+      ? encodeEventCursor(last.startsAt, last.id)
+      : null;
+
+  const eventIds = page.map((e) => e.id);
 
   const [maybeGroups, interestGroups] = await Promise.all([
     eventIds.length
@@ -111,29 +173,32 @@ export async function listPublicEvents(filters: {
       .map((g) => [g.ref, g._count]),
   );
 
-  return events.map((event) => {
-    const goingCount = event._count.rsvps;
-    return {
-      id: event.id,
-      title: event.title,
-      description: event.description,
-      startsAt: event.startsAt.toISOString(),
-      endsAt: event.endsAt?.toISOString() ?? null,
-      location: event.location,
-      url: event.url,
-      type: event.type,
-      domain: event.domain,
-      level: event.level,
-      status: event.status,
-      recurrence: event.recurrence,
-      maxAttendees: event.maxAttendees,
-      goingCount,
-      maybeCount: maybeMap.get(event.id) ?? 0,
-      interestCount: interestMap.get(event.id) ?? 0,
-      spotsLeft:
-        typeof event.maxAttendees === "number"
-          ? Math.max(0, event.maxAttendees - goingCount)
-          : null,
-    };
-  });
+  return {
+    events: page.map((event) => {
+      const goingCount = event._count.rsvps;
+      return {
+        id: event.id,
+        title: event.title,
+        description: event.description,
+        startsAt: event.startsAt.toISOString(),
+        endsAt: event.endsAt?.toISOString() ?? null,
+        location: event.location,
+        url: event.url,
+        type: event.type,
+        domain: event.domain,
+        level: event.level,
+        status: event.status,
+        recurrence: event.recurrence,
+        maxAttendees: event.maxAttendees,
+        goingCount,
+        maybeCount: maybeMap.get(event.id) ?? 0,
+        interestCount: interestMap.get(event.id) ?? 0,
+        spotsLeft:
+          typeof event.maxAttendees === "number"
+            ? Math.max(0, event.maxAttendees - goingCount)
+            : null,
+      };
+    }),
+    nextCursor,
+  };
 }

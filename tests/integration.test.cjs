@@ -1485,6 +1485,69 @@ describe("POST /api/analytics — validation #156", () => {
   });
 });
 
+// ── Public #235/#236 : compteurs sans PII + pagination stable ─────
+// Zéro coût auth (routes publiques). Seed événements datés futurs + cleanup.
+
+describe("Public activity & pagination #235/#236", () => {
+  before(ensureServer);
+
+  test("compteurs : forme + nombres + zéro PII", async () => {
+    const res = await httpRequest("GET", "/api/public/activity-counts");
+    assert.equal(res.status, 200);
+    for (const k of ["missions", "workshops", "events"]) {
+      assert.ok(res.json?.[k] && typeof res.json[k] === "object", `bloc ${k}`);
+    }
+    for (const v of [
+      res.json?.missions?.published,
+      res.json?.missions?.validated,
+      res.json?.workshops?.published,
+      res.json?.workshops?.enrollments,
+      res.json?.events?.upcoming,
+      res.json?.events?.going,
+    ]) {
+      assert.equal(typeof v, "number");
+      assert.ok(v >= 0);
+    }
+    assert.ok(!/@/.test(JSON.stringify(res.json ?? {})), "aucun email (zéro PII)");
+  });
+
+  test("pagination stable : page1 → curseur → page2 sans doublon ni trou", async () => {
+    const db = getPrisma();
+    const base = new Date(Date.now() + 30 * 86400000);
+    const ids = [];
+    for (let i = 0; i < 3; i++) {
+      const ev = await db.event.create({
+        data: {
+          title: `IT PAGE ${RUN_TOKEN} ${i}`,
+          status: "scheduled",
+          type: "meetup",
+          startsAt: new Date(base.getTime() + i * 3600000),
+        },
+      });
+      ids.push(ev.id);
+    }
+    const p1 = await httpRequest("GET", "/api/public/events?limit=2");
+    assert.equal(p1.status, 200);
+    assert.equal(p1.json?.events?.length, 2);
+    assert.ok(typeof p1.json?.nextCursor === "string", "curseur page 1");
+    const p2 = await httpRequest(
+      "GET",
+      `/api/public/events?limit=2&cursor=${encodeURIComponent(p1.json.nextCursor)}`,
+    );
+    assert.equal(p2.status, 200);
+    const seen = [...(p1.json?.events ?? []), ...(p2.json?.events ?? [])].map((e) => e.id);
+    for (const id of ids) {
+      assert.ok(seen.includes(id), `événement seedé présent : ${id}`);
+    }
+    assert.equal(new Set(seen).size, seen.length, "aucun doublon entre pages");
+    const bad = await httpRequest("GET", "/api/public/events?cursor=nope");
+    assert.equal(bad.status, 422);
+    assert.equal(bad.json?.code, "INVALID_CURSOR");
+    await db.event.deleteMany({ where: { id: { in: ids } } });
+    assert.equal(await db.event.count({ where: { id: { in: ids } } }), 0);
+  });
+});
+
 // ── /api/admin/logout (LAST: it kills the shared session) ───────
 
 describe("POST /api/admin/logout", () => {
