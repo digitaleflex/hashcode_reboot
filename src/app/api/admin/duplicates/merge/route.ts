@@ -107,7 +107,9 @@ export async function POST(req: NextRequest) {
       }
       throw e;
     }
-    void audit("member.merge", "member", winnerId, {
+    // Audit awaitée (pas fire-and-forget) : la trace de fusion est une
+    // garantie admin, et les tests l'assertent sans course.
+    await audit("member.merge", "member", winnerId, {
       loser: loserId,
       loserEmail: loser.email,
       kind,
