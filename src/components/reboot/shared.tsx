@@ -3,6 +3,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { ArrowRight, Loader2 } from "lucide-react";
+import { buttonVariants, type ButtonProps } from "@/components/ui/button";
 import { useTranslations } from "next-intl";
 
 /* ============================================================
