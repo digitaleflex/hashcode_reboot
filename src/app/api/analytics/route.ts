@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { EVENT_TYPES } from "@/lib/analytics";
+import { EVENT_TYPES, analyticsRefSchema, analyticsSessionIdSchema } from "@/lib/analytics";
 import { isAdminAuthed } from "@/lib/admin-auth";
 import { getSession } from "@/lib/account-auth";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
@@ -27,9 +27,9 @@ export const ANALYTICS_DEDUP_WINDOW_MS = 30_000;
 
 const eventSchema = z.object({
   type: z.enum(EVENT_TYPES),
-  sessionId: z.string().max(64).optional(),
+  sessionId: analyticsSessionIdSchema,
   memberId: z.string().max(40).optional(),
-  ref: z.string().max(80).optional(),
+  ref: analyticsRefSchema,
   value: z.number().int().optional(),
   path: z.string().max(200).optional(),
 });

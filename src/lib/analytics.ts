@@ -4,6 +4,7 @@
  * Funnel: VISITE → CTA → PROFILAGE → COMPLÉTION → PROFIL → WHATSAPP
  * Measurement: drop-off per question, mean time, completion rate, WhatsApp click rate.
  */
+import { z } from "zod";
 
 export const EVENT_TYPES = [
   "reboot_page_view",
@@ -43,6 +44,29 @@ export interface TrackEvent {
   ref?: string;
   value?: number;
 }
+
+/**
+ * Garde anti-PII (#156) : `ref` et `sessionId` sont affichés/agrégés au
+ * dashboard — jamais d'email (@), ni d'espaces (noms, phrases), ni de
+ * contrôles. Les valeurs légitimes (slugs, ids, `a:b`, `a=b`) passent ;
+ * tout le reste → 422. Appliquée par POST /api/analytics.
+ */
+const NO_PII_PATTERN = /^[^@\s\x00-\x1F]*$/;
+
+export const analyticsRefSchema = z
+  .string()
+  .max(80)
+  .regex(
+    NO_PII_PATTERN,
+    "Référence invalide (pas d'email, ni d'espaces).",
+  )
+  .optional();
+
+export const analyticsSessionIdSchema = z
+  .string()
+  .max(64)
+  .regex(NO_PII_PATTERN, "Session invalide.")
+  .optional();
 
 /**
  * Types émis uniquement côté serveur (jamais acceptés par POST /api/analytics,
