@@ -1,26 +1,43 @@
 "use client";
 
+import * as React from "react";
 import { Check } from "lucide-react";
 import { SectionHeader } from "../shared";
 import { Stagger, StaggerItem } from "../motion/primitives";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
-type Item = { t: string; d: string; status: string; live: boolean };
+type Item = { key: string; t: string; d: string; status: string; live: boolean };
 
 /**
  * §23 — ROADMAP.
  *
- * Reprend les 5 jalons existants avec leurs statuts réels
- * (Maintenant / Bientôt / Ensuite). Un seul est marqué « en cours » — le
- * lime ne sert qu'à ça.
- *
- * Le libellé d'origine « Le premier dès cette semaine » a été retiré : rien
- * dans le dépôt ne permet de sourcer cette promesse de délai.
+ * Statuts pilotés par les données (#234) : `/api/public/roadmap` dit quels
+ * jalons sont réellement vivants (missions/ateliers publiés) ; le statique
+ * i18n sert de repli (offline, erreur) — jamais l'inverse.
  */
 export function Roadmap() {
   const t = useTranslations("landing.roadmap");
   const items = t.raw("items") as Item[];
+  const [live, setLive] = React.useState<Record<string, boolean> | null>(null);
+
+  React.useEffect(() => {
+    const ctrl = new AbortController();
+    fetch("/api/public/roadmap", { signal: ctrl.signal })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d && typeof d.live === "object") setLive(d.live);
+      })
+      .catch(() => {
+        /* repli statique */
+      });
+    return () => ctrl.abort();
+  }, []);
+
+  const shown = items.map((it) => ({
+    ...it,
+    live: live ? (live[it.key] ?? it.live) : it.live,
+  }));
 
   return (
     <section
@@ -40,7 +57,7 @@ export function Roadmap() {
           className="mt-12 grid gap-px overflow-hidden rounded-lg border border-border/70 bg-border/70 sm:grid-cols-2 lg:grid-cols-5"
           stagger={0.06}
         >
-          {items.map((it) => (
+          {shown.map((it) => (
             <StaggerItem
               as="li"
               key={it.t}

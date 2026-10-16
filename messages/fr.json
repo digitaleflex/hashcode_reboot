@@ -328,30 +328,35 @@
       "intro": "L'ordre réel, du plus proche au plus lointain.",
       "items": [
         {
+          "key": "challenges",
           "t": "Challenges",
           "d": "Des problèmes concrets à résoudre, régulièrement.",
-          "status": "Maintenant",
+          "status": "Bientôt",
           "live": true
         },
         {
+          "key": "workshops",
           "t": "Workshops",
           "d": "Des sessions live pour apprendre ensemble.",
           "status": "Bientôt",
           "live": false
         },
         {
+          "key": "projects",
           "t": "Projects",
           "d": "Construire en équipe sur des projets réels.",
           "status": "Bientôt",
           "live": false
         },
         {
+          "key": "mentoring",
           "t": "Mentoring",
           "d": "De l'accompagnement pour celles et ceux qui en ont besoin.",
           "status": "Ensuite",
           "live": false
         },
         {
+          "key": "registry",
           "t": "HASHCODE Registry",
           "d": "Le futur centre de gestion des profils et parcours.",
           "status": "Ensuite",

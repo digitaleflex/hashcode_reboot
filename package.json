@@ -45,7 +45,8 @@
     "test:lead-quality": "tsx --test tests/lead-quality.test.ts",
     "test:dedup": "tsx --test tests/dedup.test.ts",
     "test:trust-collection": "node --test tests/trust-collection.test.cjs",
-    "test:analytics-dictionary": "tsx --test tests/analytics-dictionary.test.ts"
+    "test:analytics-dictionary": "tsx --test tests/analytics-dictionary.test.ts",
+    "test:roadmap-status": "tsx --test tests/roadmap-status.test.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
