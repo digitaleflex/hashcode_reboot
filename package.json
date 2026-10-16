@@ -41,7 +41,8 @@
     "test:retention": "tsx --test tests/retention.test.ts",
     "test:missions-engine": "tsx --test tests/missions-engine.test.ts",
     "test:admin-dates": "tsx --test tests/admin-dates.test.ts",
-    "test:segments": "tsx --test tests/segments.test.ts"
+    "test:segments": "tsx --test tests/segments.test.ts",
+    "test:lead-quality": "tsx --test tests/lead-quality.test.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
