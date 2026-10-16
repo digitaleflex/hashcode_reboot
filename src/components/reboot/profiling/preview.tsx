@@ -33,9 +33,9 @@ export function ProfilePreview({
       <div className="animate-hash-in">
         <div className="max-w-xl mx-auto text-center">
           <HashSymbol className="mx-auto text-lime" size={40} />
-          <h2 className="mt-5 font-display font-bold text-2xl sm:text-3xl tracking-tight">
+          <h1 className="mt-5 font-display font-bold text-2xl sm:text-3xl tracking-tight">
             {t("preview.title")}
-          </h2>
+          </h1>
           <p className="mt-2 text-muted-foreground">
             {t("preview.body", { archetype: gen.archetype, domainLabel: gen.domainLabel })}
           </p>

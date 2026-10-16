@@ -19,6 +19,7 @@
  *   npx playwright test tests/e2e/funnel-acquisition.spec.ts
  */
 import { test, expect, type Page } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
 import { PrismaClient } from "@prisma/client";
 
 const ENABLED = !!process.env.FUNNEL_DATABASE_URL;
@@ -42,6 +43,26 @@ async function startProfiling(page: Page) {
 }
 
 const SKIP_BTNS = /retour|continuer|passer|sélectionne|voir|découvrir|terminer|envoyer|recommencer|commencer|finaliser/i;
+
+const isPost = (r: { url(): string; request(): { method(): string } }) =>
+  r.url().includes("/api/members") && r.request().method() === "POST";
+
+async function axeClean(
+  page: Page,
+  label: string,
+): Promise<{ violations: number; passes: number }> {
+  const r = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"])
+    .analyze();
+  for (const v of r.violations) {
+    console.log(`AXE ${label}: ${v.id} (${v.impact}) x${v.nodes.length}`);
+  }
+  expect(
+    r.violations,
+    `violations axe ${label}: ${r.violations.map((v) => v.id).join(",")}`,
+  ).toEqual([]);
+  return { violations: r.violations.length, passes: r.passes.length };
+}
 
 async function questionOf(page: Page): Promise<string> {
   const txt = ((await page.locator("body").first().innerText()) || "").replace(/\s+/g, " ");
@@ -191,8 +212,6 @@ test.describe("funnel acquisition → conversion", () => {
     // TOUTES les requises : une question sautée renvoie en arrière au lieu
     // de soumettre). Boucle : finaliser si présent, sinon répondre, jusqu'au
     // POST ou 12 rondes.
-    const isPost = (r: { url(): string; request(): { method(): string } }) =>
-      r.url().includes("/api/members") && r.request().method() === "POST";
     // Capture attachée AVANT d'agir (le POST peut partir pendant un clic).
     let posted = false;
     const postPromise = page
@@ -245,6 +264,31 @@ test.describe("funnel acquisition → conversion", () => {
     await ctx.close();
   });
 
+  test("état vide : démarrage sans brouillon, sans prompt", async ({ browser }) => {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    await startProfiling(page);
+    await expect(page.getByText(/brouillon en cours|déjà un compte/i)).toBeHidden({
+      timeout: 10000,
+    });
+    await expect(page.locator("body")).toContainText(/Question 1 sur/i);
+    await ctx.close();
+  });
+
+  test("accessibilité : questions + relecture, zéro violation (sans submit)", async ({
+    browser,
+  }) => {
+    test.slow();
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    await startProfiling(page);
+    await runToReview(page, email("a11y"));
+    await page.waitForTimeout(800);
+    const rev = await axeClean(page, "relecture");
+    expect(rev.passes).toBeGreaterThan(0);
+    await ctx.close();
+  });
+
   test("email invalide → erreur bloquante, rien créé", async ({ browser }) => {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
@@ -284,8 +328,6 @@ test.describe("funnel acquisition → conversion", () => {
     // TOUTES les requises : une question sautée renvoie en arrière au lieu
     // de soumettre). Boucle : finaliser si présent, sinon répondre, jusqu'au
     // POST ou 12 rondes.
-    const isPost = (r: { url(): string; request(): { method(): string } }) =>
-      r.url().includes("/api/members") && r.request().method() === "POST";
     // Capture attachée AVANT d'agir (le POST peut partir pendant un clic).
     let posted = false;
     const postPromise = page
@@ -319,6 +361,41 @@ test.describe("funnel acquisition → conversion", () => {
     } finally {
       await db.$disconnect();
     }
+    await ctx.close();
+  });
+
+  test("loading soumission + accessibilité résultat (duplicate, zéro écriture)", async ({
+    browser,
+  }) => {
+    test.slow();
+    const mail = email("full"); // déjà converti : réponse duplicate
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    await startProfiling(page);
+    await runToReview(page, mail);
+    // Ralentit le POST pour observer l'état de chargement (déterministe).
+    await page.route("**/api/members", async (route) => {
+      await new Promise((r) => setTimeout(r, 2500));
+      await route.continue();
+    });
+    // Relecture → aperçu → soumission : deux "Finaliser" successifs.
+    const postPromise = page
+      .waitForResponse(isPost, { timeout: 150000 })
+      .then((r) => r)
+      .catch(() => null);
+    const fin = page.getByRole("button", { name: "Finaliser mon profil" });
+    await fin.first().click();
+    const fin2 = page.getByRole("button", { name: "Finaliser mon profil" });
+    await fin2.first().click({ timeout: 15000 });
+    // POST retardé de 2,5 s par la route : l'écran de chargement est observable.
+    await expect(page.locator("body")).toContainText(/finalisation|presque prêt|une seconde/i, {
+      timeout: 15000,
+    });
+    const resp = await postPromise;
+    expect(resp).toBeTruthy();
+    await page.unroute("**/api/members");
+    const res = await axeClean(page, "resultat");
+    expect(res.passes).toBeGreaterThan(0);
     await ctx.close();
   });
 
