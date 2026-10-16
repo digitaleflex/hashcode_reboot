@@ -91,10 +91,9 @@ export default function Home() {
   const [sharedMemberId, setSharedMemberId] = React.useState<string | null>(null);
   const profilingStartedRef = React.useRef(false);
 
-  // `?admin=1` redirige vers le parcours de connexion ADMIN nominatif
-  // (`/admin/login?next=/admin`) : la garde serveur du layout /admin tranche
-  // (pas de probe client /api/admin/verify, pas de flash de la landing en
-  // attendant la réponse).
+  // `?admin=1` redirige vers le login membre unique (/login?next=/admin) :
+  // la garde serveur du layout /admin tranche (pas de probe client
+  // /api/admin/verify, pas de flash de la landing en attendant la réponse).
   // Allow `?share=<id>` to show a public shared profile.
   // Allow `?resume=1` (relance email) to auto-open the profiling flow.
   React.useEffect(() => {
@@ -103,7 +102,7 @@ export default function Home() {
       // Nettoie `?admin=1` de l'entrée d'historique courante avant de partir
       // (même motif `history.replaceState` que otp-form.tsx).
       window.history.replaceState({}, "", window.location.pathname);
-      router.replace("/admin/login?next=%2Fadmin");
+      router.replace("/login?next=%2Fadmin");
     } else if (params.get("share")) {
       setSharedMemberId(params.get("share"));
       track({ type: "reboot_page_view", ref: "shared-profile" });

@@ -28,17 +28,13 @@ export function normalizeAdminRole(raw: unknown): AdminRole | null {
 }
 
 /**
- * Pages publiques de l'espace admin : accessibles SANS session (sinon
- * /admin/login bouclerait sur lui-même).
+ * Pages publiques de l'espace admin : uniquement le redirecteur /admin/login
+ * (vers /login). Plus de formulaire nominatif, plus de setup 2FA séparé.
  *
  * Source unique partagée par `proxy.ts` (Edge) et le layout admin (Node) —
  * les deux doivent impérativement connaître la même liste.
  */
-export const PUBLIC_ADMIN_PATHS = [
-  "/admin/login",
-  "/admin/setup",
-  "/admin/setup-2fa",
-] as const;
+export const PUBLIC_ADMIN_PATHS = ["/admin/login"] as const;
 
 /** true si le chemin (sans préfixe de locale) est une page publique admin. */
 export function isPublicAdminPath(pathname: string): boolean {

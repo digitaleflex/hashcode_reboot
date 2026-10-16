@@ -107,18 +107,16 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
     }
 
-    // Garde-fou : un operator ne peut pas se rétrograder lui-même s'il est
-    // le dernier operator — sinon plus personne ne peut administrer.
+    // Garde-fou : dernier operator protégé — sinon plus personne ne peut
+    // administrer. L'auto-rétrogradation reste permise s'il reste un autre
+    // operator (les sessions sont révoquées ci-dessous).
     const operatorCount = await db.adminUser.count({ where: { role: "operator" } });
-    const isSelf = target.email.toLowerCase() === actor.toLowerCase();
     if (target.role === "operator" && body.role === "viewer" && operatorCount <= 1) {
       return NextResponse.json(
         { error: "LAST_OPERATOR", code: "LAST_OPERATOR" },
         { status: 409 },
       );
     }
-    void isSelf;
-
     await db.adminUser.update({
       where: { id: body.id },
       data: { role: body.role },

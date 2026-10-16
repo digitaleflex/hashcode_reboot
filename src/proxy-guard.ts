@@ -39,9 +39,6 @@ function stripLocalePrefix(pathname: string): { unprefixed: string; localePrefix
  * et les API routes via auth.api.getSession() — impossible en Edge (DB non dispo).
  */
 const BETTER_AUTH_SESSION_COOKIE = "better-auth.session_token";
-// Cookie de session admin nominatif (cf. src/lib/auth/admin.ts). Distinct du
-// cookie membre : un cookie membre ne peut PAS ouvrir /admin.
-const ADMIN_AUTH_SESSION_COOKIE = "hashcode-admin.session_token";
 
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -81,10 +78,9 @@ export function proxy(req: NextRequest) {
   const { unprefixed, localePrefix } = stripLocalePrefix(pathname);
 
   // /account & /dashboard : redirige si pas de cookie Better Auth membre.
-  // /admin : redirige si NI cookie membre NI cookie admin nominatif — la
-  // validation du rôle se fait ensuite côté serveur (AdminLayout → base
-  // inaccessible en Edge). Les anciennes sessions membres admin restent
-  // valides le temps de la migration (cf. src/lib/admin-auth.ts).
+  // /admin : source unique = session membre + Member.adminRole (résolu côté
+  // serveur dans AdminLayout, base inaccessible en Edge). Le login nominatif
+  // séparé /admin/login est déprécié et redirige vers /login.
   if (unprefixed.startsWith("/account") || unprefixed.startsWith("/dashboard")) {
     // En HTTPS (prod), Better Auth préfixe le cookie de `__Secure-` ; ne
     // vérifier que la forme nue ferait boucler les pages protégées vers
@@ -109,20 +105,21 @@ export function proxy(req: NextRequest) {
     const hasMemberCookie =
       req.cookies.get(BETTER_AUTH_SESSION_COOKIE) ||
       req.cookies.get("__Secure-" + BETTER_AUTH_SESSION_COOKIE);
-    const hasAdminCookie =
-      req.cookies.get(ADMIN_AUTH_SESSION_COOKIE) ||
-      req.cookies.get("__Secure-" + ADMIN_AUTH_SESSION_COOKIE);
-    const hasAnySession = hasMemberCookie || hasAdminCookie;
 
-    // Pages publiques de l'espace admin (login nominatif, activation
-    // d'invitation, enrôlement 2FA) : accessibles SANS cookie, sinon
-    // /admin/login bouclerait sur lui-même.
-    const publicAdminPaths = ["/admin/login", "/admin/setup", "/admin/setup-2fa"];
+    // /admin/login est un redirecteur public (pas un formulaire) : il doit
+    // rester atteignable SANS cookie pour transmettre `?next` vers /login.
+    const publicAdminPaths = ["/admin/login"];
     const isPublicAdminPath = publicAdminPaths.some((p) => unprefixed === p);
+    if (!hasMemberCookie && isPublicAdminPath) {
+      const res = intlMiddleware(req);
+      res.headers.set("x-hc-admin-pathname", unprefixed);
+      return res;
+    }
 
-    if (!hasAnySession && !isPublicAdminPath) {
+    // Plus de cookie admin séparé : /admin/login redirige vers /login.
+    if (!hasMemberCookie) {
       const url = req.nextUrl.clone();
-      url.pathname = `${localePrefix}/admin/login`;
+      url.pathname = `${localePrefix}/login`;
       const destination = `${localePrefix}${unprefixed}${req.nextUrl.search}`;
       url.search = `?next=${encodeURIComponent(destination)}`;
       return NextResponse.redirect(url);
@@ -132,11 +129,6 @@ export function proxy(req: NextRequest) {
     // Chemin demandé, lu par AdminLayout (server component — les layouts
     // n'ont pas d'accès direct au pathname en App Router).
     res.headers.set("x-hc-admin-pathname", unprefixed);
-    // Marqueur « page publique, aucun cookie » : la garde d'accès du layout
-    // ne doit PAS s'appliquer (sinon boucle sur /admin/login).
-    if (!hasAnySession && isPublicAdminPath) {
-      res.headers.set("x-hc-admin-public", "1");
-    }
     return res;
   }
 

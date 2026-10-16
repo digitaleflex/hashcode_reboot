@@ -5,11 +5,12 @@ import { db } from "@/lib/db";
 export const runtime = "nodejs";
 
 /**
- * POST /api/admin/admins/[id]/reset-2fa — réinitialise la 2FA d'un admin
+   * POST /api/admin/admins/[id]/reset-2fa — réinitialise la 2FA d'un admin
  * (téléphone perdu / nouvel appareil) et révoque ses sessions.
  *
- * Operator only. L'admin devra réenroler sa 2FA à la prochaine connexion
- * (le AdminLayout l'y force). Les codes de secours sont invalidés au passage
+ * Operator only. La 2FA est optionnelle : l'admin peut la réenroler
+ * volontairement depuis /admin/settings ou /admin/setup-2fa — aucun
+ * forçage au login. Les codes de secours sont invalidés au passage
  * (la ligne TwoFactor est supprimée).
  */
 export async function POST(

@@ -32,6 +32,33 @@ export const auth = betterAuth({
     requireEmailVerification: false,
   },
 
+  // ── OAuth Google (connexion 1-clic, alternative au code OTP) ──────────
+  // Actif uniquement si les secrets sont posés (GOOGLE_CLIENT_ID/SECRET) :
+  // sans eux, le provider est omis et le login OTP reste seul (dev local).
+  // Redirect URI à déclarer côté Google Cloud Console :
+  //   {NEXT_PUBLIC_SITE_URL}/api/auth/callback/google
+  ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+    ? {
+        socialProviders: {
+          google: {
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          },
+        },
+      }
+    : {}),
+
+  // Relie un compte Google au User existant (créé par OTP) quand l'email
+  // correspond — Google est trusted (email vérifié par Google). Sans cela,
+  // un membre OTP qui clique "Continuer avec Google" obtiendrait un second
+  // User orphelin au lieu de retrouver son Member.
+  account: {
+    accountLinking: {
+      enabled: true,
+      trustedProviders: ["google"],
+    },
+  },
+
   session: {
     cookieCache: {
       enabled: true,

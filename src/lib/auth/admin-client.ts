@@ -1,4 +1,4 @@
-// Client Better Auth ADMIN — répond sur /api/auth/admin/* (basePath dédié).
+// Client Better Auth ADMIN — répond sur /api/admin-auth/* (basePath dédié).
 // L'action `onTwoFactorRedirect` intercepte la réponse de connexion quand la
 // 2FA est active : la page de login bascule alors sur l'étape du code TOTP.
 
