@@ -111,7 +111,65 @@
 
 ---
 
-## E. Recommandations de sécurité (avant `GO` final)
+## E. Dépendances — Dependabot (2026-10-18)
+
+82 alertes ouvertes ont été traitées sur la branche `fix/dependabot-82`.
+
+### Résultat
+
+| | Avant | Après |
+|---|---:|---:|
+| Critique | 2 | **0** |
+| Haute | 41 | **5** |
+| Moyenne | 34 | **0** |
+| Faible | 5 | **0** |
+| **Total** | **82** | **5** |
+
+Les 38 alertes `next` provenaient d'une seule cause : `next@16.1.3`, vulnérable sur
+toute la série `>=16.0.0 <16.3.8`. Montée à `16.3.8` (résolue en `16.4.2`).
+
+Toutes les dépendances **directes** étaient déjà à jour : les alertes restantes
+étaient **transitives**, corrigées via `overrides` dans `package.json`. Versions
+épinglées au **premier correctif dans la même majeure**, pas à la dernière, pour
+éviter tout saut majeur non nécessaire.
+
+### Reliquat assumé : 5 alertes hautes, non corrigeables
+
+`eslint-config-next` → `@next/eslint-plugin-next` → `fast-glob` → `micromatch`
+→ **`braces@3.0.3`**
+
+`braces` est le seul maillon réellement vulnérable (CWE-674, épuisement de pile
+sur motifs profondément imbriqués). Or :
+
+- `3.0.3` est le **`latest`** publié sur npm — il n'existe aucune version
+  corrigée ;
+- `micromatch@4.0.8` l'exige en `^3.0.3` — on ne peut pas le rétrograder ;
+- `micromatch@4.0.8` et `fast-glob@3.3.1` sont eux-mêmes déjà à leur dernier
+  correctif.
+
+**Exposition nulle en production** : la chaîne entière est sous
+`devDependencies` (outillage de lint). Elle n'est ni embarquée dans le bundle
+ni exécutée au runtime. Le seul déclencheur possible est le lint sur une
+entrée atacante — hors périmètre.
+
+Levée de la condition : `braces` publie un correctif, ou `micromatch` passe une
+série ≥4.1. Ne pas « corriger » en forçant `braces` en v2 — cela violerait le
+`^3.0.3` de `micromatch` et casserait le lint.
+
+### Note de méthode
+
+Deux overrides ont dû être **ciblés par chemin**, un global casse l'arbre :
+
+- `ajv` : `@eslint/eslintrc` exige `^6.12.4` (v8 casse `@eslint/eslintrc` —
+  `TypeError: Cannot set properties of undefined (setting 'defaultMeta')`),
+  tandis que `webpack` exige `^8`. Deux versions cohabitent.
+- `minimatch` / `brace-expansion` : les majors 3 et 10 (respectivement 1, 2 et 5)
+  coexistent. Un override global forcerait une rollback chez les paquets exigeant
+  la majeure supérieure — d'où `"minimatch@<4"`, `"brace-expansion@>=5"`.
+
+---
+
+## F. Recommandations de sécurité (avant `GO` final)
 
 1. Vérifier la route RGPD (`export` / suppression) dans `docs/espace-membre.md` et `src/app/api/account/export/route.ts` si présent (hors périmètre immédiat de l'audit technique).
 2. Confirmer que `.env.prod` et `compose.yml` ne sont jamais poussés sur `origin/main` (déjà vérifié : `.gitignore` protège `.env*`).
