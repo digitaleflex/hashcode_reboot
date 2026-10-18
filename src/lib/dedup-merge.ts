@@ -34,7 +34,6 @@ type Db = Pick<
   | "profilingDraft"
   | "emailEvent"
 > & {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   $transaction<T>(ops: Promise<T>[]): Promise<T[]>;
 };
 
