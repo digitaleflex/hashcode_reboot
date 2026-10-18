@@ -41,7 +41,10 @@ export function ProfilePreview({
           </p>
         </div>
         <div className="mt-8 max-w-md mx-auto">
-          <ProfileCard profile={gen} goal={answers.threeMonthGoal} />
+          {/* `headingLevel={2}` : le titre de cette carte est enfant direct du
+              `h1` de l'étape de relecture — le défaut `3` y produirait un saut
+              `h1` → `h3` (violation axe `heading-order`). */}
+          <ProfileCard profile={gen} goal={answers.threeMonthGoal} headingLevel={2} />
         </div>
         <div className="mt-8 max-w-md mx-auto flex flex-col sm:flex-row gap-3">
           <RebootButton

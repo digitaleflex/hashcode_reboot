@@ -26,6 +26,7 @@ export function ProfileCard({
   variant = "default",
   fields,
   showTags = true,
+  headingLevel = 3,
 }: {
   profile: GeneratedProfile;
   goal?: string;
@@ -35,8 +36,18 @@ export function ProfileCard({
   fields?: ProfileField[];
   /** Afficher les tags d'intérêt. Défaut : oui. */
   showTags?: boolean;
+  /**
+   * Niveau du titre qui porte l'archétype.
+   *
+   * La carte est réutilisée sous des parents de niveaux différents (`h1` sur
+   * l'écran de relecture du flow, `h2` sur la page welcome) : un niveau fixe
+   * produirait un saut de hiérarchie (`heading-order`) invalide. Défaut `3` —
+   * le seul contexte où le parent est un `h2`.
+   */
+  headingLevel?: 2 | 3;
 }) {
   const t = useTranslations("profiling");
+  const Heading = (headingLevel === 2 ? "h2" : "h3") as "h2" | "h3";
 
   /**
    * The engine emits `*Label` in French. When the raw enum code travels with
@@ -139,9 +150,9 @@ export function ProfileCard({
           <span className="text-2xl" aria-hidden>
             {profile.archetypeEmoji}
           </span>
-          <h3 className="font-display font-bold text-xl sm:text-2xl tracking-tight text-foreground italic">
+          <Heading className="font-display font-bold text-xl sm:text-2xl tracking-tight text-foreground italic">
             {profile.archetype}
-          </h3>
+          </Heading>
         </div>
 
         <div className="mt-5 grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
