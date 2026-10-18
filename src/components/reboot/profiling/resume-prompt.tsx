@@ -42,11 +42,13 @@ export function ResumePrompt({
       <main className="flex-1 flex items-center justify-center px-5 sm:px-8">
         <div className="w-full max-w-md text-center animate-hash-in">
           <HashSymbol className="mx-auto text-lime" size={40} />
-          <h2 className="mt-5 font-display font-bold text-2xl tracking-tight">
+          {/* `h1` : écran plein (`min-h-screen`) rendu hors du flow, sans
+              titre parent — même règle que l'étape question / relecture. */}
+          <h1 className="mt-5 font-display font-bold text-2xl tracking-tight">
             {duplicate
               ? t("resumePrompt.duplicateTitle")
               : t("resumePrompt.draftTitle")}
-          </h2>
+          </h1>
           <p className="mt-2 text-muted-foreground">
             {duplicate
               ? t("resumePrompt.duplicateBody")

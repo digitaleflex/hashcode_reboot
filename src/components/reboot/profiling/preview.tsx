@@ -85,9 +85,9 @@ export function FinalizingState({ onBack }: { onBack: () => void }) {
           <HashSymbol className="text-lime" size={36} />
           <span className="absolute inset-0 animate-hash-sweep rounded-sm overflow-hidden" />
         </div>
-        <h2 className="mt-5 font-display font-bold text-lg text-foreground">
+        <h1 className="mt-5 font-display font-bold text-lg text-foreground">
           {t("finalizing.body")}
-        </h2>
+        </h1>
         <p className="mt-1.5 text-sm text-muted-foreground">
           {t("finalizing.subtitle")}
         </p>

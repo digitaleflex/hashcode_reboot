@@ -66,9 +66,13 @@ export function QuestionView({
 
   return (
     <div>
-      <h2 className="font-display font-bold text-xl sm:text-2xl tracking-tight text-foreground leading-snug">
+      {/* `h1` : chaque étape du flow est une « page » distincte (le flow
+          remplace la page entière, sans h1 parent) — le titre de la question
+          est donc le titre principal, pas un sous-titre. Cohérent avec
+          l'étape de relecture (preview.tsx). */}
+      <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight text-foreground leading-snug">
         {question.title}
-      </h2>
+      </h1>
       {question.description && (
         <p className="mt-2 text-muted-foreground text-sm sm:text-base leading-relaxed">
           {question.description}
