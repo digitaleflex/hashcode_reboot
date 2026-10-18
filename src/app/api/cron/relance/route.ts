@@ -6,6 +6,7 @@ import { withPrismaRetry } from "@/lib/prisma-extensions";
 import { sendRelanceEmail } from "@/lib/email/builders";
 import { logMemberEmail, memberIdsWithEmailLog } from "@/lib/member-email-log";
 import { planBatch } from "@/lib/email-budget";
+import { isEmailBlacklisted } from "@/lib/blacklist";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -110,6 +111,12 @@ export async function GET(req: NextRequest) {
           } catch {
             /* ignore */
           }
+          // Les brouillons viennent d'une route publique (email non vérifié) :
+          // jamais de relance vers une adresse blacklistée (bounce, plainte,
+          // désinscription, abus).
+          if (await isEmailBlacklisted(draft.email)) {
+            return { id: draft.id, ok: true, skipped: true as const };
+          }
           const member = memberByEmail.get(draft.email.toLowerCase());
           if (member && loggedRelance.has(member.id)) {
             return { id: draft.id, ok: true, skipped: true as const };
@@ -135,7 +142,10 @@ export async function GET(req: NextRequest) {
       for (const r of results) {
         if (r.status === "fulfilled" && r.value.ok) {
           sent7 += 1;
-          if (!r.value.skipped) sentIds7.push(r.value.id);
+          // Les brouillons ignorés sont aussi marqués traités : sinon ils
+          // restent en tête de file (tri createdAt asc, take 50) et finissent
+          // par bloquer toutes les relances suivantes.
+          sentIds7.push(r.value.id);
         } else {
           errors += 1;
         }

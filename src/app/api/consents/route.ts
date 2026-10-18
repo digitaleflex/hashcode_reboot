@@ -4,13 +4,17 @@ import { db } from "@/lib/db";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { bodyLimit } from "@/lib/body-limit";
 import { blockIfTesting } from "@/lib/test-guard";
+import { getSession } from "@/lib/account-auth";
+import { isAdminAuthed } from "@/lib/admin-auth";
 import {
   consentBodySchema,
   consentQuerySchema,
   normalizeConsentEmail,
 } from "@/lib/consents";
 import {
+  AuthError,
   errorToResponse,
+  ForbiddenError,
   parseJsonBody,
   ValidationError,
 } from "@/lib/errors";
@@ -26,6 +30,13 @@ export const runtime = "nodejs";
  * (#212 : "handoff" = accord d'export vers l'écosystème, lu par
  * GET /api/community/join avant jonction via la même règle latest-wins).
  * Fire-and-forget côté client : répond vite, ne casse jamais l'UX.
+ *
+ * Identité : JAMAIS lue depuis le corps. Avant, n'importe qui pouvait poster
+ * un consentement au nom de n'importe quel email/memberId (ex. retirer le
+ * « contact » d'un tiers, ou accorder un « handoff » à sa place — la dernière
+ * ligne gagne). Désormais : session membre ⇒ ligne rattachée à ce membre ;
+ * sans session ⇒ ligne anonyme. `email`/`memberId` du corps sont ignorés
+ * s'ils ne correspondent pas à la session.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -50,11 +61,12 @@ export async function POST(req: NextRequest) {
       throw new ValidationError("Données invalides.", parsed.error.issues);
     }
     const d = parsed.data;
+    const session = await getSession(req);
 
     const created = await db.consent.create({
       data: {
-        memberId: d.memberId ?? null,
-        email: normalizeConsentEmail(d.email),
+        memberId: session?.member.id ?? null,
+        email: normalizeConsentEmail(session?.member.email),
         purpose: d.purpose,
         choice: d.choice,
         textVersion: d.textVersion,
@@ -79,6 +91,10 @@ export async function POST(req: NextRequest) {
 
 /**
  * GET /api/consents?email=&purpose= — dernière ligne pour (email, purpose).
+ *
+ * Réservé au membre connecté pour SON email, ou à un admin. Avant, la route
+ * était publique : elle renvoyait la ligne complète (memberId, proof…) de
+ * n'importe quel email et servait d'oracle d'inscription.
  * `purpose` optionnel : sans lui, dernière ligne tous purposes confondus.
  * Retourne { consent: null } (200) quand aucun historique — pas de 404.
  * #212 : lecture pre-jonction = même requête avec purpose=handoff
@@ -106,6 +122,13 @@ export async function GET(req: NextRequest) {
     });
     if (!parsed.success) {
       throw new ValidationError("Données invalides.", parsed.error.issues);
+    }
+
+    const session = await getSession(req);
+    const isOwner = session?.member.email.toLowerCase() === parsed.data.email;
+    if (!isOwner && !(await isAdminAuthed(req))) {
+      if (!session) throw new AuthError();
+      throw new ForbiddenError();
     }
 
     const consent = await db.consent.findFirst({

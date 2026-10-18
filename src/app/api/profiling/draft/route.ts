@@ -79,10 +79,40 @@ export async function POST(req: NextRequest) {
   const { email, answers, lastQuestionId, sessionId, sourceUTM } = parsed.data;
   const emailLower = email.trim().toLowerCase();
 
+  // Le prénom finit dans l'email de relance : lettres, espaces, apostrophes
+  // et tirets uniquement (pas d'URL ni de texte arbitraire injecté).
   const firstName =
     typeof answers === "object" && answers !== null && "firstName" in answers
       ? String((answers as Record<string, unknown>).firstName)
+          .replace(/[^\p{L}\p{M}' -]/gu, "")
+          .trim()
       : "";
+
+  // Route publique, email non vérifié : chaque NOUVEL email déclenchera une
+  // relance marketing à J+7. Bucket dédié et serré sur la création, pour
+  // qu'un script ne puisse pas faire envoyer des emails à des listes
+  // d'adresses arbitraires (la mise à jour d'un brouillon existant reste
+  // sur le bucket large ci-dessus).
+  try {
+    const existing = await db.profilingDraft.findUnique({
+      where: { email: emailLower },
+      select: { id: true },
+    });
+    if (!existing) {
+      const rlNew = await rateLimit(`draft-new:${rateKey(req)}`, {
+        capacity: 3,
+        windowMs: 60 * 60 * 1000,
+      });
+      if (!rlNew.ok) {
+        return NextResponse.json(
+          { ok: false },
+          { status: 429, headers: { "Retry-After": String(Math.ceil(rlNew.retryAfterMs / 1000)) } },
+        );
+      }
+    }
+  } catch {
+    return NextResponse.json({ ok: false }, { status: 200 });
+  }
 
   try {
     await db.profilingDraft.upsert({

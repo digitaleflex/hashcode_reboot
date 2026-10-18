@@ -7,9 +7,6 @@ import { RebootButton, MonoLabel } from "@/components/reboot/shared";
 import {
   Users,
   UserPlus,
-  ShieldCheck,
-  ShieldAlert,
-  KeyRound,
   Trash2,
   Loader2,
   AlertCircle,
@@ -19,10 +16,10 @@ import {
 /**
  * Gestion des comptes admin (operator only).
  *
- * Affiche les comptes nominatifs (rôle, 2FA, dernière connexion) + les
- * invitations en attente, et permet d'inviter, changer un rôle, réinitialiser
- * une 2FA perdue ou révoquer un accès. Le garde-fou « dernier operator »
- * vit côté serveur (409 LAST_OPERATOR).
+ * Affiche les membres ayant un `adminRole` (rôle, dernière connexion) + les
+ * invitations en attente, et permet d'inviter, changer un rôle ou révoquer
+ * un accès. Les garde-fous « dernier operator » et « pas sur soi-même »
+ * vivent côté serveur (409 LAST_OPERATOR / SELF_REVOKE).
  */
 
 interface AdminRow {
@@ -63,7 +60,7 @@ export function AdminAccountsManager({ onSessionExpired }: { onSessionExpired: (
 
   const [busyId, setBusyId] = React.useState<string | null>(null);
   const [pending, setPending] = React.useState<
-    { kind: "reset2fa" | "revoke"; id: string; email: string } | null
+    { kind: "revoke"; id: string; email: string } | null
   >(null);
   const [dialogError, setDialogError] = React.useState<string | null>(null);
 
@@ -148,34 +145,15 @@ export function AdminAccountsManager({ onSessionExpired }: { onSessionExpired: (
         setError(
           code === "LAST_OPERATOR"
             ? "Impossible : c'est le dernier operator."
-            : "Changement de rôle refusé.",
+            : code === "SELF_REVOKE"
+              ? "Tu ne peux pas modifier ton propre rôle."
+              : "Changement de rôle refusé.",
         );
         return;
       }
       void load();
     } catch {
       setError("Changement de rôle impossible.");
-    } finally {
-      setBusyId(null);
-    }
-  };
-
-  const handleReset2fa = async (id: string) => {
-    setBusyId(id);
-    setError(null);
-    try {
-      const { res } = await fetchJson(`/api/admin/admins/${id}/reset-2fa`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-      if (!res.ok) {
-        setDialogError("Réinitialisation 2FA impossible.");
-        return;
-      }
-      setPending(null);
-      void load();
-    } catch {
-      setDialogError("Réinitialisation 2FA impossible.");
     } finally {
       setBusyId(null);
     }
@@ -310,17 +288,6 @@ export function AdminAccountsManager({ onSessionExpired }: { onSessionExpired: (
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5">
                     <span>{a.role === "operator" ? "Opérateur" : "Lecteur"}</span>
-                    <span className="flex items-center gap-1">
-                      {a.twoFactorEnabled ? (
-                        <>
-                          <ShieldCheck className="size-3 text-lime" aria-hidden /> 2FA active
-                        </>
-                      ) : (
-                        <>
-                          <ShieldAlert className="size-3 text-amber-400" aria-hidden /> 2FA inactive
-                        </>
-                      )}
-                    </span>
                     {a.lastSignInAt && (
                       <span title={new Date(a.lastSignInAt).toLocaleString("fr-FR")}>
                         vu {new Date(a.lastSignInAt).toLocaleDateString("fr-FR")}
@@ -342,19 +309,6 @@ export function AdminAccountsManager({ onSessionExpired }: { onSessionExpired: (
                     <option value="viewer">Lecteur</option>
                     <option value="operator">Opérateur</option>
                   </select>
-                  <RebootButton
-                    variant="outline"
-                    size="sm"
-                    disabled={busyId === a.id}
-                    onClick={() => {
-                      setDialogError(null);
-                      setPending({ kind: "reset2fa", id: a.id, email: a.email });
-                    }}
-                    className="gap-1.5"
-                  >
-                    <KeyRound className="size-3.5" aria-hidden />
-                    <span className="hidden sm:inline">Reset 2FA</span>
-                  </RebootButton>
                   <RebootButton
                     variant="ghost"
                     size="sm"
@@ -413,27 +367,15 @@ export function AdminAccountsManager({ onSessionExpired }: { onSessionExpired: (
 
       {pending && (
         <ConfirmDialog
-          title={
-            pending.kind === "reset2fa"
-              ? `Réinitialiser la 2FA de ${pending.email} ?`
-              : `Révoquer l'accès admin de ${pending.email} ?`
-          }
-          description={
-            pending.kind === "reset2fa"
-              ? "Ses sessions seront fermées et il devra réenroler sa 2FA."
-              : "Cette action est définitive."
-          }
-          confirmLabel={pending.kind === "reset2fa" ? "Réinitialiser" : "Révoquer"}
+          title={`Révoquer l'accès admin de ${pending.email} ?`}
+          description="Son compte membre est conservé ; seul l'accès admin est retiré."
+          confirmLabel="Révoquer"
           pending={busyId === pending.id}
           error={dialogError}
           onClose={() => {
             if (busyId !== pending.id) setPending(null);
           }}
-          onConfirm={() =>
-            pending.kind === "reset2fa"
-              ? void handleReset2fa(pending.id)
-              : void handleRevoke(pending.id)
-          }
+          onConfirm={() => void handleRevoke(pending.id)}
         />
       )}
     </div>
