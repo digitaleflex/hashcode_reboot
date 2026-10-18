@@ -141,6 +141,47 @@ docs(i18n): add contributor guide for translations
 - Checks obligatoires : typecheck, lint, test, build, e2e
 - Review : 1 approbation minimum
 
+### État du lint (2026-10-18)
+
+`npm run lint` est **vert** : 0 erreur, 18 warnings.
+
+Les règles `react-hooks` d'`eslint-plugin-react-hooks` v7 (livré avec
+`eslint-config-next` 16.4) font partie des checks obligatoires. État des deux
+concernées :
+
+| Règle | État | Traitement |
+|---|---|---|
+| `react-hooks/static-components` | **corrigée** | 16 violations → 0. Les composants de présentation de `admin/invitations` (`StatCard`, `StatusBadge`, `MemberRow`, `RelanceDialog`, `EmptyState`, `StatusTabs`, `SortIcon`) étaient déclarés dans le corps du composant parent : leur état était donc réinitialisé à chaque render. Extraits au niveau module, dépendances passées en props (`t`, `config`, `onSort`). |
+| `react-hooks/set-state-in-effect` | **assumée** | 43 violations → règle désactivée dans `eslint.config.mjs` avec justification. Voir ci-dessous. |
+
+### Pourquoi `set-state-in-effect` est assumée, pas corrigée
+
+La règle signale 43 `setState`, répartis sur 22 fichiers :
+
+- **~21 sont le pattern documenté par React** : rechargement de données à
+  l'entrée d'une page admin (`fetchData()` dans un `useEffect`), `matchMedia`,
+  `localStorage`, abonnement à une source externe. La règle identifie le
+  `setState` mais pas le fait qu'il est dans une callback asynchrone.
+- **~9 sont une lecture différée de `window`** pour éviter une divergence
+  d'hydratation — voir le commentaire de `local-time-note.tsx`, qui explique
+  pourquoi le fuseau est lu en effet et non au rendu.
+
+Refondre ces composants (data-fetching vers React Query ou SSR) est un
+**chantier de fond**, pas une correction de lint : il touche le chargement de
+données de toute la zone admin. L'assumer en un point documenté évite 43
+`eslint-disable` dispersés qui masqueraient les vraies violations futures.
+
+**Quand reprendre** : si la zone admin passe à React Query, retirer la règle
+et traiter les fichiers au fil de l'eau.
+
+### Warnings restants (18, non bloquants)
+
+`@next/next/no-location-assign-relative-destination` : `window.location.assign()`
+sur des routes internes. La plupart sont des navigations full-reload
+délibérées (retour à la landing après un partage). Un cas mérite un correctif :
+`app/[locale]/page.tsx:123` fait un redirect vers `/admin` dans un `useEffect`
+client-side, alors qu'il relève d'un redirect serveur.
+
 ## Tests
 
 ### Unit (Vitest)

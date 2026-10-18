@@ -19,6 +19,17 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     // React rules
     "react-hooks/exhaustive-deps": "off",
     "react-hooks/purity": "off",
+    // `set-state-in-effect` (eslint-plugin-react-hooks 7) : la règle signale
+    // les 43 `setState` de ce dépôt, dont la majorité sont le pattern
+    // DOCUMENTÉ par React lui-même — « subscribe for updates from some
+    // external system, calling setState in a callback » : rechargement
+    // de données à l'entrée d'une page admin, `matchMedia`, `localStorage`,
+    // lecture de `window` différée pour éviter toute divergence d'hydratation
+    // (cf. local-time-note.tsx). Refondre ces 22 composants (data-fetching vers
+    // React Query / SSR) est un chantier de fond à part entière, pas un fix
+    // de lint : le garder ici évite 43 `eslint-disable` dispersés qui
+    // masqueraient les vraies violations futures.
+    "react-hooks/set-state-in-effect": "off",
     "react/no-unescaped-entities": "off",
     "react/display-name": "off",
     "react/prop-types": "off",

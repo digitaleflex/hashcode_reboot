@@ -71,6 +71,11 @@ interface InvitationsResponse {
 
 /* ── Status config ─────────────────────────────────────────────────────── */
 
+const STATUS_ORDER = ["INVITED", "ACCEPTED", "REFUSED", "BOUNCED", "EXPIRED", "NOT_INVITED"] as const;
+const STATUS_FILTERS = ["ALL", ...STATUS_ORDER] as const;
+
+type StatusFilter = (typeof STATUS_FILTERS)[number];
+
 export default function AdminInvitationsPage() {
   const t = useTranslations("admin.invitations");
   const router = useRouter();
@@ -97,11 +102,6 @@ export default function AdminInvitationsPage() {
     BOUNCED: { label: t("status.bounced.label"), color: "text-orange-400", bg: "bg-orange-500/10", icon: AlertTriangle, description: t("status.bounced.description") },
     EXPIRED: { label: t("status.expired.label"), color: "text-yellow-400", bg: "bg-yellow-500/10", icon: Clock, description: t("status.expired.description") },
   }), [t]);
-
-  const STATUS_ORDER = ["INVITED", "ACCEPTED", "REFUSED", "BOUNCED", "EXPIRED", "NOT_INVITED"] as const;
-  const STATUS_FILTERS = ["ALL", ...STATUS_ORDER] as const;
-
-  type StatusFilter = typeof STATUS_FILTERS[number];
 
   const handleSessionExpired = React.useCallback(() => {
     router.push("/admin/login");
@@ -237,314 +237,6 @@ export default function AdminInvitationsPage() {
     }));
   };
 
-  const SortIcon = ({ key, label }: { key: string; label: string }) => {
-    const isActive = sortConfig.key === key;
-    return (
-      <button
-        type="button"
-        onClick={() => handleSort(key)}
-        className="flex items-center gap-1 hover:text-foreground transition-colors"
-        title={t("sortBy", { label })}
-      >
-        <span className="mono-label text-muted-foreground">{label}</span>
-        {isActive && (
-          <span className="text-lime">{sortConfig.direction === "asc" ? "▲" : "▼"}</span>
-        )}
-      </button>
-    );
-  };
-
-  function StatCard({
-    label,
-    value,
-    icon: Icon,
-    color,
-    active,
-    onClick,
-    description,
-  }: {
-    label: string;
-    value: number;
-    icon: React.ComponentType<{ className?: string }>;
-    color: string;
-    active?: boolean;
-    onClick?: () => void;
-    description?: string;
-  }) {
-    return (
-      <button
-        type="button"
-        onClick={onClick}
-        {...(onClick ? { "aria-pressed": !!active } : {})}
-        className={cn(
-          "flex flex-col items-center gap-1.5 p-4 rounded-xl border transition-colors text-center min-w-0 relative overflow-hidden",
-          active
-            ? "border-lime/40 bg-lime/5 shadow-[0_0_0_1px_rgba(197,244,65,0.3)]"
-            : "border-border/40 bg-card hover:bg-lime/5 hover:border-lime/20",
-          onClick && "cursor-pointer",
-        )}
-        title={description}
-      >
-        <div className="relative">
-          <Icon className={cn("size-5", color)} />
-          {active && (
-            <span className="absolute -top-1 -right-1 size-2 bg-lime rounded-full border-2 border-card" />
-          )}
-        </div>
-        <span className="text-2xl font-bold tracking-tight">{value}</span>
-        <span className="mono-label text-muted-foreground">{label}</span>
-      </button>
-    );
-  }
-
-  function StatusBadge({ status }: { status: string }) {
-    const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.NOT_INVITED;
-    const StatusIcon = cfg.icon;
-    return (
-      <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium", cfg.bg, cfg.color)}>
-        <StatusIcon className="size-3" />
-        {cfg.label}
-      </span>
-    );
-  }
-
-  function MemberRow({
-    member,
-    onRelance,
-  }: {
-    member: MemberInvitation;
-    onRelance: (ids: string[]) => void;
-  }) {
-    const cfg = STATUS_CONFIG[member.invitationStatus] || STATUS_CONFIG.NOT_INVITED;
-    const StatusIcon = cfg.icon;
-    const lastEvent = member.recentEvents[0];
-
-    const formatDate = (dateStr: string | null) => {
-      if (!dateStr) return "—";
-      return new Date(dateStr).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
-    };
-
-    const getDomainLabel = (domain: string | null) => {
-      const labels = t.raw("domainLabels") as Record<string, string>;
-      return labels[domain || ""] || domain || "—";
-    };
-
-    const getLevelLabel = (level: string | null) => {
-      const labels = t.raw("levelLabels") as Record<string, string>;
-      return labels[level || ""] || level || "—";
-    };
-
-    return (
-      <tr className="border-b border-border/30 hover:bg-lime/5 transition-colors data-[status=invited]:bg-blue-500/5">
-        <td className="px-4 py-3">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-lime/10 flex items-center justify-center text-lime font-medium text-sm">
-              {(member.firstName?.[0] || member.email[0]).toUpperCase()}
-            </div>
-            <div className="flex flex-col min-w-0">
-              <span className="font-medium text-sm truncate max-w-[200px]">{member.firstName || "—"}</span>
-              <span className="text-xs text-muted-foreground truncate max-w-[250px]">{member.email}</span>
-            </div>
-          </div>
-        </td>
-        <td className="px-4 py-3">
-          <StatusBadge status={member.invitationStatus} />
-        </td>
-        <td className="px-4 py-3 hidden md:table-cell">
-          <div className="flex flex-col gap-0.5">
-            <span className="text-xs font-medium">{getLevelLabel(member.level)}</span>
-            <span className="text-xs text-muted-foreground">{getDomainLabel(member.primaryDomain)}</span>
-          </div>
-        </td>
-        <td className="px-4 py-3 hidden lg:table-cell text-xs text-muted-foreground">
-          {member.country || "—"}
-        </td>
-        <td className="px-4 py-3 hidden lg:table-cell text-center">
-          <div className="flex items-center justify-center gap-1">
-            {member.invitationClicks > 0 ? (
-              <>
-                <MailOpen className="size-3.5 text-lime" />
-                <span className="text-lime font-medium">{member.invitationClicks}</span>
-              </>
-            ) : (
-              <span className="text-muted-foreground">0</span>
-            )}
-          </div>
-        </td>
-        <td className="px-4 py-3 hidden xl:table-cell text-xs text-muted-foreground">
-          {lastEvent ? (
-            <div className="flex flex-col gap-0.5">
-              <span className="flex items-center gap-1">
-                {lastEvent.type === "email.opened" ? (
-                  <MailOpen className="size-3 text-blue-400" />
-                ) : (
-                  <ExternalLink className="size-3 text-lime" />
-                )}
-                {lastEvent.type === "email.opened" ? t("row.lastEventOpened") : t("row.lastEventClick")}
-              </span>
-              <span>{formatDate(lastEvent.at)}</span>
-            </div>
-          ) : member.lastClickedAt ? (
-            <span>{formatDate(member.lastClickedAt)}</span>
-          ) : (
-            "—"
-          )}
-        </td>
-        <td className="px-4 py-3 text-right">
-          {member.invitationStatus === "INVITED" && member.invitationClicks === 0 && (
-            <button
-              type="button"
-              onClick={() => onRelance([member.id])}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-400 hover:text-blue-300 bg-blue-500/10 rounded-lg hover:bg-blue-500/20 transition-colors"
-              title={t("row.relanceTitle")}
-            >
-              <RefreshCw className="size-3.5" />
-              {t("row.relance")}
-            </button>
-          )}
-          {member.invitationStatus === "INVITED" && member.invitationClicks > 0 && (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs text-lime bg-lime/10 rounded-lg">
-              <CheckCircle className="size-3" />
-              {t("row.engaged")}
-            </span>
-          )}
-        </td>
-      </tr>
-    );
-  }
-
-  function RelanceDialog({
-    open,
-    onClose,
-    onConfirm,
-    count,
-    loading,
-  }: {
-    open: boolean;
-    onClose: () => void;
-    onConfirm: () => void;
-    count: number;
-    loading: boolean;
-  }) {
-    if (!open) return null;
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="relance-dialog-title"
-          className="bg-card border border-border/60 rounded-xl p-6 max-w-sm w-full mx-4 shadow-xl"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-10 h-10 rounded-full bg-lime/10 flex items-center justify-center">
-              <Send className="size-5 text-lime" />
-            </div>
-            <h3 id="relance-dialog-title" className="text-lg font-bold">{t("relanceDialog.title", { count })}</h3>
-          </div>
-          <p className="text-sm text-muted-foreground mb-6">
-            {t("relanceDialog.description")}
-            {count > 1 && " " + t("relanceDialog.descriptionPlural")}
-          </p>
-          <div className="flex gap-2 justify-end">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {t("relanceDialog.cancel")}
-            </button>
-            <button
-              type="button"
-              onClick={onConfirm}
-              disabled={loading}
-              className="px-5 py-2 text-sm font-medium bg-lime text-black rounded-lg hover:bg-lime/90 disabled:opacity-50 flex items-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <RefreshCw className="size-6 animate-spin" />
-                  {t("relanceDialog.sending")}
-                </>
-              ) : (
-                <>
-                  <Send className="size-6" />
-                  {t("relanceDialog.send")}
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  function EmptyState({ status, onClearFilter }: { status: StatusFilter; onClearFilter: () => void }) {
-    const configs: Record<StatusFilter, { icon: React.ComponentType<{ className?: string }>; title: string; description: string }> = {
-      ALL: { icon: Users, title: t("emptyState.all.title"), description: t("emptyState.all.description") },
-      INVITED: { icon: Mail, title: t("emptyState.invited.title"), description: t("emptyState.invited.description") },
-      ACCEPTED: { icon: CheckCircle, title: t("emptyState.accepted.title"), description: t("emptyState.accepted.description") },
-      REFUSED: { icon: XCircle, title: t("emptyState.refused.title"), description: t("emptyState.refused.description") },
-      BOUNCED: { icon: AlertTriangle, title: t("emptyState.bounced.title"), description: t("emptyState.bounced.description") },
-      EXPIRED: { icon: Hourglass, title: t("emptyState.expired.title"), description: t("emptyState.expired.description") },
-      NOT_INVITED: { icon: Users, title: t("emptyState.notInvited.title"), description: t("emptyState.notInvited.description") },
-    };
-
-    const cfg = configs[status] || configs.ALL;
-    const Icon = cfg.icon;
-
-    return (
-      <div className="py-16 px-6 text-center">
-        <div className="w-16 h-16 rounded-full bg-muted/30 flex items-center justify-center mx-auto mb-4">
-          <Icon className="size-8 text-muted-foreground" />
-        </div>
-        <h3 className="text-lg font-medium mb-1">{cfg.title}</h3>
-        <p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">{cfg.description}</p>
-        {status !== "ALL" && (
-          <button
-            type="button"
-            onClick={onClearFilter}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-lime hover:text-lime/80 transition-colors"
-          >
-            <Filter className="size-6" />
-            {t("emptyState.seeAll")}
-          </button>
-        )}
-      </div>
-    );
-  }
-
-  function StatusTabs({ active, onChange, stats }: { active: StatusFilter; onChange: (s: StatusFilter) => void; stats: InvitationStats }) {
-    return (
-      <div className="flex flex-wrap gap-1 bg-muted/30 p-1 rounded-xl">
-        {STATUS_FILTERS.map((status) => {
-          const cfg = STATUS_CONFIG[status] || { label: status, color: "text-muted-foreground", bg: "bg-transparent", icon: Users };
-          const Icon = cfg.icon;
-          const count = stats[status as keyof InvitationStats] || 0;
-          const isActive = active === status;
-          return (
-            <button
-              key={status}
-              type="button"
-              onClick={() => onChange(status)}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-white text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground hover:bg-white/50",
-              )}
-              title={cfg.description}
-            >
-              <Icon className={cn("size-3.5", isActive ? cfg.color : "text-muted-foreground")} />
-              <span>{cfg.label}</span>
-              <span className={cn("px-1.5 py-0.5 rounded-full text-xs font-mono", isActive ? "bg-lime text-black" : "bg-muted text-muted-foreground")}>
-                {count}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -642,7 +334,7 @@ export default function AdminInvitationsPage() {
 
       {/* Status Tabs */}
       {stats && (
-        <StatusTabs active={statusFilter} onChange={(s) => { setStatusFilter(s); setPage(1); }} stats={stats} />
+        <StatusTabs active={statusFilter} onChange={(s) => { setStatusFilter(s); setPage(1); }} stats={stats} config={STATUS_CONFIG} />
       )}
 
       {/* Search */}
@@ -673,22 +365,22 @@ export default function AdminInvitationsPage() {
             <thead>
               <tr className="border-b border-border/40 bg-muted/30 text-left">
                 <th className="px-4 py-3">
-                  <SortIcon key="firstName" label={t("tableHeaders.member")} />
+                  <SortIcon key="firstName" label={t("tableHeaders.member")} activeKey={sortConfig.key} direction={sortConfig.direction} onSort={handleSort} sortByTitle={(label: string) => t("sortBy", { label })} />
                 </th>
                 <th className="px-4 py-3">
-                  <SortIcon key="invitationStatus" label={t("tableHeaders.status")} />
+                  <SortIcon key="invitationStatus" label={t("tableHeaders.status")} activeKey={sortConfig.key} direction={sortConfig.direction} onSort={handleSort} sortByTitle={(label: string) => t("sortBy", { label })} />
                 </th>
                 <th className="px-4 py-3 hidden md:table-cell">
-                  <SortIcon key="level" label={t("tableHeaders.levelDomain")} />
+                  <SortIcon key="level" label={t("tableHeaders.levelDomain")} activeKey={sortConfig.key} direction={sortConfig.direction} onSort={handleSort} sortByTitle={(label: string) => t("sortBy", { label })} />
                 </th>
                 <th className="px-4 py-3 hidden lg:table-cell">
-                  <SortIcon key="country" label={t("tableHeaders.country")} />
+                  <SortIcon key="country" label={t("tableHeaders.country")} activeKey={sortConfig.key} direction={sortConfig.direction} onSort={handleSort} sortByTitle={(label: string) => t("sortBy", { label })} />
                 </th>
                 <th className="px-4 py-3 hidden lg:table-cell text-center">
-                  <SortIcon key="invitationClicks" label={t("tableHeaders.clicks")} />
+                  <SortIcon key="invitationClicks" label={t("tableHeaders.clicks")} activeKey={sortConfig.key} direction={sortConfig.direction} onSort={handleSort} sortByTitle={(label: string) => t("sortBy", { label })} />
                 </th>
                 <th className="px-4 py-3 hidden xl:table-cell">
-                  <SortIcon key="lastClickedAt" label={t("tableHeaders.lastEvent")} />
+                  <SortIcon key="lastClickedAt" label={t("tableHeaders.lastEvent")} activeKey={sortConfig.key} direction={sortConfig.direction} onSort={handleSort} sortByTitle={(label: string) => t("sortBy", { label })} />
                 </th>
                 <th className="px-4 py-3 w-28 text-right">
                   <span className="mono-label text-muted-foreground">{t("tableHeaders.actions")}</span>
@@ -708,12 +400,14 @@ export default function AdminInvitationsPage() {
               ) : sorted.length === 0 ? (
                 <tr>
                   <td colSpan={7}>
-                    <EmptyState status={statusFilter} onClearFilter={() => setStatusFilter("ALL")} />
+                    <EmptyState status={statusFilter} onClearFilter={() => setStatusFilter("ALL")} t={t} />
                   </td>
                 </tr>
               ) : (
                 sorted.map((m) => (
                   <MemberRow
+                    config={STATUS_CONFIG}
+                    t={t}
                     key={m.id}
                     member={m}
                     onRelance={(ids) => {
@@ -764,7 +458,373 @@ export default function AdminInvitationsPage() {
         onConfirm={() => handleRelance((selectedIds.size > 0 ? Array.from(selectedIds) : relanceableIds).slice(0, 50))}
         count={selectedIds.size > 0 ? selectedIds.size : relanceableIds.length}
         loading={relanceLoading}
+        t={t}
       />
+    </div>
+  );
+}
+
+/* ── Composants de présentation ─────────────────────────────────────────── */
+
+type StatusConfig = Record<
+  string,
+  {
+    label: string;
+    color: string;
+    bg: string;
+    icon: React.ComponentType<{ className?: string }>;
+    description: string;
+  }
+>;
+function SortIcon({
+  key,
+  label,
+  activeKey,
+  direction,
+  onSort,
+  sortByTitle,
+}: {
+  key: string;
+  label: string;
+  activeKey: string;
+  direction: "asc" | "desc";
+  onSort: (key: string) => void;
+  sortByTitle: (label: string) => string;
+}) {
+  const isActive = activeKey === key;
+  return (
+    <button
+      type="button"
+      onClick={() => onSort(key)}
+      className="flex items-center gap-1 hover:text-foreground transition-colors"
+      title={sortByTitle(label)}
+    >
+      <span className="mono-label text-muted-foreground">{label}</span>
+      {isActive && (
+        <span className="text-lime">{direction === "asc" ? "▲" : "▼"}</span>
+      )}
+    </button>
+  );
+};
+
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+  color,
+  active,
+  onClick,
+  description,
+}: {
+  label: string;
+  value: number;
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
+  active?: boolean;
+  onClick?: () => void;
+  description?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      {...(onClick ? { "aria-pressed": !!active } : {})}
+      className={cn(
+        "flex flex-col items-center gap-1.5 p-4 rounded-xl border transition-colors text-center min-w-0 relative overflow-hidden",
+        active
+          ? "border-lime/40 bg-lime/5 shadow-[0_0_0_1px_rgba(197,244,65,0.3)]"
+          : "border-border/40 bg-card hover:bg-lime/5 hover:border-lime/20",
+        onClick && "cursor-pointer",
+      )}
+      title={description}
+    >
+      <div className="relative">
+        <Icon className={cn("size-5", color)} />
+        {active && (
+          <span className="absolute -top-1 -right-1 size-2 bg-lime rounded-full border-2 border-card" />
+        )}
+      </div>
+      <span className="text-2xl font-bold tracking-tight">{value}</span>
+      <span className="mono-label text-muted-foreground">{label}</span>
+    </button>
+  );
+}
+
+function StatusBadge({
+  status,
+  config,
+}: {
+  status: string;
+  config: StatusConfig;
+}) {
+  const cfg = config[status] || config.NOT_INVITED;
+  const StatusIcon = cfg.icon;
+  return (
+    <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium", cfg.bg, cfg.color)}>
+      <StatusIcon className="size-3" />
+      {cfg.label}
+    </span>
+  );
+}
+
+function MemberRow({
+  member,
+  onRelance,
+  config,
+  t,
+}: {
+  member: MemberInvitation;
+  onRelance: (ids: string[]) => void;
+  config: StatusConfig;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  const cfg = config[member.invitationStatus] || config.NOT_INVITED;
+  const StatusIcon = cfg.icon;
+  const lastEvent = member.recentEvents[0];
+
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return "—";
+    return new Date(dateStr).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+  };
+
+  const getDomainLabel = (domain: string | null) => {
+    const labels = t.raw("domainLabels") as Record<string, string>;
+    return labels[domain || ""] || domain || "—";
+  };
+
+  const getLevelLabel = (level: string | null) => {
+    const labels = t.raw("levelLabels") as Record<string, string>;
+    return labels[level || ""] || level || "—";
+  };
+
+  return (
+    <tr className="border-b border-border/30 hover:bg-lime/5 transition-colors data-[status=invited]:bg-blue-500/5">
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-lime/10 flex items-center justify-center text-lime font-medium text-sm">
+            {(member.firstName?.[0] || member.email[0]).toUpperCase()}
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="font-medium text-sm truncate max-w-[200px]">{member.firstName || "—"}</span>
+            <span className="text-xs text-muted-foreground truncate max-w-[250px]">{member.email}</span>
+          </div>
+        </div>
+      </td>
+      <td className="px-4 py-3">
+        <StatusBadge status={member.invitationStatus} config={config} />
+      </td>
+      <td className="px-4 py-3 hidden md:table-cell">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-xs font-medium">{getLevelLabel(member.level)}</span>
+          <span className="text-xs text-muted-foreground">{getDomainLabel(member.primaryDomain)}</span>
+        </div>
+      </td>
+      <td className="px-4 py-3 hidden lg:table-cell text-xs text-muted-foreground">
+        {member.country || "—"}
+      </td>
+      <td className="px-4 py-3 hidden lg:table-cell text-center">
+        <div className="flex items-center justify-center gap-1">
+          {member.invitationClicks > 0 ? (
+            <>
+              <MailOpen className="size-3.5 text-lime" />
+              <span className="text-lime font-medium">{member.invitationClicks}</span>
+            </>
+          ) : (
+            <span className="text-muted-foreground">0</span>
+          )}
+        </div>
+      </td>
+      <td className="px-4 py-3 hidden xl:table-cell text-xs text-muted-foreground">
+        {lastEvent ? (
+          <div className="flex flex-col gap-0.5">
+            <span className="flex items-center gap-1">
+              {lastEvent.type === "email.opened" ? (
+                <MailOpen className="size-3 text-blue-400" />
+              ) : (
+                <ExternalLink className="size-3 text-lime" />
+              )}
+              {lastEvent.type === "email.opened" ? t("row.lastEventOpened") : t("row.lastEventClick")}
+            </span>
+            <span>{formatDate(lastEvent.at)}</span>
+          </div>
+        ) : member.lastClickedAt ? (
+          <span>{formatDate(member.lastClickedAt)}</span>
+        ) : (
+          "—"
+        )}
+      </td>
+      <td className="px-4 py-3 text-right">
+        {member.invitationStatus === "INVITED" && member.invitationClicks === 0 && (
+          <button
+            type="button"
+            onClick={() => onRelance([member.id])}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-400 hover:text-blue-300 bg-blue-500/10 rounded-lg hover:bg-blue-500/20 transition-colors"
+            title={t("row.relanceTitle")}
+          >
+            <RefreshCw className="size-3.5" />
+            {t("row.relance")}
+          </button>
+        )}
+        {member.invitationStatus === "INVITED" && member.invitationClicks > 0 && (
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs text-lime bg-lime/10 rounded-lg">
+            <CheckCircle className="size-3" />
+            {t("row.engaged")}
+          </span>
+        )}
+      </td>
+    </tr>
+  );
+}
+
+function RelanceDialog({
+  open,
+  onClose,
+  onConfirm,
+  count,
+  loading,
+  t,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  count: number;
+  loading: boolean;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="relance-dialog-title"
+        className="bg-card border border-border/60 rounded-xl p-6 max-w-sm w-full mx-4 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-10 h-10 rounded-full bg-lime/10 flex items-center justify-center">
+            <Send className="size-5 text-lime" />
+          </div>
+          <h3 id="relance-dialog-title" className="text-lg font-bold">{t("relanceDialog.title", { count })}</h3>
+        </div>
+        <p className="text-sm text-muted-foreground mb-6">
+          {t("relanceDialog.description")}
+          {count > 1 && " " + t("relanceDialog.descriptionPlural")}
+        </p>
+        <div className="flex gap-2 justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {t("relanceDialog.cancel")}
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={loading}
+            className="px-5 py-2 text-sm font-medium bg-lime text-black rounded-lg hover:bg-lime/90 disabled:opacity-50 flex items-center gap-2"
+          >
+            {loading ? (
+              <>
+                <RefreshCw className="size-6 animate-spin" />
+                {t("relanceDialog.sending")}
+              </>
+            ) : (
+              <>
+                <Send className="size-6" />
+                {t("relanceDialog.send")}
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EmptyState({
+  status,
+  onClearFilter,
+  t,
+}: {
+  status: StatusFilter;
+  onClearFilter: () => void;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  const configs: Record<StatusFilter, { icon: React.ComponentType<{ className?: string }>; title: string; description: string }> = {
+    ALL: { icon: Users, title: t("emptyState.all.title"), description: t("emptyState.all.description") },
+    INVITED: { icon: Mail, title: t("emptyState.invited.title"), description: t("emptyState.invited.description") },
+    ACCEPTED: { icon: CheckCircle, title: t("emptyState.accepted.title"), description: t("emptyState.accepted.description") },
+    REFUSED: { icon: XCircle, title: t("emptyState.refused.title"), description: t("emptyState.refused.description") },
+    BOUNCED: { icon: AlertTriangle, title: t("emptyState.bounced.title"), description: t("emptyState.bounced.description") },
+    EXPIRED: { icon: Hourglass, title: t("emptyState.expired.title"), description: t("emptyState.expired.description") },
+    NOT_INVITED: { icon: Users, title: t("emptyState.notInvited.title"), description: t("emptyState.notInvited.description") },
+  };
+
+  const cfg = configs[status] || configs.ALL;
+  const Icon = cfg.icon;
+
+  return (
+    <div className="py-16 px-6 text-center">
+      <div className="w-16 h-16 rounded-full bg-muted/30 flex items-center justify-center mx-auto mb-4">
+        <Icon className="size-8 text-muted-foreground" />
+      </div>
+      <h3 className="text-lg font-medium mb-1">{cfg.title}</h3>
+      <p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">{cfg.description}</p>
+      {status !== "ALL" && (
+        <button
+          type="button"
+          onClick={onClearFilter}
+          className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-lime hover:text-lime/80 transition-colors"
+        >
+          <Filter className="size-6" />
+          {t("emptyState.seeAll")}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function StatusTabs({
+  active,
+  onChange,
+  stats,
+  config,
+}: {
+  active: StatusFilter;
+  onChange: (s: StatusFilter) => void;
+  stats: InvitationStats;
+  config: StatusConfig;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1 bg-muted/30 p-1 rounded-xl">
+      {STATUS_FILTERS.map((status) => {
+        const cfg = config[status] || { label: status, color: "text-muted-foreground", bg: "bg-transparent", icon: Users };
+        const Icon = cfg.icon;
+        const count = stats[status as keyof InvitationStats] || 0;
+        const isActive = active === status;
+        return (
+          <button
+            key={status}
+            type="button"
+            onClick={() => onChange(status)}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+              isActive
+                ? "bg-white text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-white/50",
+            )}
+            title={cfg.description}
+          >
+            <Icon className={cn("size-3.5", isActive ? cfg.color : "text-muted-foreground")} />
+            <span>{cfg.label}</span>
+            <span className={cn("px-1.5 py-0.5 rounded-full text-xs font-mono", isActive ? "bg-lime text-black" : "bg-muted text-muted-foreground")}>
+              {count}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }
