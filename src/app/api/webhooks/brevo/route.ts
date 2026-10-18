@@ -2,8 +2,11 @@
  * Brevo webhook handler for HASHCODE REBOOT.
  *
  * Brevo ne signe pas ses webhooks (pas de Svix) : l'auth se fait via
- * `?secret=` comparé en temps constant à BREVO_WEBHOOK_SECRET
- * (fallback CRON_SECRET). Fail-closed en production.
+ * `?secret=` comparé en temps constant à BREVO_WEBHOOK_SECRET.
+ * Fail-closed : sans BREVO_WEBHOOK_SECRET, tout appel est refusé.
+ * Plus de repli sur CRON_SECRET : un secret passé en query string finit
+ * dans les logs d'accès (Traefik) et la console Brevo — il ne doit jamais
+ * être celui qui ouvre les crons (purge, envois massifs).
  *
  * Doc : https://developers.brevo.com/docs/how-to-use-webhooks
  * Payload : { event, email, id, date, "message-id", subject, tags[], link? }
@@ -54,8 +57,7 @@ interface BrevoWebhookEvent {
 type Logger = Awaited<ReturnType<typeof createLogger>>;
 
 function isSecretValid(provided: string | null): boolean {
-  const secret =
-    process.env.BREVO_WEBHOOK_SECRET || process.env.CRON_SECRET || "";
+  const secret = process.env.BREVO_WEBHOOK_SECRET || "";
   if (!secret || !provided) return false;
   const a = Buffer.from(provided, "utf8");
   const b = Buffer.from(secret, "utf8");

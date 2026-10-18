@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
   // Toujours retourner la même erreur pour éviter l'énumération d'emails
   // Le corps est parsé seulement pour valider la forme du schéma Zod
   // mais n'est utilisé nulle part (route délibérément inerte)
-  bodySchema.safeParse(await req.json());
+  bodySchema.safeParse(await req.json().catch(() => null));
 
   return NextResponse.json(
     { error: "Lien invalide ou expiré." },
@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
 
   if (postData.ok) {
     return new NextResponse(
-      `<!doctype html><html lang="fr"><body style="margin:0;padding:0;background:${bgColor};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;display:flex;justify-content:center;aligniments:center;min-height:100vh;"><div style="max-width:480px;width:100%;padding:32px;"><div style="background:${cardBg};border:1px solid #262626;border-radius:12px;padding:32px;"><div style="font-size:48px;margin-bottom:16px;">👋</div><h1 style="margin:0 0 12px 0;font-size:24px;color:${text};">Invitation refusée</h1><p style="margin:0;font-size:15px;line-height:1.6;color:${muted};">Merci pour ta réponse. Tu ne recevras plus d'emails d'invitation de la part de HASHCODE REBOOT.</p><div style="border-top:1px solid #262626;padding-top:16px;"><p style="margin:0;font-size:12px;color:#64748B;">HASHCODE · REBOOT</p></div></div></div></body></html>`,
+      `<!doctype html><html lang="fr"><body style="margin:0;padding:0;background:${bgColor};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;"><div style="max-width:480px;width:100%;padding:32px;"><div style="background:${cardBg};border:1px solid #262626;border-radius:12px;padding:32px;"><div style="font-size:48px;margin-bottom:16px;">👋</div><h1 style="margin:0 0 12px 0;font-size:24px;color:${text};">Invitation refusée</h1><p style="margin:0;font-size:15px;line-height:1.6;color:${muted};">Merci pour ta réponse. Tu ne recevras plus d'emails d'invitation de la part de HASHCODE REBOOT.</p><div style="border-top:1px solid #262626;padding-top:16px;"><p style="margin:0;font-size:12px;color:#64748B;">HASHCODE · REBOOT</p></div></div></div></body></html>`,
       { status: 200, headers: { "Content-Type": "text/html" } },
     );
   }

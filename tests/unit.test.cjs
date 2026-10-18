@@ -8,7 +8,7 @@
  * Coverage:
  *  - HMAC token issuance/verification (signature, expiry, rotation, tampering)
  *  - In-memory token bucket (capacity, refill, isolation, retry-after, overfill guard)
- *  - rateKey IP extraction (x-forwarded-for, x-real-ip, NextRequest.ip, anon)
+ *  - rateKey IP extraction (x-forwarded-for lu depuis la droite, anon)
  */
 
 "use strict";
@@ -217,45 +217,52 @@ describe("rate-limit: in-memory token bucket (unit)", () => {
 // ────────────────────────────────────────────────────────────────
 
 describe("rateKey: IP extraction (unit)", () => {
-  function rateKey(req) {
-    if (req.ip) return req.ip;
+  // Miroir de src/lib/rate-limit-key.ts (clientIpFromXff + rateKey).
+  function clientIpFromXff(xff, hops) {
+    const parts = xff.split(",").map((p) => p.trim()).filter(Boolean);
+    if (!parts.length) return null;
+    return parts[Math.max(0, parts.length - hops)] ?? null;
+  }
+  function rateKey(req, hops = 1) {
     const xff = req.headers.get("x-forwarded-for") ?? "";
-    return xff.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "anon";
+    return clientIpFromXff(xff, hops) || "anon";
   }
 
-  function makeReq(headers = {}, ip = undefined) {
+  function makeReq(headers = {}) {
     return {
-      ip,
       headers: { get: (name) => headers[name.toLowerCase()] ?? headers[name] ?? null },
     };
   }
 
-  test("x-forwarded-for: returns first IP (comma-separated)", () => {
-    assert.equal(rateKey(makeReq({ "x-forwarded-for": "1.2.3.4, 5.6.7.8" })), "1.2.3.4");
+  test("x-forwarded-for: single entry (Traefik) is the client IP", () => {
+    assert.equal(rateKey(makeReq({ "x-forwarded-for": "1.2.3.4" })), "1.2.3.4");
   });
 
-  test("x-forwarded-for: strips whitespace", () => {
-    assert.equal(rateKey(makeReq({ "x-forwarded-for": "  10.0.0.1  , 192.168.1.1" })), "10.0.0.1");
+  test("x-forwarded-for: client-forged first entry is ignored (1 hop)", () => {
+    assert.equal(rateKey(makeReq({ "x-forwarded-for": "6.6.6.6, 1.2.3.4" })), "1.2.3.4");
   });
 
-  test("x-real-ip: fallback when x-forwarded-for absent", () => {
-    assert.equal(rateKey(makeReq({ "x-real-ip": "9.8.7.6" })), "9.8.7.6");
+  test("x-forwarded-for: 2 hops (CDN + Traefik) keeps the CDN-seen IP", () => {
+    assert.equal(
+      rateKey(makeReq({ "x-forwarded-for": "6.6.6.6, 1.2.3.4, 10.0.0.2" }), 2),
+      "1.2.3.4",
+    );
   });
 
-  test("NextRequest.ip: takes precedence when available", () => {
-    assert.equal(rateKey(makeReq({}, "127.0.0.1")), "127.0.0.1");
+  test("x-forwarded-for: hops larger than the list falls back to first entry", () => {
+    assert.equal(rateKey(makeReq({ "x-forwarded-for": "1.2.3.4" }), 3), "1.2.3.4");
   });
 
-  test("NextRequest.ip: overrides x-forwarded-for when both present", () => {
-    assert.equal(rateKey(makeReq({ "x-forwarded-for": "1.2.3.4" }, "192.168.1.1")), "192.168.1.1");
+  test("x-forwarded-for: strips whitespace and empty entries", () => {
+    assert.equal(rateKey(makeReq({ "x-forwarded-for": " , 10.0.0.1  " })), "10.0.0.1");
   });
 
-  test("anon: fallback when no IP source is available", () => {
-    assert.equal(rateKey(makeReq({})), "anon");
+  test("x-real-ip alone is not trusted (client-controlled)", () => {
+    assert.equal(rateKey(makeReq({ "x-real-ip": "9.8.7.6" })), "anon");
   });
 
   test("anon: fallback when headers return null", () => {
-    assert.equal(rateKey({ ip: undefined, headers: { get: () => null } }), "anon");
+    assert.equal(rateKey({ headers: { get: () => null } }), "anon");
   });
 });
 

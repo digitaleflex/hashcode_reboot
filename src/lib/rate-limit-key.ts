@@ -1,28 +1,37 @@
 import { NextRequest } from "next/server";
 
-/** Extract a client key from the request for rate-limit purposes.
- *  Only trusts proxy headers when the request comes through a known proxy.
- *  In Vercel/Next.js production, `req.ip` is already resolved from the
- *  trusted proxy chain. We prefer that. For local/dev we fall back to
- *  headers but with a safe default. */
-export function rateKey(req: NextRequest): string {
-  // Best: Next.js resolves `req.ip` from trusted proxies (Vercel, etc.)
-  // It returns undefined if no IP could be determined.
-  const nextIp = (req as any).ip;
-  if (nextIp && nextIp !== "::1" && nextIp !== "127.0.0.1") {
-    return nextIp.trim();
-  }
+/** Nombre de proxys de confiance devant l'app (Traefik seul = 1). */
+function trustedProxyHops(): number {
+  const n = Number.parseInt(process.env.TRUSTED_PROXY_HOPS ?? "", 10);
+  return Number.isFinite(n) && n >= 1 ? n : 1;
+}
 
-  // Fallback for local/dev where req.ip may not be set: trust headers
-  // ONLY when we detect we're likely behind a proxy (via x-forwarded-for).
-  // We do NOT trust x-real-ip alone without x-forwarded-for present.
+/**
+ * IP client depuis `X-Forwarded-For`, lue depuis la DROITE.
+ *
+ * Chaque proxy AJOUTE l'adresse qu'il voit en fin de liste : seules les
+ * `hops` dernières entrées ont été écrites par une infra de confiance. La
+ * première entrée, elle, est entièrement contrôlée par le client — la lire
+ * permettait de contourner tous les rate-limits avec un header forgé.
+ * Avec 1 proxy (Traefik), c'est la dernière entrée ; derrière un CDN
+ * (Cloudflare → Traefik), poser TRUSTED_PROXY_HOPS=2.
+ */
+export function clientIpFromXff(xff: string, hops: number): string | null {
+  const parts = xff
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+  if (!parts.length) return null;
+  return parts[Math.max(0, parts.length - hops)] ?? null;
+}
+
+/** Extract a client key from the request for rate-limit purposes.
+ *  `req.ip` n'existe plus depuis Next 15 : l'IP vient de X-Forwarded-For,
+ *  lu côté proxy de confiance (cf. clientIpFromXff). */
+export function rateKey(req: NextRequest): string {
   const xff = req.headers.get("x-forwarded-for") ?? "";
-  if (xff) {
-    const first = xff.split(",")[0]?.trim();
-    if (first) {
-      return first;
-    }
-  }
+  const ip = clientIpFromXff(xff, trustedProxyHops());
+  if (ip) return ip;
 
   // Last resort: anonymous (should not happen in production behind proxy)
   return "anon";

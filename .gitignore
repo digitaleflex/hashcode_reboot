@@ -81,3 +81,7 @@ backups/
 
 # outillage local opencode (plugin better-compact + node_modules propres)
 /.opencode/
+
+# Rapports Playwright (générés)
+/playwright-report/
+/test-results/

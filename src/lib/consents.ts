@@ -61,6 +61,8 @@ export function isConsentProofValid(proof: unknown): boolean {
 
 export const consentBodySchema = z.object({
   // Optionnel : bandeau cookies + modale privacy postent sans email.
+  // `email`/`memberId` restent acceptés pour compatibilité mais IGNORÉS par
+  // POST /api/consents : l'identité vient uniquement de la session.
   email: z.string().trim().toLowerCase().email().max(200).optional(),
   purpose: z.enum(CONSENT_PURPOSES, {
     error: "Finalité inconnue (cookies, contact, profiling, handoff).",
