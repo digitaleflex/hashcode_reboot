@@ -44,10 +44,13 @@ describe("normalizeAdminRole (fail-closed)", () => {
 });
 
 describe("isPublicAdminPath (source unique proxy ↔ layout)", () => {
-  test("les 3 pages publiques sont reconnues exactement", () => {
+  test("la seule page publique est le redirecteur /admin/login", () => {
+    // Depuis la migration vers Better Auth (session membre + Member.adminRole),
+    // le système nominatif et ses pages /setup, /setup-2fa, /login/reset ont
+    // disparu : /admin/login n'est plus qu'un redirecteur vers /login.
     assert.equal(isPublicAdminPath("/admin/login"), true);
-    assert.equal(isPublicAdminPath("/admin/setup"), true);
-    assert.equal(isPublicAdminPath("/admin/setup-2fa"), true);
+    assert.equal(isPublicAdminPath("/admin/setup"), false);
+    assert.equal(isPublicAdminPath("/admin/setup-2fa"), false);
   });
 
   test("aucune autre page admin n'est publique", () => {
@@ -60,8 +63,9 @@ describe("isPublicAdminPath (source unique proxy ↔ layout)", () => {
     assert.equal(isPublicAdminPath("/dashboard"), false);
   });
 
-  test("la liste exportée correspond aux 3 chemins", () => {
-    assert.equal(PUBLIC_ADMIN_PATHS.length, 3);
+  test("la liste exportée contient exactement le redirecteur", () => {
+    assert.equal(PUBLIC_ADMIN_PATHS.length, 1);
+    assert.deepEqual([...PUBLIC_ADMIN_PATHS], ["/admin/login"]);
   });
 });
 

@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { toServerEventData } from "@/lib/analytics";
-import { isAdminAuthed, requireAdminRole, getAdminRole, checkCSRF } from "@/lib/admin-auth";
+import { isAdminAuthed, requireAdminRole, getAdminRole, getAdminIdentity, checkCSRF } from "@/lib/admin-auth";
+import { normalizeAdminRole, canChangeAdminRole, canRevokeAdmin } from "@/lib/admin-roles";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { normalizeAccessLane } from "@/lib/import/normalize";
 import { canTransition, deriveState, profileStatusToState } from "@/lib/acquisition-state";
@@ -163,6 +164,25 @@ export async function PATCH(
       data.accessLane = lane;
     }
 
+    // Rôle admin — `Member.adminRole` est la source de vérité UNIQUE de l'accès
+    // admin (cf. lib/admin-auth.ts) : c'est ici qu'on l'écrit depuis la fiche
+    // membre. La validation du rôle et les garde-fous (auto-révocation, dernier
+    // opérateur) sont appliqués plus bas, une fois `before` chargé.
+    let adminRolePatch: { next: "operator" | "viewer" | null } | null = null;
+    if (body.adminRole !== undefined) {
+      const raw = body.adminRole;
+      if (raw === null) {
+        adminRolePatch = { next: null };
+      } else {
+        const normalized = normalizeAdminRole(raw);
+        if (!normalized)
+          throw new ValidationError(
+            "adminRole invalide : attendu « operator », « viewer » ou null.",
+          );
+        adminRolePatch = { next: normalized };
+      }
+    }
+
     // Charger le member AVANT l'update pour comparer le statut (anti-doublon
     // + détection d'un vrai changement de statut).
     const before = await db.member.findUnique({
@@ -175,11 +195,60 @@ export async function PATCH(
         communityStatus: true,
         invitationStatus: true,
         profileArchetype: true,
+        adminRole: true,
         deletedAt: true,
       },
     });
     if (!before || before.deletedAt) {
       throw new NotFoundError("Membre introuvable.");
+    }
+
+    // Changement de rôle admin : fail-closed et garde-fous.
+    const currentRole = normalizeAdminRole(before.adminRole);
+    let adminRoleChange: {
+      from: "operator" | "viewer" | null;
+      to: "operator" | "viewer" | null;
+    } | null = null;
+    if (adminRolePatch && adminRolePatch.next !== currentRole) {
+      const target = adminRolePatch.next;
+      const actorEmail = await getAdminIdentity(req);
+      // On ne se retire pas soi-même l'accès admin (ni rétrogradation, ni
+      // révocation) : sinon un opérateur peut se verrouiller dehors.
+      if (before.email.toLowerCase() === actorEmail.trim().toLowerCase()) {
+        throw new ForbiddenError(
+          "Tu ne peux pas modifier ton propre rôle admin. Demande à un autre opérateur.",
+        );
+      }
+      // Rétrogradation/révocation : on protège le dernier opérateur.
+      if (currentRole === "operator" && target !== "operator") {
+        const operatorCount = await db.member.count({
+          where: { adminRole: "operator", deletedAt: null },
+        });
+        const guard =
+          target === "viewer"
+            ? canChangeAdminRole({
+                targetEmail: before.email,
+                from: "operator",
+                to: "viewer",
+                actorEmail,
+                operatorCount,
+              })
+            : canRevokeAdmin({
+                targetEmail: before.email,
+                targetRole: "operator",
+                actorEmail,
+                operatorCount,
+              });
+        if (!guard.ok) {
+          throw new ValidationError(
+            guard.reason === "LAST_OPERATOR"
+              ? "Impossible : c'est le dernier opérateur. Nomme un nouvel opérateur avant de le rétrograder ou de le révoquer."
+              : "Auto-révocation interdite.",
+          );
+        }
+      }
+      data.adminRole = target;
+      adminRoleChange = { from: currentRole, to: target };
     }
 
     const statusTransition =
@@ -251,6 +320,16 @@ export async function PATCH(
         "member",
         id,
         { from: statusTransition.from, to: statusTransition.to },
+        { type: "admin", role },
+      );
+    }
+    if (adminRoleChange) {
+      const role = (await getAdminRole(req)) ?? "operator";
+      void audit(
+        "member.admin-role",
+        "member",
+        id,
+        { from: adminRoleChange.from, to: adminRoleChange.to },
         { type: "admin", role },
       );
     }

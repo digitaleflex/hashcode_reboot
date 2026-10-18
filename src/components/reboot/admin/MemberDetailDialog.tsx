@@ -363,6 +363,8 @@ function MemberDetail({
   const [noteSaving, setNoteSaving] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
+  /** Rôle en cours d'écriture — null si aucun patch de rôle en vol. */
+  const [roleSaving, setRoleSaving] = React.useState<"operator" | "viewer" | null | undefined>(undefined);
   const [copiedField, setCopiedField] = React.useState<string | null>(null);
   const [copyError, setCopyError] = React.useState<string | null>(null);
   const tTags = useTranslations("admin.members.tags");
@@ -461,6 +463,20 @@ function MemberDetail({
       await onDelete();
     } finally {
       setDeleting(false);
+    }
+  }
+
+  /**
+   * Change le rôle admin via le PATCH générique (qui refresh le détail et la
+   * table). Les garde-fous serveur — auto-révocation interdite, dernier
+   * opérateur protégé — renvoient une erreur affichée dans le dialogue.
+   */
+  async function setAdminRole(next: "operator" | "viewer" | null) {
+    setRoleSaving(next);
+    try {
+      await onPatch({ adminRole: next });
+    } finally {
+      setRoleSaving(undefined);
     }
   }
 
@@ -928,9 +944,49 @@ function MemberDetail({
         </p>
       </div>
 
+      {/* Rôle admin — `Member.adminRole` est la source de vérité unique de
+          l'accès admin. L'écriture passe par PATCH /api/members/[id], qui
+          refuse l'auto-révocation et protège le dernier opérateur. */}
+      <div className="mt-5 pt-4 border-t border-border scroll-mt-24">
+        <MonoLabel>Rôle admin</MonoLabel>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Operator = accès complet · Viewer = lecture seule · Membre = aucun
+          accès à l&apos;espace admin.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {(
+            [
+              { value: "operator", label: "Opérateur" },
+              { value: "viewer", label: "Viewer" },
+              { value: null, label: "Membre" },
+            ] as const
+          ).map((opt) => {
+            const current = (m as { adminRole?: string | null }).adminRole ?? null;
+            const isCurrent = current === opt.value;
+            return (
+              <RebootButton
+                key={opt.label}
+                size="sm"
+                variant={isCurrent ? "primary" : "outline"}
+                loading={roleSaving === opt.value}
+                disabled={roleSaving !== null || isCurrent}
+                ariaLabel={`${opt.label}${isCurrent ? " (rôle actuel)" : ""}`}
+                onClick={() => void setAdminRole(opt.value)}
+              >
+                {opt.label}
+              </RebootButton>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Danger zone — delete member */}
       <div id="member-danger-zone" className="mt-5 pt-4 border-t border-destructive/30 scroll-mt-24">
-        <MonoLabel className="text-destructive/80">Suppression</MonoLabel>
+        <MonoLabel className="text-destructive/80">Blocage &amp; suppression</MonoLabel>
+        <p className="mt-1 text-xs text-muted-foreground">
+          La suppression est un blocage : le profil est désactivé et l&apos;email
+          ajouté à la blacklist (il ne pourra plus se réinscrire).
+        </p>
         {!confirmDelete ? (
           <button
             type="button"

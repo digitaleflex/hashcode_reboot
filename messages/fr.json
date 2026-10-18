@@ -1348,6 +1348,15 @@
     }
   },
   "auth": {
+    "common": {
+      "backHome": "Retour à HASHCODE REBOOT",
+      "skipToForm": "Aller au formulaire",
+      "progressLabel": "Étapes de la connexion",
+      "stepOne": "Email",
+      "stepTwo": "Code",
+      "stepDone": "terminée",
+      "backHomeShort": "Retour"
+    },
     "login": {
       "title": "Connexion",
       "subtitle": "Connecte-toi à ton espace HASHCODE REBOOT.",
@@ -1503,6 +1512,53 @@
     "supportLink": "contactez le support"
   },
   "dashboard": {
+    "settings": {
+      "pageTitle": "Paramètres",
+      "pageDescription": "Coordonnées, compte et session.",
+      "contactSection": {
+        "title": "Mes coordonnées",
+        "subtitle": "mets-les à jour à tout moment"
+      },
+      "accountSection": {
+        "title": "Compte",
+        "emailLabel": "Email",
+        "countryLabel": "Pays",
+        "memberSinceLabel": "Membre depuis",
+        "emailChangeNote": "Pour changer ton email, contacte-nous via WhatsApp. La suppression de ton compte se fait ci-dessous, sous « Mes données »."
+      },
+      "sessionSection": {
+        "title": "Session",
+        "description": "Déconnecte cet appareil."
+      },
+      "dataTitle": "Mes données",
+      "dataHint": "Exporte tout ce qu'on sait de toi, ou supprime ton compte.",
+      "dataSection": {
+        "title": "Mes données",
+        "description": "Exporte tout ce qu'on sait de toi, ou supprime ton compte.",
+        "delete": {
+          "title": "Supprimer mon compte",
+          "description": "Ton profil disparaît, tes sessions sont révoquées. Irréversible.",
+          "startButton": "Supprimer…",
+          "confirmText": "Pour confirmer, tape {word} ci-dessous.",
+          "confirmWord": "SUPPRIMER",
+          "ariaLabel": "Tape {word} pour confirmer",
+          "genericError": "Impossible de supprimer le compte.",
+          "networkError": "Erreur réseau. Vérifie ta connexion.",
+          "confirmButton": "Supprimer définitivement",
+          "deleting": "Suppression…",
+          "cancelButton": "Annuler"
+        },
+        "export": {
+          "title": "Exporter mes données",
+          "description": "Profil, progression, inscriptions et emails — fichier JSON.",
+          "download": "Télécharger",
+          "generating": "Génération…",
+          "rateLimitError": "Trop d'exports. Réessaie dans quelques minutes.",
+          "genericError": "Impossible de générer l'export.",
+          "networkError": "Erreur réseau. Vérifie ta connexion."
+        }
+      }
+    },
     "home": {
       "whatsappNudge": {
         "title": "Ajoute ton WhatsApp",
@@ -2265,13 +2321,13 @@
       "cityLabel": "Ville",
       "cityPlaceholder": "Ex. Cotonou",
       "genderLabel": "Genre",
-      "genderOptions": {
-        "unspecified": "Ne pas préciser",
-        "male": "Homme",
-        "female": "Femme",
-        "other": "Autre",
-        "preferNotSay": "Préfère ne pas dire"
-      },
+      "genderOptions": [
+        { "value": "unspecified", "label": "Ne pas préciser" },
+        { "value": "male", "label": "Homme" },
+        { "value": "female", "label": "Femme" },
+        { "value": "other", "label": "Autre" },
+        { "value": "preferNotSay", "label": "Préfère ne pas dire" }
+      ],
       "goalLabel": "Objectif à 3 mois",
       "goalPlaceholder": "Ex. Avoir décroché mon premier poste de dev web.",
       "goalHint": "4 caractères minimum. C'est ce qui t'aide à la validation.",
@@ -3344,10 +3400,10 @@
         "activeSession": "Session active : expiration dans {remaining}.",
         "draftsHint": "Tes brouillons (note, import) sont enregistrés sur cet appareil et restaurés après reconnexion. Termine ta saisie en cours.",
         "saveDraft": "Enregistrer le brouillon",
-        "reconnect": "Se reconnecter",
         "later": "Plus tard",
         "closeReminderAria": "Fermer le rappel de session",
         "closeRestoreAria": "Fermer le message de restauration",
+        "closeExpiredAria": "Fermer l'alerte de fin de session",
         "dismiss": "Écarter",
         "expiredTitle": "Session terminée.",
         "expiredHint": "Tes brouillons ont été conservés sur cet appareil. Reconnecte-toi pour les retrouver.",

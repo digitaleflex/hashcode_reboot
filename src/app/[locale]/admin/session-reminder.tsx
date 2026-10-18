@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Clock, X, RotateCcw, Save } from "lucide-react";
+import { Clock, X, Save } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 /**
@@ -103,6 +103,7 @@ export function SessionReminder() {
   const [now, setNow] = React.useState<number>(0);
   const [dismissedFirst, setDismissedFirst] = React.useState(false);
   const [dismissedLast, setDismissedLast] = React.useState(false);
+  const [expiredDismissed, setExpiredDismissed] = React.useState(false);
   const [restoreInfo, setRestoreInfo] = React.useState<string | null>(null);
   const [saveInfo, setSaveInfo] = React.useState<string | null>(null);
   const restoredRef = React.useRef(false);
@@ -203,6 +204,7 @@ export function SessionReminder() {
     remaining > 0 && remaining <= WARN_FIRST_MS && remaining > WARN_LAST_MS && !dismissedFirst;
   const showLast = remaining > 0 && remaining <= WARN_LAST_MS && !dismissedLast;
   const expired = remaining <= 0;
+  const showExpired = expired && !expiredDismissed;
 
   // À l'expiration, fige les brouillons une dernière fois.
   React.useEffect(() => {
@@ -213,16 +215,6 @@ export function SessionReminder() {
     const ok = saveDrafts(true);
     setSaveInfo(ok ? t("savedHere") : t("nothingToSave"));
     window.setTimeout(() => setSaveInfo(null), 3000);
-  }
-
-  function handleReconnect() {
-    saveDrafts(false);
-    try {
-      window.localStorage.removeItem(KEY_RESTORED);
-    } catch {
-      /* ignore */
-    }
-    window.location.href = "/admin/login";
   }
 
   function clearRestoreNotice(clearDrafts: boolean) {
@@ -238,7 +230,7 @@ export function SessionReminder() {
     }
   }
 
-  if (!showFirst && !showLast && !expired && !restoreInfo && !saveInfo) return null;
+  if (!showFirst && !showLast && !showExpired && !restoreInfo && !saveInfo) return null;
 
   return (
     <div aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex flex-col items-center gap-2 px-4">
@@ -297,14 +289,6 @@ export function SessionReminder() {
                 </button>
                 <button
                   type="button"
-                  onClick={handleReconnect}
-                  className="inline-flex min-h-[44px] items-center gap-1.5 rounded-md border border-lime/50 bg-lime/10 px-3 py-1.5 text-xs font-medium text-lime hover:bg-lime/15 focus-lime"
-                >
-                  <RotateCcw className="size-3.5" aria-hidden />
-                  {t("reconnect")}
-                </button>
-                <button
-                  type="button"
                   onClick={() => (showLast ? setDismissedLast(true) : setDismissedFirst(true))}
                   className="min-h-[44px] rounded-md px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground focus-lime"
                 >
@@ -324,23 +308,27 @@ export function SessionReminder() {
         </div>
       )}
 
-      {expired && (
+      {showExpired && (
         <div
           role="alert"
           className="pointer-events-auto w-full max-w-md rounded-md border border-destructive/40 bg-card px-4 py-3 shadow-lg"
         >
-          <p className="text-sm font-medium text-foreground">{t("expiredTitle")}</p>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            {t("expiredHint")}
-          </p>
-          <div className="mt-2.5">
+          <div className="flex items-start gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-foreground">
+                {t("expiredTitle")}
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                {t("expiredHint")}
+              </p>
+            </div>
             <button
               type="button"
-              onClick={handleReconnect}
-              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-md border border-lime/50 bg-lime/10 px-4 py-2 text-sm font-medium text-lime hover:bg-lime/15 focus-lime"
+              onClick={() => setExpiredDismissed(true)}
+              aria-label={t("closeExpiredAria")}
+              className="inline-flex size-9 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground focus-lime"
             >
-              <RotateCcw className="size-4" aria-hidden />
-              {t("reconnect")}
+              <X className="size-4" aria-hidden />
             </button>
           </div>
         </div>
