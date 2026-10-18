@@ -364,11 +364,15 @@ test.describe("funnel acquisition → conversion", () => {
     await ctx.close();
   });
 
-  test("loading soumission + accessibilité résultat (duplicate, zéro écriture)", async ({
+  test("loading soumission + accessibilité résultat (email inédit)", async ({
     browser,
   }) => {
     test.slow();
-    const mail = email("full"); // déjà converti : réponse duplicate
+    // Email INÉDIT : avec un email déjà converti, le flow affiche le prompt
+    // « Tu as déjà un compte » et ne soumet jamais — aucun écran de
+    // finalisation à observer. Le cas duplicate est couvert par le test
+    // d'idempotence juste au-dessus.
+    const mail = email("loading");
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
     await startProfiling(page);
@@ -378,22 +382,45 @@ test.describe("funnel acquisition → conversion", () => {
       await new Promise((r) => setTimeout(r, 2500));
       await route.continue();
     });
-    // Relecture → aperçu → soumission : deux "Finaliser" successifs.
+    // Relecture → aperçu → questions → soumission.
+    // Parcours réel : l'aperçu est une CONFIRMATION (son « Finaliser » revient
+    // aux questions), et maybeFinish() ne part que depuis la phase
+    // « questions », une fois TOUTES les requises répondues.
+    let posted = false;
     const postPromise = page
       .waitForResponse(isPost, { timeout: 150000 })
-      .then((r) => r)
+      .then((r) => {
+        posted = true;
+        return r;
+      })
       .catch(() => null);
-    const fin = page.getByRole("button", { name: "Finaliser mon profil" });
-    await fin.first().click();
-    const fin2 = page.getByRole("button", { name: "Finaliser mon profil" });
-    await fin2.first().click({ timeout: 15000 });
-    // POST retardé de 2,5 s par la route : l'écran de chargement est observable.
-    await expect(page.locator("body")).toContainText(/finalisation|presque prêt|une seconde/i, {
-      timeout: 15000,
+    for (let round = 0; round < 20 && !posted; round++) {
+      const f = page.getByRole("button", { name: "Finaliser mon profil" });
+      if ((await f.count()) > 0) {
+        try {
+          if (await f.first().isVisible({ timeout: 2000 })) await f.first().click();
+        } catch {}
+      } else {
+        const st = await answerStep(page, mail);
+        if (st === "review") continue;
+        if (st === "stuck") break;
+      }
+      await page.waitForTimeout(900);
+    }
+    // POST retardé de 2,5 s par la route : l'écran de chargement est
+    // observable. On attend les TEXTE RÉELS du parcours de soumission
+    // (messages `profiling.submitting.*`) — pas ceux de FinalizingState
+    // (« On finalise ton profil… »), qui est un autre écran : celui de
+    // l'étape de relecture, pas celui qui suit le POST.
+    await expect(
+      page.locator("body"),
+    ).toContainText(/enregistre ton profil|vérifications automatiques/i, {
+      timeout: 20000,
     });
     const resp = await postPromise;
     expect(resp).toBeTruthy();
     await page.unroute("**/api/members");
+    await page.waitForTimeout(500);
     const res = await axeClean(page, "resultat");
     expect(res.passes).toBeGreaterThan(0);
     await ctx.close();
