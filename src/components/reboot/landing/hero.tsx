@@ -43,7 +43,7 @@ export function Hero({ onJoin }: { onJoin: (ref?: string) => void }) {
         size={360}
       />
 
-      <div className="relative z-10">
+      <div className="relative z-10 pt-14 pb-24 lg:pt-24 lg:pb-32">
         <div className="shell">
           {/* Grille éditoriale — rails verticaux très discrets. */}
           <div className="relative">
@@ -135,9 +135,9 @@ export function Hero({ onJoin }: { onJoin: (ref?: string) => void }) {
                 return (
                   <li
                     key={s.n}
-                    className="flex items-start gap-3 rounded-lg border border-border/60 bg-card/70 p-4"
+                    className="flex items-start gap-4 rounded-xl border border-border bg-card/70 p-5 transition-colors hover:border-lime/35"
                   >
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-md border border-lime/40 bg-lime/5 text-lime">
+                    <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-lime/35 bg-lime/10 text-lime">
                       <Icon className="size-5" aria-hidden />
                     </span>
                     <span className="min-w-0">

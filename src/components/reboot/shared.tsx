@@ -44,9 +44,9 @@ export function RebootButton({
   // `.focus-lime` sur le conteneur (un seul indicateur, identique partout).
   const variants = {
     primary:
-      "bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/85 shadow-xs rounded-md font-medium",
+      "bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/85 rounded-full font-medium",
     ghost:
-      "bg-transparent text-foreground hover:bg-secondary active:bg-secondary/80 rounded-md font-medium",
+      "bg-transparent text-foreground hover:bg-secondary active:bg-secondary/80 rounded-full font-medium",
     outline:
       "bg-transparent text-foreground border border-border hover:border-lime/60 hover:text-lime active:border-lime/70 active:text-lime",
   };
@@ -60,7 +60,7 @@ export function RebootButton({
       aria-busy={loading || undefined}
       className={cn(
         buttonVariants({ variant: variant === "primary" ? "default" : variant === "outline" ? "outline" : "ghost", size: size === "lg" ? "lg" : size === "md" ? "default" : "sm" }),
-        "min-h-[44px] rounded-md focus-lime shadow-xs",
+        "min-h-[44px] rounded-full focus-lime",
         variant === "primary" && "bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/85",
         variant === "outline" && "border border-border hover:border-lime/60 hover:text-lime active:border-lime/70 active:text-lime",
         className,
