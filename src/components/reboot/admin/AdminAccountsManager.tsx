@@ -16,10 +16,10 @@ import {
 /**
  * Gestion des comptes admin (operator only).
  *
- * Affiche les membres ayant un `adminRole` (rôle, dernière connexion) + les
- * invitations en attente, et permet d'inviter, changer un rôle ou révoquer
- * un accès. Les garde-fous « dernier operator » et « pas sur soi-même »
- * vivent côté serveur (409 LAST_OPERATOR / SELF_REVOKE).
+ * Affiche les membres ayant un `adminRole` (rôle, dernière connexion) et
+ * permet d'accorder l'accès à un membre existant (email), de changer un rôle
+ * ou de révoquer un accès. Les garde-fous « dernier operator » et « pas sur
+ * soi-même » vivent côté serveur (409 LAST_OPERATOR / SELF_REVOKE).
  */
 
 interface AdminRow {
@@ -51,9 +51,8 @@ export function AdminAccountsManager({ onSessionExpired }: { onSessionExpired: (
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
-  // Formulaire d'invitation
+  // Formulaire d'octroi d'accès (promotion d'un membre existant)
   const [inviteEmail, setInviteEmail] = React.useState("");
-  const [inviteName, setInviteName] = React.useState("");
   const [inviteRole, setInviteRole] = React.useState<"operator" | "viewer">("viewer");
   const [inviting, setInviting] = React.useState(false);
   const [inviteFeedback, setInviteFeedback] = React.useState<string | null>(null);
@@ -99,34 +98,33 @@ export function AdminAccountsManager({ onSessionExpired }: { onSessionExpired: (
     e.preventDefault();
     setInviteFeedback(null);
     setInviting(true);
+    const email = inviteEmail.trim();
     try {
-      const { res, data, code } = await fetchJson("/api/admin/invite", {
+      const { res, code } = await fetchJson("/api/admin/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: inviteEmail.trim(),
-          name: inviteName.trim() || undefined,
-          role: inviteRole,
-        }),
+        body: JSON.stringify({ email, role: inviteRole }),
       });
       if (res.status === 401 || code === "UNAUTHORIZED") {
         onSessionExpired();
         return;
       }
       if (res.ok) {
-        setInviteFeedback(`Invitation envoyée à ${inviteEmail.trim()} (${inviteRole}).`);
+        const label = inviteRole === "operator" ? "opérateur" : "lecteur";
+        setInviteFeedback(`Accès ${label} accordé à ${email}.`);
         setInviteEmail("");
-        setInviteName("");
         void load();
-      } else if (code === "USER_EXISTS") {
-        setInviteFeedback("Un compte admin existe déjà pour cet email.");
-      } else if (code === "EMAIL_FAILED") {
-        setInviteFeedback("Compte invité mais l'email n'a pas pu être envoyé — réessaie.");
+      } else if (code === "NO_MEMBER") {
+        setInviteFeedback(
+          "Aucun compte membre pour cet email. La personne doit d'abord créer son compte (connexion par email).",
+        );
+      } else if (code === "LAST_OPERATOR") {
+        setInviteFeedback("Impossible : c'est le dernier operator.");
       } else {
-        setInviteFeedback("Invitation impossible.");
+        setInviteFeedback("Attribution impossible.");
       }
     } catch {
-      setInviteFeedback("Invitation impossible.");
+      setInviteFeedback("Attribution impossible.");
     } finally {
       setInviting(false);
     }
@@ -206,16 +204,20 @@ export function AdminAccountsManager({ onSessionExpired }: { onSessionExpired: (
         </div>
       )}
 
-      {/* Invitation */}
+      {/* Octroi d'accès (membre existant) */}
       <form onSubmit={handleInvite} className="rounded-md border border-border/60 bg-elevated/30 p-4 space-y-3">
         <div className="flex items-center gap-2">
           <UserPlus className="size-4 text-lime" aria-hidden />
-          <MonoLabel className="text-muted-foreground">Inviter un admin</MonoLabel>
+          <MonoLabel className="text-muted-foreground">Accorder l&apos;accès admin</MonoLabel>
         </div>
-        <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto_auto]">
+        <p className="text-xs text-muted-foreground">
+          L&apos;email doit correspondre à un membre existant. La personne crée son
+          compte via la connexion par email, puis tu lui accordes l&apos;accès ici.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto]">
           <div>
             <label htmlFor="invite-email" className="mono-label text-xs text-muted-foreground block mb-1">
-              Email
+              Email du membre
             </label>
             <input
               id="invite-email"
@@ -227,21 +229,6 @@ export function AdminAccountsManager({ onSessionExpired }: { onSessionExpired: (
               disabled={inviting}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-lime focus:outline-none focus:ring-1 focus:ring-lime disabled:opacity-50"
               placeholder="prenom@hashcode.fr"
-            />
-          </div>
-          <div>
-            <label htmlFor="invite-name" className="mono-label text-xs text-muted-foreground block mb-1">
-              Prénom (optionnel)
-            </label>
-            <input
-              id="invite-name"
-              type="text"
-              maxLength={120}
-              value={inviteName}
-              onChange={(e) => setInviteName(e.target.value)}
-              disabled={inviting}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-lime focus:outline-none focus:ring-1 focus:ring-lime disabled:opacity-50"
-              placeholder="Awa"
             />
           </div>
           <div>
@@ -262,7 +249,7 @@ export function AdminAccountsManager({ onSessionExpired }: { onSessionExpired: (
           <div className="flex items-end">
             <RebootButton type="submit" size="sm" disabled={inviting} className="gap-2 min-h-[38px]">
               {inviting ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <UserPlus className="size-4" aria-hidden />}
-              Inviter
+              Accorder
             </RebootButton>
           </div>
         </div>

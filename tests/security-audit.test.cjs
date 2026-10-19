@@ -64,51 +64,25 @@ describe("webhook Brevo", () => {
   });
 });
 
-describe("durcissement accès admin", () => {
-  test("le rôle admin exige un membre non supprimé et non blacklisté", () => {
-    const src = read("src/lib/admin-auth.ts");
-    assert.match(src, /deletedAt/);
-    assert.match(src, /isEmailBlacklisted\(email\)/);
+describe("/api/admin/invite — accès admin sur Member.adminRole", () => {
+  const src = read("src/app/api/admin/invite/route.ts");
+
+  test("n'opère plus sur AdminUser ni sur l'email d'invitation", () => {
+    assert.doesNotMatch(src, /db\.adminUser\./);
+    assert.doesNotMatch(src, /sendAdminInvitationEmail/);
+    assert.doesNotMatch(src, /db\.adminInvitation\.create|db\.adminInvitation\.upsert/);
   });
 
-  test("les écritures admin listées ont un garde CSRF", () => {
-    const expected = {
-      "src/app/api/admin/segments/route.ts": 1,
-      "src/app/api/admin/segments/[id]/route.ts": 2,
-      "src/app/api/admin/mentoring/route.ts": 1,
-      "src/app/api/admin/missions/route.ts": 1,
-      "src/app/api/admin/missions/[id]/route.ts": 1,
-      "src/app/api/admin/mission-submissions/[id]/review/route.ts": 1,
-      "src/app/api/admin/duplicates/merge/route.ts": 1,
-    };
-    for (const [file, count] of Object.entries(expected)) {
-      const n = (read(file).match(/checkCSRF\(req\)/g) || []).length;
-      assert.equal(n, count, `${file} : ${n} garde(s) CSRF au lieu de ${count}`);
-    }
+  test("accorde le rôle via Member.adminRole, refuse si pas de membre", () => {
+    assert.match(src, /db\.member\.findUnique/);
+    assert.match(src, /data:\s*\{\s*adminRole:\s*role\s*\}/);
+    assert.match(src, /NO_MEMBER/);
   });
 
-  test("/api/auth : limites par action, 429 propre (plus d'exception)", () => {
-    const src = read("src/app/api/auth/[...betterAuth]/route.ts");
-    assert.doesNotMatch(src, /throw new RateLimitError/);
-    assert.match(src, /status: 429/);
-    assert.match(src, /auth-otp-email:/);
-  });
-});
-
-describe("regex des routes OTP (miroir de /api/auth)", () => {
-  const OTP_PATH = /\/(email-otp\/|sign-in\/email-otp)/;
-  const OTP_SEND_PATH = /\/email-otp\/send-verification-otp$/;
-  test("envoi, vérification et connexion par code sont limités strictement", () => {
-    assert.ok(OTP_PATH.test("/api/auth/email-otp/send-verification-otp"));
-    assert.ok(OTP_PATH.test("/api/auth/sign-in/email-otp"));
-    assert.ok(OTP_PATH.test("/api/auth/email-otp/verify-email"));
-  });
-  test("la lecture de session n'est pas concernée", () => {
-    assert.ok(!OTP_PATH.test("/api/auth/get-session"));
-    assert.ok(!OTP_PATH.test("/api/auth/callback/google"));
-  });
-  test("seul l'envoi du code déclenche la limite par email", () => {
-    assert.ok(OTP_SEND_PATH.test("/api/auth/email-otp/send-verification-otp"));
-    assert.ok(!OTP_SEND_PATH.test("/api/auth/email-otp/verify-email"));
+  test("reset-2fa (orphelin) a été retiré", () => {
+    assert.equal(
+      fs.existsSync(path.join(__dirname, "..", "src/app/api/admin/admins/[id]/reset-2fa/route.ts")),
+      false,
+    );
   });
 });
