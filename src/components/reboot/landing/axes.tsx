@@ -54,14 +54,14 @@ export function Axes({ onJoin }: { onJoin: (ref?: string) => void }) {
               <StaggerItem
                 as="li"
                 key={a.id}
-                className="ds-card group flex flex-col transition-colors hover:border-lime/45"
+                className="ds-card group flex flex-col hover:-translate-y-0.5 hover:border-lime/45"
               >
                 <div className="flex items-center justify-between gap-3">
                   <span className="ds-overlabel ds-overlabel--accent leading-none">
                     {a.id}
                   </span>
                   {Icon && (
-                    <span className="flex size-9 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors group-hover:border-lime/45 group-hover:text-lime">
+                    <span className="flex size-11 items-center justify-center rounded-xl border border-lime/35 bg-lime/10 text-lime transition-colors">
                       <Icon className="size-4" aria-hidden />
                     </span>
                   )}
@@ -95,6 +95,7 @@ export function Axes({ onJoin }: { onJoin: (ref?: string) => void }) {
                 <div className="mt-auto pt-6">
                   <RebootButton
                     size="md"
+                    variant="outline"
                     onClick={() => onJoin(`axes-${a.id}`)}
                     ariaLabel={`${t("cta")} — ${a.title}`}
                     className="group/btn w-full"

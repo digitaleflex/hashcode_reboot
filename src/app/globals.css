@@ -50,15 +50,15 @@
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
 
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 12px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
 }
 
 /* HASHCODE dark theme is the default (no light theme). */
 :root {
-  --radius: 8px;
+  --radius: 14px;
 
   --background: #080A0C;          /* VOID premium */
   --foreground: #F5F7FA;         /* texte principal */
@@ -81,7 +81,7 @@
 
   --destructive: oklch(0.62 0.22 25);
 
-  --border: #454A52;                 /* bordure premium (WCAG AA) */
+  --border: #262B31;                 /* trait de séparation discret (cartes, tableaux) — les champs gardent --input, plus contrasté (WCAG 1.4.11) */
   --input: #5C636B;                  /* bordure de champ : ≥3:1 vs page/carte (WCAG 1.4.11) */
   --ring: #C5F441;                    /* lime ring */
 
@@ -144,8 +144,12 @@
 /* Subtle dotted grid background — engineered, not decorated */
 .bg-grid {
   background-image:
-    radial-gradient(circle at 1px 1px, rgba(248, 250, 252, 0.05) 1px, transparent 0);
-  background-size: 32px 32px;
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 64px 64px;
+  /* Fondu vers le bas : la grille s'efface au lieu de couper net. */
+  -webkit-mask-image: linear-gradient(#000, transparent 88%);
+  mask-image: linear-gradient(#000, transparent 88%);
 }
 
 /* Radial vignette — focuses attention on content, adds depth */
@@ -1018,11 +1022,11 @@
   --ds-tracking-normal: 0;
   --ds-tracking-wide: 0.08em;
 
-  /* Surfaces : rayons et gabarits de carte (cartes = 8px, contrôles = 6px) */
-  --ds-card-radius: var(--radius-lg); /* 8px */
-  --ds-control-radius: var(--radius-md); /* 6px */
-  --ds-card-pad: 20px; /* p-5 — carte compacte */
-  --ds-card-pad-lg: 24px; /* p-6 — carte standard */
+  /* Surfaces : rayons et gabarits de carte (cartes = 20px, contrôles = 10px) */
+  --ds-card-radius: var(--radius-xl); /* 20px */
+  --ds-control-radius: var(--radius-md); /* 10px */
+  --ds-card-pad: 24px; /* p-6 — carte compacte */
+  --ds-card-pad-lg: 32px; /* p-8 — carte standard */
 
   /* Interaction — durée/easing uniques (compositor-safe : couleur/bordure/opacité) */
   --ds-duration-fast: 160ms;
@@ -1037,17 +1041,16 @@
 /* — Display (hero / wordmark). Reproduit RebootTitle. — */
 .ds-display {
   font-family: var(--font-display);
-  font-weight: 800;
-  font-style: italic;
-  letter-spacing: var(--ds-tracking-tight);
-  line-height: 0.92;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 0.98;
   font-size: clamp(2.75rem, 13vw, 6rem);
 }
 @media (min-width: 640px) {
   .ds-display { font-size: 4.5rem; } /* text-7xl */
 }
 @media (min-width: 1024px) {
-  .ds-display { font-size: 6rem; } /* text-8xl */
+  .ds-display { font-size: 5.25rem; } /* 84px */
 }
 
 /* — Titres — */
@@ -1064,12 +1067,9 @@
 .ds-h2 {
   font-family: var(--font-display);
   font-weight: 700;
-  letter-spacing: var(--ds-tracking-tight);
-  line-height: 1.15;
-  font-size: var(--ds-text-2xl);
-}
-@media (min-width: 640px) {
-  .ds-h2 { font-size: var(--ds-text-3xl); }
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  font-size: clamp(1.875rem, 4.2vw, 2.75rem);
 }
 .ds-h3 {
   font-family: var(--font-display);
@@ -1113,10 +1113,15 @@
    `hover:border-lime/40`…) puissent surcharger. */
 @layer components {
   .ds-card {
-    border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+    border: 1px solid var(--border);
     border-radius: var(--ds-card-radius);
-    background: color-mix(in oklab, var(--card) 40%, transparent);
+    background: linear-gradient(
+      180deg,
+      var(--card),
+      color-mix(in oklab, var(--card) 65%, var(--background))
+    );
     padding: var(--ds-card-pad);
+    transition: border-color var(--ds-duration-fast) ease, transform 250ms ease;
   }
   @media (min-width: 640px) {
     .ds-card { padding: var(--ds-card-pad-lg); }
