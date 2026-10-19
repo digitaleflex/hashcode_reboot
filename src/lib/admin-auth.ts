@@ -11,6 +11,7 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { normalizeAdminRole } from "@/lib/admin-roles";
+import { isEmailBlacklisted } from "@/lib/blacklist";
 import type { AdminRole } from "@/lib/admin-roles";
 
 export type { AdminRole } from "@/lib/admin-roles";
@@ -32,7 +33,8 @@ type AdminContext = { email: string; role: AdminRole; twoFactorEnabled?: boolean
 
 /**
  * Chemin unique : session membre + Member.adminRole.
- * Fail-closed : membre absent, rôle null/inconnu, erreur DB ⇒ null.
+ * Fail-closed : membre absent ou supprimé, email blacklisté, rôle null/inconnu,
+ * erreur DB ⇒ null.
  */
 async function resolveAdminFromHeaders(
   headers: Record<string, string>,
@@ -43,10 +45,16 @@ async function resolveAdminFromHeaders(
     if (!email) return null;
     const member = await db.member.findUnique({
       where: { email },
-      select: { adminRole: true },
+      select: { adminRole: true, deletedAt: true },
     });
-    const role = normalizeAdminRole(member?.adminRole);
+    // Un membre supprimé (soft-delete) perd son accès admin immédiatement,
+    // même avec une session encore valide (cookieCache jusqu'à 1 h).
+    if (!member || member.deletedAt) return null;
+    const role = normalizeAdminRole(member.adminRole);
     if (!role) return null;
+    // Même coupe-circuit que `getSession` côté membre : un email blacklisté
+    // après sa connexion ne garde pas la main sur l'espace admin.
+    if (await isEmailBlacklisted(email)) return null;
     return { email, role };
   } catch {
     return null;

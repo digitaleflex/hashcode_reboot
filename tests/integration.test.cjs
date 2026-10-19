@@ -34,21 +34,18 @@
  *     remapped to the two endpoints above.
  *
  * Auth-call budget (READ THIS before adding a test) :
- *     `src/app/api/auth/[...betterAuth]/route.ts` wraps EVERY auth call
- *     (send + sign-in share one bucket) with `otp-signin:<ip>` :
- *     capacity 5 per 10 minutes. The 6th call within 10 min does NOT
- *     return 429 — the thrown RateLimitError escapes the handler and
- *     Next.js answers 500. Consequence : this whole file may issue at
- *     most 5 `/api/auth/*` calls, in this fixed order —
+ *     `src/app/api/auth/[...betterAuth]/route.ts` limits per action :
+ *     send / verify / sign-in by code share `auth-otp:<ip>` (20 per
+ *     10 min), `send-verification-otp` also has `auth-otp-email:<email>`
+ *     (5 per 10 min), everything else `auth-other:<ip>` (120 per
+ *     10 min). Overruns answer 429 with Retry-After (they used to escape
+ *     as a thrown error and surface as a 500). This file still issues
+ *     only 5 OTP calls, in this fixed order —
  *       send/unknown(200) → send/invalid(400) → sign-in/wrong(400) →
  *       sign-in/valid(200, jar cached) → sign-in/replay(400).
- *     Everything else reuses the cached jar (zero auth calls). The old
- *     login intents that do not fit the budget (missing/empty/invalid-JSON
- *     payloads, dedicated rate-limit burst) are NOT covered in-suite : a
- *     burst test would need 6+ calls and poison the bucket for the rest
- *     of the file. They require an isolated run, not more tests here.
- *     Compensating zero-budget coverage was added instead (pagination,
- *     compare mode, level filter — all real).
+ *     Everything else reuses the cached jar (zero auth calls). A dedicated
+ *     burst test (21+ OTP calls) would still poison the bucket for the
+ *     rest of the file and needs an isolated run.
  *
  * Post-logout note : Better Auth `cookieCache` (1 h) means a verify WITH
  *     the full jar still reads authed:true after server-side revocation.
