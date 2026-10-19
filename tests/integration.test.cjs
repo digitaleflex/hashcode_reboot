@@ -1048,9 +1048,7 @@ describe("Missions admin — accès et validation #222", () => {
 describe("Actions sensibles — garde opérateur #224", () => {
   before(ensureServer);
 
-  test("reset-2fa, revoke admin, blacklist → 403 sans session", async () => {
-    const r1 = await httpRequest("POST", "/api/admin/admins/nope/reset-2fa");
-    assert.equal(r1.status, 403);
+  test("revoke admin, blacklist → 403 sans session", async () => {
     const r2 = await httpRequest("DELETE", "/api/admin/admins?id=nope");
     assert.equal(r2.status, 403);
     const r3 = await httpRequest("POST", "/api/admin/blacklist", {

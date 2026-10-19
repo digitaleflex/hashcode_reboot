@@ -63,3 +63,26 @@ describe("webhook Brevo", () => {
     assert.doesNotMatch(src, /process\.env\.CRON_SECRET/);
   });
 });
+
+describe("/api/admin/invite — accès admin sur Member.adminRole", () => {
+  const src = read("src/app/api/admin/invite/route.ts");
+
+  test("n'opère plus sur AdminUser ni sur l'email d'invitation", () => {
+    assert.doesNotMatch(src, /db\.adminUser\./);
+    assert.doesNotMatch(src, /sendAdminInvitationEmail/);
+    assert.doesNotMatch(src, /db\.adminInvitation\.create|db\.adminInvitation\.upsert/);
+  });
+
+  test("accorde le rôle via Member.adminRole, refuse si pas de membre", () => {
+    assert.match(src, /db\.member\.findUnique/);
+    assert.match(src, /data:\s*\{\s*adminRole:\s*role\s*\}/);
+    assert.match(src, /NO_MEMBER/);
+  });
+
+  test("reset-2fa (orphelin) a été retiré", () => {
+    assert.equal(
+      fs.existsSync(path.join(__dirname, "..", "src/app/api/admin/admins/[id]/reset-2fa/route.ts")),
+      false,
+    );
+  });
+});
