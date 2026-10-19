@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { requireAdminRole, getAdminIdentity } from "@/lib/admin-auth";
+import { requireAdminRole, getAdminIdentity, checkCSRF } from "@/lib/admin-auth";
 import { audit } from "@/lib/admin-audit";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
@@ -86,6 +86,10 @@ export async function POST(req: NextRequest) {
   try {
     if (!(await requireAdminRole(req, "operator"))) {
       throw new ForbiddenError("Accès refusé.");
+    }
+    // CSRF : même garde que les autres écritures admin (origine = hôte).
+    if (!checkCSRF(req)) {
+      throw new ForbiddenError("CSRF validation failed.");
     }
     const blocked = blockIfTesting();
     if (blocked) return blocked;
