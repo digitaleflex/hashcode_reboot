@@ -10,8 +10,12 @@
  *
  * Doc : https://developers.brevo.com/docs/how-to-use-webhooks
  * Payload : { event, email, id, date, "message-id", subject, tags[], link? }
- * Events : sent, delivered, opened, clicked, softBounce, hardBounce,
- *          invalid, deferred, complaint, unsubscribed, blocked, error.
+ * Events Brevo (snake_case) : request, delivered, opened, unique_opened,
+ *          click, soft_bounce, hard_bounce, invalid_email, deferred,
+ *          spam, unsubscribed, blocked, error.
+ * `normalizeBrevoEvent` (src/lib/brevo-events.ts) mappe ces noms sur le
+ * vocabulaire interne ; les alias camelCase historiques restent acceptés.
+ * `proxy_open` / `unique_proxy_open` sont ignorés (ouvertures Apple MPP).
  *
  * Hard bounce / invalid / blocked → membre BOUNCED + blacklist + notif admin.
  * Click → invitationClicks++ (visible dans /admin/invitations).
@@ -23,25 +27,15 @@ import { db } from "@/lib/db";
 import { toServerEventData } from "@/lib/analytics";
 import { createLogger, serializeError } from "@/lib/logging";
 import { sendBouncedNotificationEmail } from "@/lib/email/builders";
+import {
+  normalizeBrevoEvent,
+  type BrevoEventType,
+} from "@/lib/brevo-events";
 
 export const runtime = "nodejs";
 
-type BrevoEventType =
-  | "sent"
-  | "delivered"
-  | "opened"
-  | "clicked"
-  | "softBounce"
-  | "hardBounce"
-  | "invalid"
-  | "deferred"
-  | "complaint"
-  | "unsubscribed"
-  | "blocked"
-  | "error";
-
-interface BrevoWebhookEvent {
-  event: BrevoEventType;
+interface BrevoWebhookPayload {
+  event: string;
   email?: string;
   id?: number;
   date?: string;
@@ -52,6 +46,10 @@ interface BrevoWebhookEvent {
   link?: string;
   sending_ip?: string;
   reason?: string;
+}
+
+interface BrevoWebhookEvent extends Omit<BrevoWebhookPayload, "event"> {
+  event: BrevoEventType;
 }
 
 type Logger = Awaited<ReturnType<typeof createLogger>>;
@@ -274,21 +272,33 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    let event: BrevoWebhookEvent;
+    let payload: BrevoWebhookPayload;
     try {
-      event = (await req.json()) as BrevoWebhookEvent;
+      payload = (await req.json()) as BrevoWebhookPayload;
     } catch {
       logger.error("Invalid JSON payload");
       return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
     }
 
-    if (!event?.event || !event?.email) {
+    if (!payload?.event || !payload?.email) {
       logger.warn("Brevo webhook missing event/email");
       return NextResponse.json({ error: "Bad payload" }, { status: 422 });
     }
 
+    const eventType = normalizeBrevoEvent(payload.event);
+    if (!eventType) {
+      // Événement inconnu ou volontairement ignoré (`proxy_open`,
+      // `unique_proxy_open`…). On répond 200 pour éviter les retries Brevo,
+      // sans écrire d'EmailEvent.
+      logger.debug("Unhandled Brevo event", { type: payload.event });
+      return NextResponse.json({ ok: true, ignored: payload.event });
+    }
+
+    const event: BrevoWebhookEvent = { ...payload, event: eventType };
+
     logger.info("Brevo webhook received", {
       type: event.event,
+      rawType: payload.event,
       email: event.email,
       tags: event.tags,
     });

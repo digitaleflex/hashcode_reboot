@@ -49,6 +49,7 @@
     "test:analytics-dictionary": "tsx --test tests/analytics-dictionary.test.ts",
     "test:public-events": "tsx --test tests/public-events.test.ts",
     "test:admin-export": "tsx --test tests/admin-export.test.ts",
+    "test:brevo-events": "tsx --test tests/brevo-events.test.ts",
     "test:roadmap-status": "tsx --test tests/roadmap-status.test.ts"
   },
   "dependencies": {
