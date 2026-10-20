@@ -49,7 +49,8 @@
     "test:analytics-dictionary": "tsx --test tests/analytics-dictionary.test.ts",
     "test:public-events": "tsx --test tests/public-events.test.ts",
     "test:admin-export": "tsx --test tests/admin-export.test.ts",
-    "test:roadmap-status": "tsx --test tests/roadmap-status.test.ts"
+    "test:roadmap-status": "tsx --test tests/roadmap-status.test.ts",
+    "smoke:journey": "node scripts/smoke-journey.cjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

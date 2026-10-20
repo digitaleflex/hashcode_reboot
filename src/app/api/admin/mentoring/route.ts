@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireAdminRole } from "@/lib/admin-auth";
+import { requireAdminRole, checkCSRF } from "@/lib/admin-auth";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
 import { bodyLimit } from "@/lib/body-limit";
@@ -287,6 +287,10 @@ export async function POST(req: NextRequest) {
     if (blocked) return blocked;
     if (!(await requireAdminRole(req, "operator"))) {
       throw new ForbiddenError("Accès refusé.");
+    }
+    // CSRF : même garde que les autres écritures admin (origine = hôte).
+    if (!checkCSRF(req)) {
+      throw new ForbiddenError("CSRF validation failed.");
     }
     const tooLarge = bodyLimit(req);
     if (tooLarge) return tooLarge;
