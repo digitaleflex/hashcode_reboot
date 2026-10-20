@@ -15,6 +15,7 @@ import assert from "node:assert/strict";
 import {
   workshopToActivity,
   eventToActivity,
+  missionToActivity,
 } from "../src/lib/orientation/activities";
 import {
   matchActivityList,
@@ -145,6 +146,38 @@ describe("m4 — eventToActivity", () => {
       }),
       null,
     );
+  });
+});
+
+describe("m4 — missionToActivity", () => {
+  test("mission publiée → challenge routé vers le parcours membre", () => {
+    const a = missionToActivity({
+      id: "m1",
+      slug: "git-essentials",
+      title: "Git Essentials",
+      description: "Maîtrise Git.",
+      domain: "web",
+      level: "beginner",
+    });
+    assert.equal(a.type, "challenge");
+    assert.equal(a.id, "mission:git-essentials");
+    assert.equal(a.url, "/dashboard/missions/m1");
+    assert.deepEqual(a.domains, ["web"]);
+    assert.deepEqual(a.levels, ["beginner"]);
+    assert.equal(a.status, "published");
+  });
+
+  test("domaine/niveau inconnus ou null → ouverts, jamais exclus", () => {
+    const a = missionToActivity({
+      id: "m2",
+      slug: "x",
+      title: "X",
+      description: null,
+      domain: null,
+      level: "gourou",
+    });
+    assert.equal(a.domains, undefined);
+    assert.equal(a.levels, undefined);
   });
 });
 

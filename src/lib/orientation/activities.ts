@@ -68,6 +68,34 @@ export function workshopToActivity(w: WorkshopRow): AvailableActivity | null {
   };
 }
 
+type MissionRow = {
+  id: string;
+  slug: string;
+  title: string;
+  description: string | null;
+  domain: string | null;
+  level: string | null;
+};
+
+/** Mission publiée → activité « challenge » (parcours membre dédié). */
+export function missionToActivity(m: MissionRow): AvailableActivity {
+  return {
+    id: `mission:${m.slug}`,
+    type: "challenge",
+    title: m.title,
+    description: m.description ?? "",
+    domains: listOf(m.domain, (x): x is Domain => asDomain(x) !== undefined) as
+      | Domain[]
+      | undefined,
+    levels: listOf(m.level, (x): x is Level => asLevel(x) !== undefined) as
+      | Level[]
+      | undefined,
+    status: "published",
+    url: `/dashboard/missions/${m.id}`,
+    tags: ["mission", "challenge"],
+  };
+}
+
 type EventRow = {
   id: string;
   title: string;
@@ -112,7 +140,7 @@ export function eventToActivity(e: EventRow): AvailableActivity | null {
  * Adaptateur fin — toute erreur remonte à l'appelant (fallback seed).
  */
 export async function loadPublishedActivities(): Promise<AvailableActivity[]> {
-  const [workshops, events] = await Promise.all([
+  const [workshops, events, missions] = await Promise.all([
     db.workshop.findMany({
       where: { status: "published" },
       select: {
@@ -140,6 +168,19 @@ export async function loadPublishedActivities(): Promise<AvailableActivity[]> {
       take: ACTIVITY_LOAD_LIMIT,
       orderBy: { startsAt: "asc" },
     }),
+    db.mission.findMany({
+      where: { status: "PUBLISHED" },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        description: true,
+        domain: true,
+        level: true,
+      },
+      take: ACTIVITY_LOAD_LIMIT,
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    }),
   ]);
 
   const out: AvailableActivity[] = [];
@@ -150,6 +191,9 @@ export async function loadPublishedActivities(): Promise<AvailableActivity[]> {
   for (const e of events) {
     const a = eventToActivity(e);
     if (a) out.push(a);
+  }
+  for (const m of missions) {
+    out.push(missionToActivity(m));
   }
   return out;
 }

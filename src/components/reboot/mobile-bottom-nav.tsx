@@ -8,6 +8,7 @@ import {
   User,
   Settings,
   BookOpen,
+  Flag,
   Shield,
   Users,
   Mail,
@@ -25,9 +26,9 @@ interface NavItem {
 const DASHBOARD_ITEMS: NavItem[] = [
   { label: "Accueil", href: "/dashboard", icon: LayoutDashboard },
   { label: "Ateliers", href: "/dashboard/ateliers", icon: BookOpen },
+  { label: "Missions", href: "/dashboard/missions", icon: Flag },
   { label: "Agenda", href: "/dashboard/agenda", icon: Calendar },
   { label: "Profil", href: "/dashboard/profile", icon: User },
-  { label: "Paramètres", href: "/dashboard/settings", icon: Settings },
 ];
 
 const ADMIN_ITEMS: NavItem[] = [
