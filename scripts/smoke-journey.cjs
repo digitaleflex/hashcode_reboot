@@ -19,6 +19,8 @@
  * aucun fournisseur d'emails n'est nécessaire.
  * Sortie : code 0 si tout passe, 1 sinon.
  */
+// Script Node en CommonJS (comme tests/**/*.cjs, déjà exclu du lint).
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { PrismaClient } = require("@prisma/client");
 
 const BASE = process.env.BASE_URL || "http://localhost:3000";
