@@ -4,7 +4,7 @@ import * as React from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { COUNTRIES, countryFlag, countryName } from "@/lib/profiling/countries";
-import { ChevronDown, Search } from "lucide-react";
+import { Check, ChevronDown, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 export function CountrySelect({
@@ -40,7 +40,7 @@ export function CountrySelect({
         <button
           type="button"
           className={cn(
-            "w-full h-12 rounded-md border bg-card px-4 flex items-center justify-between gap-3 transition-colors duration-200 focus-lime",
+            "w-full h-14 rounded-2xl border bg-card px-4 flex items-center justify-between gap-3 transition-colors duration-200 focus-lime",
             value ? "border-lime" : "border-border hover:border-lime/50",
           )}
           aria-label={t("countrySelect.selectCountry")}
@@ -76,6 +76,15 @@ export function CountrySelect({
             ref={inputRef}
             value={q}
             onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => {
+              // Entrée = premier résultat : on tape « Bén » + Entrée, sans souris.
+              if (e.key === "Enter" && filtered.length > 0) {
+                e.preventDefault();
+                onChange(filtered[0].code);
+                setOpen(false);
+                setQ("");
+              }
+            }}
             placeholder={t("countrySelect.searchPlaceholder")}
             autoComplete="country"
             spellCheck={false}
@@ -107,7 +116,7 @@ export function CountrySelect({
               <span className="text-lg leading-none">{c.flag}</span>
               <span className="flex-1">{c.name}</span>
               {value === c.code && (
-                <span className="mono-label text-lime">âœ“</span>
+                <Check className="size-4 text-lime" aria-hidden />
               )}
             </button>
           ))}

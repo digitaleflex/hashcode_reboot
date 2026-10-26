@@ -2,7 +2,7 @@
 
 import { SiteHeader } from "./landing/site-header";
 import { Hero } from "./landing/hero";
-import { Evolves } from "./landing/evolves";
+import { AudienceMarquee } from "./landing/audience-marquee";
 import { Axes } from "./landing/axes";
 import { Method } from "./landing/method";
 import { Engine } from "./landing/engine";
@@ -28,6 +28,10 @@ import { useTranslations } from "next-intl";
  * `onJoin` prend désormais un `ref` optionnel qui identifie le CTA
  * déclenché — les événements analytics gardent leurs noms d'origine.
  *
+ * Refonte 2026-10 : `Evolves` (« HASHCODE évolue », discours interne) sort
+ * du parcours — un nouveau visiteur a besoin de se reconnaître (bandeau
+ * d'audiences) puis de voir les axes, pas de l'historique du projet.
+ *
  * Sections retirées :
  * - `Testimonial` : témoignage fabriqué (« Aïcha · Étudiante »), remplacé par
  *   la carte de profil réelle et étiquetée en démonstration dans `Engine`.
@@ -44,7 +48,7 @@ export function Landing({
   const t = useTranslations("landing.a11y");
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen flex-col overflow-x-clip bg-background">
       {/* Premier élément focusable : permet de sauter la nav vers <main>. */}
       <SkipLink targetId="contenu" label={t("skipToContent")} />
       <SiteHeader onJoin={onJoin} />
@@ -52,7 +56,7 @@ export function Landing({
       {/* Le <main> était absent : aucune landmark de contenu sur la page. */}
       <main id="contenu" className="flex-1">
         <Hero onJoin={onJoin} />
-        <Evolves />
+        <AudienceMarquee />
         <Axes onJoin={onJoin} />
         <Method />
         <Engine onJoin={onJoin} />

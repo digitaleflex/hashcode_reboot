@@ -47,8 +47,10 @@ export function MobileBottomNav() {
 
   // Safe active check: exact for root items, prefix for sub-routes
   const isActive = (href: string) =>
+    // Racines : correspondance exacte. Avec `startsWith(href + "/")`,
+    // « Accueil » restait actif sur toutes les sous-pages (2 onglets actifs).
     href === "/dashboard" || href === "/admin/stats"
-      ? pathname === href || pathname.startsWith(href + "/")
+      ? pathname === href || pathname === href + "/"
       : pathname.startsWith(href);
 
   return (

@@ -1,7 +1,7 @@
 "use client";
 
 import { Users, Swords, Video, LifeBuoy } from "lucide-react";
-import { CtaArrow, RebootButton, SectionHeader, Tag } from "../shared";
+import { CtaArrow, RebootButton, SectionHeader } from "../shared";
 import { LiveMemberCount } from "./social-proof";
 import { Reveal, Stagger, StaggerItem } from "../motion/primitives";
 import { useTranslations } from "next-intl";
@@ -20,7 +20,6 @@ const CARD_ICONS = [Swords, Video, LifeBuoy] as const;
  */
 export function Community({ onJoin }: { onJoin: (ref?: string) => void }) {
   const t = useTranslations("landing.community");
-  const audiences = t.raw("audiences") as string[];
   const cards = t.raw("cards") as Array<{
     t: string;
     d: string;
@@ -44,27 +43,36 @@ export function Community({ onJoin }: { onJoin: (ref?: string) => void }) {
 
         <div className="mt-12 grid gap-4 lg:grid-cols-12">
           {/* Tuile principale : le compteur réel. */}
-          <Reveal className="lg:col-span-5">
-            <div className="ds-card relative flex h-full flex-col justify-between gap-8 overflow-hidden sm:p-8">
-              {/* Aura lime très faible — profondeur, pas décoration. */}
-              <div
-                className="pointer-events-none absolute -left-16 -top-16 size-48 rounded-full blur-3xl"
-                style={{ background: "var(--primary)", opacity: 0.05 }}
-                aria-hidden
-              />
-              <div className="flex items-center gap-2.5 text-muted-foreground">
+          <Reveal className="lg:col-span-12">
+            <div className="ds-card surface-accent relative flex h-full flex-col gap-8 overflow-hidden sm:p-10 lg:min-h-[240px] lg:flex-row lg:items-end lg:justify-between">
+              <div className="grid-radial opacity-60" aria-hidden />
+              <div className="relative flex items-center gap-2.5 text-muted-foreground lg:absolute lg:left-10 lg:top-10">
                 <Users className="size-4 shrink-0" aria-hidden />
                 <span className="ds-overlabel">
                   {t("liveAria")}
                 </span>
               </div>
-              <LiveMemberCount />
+              <div className="relative">
+                <LiveMemberCount size="xl" />
+              </div>
+              <div className="relative flex flex-col items-start gap-3 lg:max-w-sm lg:items-end lg:text-right">
+                <p className="text-sm leading-relaxed text-muted-foreground">{t("ctaNote")}</p>
+                <RebootButton
+                  size="lg"
+                  onClick={() => onJoin("community")}
+                  ariaLabel={t("ctaAria")}
+                  className="group"
+                >
+                  {t("counterCta")}
+                  <CtaArrow />
+                </RebootButton>
+              </div>
             </div>
           </Reveal>
 
           {/* 3 formats d'activité — empilés à droite sur mobile. */}
           <Stagger
-            className="grid gap-4 sm:grid-cols-3 lg:col-span-7 lg:grid-cols-1"
+            className="grid gap-4 sm:grid-cols-3 lg:col-span-12"
             stagger={0.08}
           >
             {cards.map((c, i) => {
@@ -100,38 +108,9 @@ export function Community({ onJoin }: { onJoin: (ref?: string) => void }) {
           </Stagger>
         </div>
 
-        {/* Profils types — ancienne section « audience », replacée ici. */}
-        <Reveal delay={0.06} className="mt-12">
-          <h3 className="ds-overlabel">
-            {t("audiencesLabel")}
-          </h3>
-          <ul role="list" className="mt-4 flex flex-wrap gap-2">
-            {audiences.map((a) => (
-              <li key={a}>
-                <Tag>{a}</Tag>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-4 text-sm text-muted-foreground">{t("note")}</p>
-        </Reveal>
+        {/* Profils types : désormais dans le bandeau `AudienceMarquee` sous le hero. */}
+        <p className="mt-8 text-sm text-muted-foreground">{t("note")}</p>
 
-        <Reveal
-          delay={0.08}
-          className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
-        >
-          <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
-            {t("ctaNote")}
-          </p>
-          <RebootButton
-            size="lg"
-            onClick={() => onJoin("community")}
-            ariaLabel={t("ctaAria")}
-            className="group w-full sm:w-auto"
-          >
-            {t("cta")}
-            <CtaArrow />
-          </RebootButton>
-        </Reveal>
       </div>
     </section>
   );

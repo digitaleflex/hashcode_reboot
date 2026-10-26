@@ -22,7 +22,7 @@ export function SocialProofStat({ value, label }: { value: string; label: string
 }
 
 /** Live member count — fetches the public count from /api/community/count. */
-export function LiveMemberCount() {
+export function LiveMemberCount({ size = "md" }: { size?: "md" | "xl" } = {}) {
   const t = useTranslations("landing.footer.liveCount");
   const [count, setCount] = React.useState<number | null>(null);
   React.useEffect(() => {
@@ -37,11 +37,17 @@ export function LiveMemberCount() {
     return () => ctrl.abort();
   }, []);
   return (
-    <div className="flex flex-col items-center gap-1">
-      <span className="font-display font-bold text-2xl sm:text-3xl text-lime tabular-nums">
+    <div className={size === "xl" ? "flex flex-col items-start gap-2" : "flex flex-col items-center gap-1"}>
+      <span
+        className={
+          size === "xl"
+            ? "font-display text-6xl font-bold tracking-tight text-gradient-lime tabular-nums sm:text-7xl"
+            : "font-display font-bold text-2xl sm:text-3xl text-lime tabular-nums"
+        }
+      >
         {count !== null ? `${count}` : t("valueEmpty")}
       </span>
-      <span className="soft-note text-center">
+      <span className={size === "xl" ? "text-base text-muted-foreground" : "soft-note text-center"}>
         {count !== null ? t("labelWithCount") : t("labelEmpty")}
       </span>
     </div>

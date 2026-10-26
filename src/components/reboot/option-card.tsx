@@ -1,12 +1,14 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
+import { EmojiIcon } from "./emoji-icon";
 import type { QuestionOption } from "@/lib/profiling/types";
 import { useTranslations } from "next-intl";
 
 type Variant = "radio" | "checkbox";
+
 
 export function OptionCard({
   option,
@@ -38,40 +40,17 @@ export function OptionCard({
       aria-pressed={selected}
       aria-label={selected ? t("optionCard.selected", { label: option.label }) : option.label}
       className={cn(
-        "group relative w-full text-left rounded-md border bg-card transition-colors duration-200 focus-lime",
-        "hover:border-lime/60 hover:bg-elevated/50",
+        "group relative w-full text-left rounded-2xl border transition-all duration-200 focus-lime",
+        "hover:border-lime/50 hover:bg-white/[0.03]",
         selected
-          ? "border-lime bg-lime/5"
-          : "border-border",
-        compact ? "p-3.5" : "p-4 sm:p-5",
+          ? "border-lime bg-lime/[0.07] shadow-[0_0_0_1px_var(--primary),0_12px_32px_-16px_color-mix(in_oklab,var(--primary)_45%,transparent)]"
+          : "border-[var(--line-soft)] bg-card",
+        compact ? "p-3.5" : "p-4 sm:p-[18px]",
       )}
     >
-      {/* Numeric shortcut hint (1-9) â€” desktop only, subtle */}
-      {typeof index === "number" && index < 9 && (
-        <span
-          className={cn(
-            "absolute top-2 right-2.5 size-5 rounded-sm flex items-center justify-center text-[11px] font-mono transition-opacity duration-200",
-            "border border-border/70 text-muted-foreground",
-            "hidden sm:flex",
-            selected && "border-lime/60 text-lime",
-            "opacity-0 group-hover:opacity-100",
-          )}
-          aria-hidden
-        >
-          {index + 1}
-        </span>
-      )}
       <div className={cn("flex items-center gap-3.5", isCheckbox && "gap-3")}>
         {option.emoji && (
-          <span
-            className={cn(
-              "shrink-0 text-xl leading-none transition-transform duration-200 group-hover:scale-110",
-              selected && "scale-110",
-            )}
-            aria-hidden
-          >
-            {option.emoji}
-          </span>
+          <OptionIcon emoji={option.emoji} selected={selected} />
         )}
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-3">
@@ -95,17 +74,25 @@ export function OptionCard({
             </p>
           )}
         </div>
+        {/* Raccourci clavier 1-9 — desktop, au survol, À CÔTÉ du radio
+            (il le chevauchait en position absolue). */}
+        {typeof index === "number" && index < 9 && !selected && (
+          <kbd
+            className="hidden h-5 min-w-5 items-center justify-center rounded border border-[var(--line-strong)] px-1 font-mono text-[11px] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 sm:inline-flex"
+            aria-hidden
+          >
+            {index + 1}
+          </kbd>
+        )}
         {!isCheckbox && (
           <span
             className={cn(
-              "shrink-0 size-5 rounded-full border-2 transition-colors duration-200",
-              selected ? "border-lime bg-lime" : "border-border group-hover:border-lime/50",
+              "grid shrink-0 size-6 place-items-center rounded-full border-2 transition-colors duration-200",
+              selected ? "border-lime bg-lime text-black" : "border-[var(--line-strong)] group-hover:border-lime/50",
             )}
             aria-hidden
           >
-            {selected && (
-              <span className="block size-full rounded-full bg-black" />
-            )}
+            {selected && <Check className="size-3.5" strokeWidth={3} />}
           </span>
         )}
         {isCheckbox && (
@@ -121,5 +108,21 @@ export function OptionCard({
         )}
       </div>
     </button>
+  );
+}
+
+function OptionIcon({ emoji, selected }: { emoji: string; selected: boolean }) {
+  return (
+    <span
+      className={cn(
+        "grid size-10 shrink-0 place-items-center rounded-xl border transition-colors duration-200",
+        selected
+          ? "border-lime/50 bg-lime text-black"
+          : "border-[var(--line-strong)] bg-white/[0.03] text-foreground/80 group-hover:border-lime/40 group-hover:text-lime",
+      )}
+      aria-hidden
+    >
+      <EmojiIcon emoji={emoji} className="size-[18px]" />
+    </span>
   );
 }

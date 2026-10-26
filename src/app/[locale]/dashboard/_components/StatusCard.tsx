@@ -53,8 +53,8 @@ export async function StatusCard({ status }: { status: AccountStatus }) {
     : "bg-amber-500/20 text-amber-400";
 
   return (
-    <section className="rounded-lg border border-border/60 bg-card/40 p-5 sm:p-6 space-y-4">
-      <h2 className="font-display font-bold text-sm tracking-tight mono-label text-muted-foreground uppercase">
+    <section className="surface p-5 sm:p-6 space-y-4">
+      <h2 className="ds-overlabel">
         {t("statusCard.title")}
       </h2>
 

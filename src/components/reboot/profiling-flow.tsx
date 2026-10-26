@@ -14,6 +14,7 @@ import { ProfilingShell } from "./profiling/shell";
 import { ResumePrompt } from "./profiling/resume-prompt";
 import { QuestionView } from "./profiling/question-view";
 import { ProfilePreview, FinalizingState } from "./profiling/preview";
+import { LiveProfilePanel } from "./profiling/live-profile";
 import { STORAGE_KEY, initialAnswers, type PersistedState } from "./profiling/storage";
 import { saveDraftBeacon } from "./profiling/draft";
 import {
@@ -201,7 +202,7 @@ export function ProfilingFlow({
 
   function goBack() {
     track({ type: "profiling_back" });
-    if (phase === "preview") {
+    if (phase === "preview" || phase === "review") {
       setPhase("questions");
       return;
     }
@@ -276,21 +277,10 @@ export function ProfilingFlow({
     );
   }
 
-  if (phase === "review") {
-    return (
-      <ProfilePreview
-        answers={answers}
-        onFinalize={() => {
-          setPhase("preview");
-          setDirection(1);
-          setStep(visible.length);
-        }}
-        onEdit={goBack}
-      />
-    );
-  }
-
-  if (phase === "preview") {
+  // Relecture obligatoire (#UI-008) — UNE seule fois. Avant la refonte,
+  // « Finaliser » passait de `review` à une phase `preview` qui réaffichait
+  // exactement le même écran : il fallait cliquer deux fois pour soumettre.
+  if (phase === "review" || phase === "preview") {
     return (
       <ProfilePreview
         answers={answers}
@@ -316,6 +306,7 @@ export function ProfilingFlow({
       showCompletionIndicator
       currentStep={step}
       totalSteps={visible.length}
+      aside={<LiveProfilePanel answers={answers} />}
     >
       <AnimatePresence mode="wait" custom={direction}>
         <motion.div

@@ -125,7 +125,7 @@ export function TextView({
         spellCheck={spellCheck}
         inputMode={inputMode as "text" | "email" | "numeric" | "tel" | "url" | "search" | "decimal" | "none"}
         className={cn(
-          "w-full h-14 rounded-md border bg-card px-4 text-base sm:text-lg text-foreground placeholder:text-muted-foreground transition-colors duration-200 focus-lime",
+          "w-full h-14 rounded-2xl border bg-card px-5 text-base sm:text-lg text-foreground placeholder:text-muted-foreground transition-colors duration-200 focus-lime",
           showError ? "border-destructive" : "border-border focus:border-lime",
         )}
       />
@@ -206,7 +206,7 @@ export function LongTextView({
         onChange={(e) => onChange(e.target.value)}
         onBlur={() => setBlurred(true)}
         className={cn(
-          "w-full rounded-md border bg-card px-4 py-3 text-base sm:text-lg text-foreground placeholder:text-muted-foreground transition-colors duration-200 focus-lime resize-none leading-relaxed",
+          "w-full rounded-2xl border bg-card px-5 py-4 text-base sm:text-lg text-foreground placeholder:text-muted-foreground transition-colors duration-200 focus-lime resize-none leading-relaxed",
           showError ? "border-destructive" : "border-border focus:border-lime",
         )}
       />

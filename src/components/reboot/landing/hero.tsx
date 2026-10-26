@@ -1,21 +1,21 @@
 "use client";
 
-import { ChevronDown, Check } from "lucide-react";
-import { HashSymbol } from "@/components/brand/logo";
-import { RebootButton, CtaArrow, Eyebrow, RebootTitle } from "../shared";
+import { Check } from "lucide-react";
+import { RebootButton, CtaArrow } from "../shared";
 import { scrollToId } from "./scroll";
-import { EcosystemCore } from "./ecosystem-core";
+import { ProfileShowcase } from "./profile-showcase";
 import { STEPS } from "./data";
 import { Fade, Reveal, Slide } from "../motion/primitives";
 import { useTranslations } from "next-intl";
 
 /**
- * HERO — layout scindé (brief §12).
+ * HERO — proposition de valeur d'abord, preuve ensuite.
  *
- * Desktop  : colonne éditoriale (7/12) + Ecosystem Core (5/12).
- * Mobile   : éditorial d'abord, visuel ensuite — pas une version réduite.
+ * Desktop : colonne éditoriale (7/12) + vitrine de profil (5/12).
+ * Mobile  : éditorial, CTA, puis la vitrine — jamais une version réduite.
  *
- * Le H1 unique du site reste dans <RebootTitle>. Aucun autre H1.
+ * Le H1 porte la promesse (ce que le visiteur gagne), plus le nom de marque :
+ * la marque est déjà dans le header et l'eyebrow. C'est le seul H1 du site.
  */
 export function Hero({ onJoin }: { onJoin: (ref?: string) => void }) {
   const t = useTranslations("landing.hero");
@@ -24,110 +24,106 @@ export function Hero({ onJoin }: { onJoin: (ref?: string) => void }) {
     title: string;
     desc: string;
   }>;
+  const reassurance = t.raw("reassuranceItems") as string[];
 
   return (
     <section
-      className="relative overflow-hidden bg-vignette bg-noise"
+      className="relative overflow-hidden"
       aria-labelledby="hero-title"
     >
-      <div className="absolute inset-0 bg-grid opacity-70" aria-hidden />
-      {/* Aura lime haute-gauche : profondeur, jamais un dégradé décoratif. */}
-      <div
-        className="hero-aura absolute -top-32 -left-24 size-[28rem] rounded-full blur-3xl opacity-0 md:opacity-[0.06] transition-opacity duration-500"
-        style={{ background: "var(--primary)" }}
-        aria-hidden
-      />
-      {/* Motif H en filigrane — desktop uniquement, opacité ≤ 15%. */}
-      <HashSymbol
-        className="hero-hash absolute -right-16 -bottom-16 text-border/40 select-none pointer-events-none opacity-0 lg:opacity-[0.15] transition-opacity duration-500"
-        size={360}
-      />
+      <div className="grid-radial" aria-hidden />
+      <div className="spotlight" aria-hidden />
 
-      <div className="relative z-10 pt-14 pb-24 lg:pt-24 lg:pb-32">
+      <div className="relative z-10 pb-20 pt-12 sm:pt-16 lg:pb-28 lg:pt-24">
         <div className="shell">
-          {/* Grille éditoriale — rails verticaux très discrets. */}
-          <div className="relative">
-            <div className="rails" aria-hidden>
-              <span />
-              <span />
-              <span />
-              <span />
+          <div className="grid items-center gap-x-12 gap-y-14 lg:grid-cols-12">
+            {/* -------------------------------------------------------- */}
+            {/* Colonne éditoriale                                        */}
+            {/* -------------------------------------------------------- */}
+            <div className="min-w-0 lg:col-span-7">
+              <Fade initial={false}>
+                <span className="chip">
+                  <span className="chip__dot" aria-hidden />
+                  {t("eyebrow")}
+                </span>
+              </Fade>
+
+              <Slide from="up" distance={18} initial={false}>
+                <h1
+                  id="hero-title"
+                  className="mt-6 font-display text-[clamp(2.5rem,6.2vw,4.75rem)] font-bold leading-[0.98] tracking-[-0.04em] text-balance"
+                >
+                  <span className="block text-gradient">{t("headline1")}</span>
+                  <span className="block text-gradient-lime">{t("headline2")}</span>
+                </h1>
+              </Slide>
+
+              <Fade delay={0.1} initial={false}>
+                <p className="mt-6 max-w-xl text-lg leading-relaxed text-foreground/85 sm:text-xl">
+                  {t("subtitle")}
+                </p>
+                <p className="mt-3 max-w-xl text-base leading-relaxed text-muted-foreground">
+                  {t("description")}
+                </p>
+              </Fade>
+
+              <Slide from="up" distance={12} delay={0.18} initial={false}>
+                <div className="mt-9 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+                  <RebootButton
+                    size="lg"
+                    onClick={() => onJoin("hero")}
+                    className="group w-full sm:w-auto"
+                  >
+                    {t("primaryCta")}
+                    <CtaArrow />
+                  </RebootButton>
+                  <RebootButton
+                    size="lg"
+                    variant="outline"
+                    onClick={() => scrollToId("axes")}
+                    className="w-full sm:w-auto"
+                  >
+                    {t("secondaryCta")}
+                  </RebootButton>
+                </div>
+              </Slide>
+
+              <Fade delay={0.26} initial={false}>
+                <ul
+                  className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground"
+                  aria-label={t("reassurance")}
+                >
+                  {reassurance.map((r) => (
+                    <li key={r} className="inline-flex items-center gap-2">
+                      <Check className="size-4 text-lime" strokeWidth={2.5} aria-hidden />
+                      {r}
+                    </li>
+                  ))}
+                </ul>
+              </Fade>
             </div>
 
-            <div className="relative z-10 grid items-center gap-x-10 gap-y-14 lg:grid-cols-12 lg:gap-y-0">
-              {/* -------------------------------------------------------- */}
-              {/* Colonne éditoriale                                        */}
-              {/* -------------------------------------------------------- */}
-              <div className="min-w-0 lg:col-span-7 lg:pr-8">
-                <Fade initial={false}>
-                  <Eyebrow>{t("eyebrow")}</Eyebrow>
-                </Fade>
-
-                <div id="hero-title">
-                  <Slide from="up" distance={18} initial={false}>
-                    <RebootTitle className="mt-4" />
-                  </Slide>
-                </div>
-
-                <Slide from="up" distance={16} delay={0.08} initial={false}>
-                  <h2 className="mt-7 max-w-xl text-2xl font-display font-bold leading-tight text-balance text-foreground sm:text-4xl">
-                    {t("subtitle")}
-                  </h2>
-                </Slide>
-
-                <Fade delay={0.14} initial={false}>
-                  <p className="mt-3 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-                    {t("description")}
-                  </p>
-                </Fade>
-
-                <Slide from="up" distance={12} delay={0.2} initial={false}>
-                  <div className="mt-8 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
-                    <RebootButton
-                      size="lg"
-                      onClick={() => onJoin("hero")}
-                      className="group w-full sm:w-auto"
-                    >
-                      {t("primaryCta")}
-                      <CtaArrow />
-                    </RebootButton>
-                    <RebootButton
-                      size="lg"
-                      variant="outline"
-                      onClick={() => scrollToId("axes")}
-                      className="w-full sm:w-auto"
-                    >
-                      {t("secondaryCta")}
-                    </RebootButton>
-                  </div>
-                </Slide>
-
-                <Fade delay={0.26} initial={false}>
-                  <p className="mt-6 flex flex-wrap items-center gap-2 text-sm leading-relaxed text-foreground">
-                    <span className="inline-flex size-5 items-center justify-center rounded-full border border-lime/40 bg-lime/10">
-                      <Check className="size-3.5 text-lime" strokeWidth={2.5} />
-                    </span>
-                    {t("reassurance")}
-                  </p>
-                </Fade>
-              </div>
-
-              {/* -------------------------------------------------------- */}
-              {/* Visuel — Ecosystem Core                                    */}
-              {/* -------------------------------------------------------- */}
-              <div className="min-w-0 lg:col-span-5">
-                <Reveal delay={0.1} y={26} initial={false}>
-                  <EcosystemCore />
-                </Reveal>
-              </div>
+            {/* -------------------------------------------------------- */}
+            {/* Vitrine — ce que le visiteur obtient                      */}
+            {/* -------------------------------------------------------- */}
+            <div className="min-w-0 lg:col-span-5">
+              <Reveal delay={0.1} y={26} initial={false}>
+                <ProfileShowcase />
+              </Reveal>
             </div>
           </div>
 
           {/* ------------------------------------------------------------ */}
-          {/* 3 étapes — pleine largeur sous la grille                      */}
+          {/* Comment ça marche — 3 étapes reliées                          */}
           {/* ------------------------------------------------------------ */}
-          <div className="relative z-10 mt-16 lg:mt-24">
-            <ol className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="relative mt-20 lg:mt-28">
+            <h2 className="ds-overlabel text-center">{t("stepsTitle")}</h2>
+            <ol className="relative mt-6 grid grid-cols-1 gap-3 md:grid-cols-3 md:gap-4">
+              {/* Fil conducteur entre les étapes (desktop). */}
+              <span
+                aria-hidden
+                className="pointer-events-none absolute left-[16%] right-[16%] top-[42px] hidden h-px bg-gradient-to-r from-lime/0 via-lime/40 to-lime/0 md:block"
+              />
               {STEPS.map((s) => {
                 const step = stepsTranslated.find((st) => st.n === s.n);
                 if (!step) return null;
@@ -135,19 +131,20 @@ export function Hero({ onJoin }: { onJoin: (ref?: string) => void }) {
                 return (
                   <li
                     key={s.n}
-                    className="flex items-start gap-4 rounded-xl border border-border bg-card/70 p-5 transition-colors hover:border-lime/35"
+                    className="surface surface-interactive relative flex items-start gap-4 p-5 md:flex-col md:items-center md:p-6 md:text-center"
                   >
-                    <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-lime/35 bg-lime/10 text-lime">
+                    <span className="icon-tile icon-tile--accent relative size-12 rounded-2xl bg-background">
                       <Icon className="size-5" aria-hidden />
+                      <span className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-lime font-mono text-[10px] font-bold text-black">
+                        {Number(s.n)}
+                      </span>
                     </span>
                     <span className="min-w-0">
-                      <span className="ds-overlabel ds-overlabel--accent leading-none">
-                        {t("stepLabel", { n: s.n })}
-                      </span>
-                      <span className="mt-1.5 block font-display text-[15px] font-semibold leading-snug text-foreground">
+                      <span className="sr-only">{t("stepLabel", { n: s.n })} — </span>
+                      <span className="block font-display text-base font-semibold leading-snug text-foreground">
                         {step.title}
                       </span>
-                      <span className="mt-0.5 block text-sm leading-snug text-muted-foreground">
+                      <span className="mt-1 block text-sm leading-relaxed text-muted-foreground">
                         {step.desc}
                       </span>
                     </span>
@@ -155,26 +152,9 @@ export function Hero({ onJoin }: { onJoin: (ref?: string) => void }) {
                 );
               })}
             </ol>
-            <p className="mt-3 text-sm text-muted-foreground">{t("altNote")}</p>
           </div>
         </div>
       </div>
-
-      {/* Indicateur de scroll — desktop uniquement, absent sur mobile pour ne pas
-          concurrencer le CTA dans le pouce. */}
-      <button
-        onClick={() =>
-          window.scrollTo({
-            top: window.innerHeight * 0.85,
-            behavior: "smooth",
-          })
-        }
-        className="group absolute bottom-6 left-1/2 hidden -translate-x-1/2 flex-col items-center gap-1.5 text-muted-foreground transition-colors hover:text-lime focus-lime sm:flex"
-        aria-label={t("scrollAria")}
-      >
-        <span className="ds-meta tracking-[0.06em]">{t("scrollLabel")}</span>
-        <ChevronDown className="size-4 animate-bounce-slow" aria-hidden />
-      </button>
     </section>
   );
 }

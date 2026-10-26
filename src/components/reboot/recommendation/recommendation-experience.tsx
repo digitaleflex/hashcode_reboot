@@ -134,7 +134,7 @@ export function RecommendationExperience({
   }
 
   return (
-    <div className={cn("relative h-full overflow-hidden rounded-lg border border-border bg-card", className)} role="region" aria-label="Recommandations personnalisées">
+    <div className={cn("surface relative h-full overflow-hidden", className)} role="region" aria-label="Recommandations personnalisées">
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-lime/70 to-transparent" />
       <div className="p-6 sm:p-7">
         <div className="flex items-center justify-between gap-3">
@@ -212,7 +212,7 @@ function AlternativeList({
             key={recommendation.id}
             href={href}
             onClick={() => onClick(recommendation.id)}
-            className="group block rounded-lg border border-border/70 bg-background/30 p-3 transition-colors hover:border-lime/40 focus-lime"
+            className="group block rounded-xl border border-[var(--line-soft)] bg-background/40 p-3.5 transition-colors hover:border-lime/40 focus-lime"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -242,7 +242,7 @@ function AlternativeList({
 
 function StateCard({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("h-full rounded-lg border border-border bg-card p-6 sm:p-7", className)} role="region" aria-label="Orientation">
+    <div className={cn("surface h-full p-6 sm:p-7", className)} role="region" aria-label="Orientation">
       <MonoLabel className="text-muted-foreground">Prochaine étape</MonoLabel>
       {children}
     </div>

@@ -95,12 +95,12 @@ test.describe('Landing (FR)', () => {
     await dismissCookies(page);
 
     const hero = page.locator('section[aria-labelledby="hero-title"]');
-    // Le `h1` est le logotype ; le message d'accueil est l'eyebrow de section.
-    await expect(hero.locator('h1')).toContainText('HASHCODE', {
+    // Le `h1` porte la promesse ; la marque est dans l'eyebrow (puce) et le header.
+    await expect(hero.locator('h1')).toContainText('Progresse en tech', {
       timeout: 15000,
     });
     await expect(
-      hero.getByText('Bienvenue dans le Reboot', { exact: false }),
+      hero.getByText('Communauté dev, cyber & IA', { exact: false }),
     ).toBeVisible();
 
     const heroCta = hero.getByRole('button', { name: 'Construire mon profil' });

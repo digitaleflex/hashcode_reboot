@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
@@ -9,6 +10,7 @@ import {
   MessageCircle,
   Calendar,
   BookOpen,
+  GraduationCap,
   Flag,
   Menu,
   X,
@@ -25,6 +27,7 @@ const NAV_ITEMS = [
   { label: "ateliers", href: "/dashboard/ateliers", icon: BookOpen },
   { label: "missions", href: "/dashboard/missions", icon: Flag },
   { label: "agenda", href: "/dashboard/agenda", icon: Calendar },
+  { label: "mentoring", href: "/dashboard/mentoring", icon: GraduationCap },
   { label: "profile", href: "/dashboard/profile", icon: User },
   { label: "settings", href: "/dashboard/settings", icon: Settings },
 ] as const;
@@ -51,25 +54,25 @@ function NavLink({
   active,
   collapsed,
   onClick,
+  asLink = false,
 }: {
   item: { label: string; href: string; icon: React.ElementType; external?: boolean };
   active: boolean;
   collapsed: boolean;
   onClick: () => void;
+  /** Navigation interne : vrai lien (préchargement, clic molette, sémantique). */
+  asLink?: boolean;
 }) {
   const t = useTranslations("dashboard.home.sidebar.nav");
-  return (
-    <button
-      onClick={onClick}
-      title={collapsed ? t(item.label) : undefined}
-      className={cn(
-        "w-full flex items-center gap-3 rounded-md text-sm transition-colors duration-150 cursor-pointer group relative",
-        collapsed ? "justify-center px-0 py-2.5 mx-auto w-11 min-w-[44px] min-h-[44px]" : "px-3 py-2.5 min-h-[44px]",
-        active
-          ? "bg-lime/10 text-lime font-medium"
-          : "text-muted-foreground hover:text-foreground hover:bg-secondary",
-      )}
-    >
+  const className = cn(
+    "w-full flex items-center gap-3 rounded-xl text-sm transition-colors duration-150 cursor-pointer group relative focus-lime",
+    collapsed ? "justify-center px-0 py-2.5 mx-auto w-11 min-w-[44px] min-h-[44px]" : "px-3 py-2.5 min-h-[44px]",
+    active
+      ? "bg-lime/10 text-lime font-medium shadow-[inset_2px_0_0_var(--primary)]"
+      : "text-muted-foreground hover:text-foreground hover:bg-white/[0.04]",
+  );
+  const inner = (
+    <>
       <item.icon className="size-4 shrink-0" />
       {!collapsed && <span className="truncate">{t(item.label)}</span>}
 
@@ -79,6 +82,24 @@ function NavLink({
           {t(item.label)}
         </span>
       )}
+    </>
+  );
+  if (asLink) {
+    return (
+      <Link
+        href={item.href}
+        onClick={onClick}
+        title={collapsed ? t(item.label) : undefined}
+        aria-current={active ? "page" : undefined}
+        className={className}
+      >
+        {inner}
+      </Link>
+    );
+  }
+  return (
+    <button onClick={onClick} title={collapsed ? t(item.label) : undefined} className={className}>
+      {inner}
     </button>
   );
 }
@@ -163,10 +184,8 @@ export function DashboardSidebar({ firstName }: DashboardSidebarProps) {
             item={item}
             active={isActive(item.href)}
             collapsed={isCollapsed}
-            onClick={() => {
-              router.push(item.href);
-              setMobileOpen(false);
-            }}
+            asLink
+            onClick={() => setMobileOpen(false)}
           />
         ))}
       </nav>
@@ -211,7 +230,9 @@ export function DashboardSidebar({ firstName }: DashboardSidebarProps) {
       <button
         onClick={() => setMobileOpen(true)}
         className={cn(
-          "md:hidden fixed bottom-5 right-5 z-50 size-12 rounded-full",
+          // Au-dessus de la barre d'onglets mobile (MobileBottomNav, ~64px),
+          // qu'il chevauchait quand il était collé à `bottom-5`.
+          "md:hidden fixed bottom-[calc(80px+env(safe-area-inset-bottom))] right-4 z-50 size-12 rounded-full",
           "bg-lime text-background shadow-lg shadow-lime/20",
           "flex items-center justify-center",
           "hover:scale-105 active:scale-95 transition-transform cursor-pointer",
@@ -244,7 +265,7 @@ export function DashboardSidebar({ firstName }: DashboardSidebarProps) {
         {/* Header drawer */}
         <div className="flex items-center justify-between px-4 h-14 border-b border-border/60 shrink-0">
           <div className="flex items-center gap-2.5 min-w-0">
-            <Logo className="size-5 text-lime shrink-0" />
+            <Logo variant="symbol" size="sm" />
             {firstName && (
               <span className="text-sm font-medium truncate">{firstName}</span>
             )}
@@ -264,7 +285,7 @@ export function DashboardSidebar({ firstName }: DashboardSidebarProps) {
       {/* ── SIDEBAR DESKTOP (≥ md) — pliable ── */}
       <aside
         className={cn(
-          "hidden md:flex flex-col border-r border-border/60 bg-card/40 min-h-0",
+          "hidden md:flex flex-col border-r border-[var(--line-soft)] bg-card/30 min-h-0",
           "transition-[width] duration-200 ease-in-out shrink-0",
           collapsed ? "w-14" : "w-56",
         )}

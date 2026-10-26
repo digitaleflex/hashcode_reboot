@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import type { AccountProfile } from "@/app/[locale]/account/_components/types";
+import { publicTagLabels } from "@/lib/profiling/public-tags";
 
 /**
  * Résumé du profil — domaine, niveau, objectif, disponibilité.
@@ -23,8 +24,8 @@ export async function ProfileSummary({
 
   if (!profile) {
     return (
-      <section className="rounded-lg border border-border/60 bg-card/40 p-5 sm:p-6">
-        <h2 className="font-display font-bold text-sm tracking-tight mono-label text-muted-foreground uppercase mb-4">
+      <section className="surface p-5 sm:p-6">
+        <h2 className="ds-overlabel mb-4">
           {t("profileSummary.title")}
         </h2>
         <p className="text-sm text-muted-foreground">
@@ -58,8 +59,8 @@ export async function ProfileSummary({
   ];
 
   return (
-    <section className="rounded-lg border border-border/60 bg-card/40 p-5 sm:p-6">
-      <h2 className="font-display font-bold text-sm tracking-tight mono-label text-muted-foreground uppercase mb-4">
+    <section className="surface p-5 sm:p-6">
+      <h2 className="ds-overlabel mb-4">
         {t("profileSummary.title")}
       </h2>
       <div className="space-y-3">
@@ -86,10 +87,10 @@ export async function ProfileSummary({
           </div>
         )}
       </div>
-      {profile.tags.length > 0 && (
+      {publicTagLabels(profile.tags).length > 0 && (
         <div className="mt-4 pt-3 border-t border-border/60">
           <div className="flex flex-wrap gap-1.5">
-            {profile.tags.slice(0, 6).map((tag) => (
+            {publicTagLabels(profile.tags).slice(0, 6).map((tag) => (
               <span
                 key={tag}
                 className="inline-flex items-center rounded-full border border-border/60 bg-secondary/50 px-2.5 py-0.5 text-xs text-muted-foreground mono-label"

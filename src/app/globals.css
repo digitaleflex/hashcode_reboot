@@ -661,7 +661,7 @@
   background: color-mix(in oklab, var(--card) 96%, transparent);
 }
 .ecosystem-core__orbit--web { top: 0; left: 50%; transform: translateX(-50%); }
-.ecosystem-core__orbit--cyber { bottom: 6%; right: 0; }
+.ecosystem-core__orbit--cybersecurity { bottom: 6%; right: 0; }
 .ecosystem-core__orbit--ai { bottom: 6%; left: 0; }
 
 /* Sur mobile les 3 modules passent en rangeau sous la sphère :
@@ -1113,15 +1113,17 @@
    `hover:border-lime/40`…) puissent surcharger. */
 @layer components {
   .ds-card {
-    border: 1px solid var(--border);
+    border: 1px solid color-mix(in oklab, var(--foreground) 9%, transparent);
     border-radius: var(--ds-card-radius);
-    background: linear-gradient(
-      180deg,
-      var(--card),
-      color-mix(in oklab, var(--card) 65%, var(--background))
-    );
+    /* Refonte 2026-10 : liseré lumineux en haut + ombre portée douce. */
+    background:
+      linear-gradient(180deg, color-mix(in oklab, var(--foreground) 3.5%, transparent), transparent 40%),
+      linear-gradient(180deg, var(--card), color-mix(in oklab, var(--card) 65%, var(--background)));
+    box-shadow:
+      0 1px 0 0 color-mix(in oklab, var(--foreground) 6%, transparent) inset,
+      0 18px 40px -24px rgba(0, 0, 0, 0.8);
     padding: var(--ds-card-pad);
-    transition: border-color var(--ds-duration-fast) ease, transform 250ms ease;
+    transition: border-color var(--ds-duration-fast) ease, transform 250ms ease, box-shadow 250ms ease;
   }
   @media (min-width: 640px) {
     .ds-card { padding: var(--ds-card-pad-lg); }
@@ -1165,5 +1167,227 @@
     border-color: color-mix(in oklab, var(--primary) 50%, transparent);
     background: color-mix(in oklab, var(--primary) 5%, transparent);
     color: var(--primary);
+  }
+}
+
+/* ============================================================
+   REFONTE UI 2026-10 — profondeur, surfaces premium, mouvement
+   Bloc additif : nouvelles classes utilisées par la refonte du
+   parcours (landing → profiling → bienvenue → dashboard).
+   Toutes les teintes dérivent des tokens live (--primary, --card…).
+   ============================================================ */
+:root {
+  --surface-raised: color-mix(in oklab, var(--card) 88%, var(--foreground) 3%);
+  --line-soft: color-mix(in oklab, var(--foreground) 8%, transparent);
+  --line-strong: color-mix(in oklab, var(--foreground) 14%, transparent);
+  --lime-soft: color-mix(in oklab, var(--primary) 12%, transparent);
+  --lime-line: color-mix(in oklab, var(--primary) 38%, transparent);
+  --shadow-card:
+    0 1px 0 0 color-mix(in oklab, var(--foreground) 6%, transparent) inset,
+    0 18px 40px -24px rgba(0, 0, 0, 0.8);
+  --shadow-float:
+    0 1px 0 0 color-mix(in oklab, var(--foreground) 8%, transparent) inset,
+    0 40px 80px -32px rgba(0, 0, 0, 0.9),
+    0 0 0 1px color-mix(in oklab, var(--foreground) 6%, transparent);
+  --shadow-glow: 0 0 0 1px var(--lime-line), 0 20px 60px -20px color-mix(in oklab, var(--primary) 35%, transparent);
+}
+
+@layer components {
+  /* Surface « verre » : en-têtes collants, barres d'action. */
+  .glass {
+    background: color-mix(in oklab, var(--background) 72%, transparent);
+    -webkit-backdrop-filter: saturate(140%) blur(16px);
+    backdrop-filter: saturate(140%) blur(16px);
+  }
+
+  /* Carte premium : dégradé vertical + liseré supérieur lumineux + ombre douce. */
+  .surface {
+    position: relative;
+    border: 1px solid var(--line-soft);
+    border-radius: 20px;
+    background:
+      linear-gradient(180deg, color-mix(in oklab, var(--foreground) 3.5%, transparent), transparent 42%),
+      var(--card);
+    box-shadow: var(--shadow-card);
+  }
+  .surface-interactive {
+    transition:
+      border-color var(--ds-duration-fast) ease,
+      transform var(--ds-duration-base) var(--ds-ease),
+      box-shadow var(--ds-duration-base) var(--ds-ease);
+  }
+  .surface-interactive:hover {
+    border-color: var(--lime-line);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-float);
+  }
+  /* Variante mise en avant : bord lime + halo. */
+  .surface-accent {
+    border-color: var(--lime-line);
+    background:
+      radial-gradient(120% 80% at 100% 0%, color-mix(in oklab, var(--primary) 10%, transparent), transparent 55%),
+      linear-gradient(180deg, color-mix(in oklab, var(--foreground) 3.5%, transparent), transparent 42%),
+      var(--card);
+    box-shadow: var(--shadow-glow);
+  }
+
+  /* Bordure en dégradé (masque) — pour les éléments-signature. */
+  .ring-gradient {
+    position: relative;
+  }
+  .ring-gradient::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    border-radius: inherit;
+    background: linear-gradient(
+      140deg,
+      color-mix(in oklab, var(--primary) 70%, transparent),
+      color-mix(in oklab, var(--foreground) 10%, transparent) 40%,
+      color-mix(in oklab, var(--foreground) 4%, transparent) 70%,
+      color-mix(in oklab, var(--primary) 40%, transparent)
+    );
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  /* Titre en dégradé texte : blanc → gris, lisible (contraste ≥ 7:1 sur 90% du glyphe). */
+  .text-gradient {
+    background: linear-gradient(180deg, var(--foreground) 45%, color-mix(in oklab, var(--foreground) 78%, var(--background)));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .text-gradient-lime {
+    background: linear-gradient(100deg, var(--primary), color-mix(in oklab, var(--primary) 70%, #ffffff) 60%, var(--primary));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Puce de statut / eyebrow « pill ». */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 13px;
+    line-height: 1.2;
+    color: var(--foreground);
+    background: color-mix(in oklab, var(--card) 70%, transparent);
+  }
+  .chip--accent {
+    border-color: var(--lime-line);
+    background: var(--lime-soft);
+    color: var(--primary);
+  }
+  .chip__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--primary);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 22%, transparent);
+  }
+
+  /* Icône encapsulée (tuile carrée). */
+  .icon-tile {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    border: 1px solid var(--line-strong);
+    background: linear-gradient(180deg, color-mix(in oklab, var(--foreground) 6%, transparent), transparent), var(--secondary);
+    color: var(--foreground);
+  }
+  .icon-tile--accent {
+    border-color: var(--lime-line);
+    background: var(--lime-soft);
+    color: var(--primary);
+  }
+}
+
+/* Halo d'ambiance (hero, CTA finale). Purement décoratif. */
+.spotlight {
+  position: absolute;
+  pointer-events: none;
+  inset: -20% -10% auto -10%;
+  height: 720px;
+  background:
+    radial-gradient(40% 50% at 70% 30%, color-mix(in oklab, var(--primary) 13%, transparent), transparent 70%),
+    radial-gradient(30% 40% at 15% 10%, color-mix(in oklab, var(--chart-2) 10%, transparent), transparent 70%);
+  filter: blur(8px);
+}
+
+/* Grille fine avec fondu radial — plus moderne que la grille plein cadre. */
+.grid-radial {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(color-mix(in oklab, var(--foreground) 5%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklab, var(--foreground) 5%, transparent) 1px, transparent 1px);
+  background-size: 56px 56px;
+  -webkit-mask-image: radial-gradient(70% 60% at 50% 30%, #000 20%, transparent 75%);
+  mask-image: radial-gradient(70% 60% at 50% 30%, #000 20%, transparent 75%);
+}
+
+/* Bandeau défilant (marquee) — respecte reduced-motion. */
+.marquee {
+  display: flex;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+}
+.marquee__track {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.75rem;
+  padding-right: 0.75rem;
+  animation: marquee 40s linear infinite;
+}
+@keyframes marquee {
+  to { transform: translateX(-100%); }
+}
+
+/* Entrée d'une carte de profil « posée » sur la pile du hero. */
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+.animate-card-in {
+  animation: card-in 520ms var(--ds-ease) both;
+}
+
+/* Remplissage d'une barre de progression segmentée. */
+@keyframes fill-in {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+/* Célébration : anneau qui s'étend autour d'une coche. */
+@keyframes ring-burst {
+  0% { transform: scale(0.6); opacity: 0.7; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
+.animate-ring-burst {
+  animation: ring-burst 1.4s var(--ds-ease) 0.2s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee__track,
+  .animate-card-in,
+  .animate-ring-burst {
+    animation: none !important;
+  }
+  .surface-interactive:hover {
+    transform: none;
   }
 }

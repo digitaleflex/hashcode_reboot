@@ -146,9 +146,25 @@ export function Activity() {
             </button>
           </div>
         ) : list.length === 0 ? (
-          <p role="status" className="mt-12 text-sm text-muted-foreground">
-            {t("empty")}
-          </p>
+          <div
+            role="status"
+            className="surface mt-12 flex flex-col items-start gap-5 p-6 sm:flex-row sm:items-center sm:p-8"
+          >
+            <span className="icon-tile icon-tile--accent size-12 rounded-2xl">
+              <CalendarDays className="size-5" aria-hidden />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-display text-lg font-semibold text-foreground">{t("empty")}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{t("emptyHint")}</p>
+            </div>
+            <I18nLink
+              href="/evenements"
+              className="group inline-flex min-h-[44px] items-center gap-2 rounded-full border border-[var(--line-strong)] px-5 text-sm font-medium text-foreground transition-colors hover:border-lime/60 focus-lime"
+            >
+              {t("cta")}
+              <CtaArrow className="size-4" />
+            </I18nLink>
+          </div>
         ) : (
           <ul role="list" className="mt-12 grid gap-4 md:grid-cols-3">
             {list.map((e, i) => (

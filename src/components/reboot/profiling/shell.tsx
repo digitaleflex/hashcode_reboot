@@ -1,13 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { MonoLabel } from "../shared";
+import { HashSymbol } from "@/components/brand/logo";
 import { useTranslations } from "next-intl";
 
 /* ------------------------------------------------------------------ */
-/* Shell: nav + progress + back                                        */
+/* Shell: nav + progression par étapes + panneau latéral optionnel     */
 /* ------------------------------------------------------------------ */
 
 const MILESTONE_KEYS: { key: string; labelKey: string }[] = [
@@ -18,6 +18,17 @@ const MILESTONE_KEYS: { key: string; labelKey: string }[] = [
   { key: "vision", labelKey: "shell.milestones.vision" },
 ];
 
+/**
+ * Coquille du questionnaire.
+ *
+ * Refonte 2026-10 :
+ * - la barre unique + le pourcentage flottant (qui débordait sous la barre)
+ *   sont remplacés par 5 segments nommés — on voit où l'on est ET ce qui
+ *   reste, sans calcul mental ;
+ * - `aside` : panneau latéral (desktop ≥ lg) où le profil se construit en
+ *   direct au fil des réponses. Sur mobile il n'est pas rendu : la colonne
+ *   unique reste concentrée sur la question.
+ */
 export function ProfilingShell({
   children,
   progress,
@@ -25,9 +36,9 @@ export function ProfilingShell({
   stepLabel,
   microcopy,
   group,
-  showCompletionIndicator,
   currentStep,
   totalSteps,
+  aside,
 }: {
   children: React.ReactNode;
   progress: number;
@@ -35,122 +46,139 @@ export function ProfilingShell({
   stepLabel: string;
   microcopy?: string;
   group?: string;
+  /** Conservé pour compatibilité : la progression est toujours affichée. */
   showCompletionIndicator?: boolean;
   currentStep?: number;
   totalSteps?: number;
+  aside?: React.ReactNode;
 }) {
   const t = useTranslations("profiling");
-  const activeIdx = group ? MILESTONE_KEYS.findIndex((m) => m.key === group) : -1;
+  const activeIdx = group
+    ? MILESTONE_KEYS.findIndex((m) => m.key === group)
+    : progress >= 1
+      ? MILESTONE_KEYS.length
+      : -1;
+  const minutes = Math.max(1, Math.round((1 - progress) * 2));
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <header className="sticky top-0 z-40 bg-background/85 backdrop-blur-sm border-b border-border/60">
-        <div className="mx-auto max-w-2xl px-5 sm:px-8 h-14 flex items-center justify-between">
+    <div className="relative flex min-h-dvh flex-col overflow-x-clip bg-background">
+      <div className="grid-radial opacity-60" aria-hidden />
+
+      <header className="glass sticky top-0 z-40 border-b border-[var(--line-soft)]">
+        <div
+          className={cn(
+            "mx-auto flex h-16 items-center justify-between gap-4 px-5 sm:px-8",
+            aside ? "max-w-6xl" : "max-w-3xl",
+          )}
+        >
           <button
             onClick={onBack}
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors focus-lime"
+            className="inline-flex min-h-[44px] items-center gap-2 rounded-full pr-3 text-sm text-muted-foreground transition-colors hover:text-foreground focus-lime"
             aria-label={t("shell.back")}
           >
-            <ArrowLeft className="size-6" />
-            <span>{t("shell.back")}</span>
+            <span className="grid size-9 place-items-center rounded-full border border-[var(--line-strong)]">
+              <ArrowLeft className="size-4" />
+            </span>
+            <span className="hidden sm:inline">{t("shell.back")}</span>
           </button>
-          <MonoLabel>{stepLabel}</MonoLabel>
-          <div className="flex items-center gap-2">
+
+          <span className="hidden min-w-0 items-center gap-2 text-sm font-medium text-foreground sm:flex">
+            <HashSymbol className="shrink-0 text-lime" size={18} />
+            <span className="truncate">{stepLabel}</span>
+          </span>
+
+          <span
+            className="flex items-center gap-3 text-xs text-muted-foreground tabular-nums"
+            aria-live="polite"
+            aria-atomic="true"
+          >
             {currentStep !== undefined && totalSteps !== undefined && (
-              <span
-                className="text-xs text-muted-foreground mono-label tabular-nums"
-                aria-live="polite"
-                aria-atomic="true"
-              >
+              <span>
                 {t("shell.stepCounter", { currentStep: currentStep + 1, totalSteps })}
               </span>
             )}
-            <span className="text-xs text-muted-foreground mono-label tabular-nums flex items-center gap-2" aria-live="polite" aria-atomic="true">
-              <span>{t("shell.timeRemaining", { minutes: Math.max(1, Math.round((1 - progress) * 2)) })}</span>
-              <span className="text-border">·</span>
-              <span>{t("shell.percent", { percent: Math.round(progress * 100) })}</span>
+            <span className="hidden items-center gap-1.5 rounded-full sm:inline-flex border border-[var(--line-soft)] px-2.5 py-1">
+              <Clock className="size-3.5" aria-hidden />
+              {t("shell.timeRemaining", { minutes })}
             </span>
-          </div>
+          </span>
         </div>
+
+        {/* Progression par étapes nommées. */}
         <div
-          className="h-2.5 bg-lime/20"
+          className={cn("mx-auto px-5 pb-3 sm:px-8", aside ? "max-w-6xl" : "max-w-3xl")}
           role="progressbar"
           aria-valuenow={Math.round(progress * 100)}
           aria-valuemin={0}
           aria-valuemax={100}
           aria-label={t("shell.progressAriaLabel")}
         >
-          <div
-            className="h-full bg-lime transition-[width] duration-320 ease-out"
-            style={{ width: `${Math.max(2, progress * 100)}%` }}
-          />
-          {showCompletionIndicator && progress < 1 && (
-            <span className="ml-2 text-xs text-muted-foreground mono-label">
-              {Math.round(progress * 100)}%
-            </span>
-          )}
-        </div>
-        {/* Milestone group indicator — subtle stage tracker */}
-        {activeIdx >= 0 && (
-          <div className="mx-auto max-w-2xl px-5 sm:px-8 py-2 flex items-center gap-1.5 overflow-x-auto scroll-slim">
+          <ol className="grid grid-cols-5 gap-1.5">
             {MILESTONE_KEYS.map((m, i) => {
               const done = i < activeIdx;
               const active = i === activeIdx;
-              const isCurrentGroup = group === m.key;
               return (
-                <React.Fragment key={m.key}>
+                <li key={m.key} className="min-w-0">
+                  <span className="block h-1 overflow-hidden rounded-full bg-white/[0.07]">
+                    <span
+                      className={cn(
+                        "block h-full rounded-full bg-lime transition-[width] duration-500 ease-out",
+                        done ? "w-full" : active ? "w-1/2" : "w-0",
+                      )}
+                    />
+                  </span>
                   <span
                     className={cn(
-                      "mono-label whitespace-nowrap transition-colors",
-                      active
-                        ? "text-lime"
-                        : done
-                        ? "text-muted-foreground"
-                        : isCurrentGroup
-                        ? "text-lime/80"
-                        : "text-border",
+                      "mt-1.5 hidden truncate text-[11px] transition-colors sm:block",
+                      active ? "text-lime" : done ? "text-foreground/70" : "text-muted-foreground/60",
                     )}
                   >
                     {t(m.labelKey)}
                   </span>
-                  {i < MILESTONE_KEYS.length - 1 && (
-                    <span
-                      className={cn(
-                        "h-px w-3 shrink-0 transition-colors",
-                        done ? "bg-muted-foreground/40" : isCurrentGroup ? "bg-lime/20" : "bg-border",
-                      )}
-                    />
-                  )}
-                </React.Fragment>
+                </li>
               );
             })}
-          </div>
-        )}
+          </ol>
+        </div>
       </header>
 
-      <main className="flex-1 flex items-start sm:items-center justify-center px-5 sm:px-8 py-10 sm:py-16">
-        <div className="w-full max-w-2xl">
+      <main
+        className={cn(
+          "relative z-10 mx-auto flex w-full flex-1 items-start justify-center gap-10 px-5 py-10 sm:px-8 sm:py-14 lg:py-16",
+          aside ? "max-w-6xl" : "max-w-3xl",
+        )}
+      >
+        <div className={cn("w-full", aside ? "max-w-2xl lg:flex-1" : "max-w-2xl")}>
           {microcopy && (
-            <p className="mb-5 text-center text-sm text-lime font-display italic animate-hash-in">
+            <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-lime/25 bg-lime/[0.06] px-3 py-1.5 text-sm text-lime animate-hash-in">
+              <span className="chip__dot" aria-hidden />
               {microcopy}
             </p>
           )}
           {children}
         </div>
+        {aside && (
+          <aside className="sticky top-36 hidden w-[340px] shrink-0 lg:block">{aside}</aside>
+        )}
       </main>
 
-      <footer className="border-t border-border/60">
-        <div className="mx-auto max-w-2xl px-5 sm:px-8 py-3 flex items-center justify-between gap-4">
-          <p className="text-xs text-muted-foreground hidden sm:block">
+      <footer className="relative z-10 border-t border-[var(--line-soft)]">
+        <div
+          className={cn(
+            "mx-auto flex items-center justify-between gap-4 px-5 py-3 sm:px-8",
+            aside ? "max-w-6xl" : "max-w-3xl",
+          )}
+        >
+          <p className="hidden text-xs text-muted-foreground sm:block">
             {t("shell.footer.description")}
           </p>
-          {/* Keyboard shortcut hint — only on single-choice questions */}
+          {/* Raccourcis clavier — uniquement pour les questions à choix. */}
           {group && group !== "vision" && (
-            <span className="text-xs text-muted-foreground mono-label flex items-center gap-1.5">
-              <kbd className="inline-flex items-center justify-center size-4 rounded-sm border border-border bg-card text-[11px] font-mono">1</kbd>
+            <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex">
+              <kbd className="inline-flex h-5 min-w-5 items-center justify-center rounded border border-[var(--line-strong)] bg-card px-1 font-mono text-[11px]">1</kbd>
               <span>–</span>
-              <kbd className="inline-flex items-center justify-center size-4 rounded-sm border border-border bg-card text-[11px] font-mono">9</kbd>
-              <span className="hidden sm:inline">{t("shell.footer.keyboardHint")}</span>
+              <kbd className="inline-flex h-5 min-w-5 items-center justify-center rounded border border-[var(--line-strong)] bg-card px-1 font-mono text-[11px]">9</kbd>
+              <span>{t("shell.footer.keyboardHint")}</span>
             </span>
           )}
         </div>

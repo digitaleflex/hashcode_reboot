@@ -22,18 +22,18 @@ export async function QuickActions({
   const t = await getTranslations("dashboard.home.quickActions");
 
   return (
-    <section className="rounded-lg border border-border/60 bg-card/40 p-5 sm:p-6">
-      <h2 className="font-display font-bold text-sm tracking-tight mono-label text-muted-foreground uppercase mb-4">
+    <section className="surface p-5 sm:p-6">
+      <h2 className="ds-overlabel mb-4">
         {t("title")}
       </h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3">
         {/* WhatsApp */}
         {communityStatus === "JOINED" ? (
           <a
             href={COMMUNITY_JOIN_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-3 rounded-md border border-border/60 bg-background/50 p-4 hover:border-lime/40 hover:bg-lime/5 transition-colors group"
+            className="flex items-center gap-3 rounded-xl border border-[var(--line-soft)] bg-background/50 p-4 hover:border-lime/40 hover:bg-lime/5 transition-colors group"
           >
             <MessageCircle className="size-5 text-lime shrink-0" />
             <div className="flex-1 min-w-0">
@@ -47,7 +47,7 @@ export async function QuickActions({
             href={COMMUNITY_JOIN_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-3 rounded-md border border-lime/30 bg-lime/5 p-4 hover:bg-lime/10 transition-colors group"
+            className="flex items-center gap-3 rounded-xl border border-lime/30 bg-lime/5 p-4 hover:bg-lime/10 transition-colors group"
           >
             <MessageCircle className="size-5 text-lime shrink-0" />
             <div className="flex-1 min-w-0">
@@ -61,7 +61,7 @@ export async function QuickActions({
         {/* Éditer profil */}
         <a
           href="/dashboard/profile"
-          className="flex items-center gap-3 rounded-md border border-border/60 bg-background/50 p-4 hover:border-lime/40 hover:bg-lime/5 transition-colors group"
+          className="flex items-center gap-3 rounded-xl border border-[var(--line-soft)] bg-background/50 p-4 hover:border-lime/40 hover:bg-lime/5 transition-colors group"
         >
           <Pencil className="size-5 text-muted-foreground shrink-0" />
           <div className="flex-1 min-w-0">

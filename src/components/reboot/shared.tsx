@@ -35,21 +35,9 @@ export function RebootButton({
   /** Nom accessible explicite quand plusieurs CTA partagent le même libellé. */
   ariaLabel?: string;
 }) {
-  const sizes = {
-    sm: "min-h-[44px] h-11 min-w-[44px] px-4 text-sm",
-    md: "min-h-[44px] h-11 min-w-[44px] px-5 text-sm",
-    lg: "min-h-[48px] h-12 min-w-[48px] px-6 text-base",
-  };
-  // États : hover / active / disabled portés par le variant ; focus unifié via
-  // `.focus-lime` sur le conteneur (un seul indicateur, identique partout).
-  const variants = {
-    primary:
-      "bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/85 rounded-full font-medium",
-    ghost:
-      "bg-transparent text-foreground hover:bg-secondary active:bg-secondary/80 rounded-full font-medium",
-    outline:
-      "bg-transparent text-foreground border border-border hover:border-lime/60 hover:text-lime active:border-lime/70 active:text-lime",
-  };
+  // Tailles et variantes portées par `buttonVariants` (shadcn) ; on n'ajoute
+  // ici que la signature de marque : relief lumineux sur le primaire, verre
+  // sur le secondaire, focus unifié via `.focus-lime`.
   const isDisabled = disabled || loading;
   return (
     <button
@@ -61,8 +49,10 @@ export function RebootButton({
       className={cn(
         buttonVariants({ variant: variant === "primary" ? "default" : variant === "outline" ? "outline" : "ghost", size: size === "lg" ? "lg" : size === "md" ? "default" : "sm" }),
         "min-h-[44px] rounded-full focus-lime",
-        variant === "primary" && "bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/85",
-        variant === "outline" && "border border-border hover:border-lime/60 hover:text-lime active:border-lime/70 active:text-lime",
+        variant === "primary" &&
+          "bg-primary text-primary-foreground font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_1px_2px_rgba(0,0,0,0.4)] hover:bg-primary/95 active:bg-primary/85",
+        variant === "outline" &&
+          "border border-[var(--line-strong)] bg-white/[0.03] backdrop-blur-sm hover:border-lime/60 hover:bg-lime/[0.06] hover:text-foreground active:border-lime/70",
         className,
       )}
     >
@@ -104,8 +94,8 @@ export function Eyebrow({
   className?: string;
 }) {
   return (
-    <p className={cn("eyebrow-mono text-lime flex items-center gap-2.5", className)}>
-      <span className="h-px w-6 bg-lime/70 shrink-0" aria-hidden />
+    <p className={cn("eyebrow-mono text-lime inline-flex items-center gap-2.5", className)}>
+      <span className="chip__dot shrink-0" aria-hidden />
       <span>{children}</span>
     </p>
   );
@@ -126,7 +116,7 @@ export function SectionHeader({
   return (
     <div className={cn("max-w-2xl", className)}>
       <Eyebrow>{index}</Eyebrow>
-      <h2 className="mt-3 ds-h2 text-foreground text-balance">
+      <h2 className="mt-4 ds-h2 text-gradient text-balance">
         {title}
       </h2>
       {intro && (
@@ -170,7 +160,7 @@ export function ExternalCta({
       rel="noopener noreferrer"
       onClick={onClick}
       className={cn(
-        "group inline-flex items-center justify-center gap-2 rounded-md transition-colors duration-200 focus-lime bg-lime text-black hover:bg-lime/90 font-medium border border-transparent cursor-pointer",
+        "group inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-all duration-200 focus-lime bg-lime text-black border border-transparent cursor-pointer shadow-[inset_0_1px_0_rgba(255,255,255,0.45)] hover:-translate-y-px hover:shadow-[0_8px_32px_rgba(197,244,65,0.28)] active:translate-y-0",
         sizes[size],
         "w-full sm:w-auto",
         className,
@@ -199,7 +189,8 @@ export function Tag({
     "inline-flex items-center rounded-full border px-3.5 py-2 text-[13px] font-medium tracking-[0.01em] leading-none transition-colors focus-lime",
     onClick
       ? "min-h-[44px] cursor-pointer hover:border-lime/60 hover:text-foreground hover:bg-lime/5 active:bg-lime/10"
-      : "min-h-[44px]",
+      : // Étiquette statique : pas une cible tactile, inutile de lui imposer 44px.
+        "min-h-8 py-1.5",
     active
       ? "border-lime/60 text-lime bg-lime/5"
       : "border-border text-muted-foreground",
