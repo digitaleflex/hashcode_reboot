@@ -5,7 +5,7 @@ import { useMemberSession } from "@/lib/use-member-session";
 import { useTranslations } from "next-intl";
 
 const LINK_CLS =
-  "inline-flex min-h-[44px] items-center text-sm text-muted-foreground transition-colors hover:text-foreground focus-lime";
+  "inline-flex min-h-[44px] items-center whitespace-nowrap text-sm text-muted-foreground transition-colors hover:text-foreground focus-lime";
 
 /**
  * Entrée d'espace : « Mon espace » si connecté, sinon « Se connecter ».

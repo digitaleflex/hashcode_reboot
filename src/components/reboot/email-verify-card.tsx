@@ -50,12 +50,12 @@ export function EmailVerificationNudge({ email, firstName }: { email: string; fi
 
   if (!email) return null;
   return (
-    <div className="mt-6 rounded-lg border border-lime/40 bg-lime/[0.04] p-4 sm:p-5">
-      <div className="flex items-start gap-3">
-        <MailCheck className="size-5 text-lime shrink-0 mt-0.5" />
+    // Rendu « nu » : le conteneur (carte, titre, numéro) est porté par la
+    // checklist d'activation de la page de bienvenue.
+    <div className="flex items-start gap-3">
+        <MailCheck className="size-5 text-lime shrink-0 mt-0.5" aria-hidden />
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-foreground font-medium">{t("emailVerify.title")}</p>
-          <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+          <p className="text-sm text-muted-foreground leading-relaxed">
             {t("emailVerify.description", { email })}
           </p>
           {info && (
@@ -72,13 +72,12 @@ export function EmailVerificationNudge({ email, firstName }: { email: string; fi
             type="button"
             onClick={resend}
             disabled={cooldown > 0 || sending}
-            className="mt-3 inline-flex items-center gap-1.5 text-xs text-lime hover:underline disabled:opacity-50 disabled:no-underline"
+            className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full border border-lime/40 bg-lime/[0.06] px-4 text-sm font-medium text-lime transition-colors hover:bg-lime/10 focus-lime disabled:opacity-50"
           >
             {sending ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
             {cooldown > 0 ? t("emailVerify.resendCooldown", { seconds: cooldown }) : t("emailVerify.resend")}
           </button>
         </div>
-      </div>
     </div>
   );
 }

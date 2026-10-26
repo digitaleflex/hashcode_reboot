@@ -56,20 +56,12 @@ export function NextBestActionCard({
   return (
     <div
       className={cn(
-        "relative rounded-lg border border-border bg-card overflow-hidden",
+        "surface relative overflow-hidden",
         className,
       )}
       role="region"
       aria-label="Prochaine étape recommandée"
     >
-      {/* Top hairline + corner ticks (même motif que ProfileCard) */}
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-lime/70 to-transparent" />
-      <div className="absolute top-2 left-2 text-lime/50 mono-label text-[8px]" aria-hidden>
-        ┌
-      </div>
-      <div className="absolute top-2 right-2 text-lime/50 mono-label text-[8px]" aria-hidden>
-        ┐
-      </div>
       {/* Bottom-left lime glow */}
       <div
         className="absolute -bottom-12 -left-12 size-32 rounded-full blur-3xl opacity-[0.05] pointer-events-none"
@@ -82,7 +74,7 @@ export function NextBestActionCard({
           <MonoLabel className="text-muted-foreground">
             Prochaine étape
           </MonoLabel>
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm border border-lime/40 bg-lime/5 text-lime mono-label">
+          <span className="chip chip--accent px-2.5 py-1 text-[11px] tracking-[0.1em]">
             <span className="size-1 rounded-full bg-lime animate-hash-pulse" aria-hidden />
             ORIENTATION
           </span>

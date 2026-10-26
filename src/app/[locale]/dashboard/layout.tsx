@@ -44,16 +44,20 @@ export default async function DashboardLayout({
     <NextIntlClientProvider messages={messages}>
       <div className="min-h-screen bg-background text-foreground flex flex-col">
       {/* Top bar */}
-      <header className="sticky top-0 z-40 h-14 border-b border-border/60 bg-card/80 backdrop-blur-sm">
+      <header className="glass sticky top-0 z-40 h-16 border-b border-[var(--line-soft)]">
         <div className="h-full px-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <a href="/" className="flex items-center gap-3">
-              <Logo className="size-6 text-lime shrink-0" />
+            <a href="/" className="flex items-center gap-3 rounded-md focus-lime" aria-label="HASHCODE REBOOT — accueil">
+              {/* `size-6` sur le wordmark complet l'écrasait dans 24px. */}
+              <Logo variant="compact" size="sm" />
             </a>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground hidden sm:inline">
-              {data.member.firstName}
+            <span className="hidden items-center gap-2.5 sm:inline-flex">
+              <span className="grid size-8 place-items-center rounded-full bg-lime/15 font-display text-sm font-bold text-lime">
+                {data.member.firstName.charAt(0).toUpperCase()}
+              </span>
+              <span className="text-sm text-foreground">{data.member.firstName}</span>
             </span>
             <LogoutButton />
           </div>
@@ -67,7 +71,7 @@ export default async function DashboardLayout({
         />
 
         {/* Main content */}
-        <main className="flex-1 min-w-0 overflow-y-auto bg-muted/10 pb-20 md:pb-0">
+        <main className="relative flex-1 min-w-0 overflow-y-auto pb-20 md:pb-0">
           {children}
         </main>
       </div>

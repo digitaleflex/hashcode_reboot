@@ -30,7 +30,7 @@ test.describe('Locale routing', () => {
     await page.waitForLoadState('domcontentloaded');
     
     // Vérifier contenu FR
-    await expect(page.locator('text=Bienvenue dans le Reboot')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=Progresse en tech.')).toBeVisible({ timeout: 10000 });
     // `.first()` : ce libellé est porté par plusieurs CTA (header, hero, axes,
     // FAQ, CTA final, footer, sticky mobile). Un locator non qualifié lève une
     // violation de mode strict dès qu'il y en a plus d'un.

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { publicTags } from "@/lib/profiling/public-tags";
 
 export const runtime = "nodejs";
 
@@ -35,8 +36,9 @@ export async function GET(
     );
   }
   const { id } = await params;
-  const m = await db.member.findUnique({
-    where: { id },
+  const m = await db.member.findFirst({
+    // Un membre supprimé (soft-delete RGPD) n'a plus de profil public.
+    where: { id, deletedAt: null },
     select: {
       firstName: true,
       profileArchetype: true,
@@ -66,7 +68,8 @@ export async function GET(
       learningStyle: m.learningStyle,
       mentoring: m.mentoringInterest,
       threeMonthGoal: m.threeMonthGoal,
-      tags: decode<string[]>(m.tags, []),
+      // Liste blanche : jamais de GENDER:*, COUNTRY:*, HIGH-BUDGET en public.
+      tags: publicTags(decode<string[]>(m.tags, [])),
     },
   });
 }

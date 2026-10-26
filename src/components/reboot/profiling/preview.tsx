@@ -26,27 +26,30 @@ export function ProfilePreview({
     <ProfilingShell
       progress={0.98}
       onBack={onEdit}
-      stepLabel={t("preview.title")}
+      stepLabel={t("preview.stepLabel")}
       group="vision"
       showCompletionIndicator
     >
       <div className="animate-hash-in">
         <div className="max-w-xl mx-auto text-center">
-          <HashSymbol className="mx-auto text-lime" size={40} />
-          <h1 className="mt-5 font-display font-bold text-2xl sm:text-3xl tracking-tight">
+          <span className="chip chip--accent">
+            <span className="chip__dot" aria-hidden />
+            {t("preview.badge")}
+          </span>
+          <h1 className="mt-5 font-display font-bold text-3xl sm:text-4xl tracking-tight text-gradient">
             {t("preview.title")}
           </h1>
           <p className="mt-2 text-muted-foreground">
             {t("preview.body", { archetype: gen.archetype, domainLabel: gen.domainLabel })}
           </p>
         </div>
-        <div className="mt-8 max-w-md mx-auto">
+        <div className="mt-8 max-w-lg mx-auto">
           {/* `headingLevel={2}` : le titre de cette carte est enfant direct du
               `h1` de l'étape de relecture — le défaut `3` y produirait un saut
               `h1` → `h3` (violation axe `heading-order`). */}
           <ProfileCard profile={gen} goal={answers.threeMonthGoal} headingLevel={2} />
         </div>
-        <div className="mt-8 max-w-md mx-auto flex flex-col sm:flex-row gap-3">
+        <div className="mt-8 max-w-lg mx-auto flex flex-col gap-2">
           <RebootButton
             size="lg"
             className="group w-full"
@@ -57,14 +60,14 @@ export function ProfilePreview({
           </RebootButton>
           <RebootButton
             size="lg"
-            variant="outline"
+            variant="ghost"
             onClick={onEdit}
-            className="w-full sm:w-auto whitespace-nowrap"
+            className="w-full text-muted-foreground hover:text-foreground"
           >
-            <ArrowLeft className="size-6 shrink-0" /> {t("preview.edit")}
+            <ArrowLeft className="size-4 shrink-0" /> {t("preview.edit")}
           </RebootButton>
         </div>
-        <p className="mt-6 max-w-md mx-auto text-center text-xs text-muted-foreground">
+        <p className="mt-4 max-w-lg mx-auto text-center text-xs text-muted-foreground">
           {t("preview.whatsappNote")}
         </p>
       </div>

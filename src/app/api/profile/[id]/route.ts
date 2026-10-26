@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
+import { publicTags } from "@/lib/profiling/public-tags";
 
 export async function GET(
   req: NextRequest,
@@ -23,8 +24,9 @@ export async function GET(
 
   const { id } = await params;
 
-  const m = await db.member.findUnique({
-    where: { id },
+  const m = await db.member.findFirst({
+    // Un membre supprimé (soft-delete RGPD) n'a plus de profil public.
+    where: { id, deletedAt: null },
     // F5 : accessLane est un champ interne d'auto-contrôle — jamais exposé
     // sur une route publique sans rate-limit (voir aussi /members/[id]/share).
     select: {
@@ -61,7 +63,8 @@ export async function GET(
       availability: m.availability,
       mentoring: m.mentoringInterest,
       threeMonthGoal: m.threeMonthGoal,
-      tags: decode<string[]>(m.tags, []),
+      // Liste blanche : jamais de GENDER:*, COUNTRY:*, HIGH-BUDGET en public.
+      tags: publicTags(decode<string[]>(m.tags, [])),
     },
   });
 }

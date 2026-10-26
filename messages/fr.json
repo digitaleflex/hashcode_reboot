@@ -28,14 +28,14 @@
         "FAQ"
       ],
       "cta": "Construire mon profil",
-      "ctaMobile": "Construire mon profil"
+      "ctaMobile": "Commencer"
     },
     "hero": {
-      "eyebrow": "Bienvenue dans le Reboot — où que tu sois",
+      "eyebrow": "Communauté dev, cyber & IA — où que tu sois",
       "brandTitle1": "HASHCODE",
       "brandTitle2": "REBOOT",
-      "subtitle": "Rejoins la nouvelle communauté dev, cyber & IA.",
-      "description": "Où que tu sois. Crée ton profil en 2 min, reçois ton accès WhatsApp et commence avec ton premier challenge.",
+      "subtitle": "La communauté HASHCODE qui t'oriente, te fait pratiquer et t'accompagne — du premier pas au premier projet.",
+      "description": "Crée ton profil en 2 minutes : on t'oriente vers le bon axe, tu rejoins la communauté et tu attaques ton premier challenge.",
       "primaryCta": "Construire mon profil",
       "secondaryCta": "Découvrir les axes",
       "reassurance": "Environ 2 min · Gratuit · Sans engagement",
@@ -79,7 +79,66 @@
           "t": "Applied AI",
           "m": "IA · Automatisation · Agents"
         }
-      ]
+      ],
+      "headline1": "Progresse en tech.",
+      "headline2": "En pratiquant, ensemble.",
+      "reassuranceItems": [
+        "2 minutes",
+        "Gratuit",
+        "Sans engagement"
+      ],
+      "showcase": {
+        "label": "Aperçu — profil de démonstration",
+        "note": "Exemples fictifs. Ton profil sera calculé à partir de tes réponses.",
+        "recommended": "Prochaine étape recommandée",
+        "fit": "Adéquation avec l'axe",
+        "rhythm": "Rythme",
+        "level": "Niveau",
+        "goal": "Objectif",
+        "tabsAria": "Choisir un exemple de profil",
+        "profiles": [
+          {
+            "key": "web",
+            "name": "Awa",
+            "initial": "A",
+            "archetype": "WEB BUILDER",
+            "domain": "Web Development",
+            "level": "Je pratique déjà",
+            "goal": "Construire un projet",
+            "rhythm": "5 – 10 h / sem.",
+            "fit": 86,
+            "next": "Atelier · Déployer sa première app",
+            "short": "Web"
+          },
+          {
+            "key": "cybersecurity",
+            "name": "Koffi",
+            "initial": "K",
+            "archetype": "CYBER BUILDER",
+            "domain": "Cybersecurity",
+            "level": "Je débute",
+            "goal": "Trouver un emploi",
+            "rhythm": "2 – 5 h / sem.",
+            "fit": 78,
+            "next": "Challenge · Analyser un réseau",
+            "short": "Cyber"
+          },
+          {
+            "key": "ai",
+            "name": "Inès",
+            "initial": "I",
+            "archetype": "AI EXPLORER",
+            "domain": "Applied AI",
+            "level": "Je suis autonome",
+            "goal": "Monter en compétences",
+            "rhythm": "10 – 15 h / sem.",
+            "fit": 91,
+            "next": "Workshop · Construire un agent",
+            "short": "IA"
+          }
+        ]
+      },
+      "stepsTitle": "Comment ça marche"
     },
     "evolves": {
       "index": "01 · Notre philosophie",
@@ -104,7 +163,7 @@
       ]
     },
     "axes": {
-      "index": "02 · Les trois domaines",
+      "index": "01 · Les trois domaines",
       "title": "Trois terrains. Un seul système.",
       "intro": "Choisis ton terrain. Tu pourras en croiser d'autres plus tard.",
       "practiceLabel": "Ce que tu y pratiques",
@@ -147,7 +206,7 @@
       "mobileCta": "Construire mon profil"
     },
     "method": {
-      "index": "03 · La méthode",
+      "index": "02 · La méthode",
       "title": "Apprendre. Pratiquer. Construire. Évoluer.",
       "intro": "Quatre étapes, pas quatre promesses. Le lime montre où tu en es.",
       "goalLabel": "Objectif",
@@ -179,7 +238,7 @@
       ]
     },
     "engine": {
-      "index": "04 · Ton point de départ",
+      "index": "03 · Ton point de départ",
       "title": "Découvre comment HASHCODE peut te comprendre.",
       "intro": "Un profil, sept étapes. Des règles lisibles et un résultat identique partout — pas de boîte noire.",
       "path": [
@@ -250,7 +309,7 @@
       ]
     },
     "community": {
-      "index": "05 · La communauté",
+      "index": "04 · La communauté",
       "title": "On construit à plusieurs.",
       "intro": "Des profils, des challenges, des workshops et du mentorat — selon ce qui est ouvert.",
       "liveAria": "Nombre de profils déjà créés",
@@ -291,10 +350,11 @@
         "Curieux d'IA",
         "Autodidactes"
       ],
-      "note": "Débutant ou avancé — on part de là où tu es vraiment."
+      "note": "Débutant ou avancé — on part de là où tu es vraiment.",
+      "counterCta": "Rejoindre la cohorte"
     },
     "activity": {
-      "index": "06 · En ce moment",
+      "index": "05 · En ce moment",
       "title": "HASHCODE est en mouvement.",
       "intro": "Les prochaines sessions ouvertes à la communauté.",
       "cta": "Voir tous les événements",
@@ -320,10 +380,11 @@
         "beginner": "Débutant",
         "intermediate": "Intermédiaire",
         "advanced": "Avancé"
-      }
+      },
+      "emptyHint": "Les prochaines sessions sont annoncées en premier aux membres — crée ton profil pour être prévenu."
     },
     "roadmap": {
-      "index": "07 · La suite",
+      "index": "06 · La suite",
       "title": "Le Reboot, c'est maintenant.",
       "intro": "L'ordre réel, du plus proche au plus lointain.",
       "items": [
@@ -366,7 +427,7 @@
       "liveBadge": "En cours"
     },
     "faq": {
-      "index": "08 · Tes questions",
+      "index": "07 · Tes questions",
       "title": "Tu te demandes peut-être…",
       "intro": "Les réponses aux questions les plus courantes sur le Reboot.",
       "items": [
@@ -513,7 +574,8 @@
       "authenticated": "Mon espace",
       "authenticatedWithName": "Mon espace · {firstName}",
       "anonymous": "Se connecter"
-    }
+    },
+    "audienceMarqueeAria": "À qui s'adresse HASHCODE"
   },
   "profiling": {
     "api": {
@@ -595,12 +657,13 @@
       "skip": "Passer"
     },
     "preview": {
-      "stepLabel": "Ton profil HASHCODE est prêt",
+      "stepLabel": "Aperçu de ton profil",
       "title": "Ton profil HASHCODE est prêt.",
       "body": "{archetype} — {domainLabel}. Voici la première orientation qu'on tire de tes réponses.",
       "finalize": "Finaliser mon profil",
       "edit": "Modifier mes réponses",
-      "whatsappNote": "Tu pourras compléter ton numéro WhatsApp plus tard, depuis ton espace membre."
+      "whatsappNote": "Tu pourras compléter ton numéro WhatsApp plus tard, depuis ton espace membre.",
+      "badge": "Dernière étape"
     },
     "profileCard": {
       "domain": "Domaine",
@@ -1321,7 +1384,26 @@
       "status": "Statut",
       "pending": "En attente",
       "contact": "Contact",
-      "estimatedDelay": "Délai estimé : 48 h ouvrées."
+      "estimatedDelay": "Délai estimé : 48 h ouvrées.",
+      "subtitleImmediate": "Ton profil est créé et ton accès à la communauté est ouvert. Encore deux minutes pour bien démarrer.",
+      "subtitlePending": "Ton profil est créé. On le relit avant de t'envoyer ton invitation — en attendant, prépare ton arrivée.",
+      "tagsAria": "Points clés de ton profil",
+      "yourProfile": "Ton profil",
+      "publicProfile": "Profil public",
+      "stepsEyebrow": "Bien démarrer",
+      "stepsTitle": "Tes prochaines étapes",
+      "stepsSubtitle": "Trois gestes rapides pour que la communauté puisse t'accueillir dans de bonnes conditions.",
+      "stepProfileTitle": "Profil créé",
+      "stepProfileText": "Ton archétype {archetype} sert de point de départ aux recommandations, ateliers et challenges.",
+      "stepEmailTitle": "Confirme ton email",
+      "stepPhoneTitle": "Ajoute ton WhatsApp",
+      "stepSpaceTitle": "Découvre ton espace",
+      "stepSpaceText": "Agenda, ateliers et suivi de ta progression : tout se retrouve dans ton espace membre.",
+      "stepSpaceCta": "Accéder à mon espace",
+      "orientationAria": "Ton orientation personnalisée",
+      "privacyPromise": "Minimum nécessaire, zéro revente, zéro pub.",
+      "accessOpen": "Accès ouvert",
+      "joinWhatsAppCta": "Rejoindre HASHCODE sur WhatsApp"
     },
     "page": {
       "submitError": "L'envoi a échoué, mais ton profil local est affiché ci-dessous. Tu peux réessayer.",
@@ -1345,6 +1427,13 @@
       "buildMyProfile": "Créer mon profil",
       "savingProfile": "On enregistre ton profil…",
       "autoControlsRunning": "Vérifications automatiques en cours…"
+    },
+    "livePanel": {
+      "title": "Ton profil se construit",
+      "country": "Pays",
+      "anonymous": "Toi",
+      "archetypePending": "Archétype à découvrir…",
+      "note": "Calculé en direct à partir de tes réponses, avec des règles fixes et lisibles — pas de boîte noire."
     }
   },
   "auth": {
@@ -1434,15 +1523,6 @@
         "expiredFallback": "Lien expiré. Demande un nouveau lien.",
         "network": "Erreur réseau. Vérifie ta connexion puis réessaie."
       }
-    },
-    "common": {
-      "backHome": "Retour à HASHCODE REBOOT",
-      "skipToForm": "Aller au formulaire",
-      "progressLabel": "Étapes de la connexion",
-      "stepOne": "Email",
-      "stepTwo": "Code",
-      "stepDone": "terminée",
-      "backHomeShort": "Retour"
     }
   },
   "evenements": {
@@ -1513,8 +1593,39 @@
   },
   "dashboard": {
     "settings": {
+      "title": "Paramètres",
+      "subtitle": "Tes coordonnées, ton compte et ta session.",
+      "contactTitle": "Mes coordonnées",
+      "contactHint": "mets-les à jour à tout moment",
+      "accountTitle": "Compte",
+      "accountEmail": "Email",
+      "accountCountry": "Pays",
+      "accountSince": "Membre depuis",
+      "accountHint": "Pour changer ton email, contacte-nous via WhatsApp. La suppression de ton compte se fait ci-dessous, dans « Mes données ».",
+      "dataTitle": "Mes données",
+      "dataHint": "Exporte tout ce qu'on sait de toi, ou supprime ton compte.",
+      "exportTitle": "Exporter mes données",
+      "exportHint": "Profil, progression, RSVP et emails — fichier JSON.",
+      "exportButton": "Télécharger",
+      "exportLoading": "Génération…",
+      "exportRateLimit": "Trop d'exports. Réessaie dans quelques minutes.",
+      "exportError": "Impossible de générer l'export.",
+      "exportOffline": "Erreur réseau. Vérifie ta connexion.",
+      "deleteTitle": "Supprimer mon compte",
+      "deleteHint": "Ton profil disparaît, tes sessions sont révoquées. Irréversible.",
+      "deleteCta": "Supprimer…",
+      "deleteConfirmText": "Pour confirmer, écris {word} ci-dessous.",
+      "deleteWord": "SUPPRIMER",
+      "deleteInputAria": "Écris {word} pour confirmer",
+      "deleteError": "Impossible de supprimer le compte.",
+      "deleteOffline": "Erreur réseau. Vérifie ta connexion.",
+      "deleteConfirm": "Supprimer définitivement",
+      "deleteLoading": "Suppression…",
+      "deleteCancel": "Annuler",
+      "sessionTitle": "Session",
+      "sessionHint": "Déconnecte cet appareil.",
       "pageTitle": "Paramètres",
-      "pageDescription": "Coordonnées, compte et session.",
+      "pageDescription": "Tes coordonnées, ton compte et ta session.",
       "contactSection": {
         "title": "Mes coordonnées",
         "subtitle": "mets-les à jour à tout moment"
@@ -1524,37 +1635,35 @@
         "emailLabel": "Email",
         "countryLabel": "Pays",
         "memberSinceLabel": "Membre depuis",
-        "emailChangeNote": "Pour changer ton email, contacte-nous via WhatsApp. La suppression de ton compte se fait ci-dessous, sous « Mes données »."
+        "emailChangeNote": "Pour changer ton email, contacte-nous via WhatsApp. La suppression de ton compte se fait ci-dessous, dans « Mes données »."
       },
       "sessionSection": {
         "title": "Session",
         "description": "Déconnecte cet appareil."
       },
-      "dataTitle": "Mes données",
-      "dataHint": "Exporte tout ce qu'on sait de toi, ou supprime ton compte.",
       "dataSection": {
         "title": "Mes données",
         "description": "Exporte tout ce qu'on sait de toi, ou supprime ton compte.",
+        "export": {
+          "title": "Exporter mes données",
+          "description": "Profil, progression, RSVP et emails — fichier JSON.",
+          "generating": "Génération…",
+          "download": "Télécharger",
+          "rateLimitError": "Trop d'exports. Réessaie dans quelques minutes.",
+          "genericError": "Impossible de générer l'export.",
+          "networkError": "Erreur réseau. Vérifie ta connexion."
+        },
         "delete": {
           "title": "Supprimer mon compte",
           "description": "Ton profil disparaît, tes sessions sont révoquées. Irréversible.",
           "startButton": "Supprimer…",
-          "confirmText": "Pour confirmer, tape {word} ci-dessous.",
+          "confirmText": "Pour confirmer, écris {word} ci-dessous.",
           "confirmWord": "SUPPRIMER",
-          "ariaLabel": "Tape {word} pour confirmer",
-          "genericError": "Impossible de supprimer le compte.",
-          "networkError": "Erreur réseau. Vérifie ta connexion.",
-          "confirmButton": "Supprimer définitivement",
+          "ariaLabel": "Écris {word} pour confirmer",
           "deleting": "Suppression…",
-          "cancelButton": "Annuler"
-        },
-        "export": {
-          "title": "Exporter mes données",
-          "description": "Profil, progression, inscriptions et emails — fichier JSON.",
-          "download": "Télécharger",
-          "generating": "Génération…",
-          "rateLimitError": "Trop d'exports. Réessaie dans quelques minutes.",
-          "genericError": "Impossible de générer l'export.",
+          "confirmButton": "Supprimer définitivement",
+          "cancelButton": "Annuler",
+          "genericError": "Impossible de supprimer le compte.",
           "networkError": "Erreur réseau. Vérifie ta connexion."
         }
       }
@@ -1675,9 +1784,9 @@
         }
       },
       "mentoring": {
-        "title": "Votre mentorat",
+        "title": "Ton mentorat",
         "subtitle": "Suivi personnalisé et séances — bientôt disponible",
-        "description": "Votre mentor vous attend — en cours de préparation…"
+        "description": "Ton mentor t'attend — on prépare la mise en relation."
       },
       "memberSince": "Membre depuis {date}",
       "sidebar": {
@@ -1688,7 +1797,8 @@
           "profile": "Mon profil",
           "settings": "Paramètres",
           "whatsapp": "WhatsApp",
-          "logout": "Déconnexion"
+          "logout": "Déconnexion",
+          "mentoring": "Mentorat"
         },
         "sidebar": {
           "openAria": "Ouvrir le menu",
@@ -1697,6 +1807,38 @@
           "collapse": "Replier la sidebar"
         },
         "collapseShort": "Replier"
+      },
+      "activation": {
+        "eyebrow": "Bien démarrer",
+        "title": "Active ton parcours",
+        "progress": "{done}/{total} étapes",
+        "doneSr": "(terminé)",
+        "steps": {
+          "profile": {
+            "title": "Profil créé",
+            "hint": ""
+          },
+          "phone": {
+            "title": "Ajouter ton WhatsApp",
+            "hint": "Pour être ajouté directement au groupe"
+          },
+          "community": {
+            "title": "Rejoindre la communauté",
+            "hint": "Le groupe officiel HASHCODE"
+          },
+          "workshop": {
+            "title": "S'inscrire à un atelier",
+            "hint": "Ton premier pas concret"
+          },
+          "goal": {
+            "title": "Fixer ton objectif à 3 mois",
+            "hint": "Pour mieux t'orienter"
+          }
+        }
+      },
+      "hero": {
+        "memberSince": "Membre depuis {date}",
+        "explore": "Voir les ateliers"
       }
     },
     "agenda": {
@@ -2189,82 +2331,6 @@
         ]
       ],
       "submitButton": "Confirmer mon profil"
-    },
-    "settings": {
-      "title": "Paramètres",
-      "subtitle": "Tes coordonnées, ton compte et ta session.",
-      "contactTitle": "Mes coordonnées",
-      "contactHint": "mets-les à jour à tout moment",
-      "accountTitle": "Compte",
-      "accountEmail": "Email",
-      "accountCountry": "Pays",
-      "accountSince": "Membre depuis",
-      "accountHint": "Pour changer ton email, contacte-nous via WhatsApp. La suppression de ton compte se fait ci-dessous, dans « Mes données ».",
-      "dataTitle": "Mes données",
-      "dataHint": "Exporte tout ce qu'on sait de toi, ou supprime ton compte.",
-      "exportTitle": "Exporter mes données",
-      "exportHint": "Profil, progression, RSVP et emails — fichier JSON.",
-      "exportButton": "Télécharger",
-      "exportLoading": "Génération…",
-      "exportRateLimit": "Trop d'exports. Réessaie dans quelques minutes.",
-      "exportError": "Impossible de générer l'export.",
-      "exportOffline": "Erreur réseau. Vérifie ta connexion.",
-      "deleteTitle": "Supprimer mon compte",
-      "deleteHint": "Ton profil disparaît, tes sessions sont révoquées. Irréversible.",
-      "deleteCta": "Supprimer…",
-      "deleteConfirmText": "Pour confirmer, écris {word} ci-dessous.",
-      "deleteWord": "SUPPRIMER",
-      "deleteInputAria": "Écris {word} pour confirmer",
-      "deleteError": "Impossible de supprimer le compte.",
-      "deleteOffline": "Erreur réseau. Vérifie ta connexion.",
-      "deleteConfirm": "Supprimer définitivement",
-      "deleteLoading": "Suppression…",
-      "deleteCancel": "Annuler",
-      "sessionTitle": "Session",
-      "sessionHint": "Déconnecte cet appareil.",
-      "pageTitle": "Paramètres",
-      "pageDescription": "Tes coordonnées, ton compte et ta session.",
-      "contactSection": {
-        "title": "Mes coordonnées",
-        "subtitle": "mets-les à jour à tout moment"
-      },
-      "accountSection": {
-        "title": "Compte",
-        "emailLabel": "Email",
-        "countryLabel": "Pays",
-        "memberSinceLabel": "Membre depuis",
-        "emailChangeNote": "Pour changer ton email, contacte-nous via WhatsApp. La suppression de ton compte se fait ci-dessous, dans « Mes données »."
-      },
-      "sessionSection": {
-        "title": "Session",
-        "description": "Déconnecte cet appareil."
-      },
-      "dataSection": {
-        "title": "Mes données",
-        "description": "Exporte tout ce qu'on sait de toi, ou supprime ton compte.",
-        "export": {
-          "title": "Exporter mes données",
-          "description": "Profil, progression, RSVP et emails — fichier JSON.",
-          "generating": "Génération…",
-          "download": "Télécharger",
-          "rateLimitError": "Trop d'exports. Réessaie dans quelques minutes.",
-          "genericError": "Impossible de générer l'export.",
-          "networkError": "Erreur réseau. Vérifie ta connexion."
-        },
-        "delete": {
-          "title": "Supprimer mon compte",
-          "description": "Ton profil disparaît, tes sessions sont révoquées. Irréversible.",
-          "startButton": "Supprimer…",
-          "confirmText": "Pour confirmer, écris {word} ci-dessous.",
-          "confirmWord": "SUPPRIMER",
-          "ariaLabel": "Écris {word} pour confirmer",
-          "deleting": "Suppression…",
-          "confirmButton": "Supprimer définitivement",
-          "cancelButton": "Annuler",
-          "genericError": "Impossible de supprimer le compte.",
-          "networkError": "Erreur réseau. Vérifie ta connexion."
-        }
-      }
     }
   },
   "account": {
@@ -2322,11 +2388,26 @@
       "cityPlaceholder": "Ex. Cotonou",
       "genderLabel": "Genre",
       "genderOptions": [
-        { "value": "unspecified", "label": "Ne pas préciser" },
-        { "value": "male", "label": "Homme" },
-        { "value": "female", "label": "Femme" },
-        { "value": "other", "label": "Autre" },
-        { "value": "preferNotSay", "label": "Préfère ne pas dire" }
+        {
+          "value": "unspecified",
+          "label": "Ne pas préciser"
+        },
+        {
+          "value": "male",
+          "label": "Homme"
+        },
+        {
+          "value": "female",
+          "label": "Femme"
+        },
+        {
+          "value": "other",
+          "label": "Autre"
+        },
+        {
+          "value": "preferNotSay",
+          "label": "Préfère ne pas dire"
+        }
       ],
       "goalLabel": "Objectif à 3 mois",
       "goalPlaceholder": "Ex. Avoir décroché mon premier poste de dev web.",

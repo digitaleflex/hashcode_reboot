@@ -4,6 +4,7 @@ import { GraduationCap, ArrowRight } from "lucide-react";
 import { db } from "@/lib/db";
 import { buildAccountData } from "@/lib/account-data";
 import { WelcomeCard } from "./_components/WelcomeCard";
+import { ActivationChecklist } from "./_components/ActivationChecklist";
 import { OrientationSection } from "./_components/OrientationSection";
 import { StatusCard } from "./_components/StatusCard";
 import { QuickActions } from "./_components/QuickActions";
@@ -34,35 +35,35 @@ export default async function DashboardPage() {
   }
 
   const data = buildAccountData(member);
+  const enrollmentCount = await db.workshopEnrollment.count({
+    where: { memberId: member.id },
+  });
 
   return (
-    <div className="mx-auto max-w-7xl w-full px-5 sm:px-8 lg:px-12 py-8 lg:py-10">
-      {/* Nudge WhatsApp : le numéro n'est plus demandé à l'inscription —
-          on le récupère ici s'il manque (ajout direct au groupe). */}
-      {!member.phone && (
-        <Link
-          href="/dashboard/settings"
-          className="block rounded-md border border-lime/40 bg-lime/[0.04] px-4 py-3 text-sm text-foreground transition-colors hover:border-lime/60"
-        >
-          <span className="font-medium">{t("whatsappNudge.title")}</span>{" "}
-          <span className="text-muted-foreground">
-            {t("whatsappNudge.description")}
-          </span>
-        </Link>
-      )}
+    <div className="mx-auto max-w-7xl w-full px-5 sm:px-8 lg:px-10 py-8 lg:py-10">
       <WelcomeCard
         firstName={data.member.firstName}
         profile={data.profile}
         status={data.status}
+        memberSince={new Date(data.member.createdAt).toLocaleDateString("fr-FR", {
+          month: "long",
+          year: "numeric",
+        })}
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+      {/* Checklist d'activation : remplace la bannière « Ajoute ton WhatsApp »
+          (le numéro devient une étape parmi d'autres, avec progression). */}
+      <div className="mt-6">
+        <ActivationChecklist
+          hasPhone={!!member.phone}
+          joinedCommunity={member.communityStatus === "JOINED"}
+          hasEnrollment={enrollmentCount > 0}
+          hasGoal={!!member.threeMonthGoal?.trim()}
+        />
+      </div>
+
+      <div className="mt-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-8 space-y-6">
-          <WelcomeCard
-            firstName={data.member.firstName}
-            profile={data.profile}
-            status={data.status}
-          />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <StatusCard status={data.status} />
             <ProfileSummary profile={data.profile} member={data.member} />
@@ -78,32 +79,23 @@ export default async function DashboardPage() {
           />
           <Link
             href="/dashboard/mentoring"
-            className="block rounded-xl border border-border/60 bg-card/40 p-6 space-y-4 hover:border-lime/40 transition-colors group"
+            className="surface surface-interactive block p-6 space-y-4 group focus-lime"
           >
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-lime/10 group-hover:bg-lime/20 transition-colors">
-                <GraduationCap className="size-5 text-lime" />
-              </div>
+              <span className="icon-tile icon-tile--accent">
+                <GraduationCap className="size-5" />
+              </span>
               <div>
                 <h3 className="font-display font-semibold text-lg">{t("mentoring.title")}</h3>
                 <p className="text-sm text-muted-foreground">{t("mentoring.subtitle")}</p>
               </div>
-              <ArrowRight className="size-6 text-muted-foreground ml-auto group-hover:text-lime transition-colors" />
+              <ArrowRight className="size-5 text-muted-foreground ml-auto group-hover:text-lime transition-colors" />
             </div>
             <div className="text-sm text-muted-foreground">{t("mentoring.description")}</div>
           </Link>
         </aside>
       </div>
 
-      {/* Membre depuis */}
-      <p className="text-center text-xs text-muted-foreground pt-4">
-        {t("memberSince", {
-          date: new Date(data.member.createdAt).toLocaleDateString("fr-FR", {
-            month: "long",
-            year: "numeric",
-          }),
-        })}
-      </p>
     </div>
   );
 }

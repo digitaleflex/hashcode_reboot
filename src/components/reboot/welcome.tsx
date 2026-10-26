@@ -2,11 +2,9 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { HashSymbol, Logo } from "@/components/brand/logo";
+import { Logo } from "@/components/brand/logo";
 import {
   RebootButton,
-  CtaArrow,
-  MonoLabel,
   ExternalCta,
 } from "./shared";
 import { ProfileCard } from "./profile-card";
@@ -24,12 +22,12 @@ import {
   MessageCircle,
   Share2,
   ShieldCheck,
-  Sparkles,
   UserRound,
 } from "lucide-react";
 import { EmailVerificationNudge } from "./email-verify-card";
 import { useTranslations } from "next-intl";
 import { RecommendationExperience } from "./recommendation/recommendation-experience";
+import { publicTagLabels } from "@/lib/profiling/public-tags";
 
 export interface WelcomeResult {
   memberId: string;
@@ -147,236 +145,213 @@ export function Welcome({
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border/70 bg-background/90 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-[1240px] items-center justify-between px-5 sm:px-8">
+    <div className="relative min-h-screen overflow-x-clip bg-background text-foreground">
+      <header className="glass sticky top-0 z-40 border-b border-[var(--line-soft)]">
+        <div className="mx-auto flex h-16 max-w-[1200px] items-center justify-between px-5 sm:px-8">
           <Logo variant="compact" size="sm" />
-          <div className="flex items-center gap-2">
-            <span className="hidden text-xs text-muted-foreground sm:inline">
-              {t("welcome.headerProfile")}
-            </span>
-            <span className="inline-flex items-center gap-2 rounded-full border border-lime/35 bg-lime/5 px-3 py-1.5 font-mono text-[11px] tracking-[0.08em] text-lime">
-              <span className="size-1.5 rounded-full bg-lime animate-hash-pulse" />
-              {t("welcome.headerActive")}
-            </span>
-          </div>
+          <button
+            onClick={handleShare}
+            className={cn(
+              "inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm transition-colors focus-lime",
+              shareState === "copied"
+                ? "border-lime/60 bg-lime/10 text-lime"
+                : "border-[var(--line-strong)] text-foreground hover:border-lime/50",
+            )}
+          >
+            <Share2 className="size-4" />
+            {shareState === "copied" ? t("welcome.linkCopied") : t("welcome.shareProfile")}
+          </button>
         </div>
       </header>
 
-      <main className="relative overflow-hidden" aria-labelledby="welcome-title">
-        <div
-          className="pointer-events-none absolute inset-x-0 top-0 h-[520px] opacity-70"
-          aria-hidden
-          style={{
-            background:
-              "radial-gradient(circle at 72% 12%, rgba(197,244,65,0.11), transparent 30%), radial-gradient(circle at 18% 18%, rgba(197,244,65,0.045), transparent 25%)",
-          }}
-        />
+      <main className="relative" aria-labelledby="welcome-title">
+        <div className="grid-radial" aria-hidden />
+        <div className="spotlight" aria-hidden />
 
-        <div className="relative mx-auto max-w-[1240px] px-5 pb-14 pt-10 sm:px-8 sm:pt-14 lg:pb-20 lg:pt-16">
-          {/* Hero / identity */}
-          <section className="grid items-end gap-8 lg:grid-cols-[1.25fr_0.75fr] lg:gap-12">
+        <div className="relative mx-auto max-w-[1200px] px-5 pb-16 pt-10 sm:px-8 sm:pt-14 lg:pb-24 lg:pt-16">
+          {/* 1. Célébration + identité ----------------------------------- */}
+          <section className="grid items-start gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:gap-14">
             <div className="animate-hash-in">
-              <div className="inline-flex items-center gap-2 rounded-full border border-lime/30 bg-lime/[0.04] px-3 py-1.5">
-                <Check className="size-3.5 text-lime" strokeWidth={3} />
-                <MonoLabel className="text-lime">Profil reconnu</MonoLabel>
+              <div className="relative inline-grid size-14 place-items-center">
+                <span className="animate-ring-burst absolute inset-0 rounded-full border-2 border-lime" aria-hidden />
+                <span className="grid size-14 place-items-center rounded-full bg-lime text-black shadow-[0_0_40px_rgba(197,244,65,0.35)]">
+                  <Check className="size-7" strokeWidth={3} />
+                </span>
               </div>
 
-              <h1 id="welcome-title" className="mt-6 max-w-3xl font-display text-[clamp(2.6rem,6vw,5rem)] font-extrabold italic leading-[0.92] tracking-[-0.045em] text-balance">
-                {t("welcome.heroGreeting")}
-                <span className="text-lime text-glow-lime"> {answers.firstName}.</span>
+              <h1
+                id="welcome-title"
+                className="mt-7 max-w-2xl font-display text-[clamp(2.4rem,5.5vw,4.25rem)] font-bold leading-[1] tracking-[-0.04em] text-balance"
+              >
+                <span className="text-gradient">{t("welcome.heroGreeting")}</span>{" "}
+                <span className="text-gradient-lime">{answers.firstName}.</span>
               </h1>
 
-              <p className="mt-6 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
-                {t("welcome.heroSubtitle")}
+              <p className="mt-5 max-w-xl text-lg leading-relaxed text-muted-foreground">
+                {isImmediate ? t("welcome.subtitleImmediate") : t("welcome.subtitlePending")}
               </p>
 
-              <div className="mt-6 flex flex-wrap gap-2">
-                {result.profile.tags.slice(0, 4).map((tag) => (
-                  <span
-                    key={tag}
-                    className="rounded-full border border-border bg-card/40 px-3 py-1.5 text-xs font-medium text-muted-foreground"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="relative hidden min-h-[250px] overflow-hidden rounded-2xl border border-border/80 bg-card/25 lg:block">
-              <div
-                className="absolute inset-0 opacity-60"
-                style={{
-                  backgroundImage:
-                    "radial-gradient(circle at 1px 1px, rgba(197,244,65,0.12) 1px, transparent 0)",
-                  backgroundSize: "22px 22px",
-                }}
-              />
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(197,244,65,0.08),transparent_58%)]" />
-              <div className="relative flex h-full min-h-[250px] flex-col items-center justify-center">
-                <div className="relative grid size-28 place-items-center rounded-full border border-lime/40 bg-background/80 shadow-[0_0_70px_rgba(197,244,65,0.10)]">
-                  <div className="absolute inset-3 rounded-full border border-lime/15" />
-                  <HashSymbol className="text-lime" size={54} />
-                </div>
-                <MonoLabel className="mt-5 text-center text-muted-foreground">
-                  {result.profile.archetype}
-                </MonoLabel>
-                <p className="mt-1 text-sm text-foreground/80">
-                  Identité HASHCODE activée
-                </p>
-              </div>
-            </div>
-          </section>
-
-          {/* Primary actions */}
-          <section className="mt-10 grid gap-5 lg:grid-cols-2" aria-label="Prochaine action">
-            {isImmediate ? (
-              <ImmediateBranch
-                answers={answers}
-                result={result}
-                t={t}
-                onWhatsAppClick={handleWhatsAppClick}
-              />
-            ) : (
-              <PendingBranch answers={answers} result={result} t={t} />
-            )}
-
-            <div className="min-w-0">
-              {(result.nextBestAction || result.orientationStatus) ? (
-                <RecommendationExperience
-                  action={result.nextBestAction ?? null}
-                  status={result.orientationStatus ?? "NO_MATCH"}
-                  recommendations={result.orientationRecommendations ?? []}
-                  className="h-full"
-                  onCompleteProfile={handleCompleteProfile}
-                  onActionClick={handleNextBestActionClick}
-                />
-              ) : (
-                <div className="h-full rounded-xl border border-border bg-card/35 p-6">
-                  <MonoLabel className="text-muted-foreground">
-                    Prochaine étape
-                  </MonoLabel>
-                  <h2 className="mt-3 font-display text-2xl font-bold tracking-tight">
-                    Ton parcours commence maintenant.
-                  </h2>
-                  <p className="mt-2 max-w-lg text-sm leading-6 text-muted-foreground">
-                    Explore la communauté, les ateliers et les prochains challenges
-                    pour transformer ton profil en progression concrète.
-                  </p>
-                </div>
+              {publicTagLabels(result.profile.tags).length > 0 && (
+                <ul className="mt-6 flex flex-wrap gap-2" aria-label={t("welcome.tagsAria")}>
+                  {publicTagLabels(result.profile.tags).slice(0, 4).map((tag) => (
+                    <li key={tag} className="chip text-xs text-muted-foreground">
+                      {tag}
+                    </li>
+                  ))}
+                </ul>
               )}
-            </div>
-          </section>
 
-          {/* Secondary information */}
-          <section className="mt-5 grid gap-5 lg:grid-cols-[1.05fr_0.95fr]" aria-label="Informations du profil et actions secondaires">
-            <div>
+              {/* Action principale : l'accès communauté (ou son statut). */}
+              <div className="mt-9">
+                {isImmediate ? (
+                  <ImmediateBranch
+                    answers={answers}
+                    result={result}
+                    t={t}
+                    onWhatsAppClick={handleWhatsAppClick}
+                  />
+                ) : (
+                  <PendingBranch answers={answers} result={result} t={t} />
+                )}
+              </div>
+            </div>
+
+            <div className="lg:sticky lg:top-24">
               <div className="mb-3 flex items-center justify-between">
-                <MonoLabel className="text-muted-foreground">Ton profil</MonoLabel>
+                <span className="ds-overlabel">{t("welcome.yourProfile")}</span>
                 <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                   <UserRound className="size-3.5" />
-                  Profil public
+                  {t("welcome.publicProfile")}
                 </span>
               </div>
               <ProfileCard
                 profile={result.profile}
                 goal={answers.threeMonthGoal}
                 firstName={answers.firstName}
+                headingLevel={2}
               />
-            </div>
-
-            <div className="space-y-5">
-              {!isDuplicate && (
-                <EmailVerificationNudge
-                  email={answers.email}
-                  firstName={answers.firstName}
-                />
-              )}
-
-              {!isDuplicate && !answers.phone?.trim() && (
-                <WhatsAppCapture memberId={result.memberId} />
-              )}
-
-              <div className="rounded-xl border border-border bg-card/25 p-5">
-                <div className="flex items-start gap-3">
-                  <div className="grid size-9 shrink-0 place-items-center rounded-lg border border-lime/25 bg-lime/5 text-lime">
-                    <Sparkles className="size-4" />
-                  </div>
-                  <div>
-                    <MonoLabel className="text-muted-foreground">
-                      Aller plus loin
-                    </MonoLabel>
-                    <p className="mt-1.5 text-sm leading-6 text-foreground/90">
-                      Ton profil sert maintenant de point de départ pour les
-                      recommandations, les activités et les opportunités HASHCODE.
-                    </p>
-                  </div>
-                </div>
-              </div>
             </div>
           </section>
 
-          {/* Footer actions */}
-          <section className="mt-8 flex flex-col gap-4 border-t border-border/70 pt-6 sm:flex-row sm:items-center sm:justify-between">
-            <RebootButton
-              size="md"
-              variant="outline"
-              onClick={onReset}
-              className="w-full sm:w-auto"
-            >
+          {/* 2. Checklist d'activation ------------------------------------ */}
+          <section className="mt-16 lg:mt-20" aria-labelledby="next-steps-title">
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <span className="ds-overlabel ds-overlabel--accent">{t("welcome.stepsEyebrow")}</span>
+                <h2 id="next-steps-title" className="mt-2 font-display text-2xl font-bold tracking-tight sm:text-3xl">
+                  {t("welcome.stepsTitle")}
+                </h2>
+              </div>
+              <p className="max-w-md text-sm text-muted-foreground">{t("welcome.stepsSubtitle")}</p>
+            </div>
+
+            <ol className="mt-8 grid gap-4 lg:grid-cols-3">
+              <ChecklistItem n={1} done title={t("welcome.stepProfileTitle")}>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {t("welcome.stepProfileText", { archetype: result.profile.archetype })}
+                </p>
+              </ChecklistItem>
+
+              {!isDuplicate && (
+                <ChecklistItem n={2} title={t("welcome.stepEmailTitle")}>
+                  <EmailVerificationNudge email={answers.email} firstName={answers.firstName} />
+                </ChecklistItem>
+              )}
+
+              {!isDuplicate && !answers.phone?.trim() ? (
+                <ChecklistItem n={3} title={t("welcome.stepPhoneTitle")} optional={t("welcome.whatsappCaptureOptional")}>
+                  <WhatsAppCapture memberId={result.memberId} />
+                </ChecklistItem>
+              ) : (
+                <ChecklistItem n={isDuplicate ? 2 : 3} title={t("welcome.stepSpaceTitle")}>
+                  <p className="text-sm leading-relaxed text-muted-foreground">{t("welcome.stepSpaceText")}</p>
+                  <a
+                    href="/login?next=%2Fdashboard"
+                    className="group mt-4 inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--line-strong)] px-4 text-sm font-medium transition-colors hover:border-lime/60 focus-lime"
+                  >
+                    {t("welcome.stepSpaceCta")}
+                    <ArrowUpRight className="size-4" />
+                  </a>
+                </ChecklistItem>
+              )}
+            </ol>
+          </section>
+
+          {/* 3. Orientation personnalisée -------------------------------- */}
+          {(result.nextBestAction || result.orientationStatus) && (
+            <section className="mt-12" aria-label={t("welcome.orientationAria")}>
+              <RecommendationExperience
+                action={result.nextBestAction ?? null}
+                status={result.orientationStatus ?? "NO_MATCH"}
+                recommendations={result.orientationRecommendations ?? []}
+                onCompleteProfile={handleCompleteProfile}
+                onActionClick={handleNextBestActionClick}
+              />
+            </section>
+          )}
+
+          {/* 4. Sorties ---------------------------------------------------- */}
+          <section className="mt-14 flex flex-col gap-4 border-t border-[var(--line-soft)] pt-6 sm:flex-row sm:items-center sm:justify-between">
+            <RebootButton size="md" variant="outline" onClick={onReset} className="w-full sm:w-auto">
               {t("welcome.backToHashcode")}
-              <ArrowUpRight className="size-6" />
             </RebootButton>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                onClick={handleShare}
-                className={cn(
-                  "inline-flex min-h-11 items-center gap-2 rounded-md border px-4 text-xs transition-colors focus-lime",
-                  shareState === "copied"
-                    ? "border-lime/60 bg-lime/10 text-lime"
-                    : "border-border bg-card/30 text-muted-foreground hover:border-lime/50 hover:text-lime",
-                )}
-              >
-                <Share2 className="size-3.5" />
-                {shareState === "copied"
-                  ? t("welcome.linkCopied")
-                  : t("welcome.shareProfile")}
-              </button>
-
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
               {onOpenPrivacy && (
                 <button
                   onClick={onOpenPrivacy}
-                  className="inline-flex min-h-11 items-center gap-2 rounded-md border border-border bg-card/30 px-4 text-xs text-muted-foreground transition-colors hover:border-lime/50 hover:text-lime focus-lime"
+                  className="inline-flex min-h-11 items-center gap-2 transition-colors hover:text-foreground focus-lime"
                 >
                   <ShieldCheck className="size-3.5" />
                   {t("welcome.privacy")}
                 </button>
               )}
+              <span>{t("welcome.privacyPromise")}</span>
+              <code className="select-all font-mono text-[10px] text-muted-foreground/70">
+                ID · {result.memberId}
+              </code>
             </div>
           </section>
-
-          <div className="mt-6 flex flex-col gap-2 text-center text-[11px] text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:text-left">
-            <p>Reboot — minimum nécessaire, zéro revente, zéro pub.</p>
-            <code className="select-all font-mono text-[10px] text-muted-foreground/70">
-              ID · {result.memberId}
-            </code>
-          </div>
         </div>
       </main>
-
-      <footer className="border-t border-border/70">
-        <div className="mx-auto flex max-w-[1240px] items-center justify-between px-5 py-5 sm:px-8">
-          <div className="flex items-center gap-2">
-            <HashSymbol className="text-lime" size={18} />
-            <span className="font-display text-sm font-bold">HASHCODE</span>
-          </div>
-          <span className="text-xs text-muted-foreground">
-            Build. Learn. Share. Grow.
-          </span>
-        </div>
-      </footer>
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Checklist item                                                     */
+/* ------------------------------------------------------------------ */
+
+function ChecklistItem({
+  n,
+  title,
+  done,
+  optional,
+  children,
+}: {
+  n: number;
+  title: string;
+  done?: boolean;
+  optional?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <li className={cn("surface flex flex-col p-5 sm:p-6", done && "surface-accent")}>
+      <div className="flex items-center gap-3">
+        <span
+          className={cn(
+            "grid size-8 shrink-0 place-items-center rounded-full font-display text-sm font-bold",
+            done ? "bg-lime text-black" : "border border-[var(--line-strong)] text-foreground",
+          )}
+          aria-hidden
+        >
+          {done ? <Check className="size-4" strokeWidth={3} /> : n}
+        </span>
+        <h3 className="flex-1 font-display text-base font-semibold text-foreground">{title}</h3>
+        {optional && <span className="text-[11px] text-muted-foreground">{optional}</span>}
+      </div>
+      <div className="mt-4 flex-1">{children}</div>
+    </li>
   );
 }
 
@@ -420,72 +395,52 @@ function WhatsAppCapture({ memberId }: { memberId: string }) {
 
   if (state === "saved") {
     return (
-      <div className="rounded-xl border border-lime/35 bg-lime/[0.04] px-4 py-4 text-sm text-foreground" role="status">
-        <div className="flex items-center gap-2">
-          <Check className="size-6 shrink-0 text-lime" />
-          {t("welcome.addedToWhatsApp")}
-        </div>
-      </div>
+      <p className="flex items-center gap-2 text-sm text-foreground" role="status">
+        <Check className="size-5 shrink-0 text-lime" />
+        {t("welcome.addedToWhatsApp")}
+      </p>
     );
   }
 
   return (
-    <form
-      onSubmit={submit}
-      className="rounded-xl border border-border bg-card/25 p-5"
-    >
-      <div className="flex items-start gap-3">
-        <div className="grid size-9 shrink-0 place-items-center rounded-lg border border-lime/25 bg-lime/5 text-lime">
-          <MessageCircle className="size-6" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold text-foreground">
-              {t("welcome.whatsappCaptureTitle")}
-            </p>
-            <MonoLabel className="text-muted-foreground">{t("welcome.whatsappCaptureOptional")}</MonoLabel>
-          </div>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            {t("welcome.addToWhatsAppHint")}
-          </p>
+    <form onSubmit={submit}>
+      <p className="text-sm leading-relaxed text-muted-foreground">
+        {t("welcome.addToWhatsAppHint")}
+      </p>
 
-          <label htmlFor="whatsapp-phone" className="mt-4 block text-xs font-medium text-muted-foreground">
-            {t("welcome.whatsappNumber")}
-          </label>
-          <div className="mt-2 flex gap-2">
-            <input
-              id="whatsapp-phone"
-              type="tel"
-              inputMode="tel"
-              autoComplete="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              maxLength={40}
-              placeholder={t("welcome.whatsappNumberPlaceholder")}
-              aria-label={t("welcome.whatsappNumber")}
-              aria-labelledby="whatsapp-phone"
-              className="min-w-0 flex-1 rounded-md border border-border/70 bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-lime/50 focus:outline-none focus:ring-1 focus:ring-lime/30"
-            />
-            <button
-              type="submit"
-              disabled={state === "saving" || !phone.trim()}
-              className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-md bg-lime px-4 text-sm font-medium text-black transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {state === "saving" ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <MessageCircle className="size-6" />
-              )}
-              {t("welcome.add")}
-            </button>
-          </div>
-
-          {error && <p className="mt-2 text-xs text-red-400" role="alert">{error}</p>}
-          <p className="mt-3 text-[11px] leading-5 text-muted-foreground">
-            {t("welcome.whatsappPrivacyNote")}
-          </p>
-        </div>
+      <label htmlFor="whatsapp-phone" className="mt-4 block text-xs font-medium text-muted-foreground">
+        {t("welcome.whatsappNumber")}
+      </label>
+      <div className="mt-2 flex gap-2">
+        <input
+          id="whatsapp-phone"
+          type="tel"
+          inputMode="tel"
+          autoComplete="tel"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          maxLength={40}
+          placeholder={t("welcome.whatsappNumberPlaceholder")}
+          className="min-h-11 min-w-0 flex-1 rounded-full border border-[var(--line-strong)] bg-background px-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-lime/60 focus:outline-none focus:ring-2 focus:ring-lime/25"
+        />
+        <button
+          type="submit"
+          disabled={state === "saving" || !phone.trim()}
+          className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full bg-lime px-4 text-sm font-semibold text-black transition-opacity hover:opacity-90 focus-lime disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {state === "saving" ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <MessageCircle className="size-4" />
+          )}
+          {t("welcome.add")}
+        </button>
       </div>
+
+      {error && <p className="mt-2 text-xs text-destructive" role="alert">{error}</p>}
+      <p className="mt-3 text-[11px] leading-5 text-muted-foreground">
+        {t("welcome.whatsappPrivacyNote")}
+      </p>
     </form>
   );
 }
@@ -506,19 +461,17 @@ function ImmediateBranch({
   onWhatsAppClick: () => void;
 }) {
   return (
-    <div className="relative h-full overflow-hidden rounded-xl border border-lime/40 bg-lime/[0.035] p-6 sm:p-7">
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-lime to-transparent" />
-      <div
-        className="pointer-events-none absolute -right-10 -top-10 size-40 rounded-full bg-lime/10 blur-3xl"
-        aria-hidden
-      />
+    <div className="surface surface-accent relative overflow-hidden p-6 sm:p-7">
 
       <div className="relative">
         <div className="flex items-start justify-between gap-4">
-          <div className="grid size-11 shrink-0 place-items-center rounded-full bg-lime text-black shadow-[0_0_24px_rgba(197,244,65,0.24)]">
-            <Check className="size-5" strokeWidth={3} />
-          </div>
-          <MonoLabel className="text-lime">Accès activé</MonoLabel>
+          <span className="icon-tile icon-tile--accent">
+            <MessageCircle className="size-5" />
+          </span>
+          <span className="chip chip--accent text-xs">
+            <span className="chip__dot" aria-hidden />
+            {t("welcome.accessOpen")}
+          </span>
         </div>
 
         <h2 className="mt-5 font-display text-2xl font-bold tracking-tight sm:text-3xl">
@@ -534,8 +487,8 @@ function ImmediateBranch({
           className="mt-6"
           onClick={onWhatsAppClick}
         >
-          <MessageCircle className="size-6" />
-          Rejoindre HASHCODE sur WhatsApp
+          <MessageCircle className="size-5" />
+          {t("welcome.joinWhatsAppCta")}
         </ExternalCta>
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -594,14 +547,13 @@ function PendingBranch({
     .filter(Boolean);
 
   return (
-    <div className="relative h-full overflow-hidden rounded-xl border border-border bg-card/40 p-6 sm:p-7">
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-muted-foreground/60 to-transparent" />
+    <div className="surface relative overflow-hidden p-6 sm:p-7">
 
       <div className="flex items-start justify-between gap-4">
-        <div className="grid size-11 shrink-0 place-items-center rounded-full bg-secondary text-foreground">
+        <span className="icon-tile">
           <Clock className="size-5" />
-        </div>
-        <MonoLabel className="text-muted-foreground">{t("welcome.processing")}</MonoLabel>
+        </span>
+        <span className="chip text-xs text-muted-foreground">{t("welcome.processing")}</span>
       </div>
 
       <h2 className="mt-5 font-display text-2xl font-bold tracking-tight sm:text-3xl">
@@ -655,12 +607,12 @@ function MiniStat({
   value: string;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-3 rounded-lg border border-border/80 bg-background/45 p-3.5">
-      <span className="grid min-h-[44px] min-w-[44px] size-11 shrink-0 place-items-center rounded-md border border-border text-muted-foreground">
+    <div className="flex min-w-0 items-center gap-3 rounded-xl border border-[var(--line-soft)] bg-background/50 p-3">
+      <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-white/[0.04] text-muted-foreground" aria-hidden>
         {icon}
       </span>
       <div className="min-w-0">
-        <MonoLabel className="block text-muted-foreground">{label}</MonoLabel>
+        <span className="block text-[11px] text-muted-foreground">{label}</span>
         <div className="truncate text-sm font-medium text-foreground">{value}</div>
       </div>
     </div>

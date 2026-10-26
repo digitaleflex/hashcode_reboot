@@ -50,14 +50,17 @@ export function SiteHeader({ onJoin }: { onJoin: (ref?: string) => void }) {
   const navLinks = t.raw("links") as string[];
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border/40 bg-background/90 backdrop-blur-md">
+    <header className="glass sticky top-0 z-40 border-b border-[var(--line-soft)]">
       <div className="shell flex h-16 items-center justify-between gap-3">
         <I18nLink
           href="/"
           className="inline-flex items-center rounded-md focus-lime"
           aria-label={t("homeAria")}
         >
-          <Logo variant="full" size="sm" />
+          {/* Wordmark complet dès `sm` ; symbole + « HASHCODE » en mobile pour
+              laisser la place au CTA (le header débordait à 390px). */}
+          <Logo variant="full" size="sm" className="hidden sm:inline-flex" />
+          <Logo variant="compact" size="sm" className="sm:hidden" />
         </I18nLink>
 
         {/* Desktop : nav complète + compte + CTA */}
@@ -93,13 +96,14 @@ export function SiteHeader({ onJoin }: { onJoin: (ref?: string) => void }) {
         {/* Mobile : CTA raccourci, pas de menu (le sticky CTA couvre l'entrée).
             < 390px : on masque « Se connecter » (l'espace reste accessible via
             le footer) pour éviter le débordement du header très étroit. */}
-        <div className="flex items-center gap-2 sm:hidden">
-          <span className="max-[389px]:hidden">
+        <div className="flex items-center gap-3 sm:hidden">
+          <span className="max-[359px]:hidden">
             <AccountLink />
           </span>
           <RebootButton
-            size="md"
+            size="sm"
             onClick={() => onJoin("header-mobile")}
+            className="px-4"
           >
             {t("ctaMobile")}
           </RebootButton>

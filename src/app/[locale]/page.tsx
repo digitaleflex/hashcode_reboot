@@ -18,6 +18,7 @@ import type { OrientationResult } from "@/lib/orientation/types";
 import { track, getSource, getOrCreateSessionId } from "@/lib/analytics";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/routing";
+import { publicTagLabels } from "@/lib/profiling/public-tags";
 
 // framer-motion sort du bundle initial : chargé seulement quand
 // l'utilisateur démarre le profiling (phase "profiling").
@@ -464,13 +465,13 @@ function SharedProfileView({
                   <div className="mt-5 pt-5 border-t border-border/70">
                     <MonoLabel className="text-muted-foreground">{t("page.threeMonthGoal")}</MonoLabel>
                     <p className="mt-1 text-foreground italic font-display text-base">
-                      « {data.profile.threeMonthGoal} »"
+                      « {data.profile.threeMonthGoal} »
                     </p>
                   </div>
                 )}
-                {data.profile.tags.length > 0 && (
+                {publicTagLabels(data.profile.tags).length > 0 && (
                   <div className="mt-5 flex flex-wrap gap-1.5">
-                    {data.profile.tags.slice(0, 8).map((tag) => (
+                    {publicTagLabels(data.profile.tags).slice(0, 8).map((tag) => (
                       <span
                         key={tag}
                         className="inline-flex items-center rounded-sm border border-border px-2 py-0.5 text-xs mono-label text-muted-foreground"

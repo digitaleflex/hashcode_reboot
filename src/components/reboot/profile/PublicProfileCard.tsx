@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { HashSymbol } from "@/components/brand/logo";
 import { MonoLabel } from "../shared";
 import { useTranslations } from "next-intl";
+import { publicTagLabels } from "@/lib/profiling/public-tags";
 
 export interface PublicProfile {
   id: string;
@@ -99,9 +100,9 @@ export function PublicProfileCard({ profile }: { profile: PublicProfile }) {
           </div>
         )}
 
-        {profile.tags.length > 0 && (
+        {publicTagLabels(profile.tags).length > 0 && (
           <div className="flex flex-wrap gap-2">
-            {profile.tags.map((tag) => (
+            {publicTagLabels(profile.tags).map((tag) => (
               <span
                 key={tag}
                 className="px-2.5 py-1 text-xs rounded-sm bg-muted text-muted-foreground border border-border"

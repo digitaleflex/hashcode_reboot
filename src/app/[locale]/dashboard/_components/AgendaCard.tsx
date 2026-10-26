@@ -151,9 +151,9 @@ export function AgendaCard() {
   };
 
   return (
-    <section className="rounded-lg border border-border/60 bg-card/40 p-5 sm:p-6">
+    <section className="surface p-5 sm:p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="font-display font-bold text-sm tracking-tight mono-label text-muted-foreground uppercase">
+        <h2 className="ds-overlabel">
           {t("title")}
         </h2>
         <Calendar className="size-6 text-muted-foreground/40" />
@@ -193,7 +193,7 @@ export function AgendaCard() {
               <div
                 key={event.id}
                 className={cn(
-                  "rounded-md border border-border/60 bg-background/50 p-4",
+                  "rounded-xl border border-[var(--line-soft)] bg-background/50 p-4",
                   "hover:border-lime/30 transition-colors",
                 )}
               >
