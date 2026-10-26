@@ -686,6 +686,13 @@ au lieu de tourner en parallèle (probable copier-coller ; à corriger hors de c
   payload inconnu → 422.
 - Effets : mêmes écritures que Resend (statuts + analytics + métriques).
   Réponse `{ ok: true }`, 500 sinon.
+- **Normalisation des noms** (`src/lib/brevo-events.ts`) : Brevo envoie du
+  snake_case (`hard_bounce`, `soft_bounce`, `invalid_email`, `click`, `spam`,
+  `request`, `unsubscribe`) ; le handler les mappe sur son vocabulaire interne
+  (alias camelCase historiques toujours acceptés). `proxy_open` /
+  `unique_proxy_open` (ouvertures Apple MPP) sont ignorés → `{ ok: true,
+  ignored: "<nom>" }`. S'abonner à `opened` (pas `unique_opened`) pour éviter
+  les doublons d'`EmailEvent`.
 
 ---
 

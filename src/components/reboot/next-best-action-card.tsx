@@ -51,7 +51,9 @@ export function NextBestActionCard({
   onCompleteProfile?: () => void;
   onActionClick?: () => void;
 }) {
-  const target = href ?? "/evenements";
+  // Un challenge vit désormais dans le parcours membre des missions.
+  const target =
+    href ?? (action?.type === "challenge" ? "/dashboard/missions" : "/evenements");
 
   return (
     <div

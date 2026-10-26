@@ -41,6 +41,7 @@ jobs:
       - run: npm run test:analytics-dictionary
       - run: npm run test:public-events
       - run: npm run test:admin-export
+      - run: npm run test:brevo-events
       - name: Validate translation keys
         run: node scripts/check-messages.mjs
       - name: Validate design token contrast

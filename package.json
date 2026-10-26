@@ -51,6 +51,8 @@
     "test:admin-export": "tsx --test tests/admin-export.test.ts",
     "test:roadmap-status": "tsx --test tests/roadmap-status.test.ts",
     "smoke:journey": "node scripts/smoke-journey.cjs"
+    "test:brevo-events": "tsx --test tests/brevo-events.test.ts",
+    "test:roadmap-status": "tsx --test tests/roadmap-status.test.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

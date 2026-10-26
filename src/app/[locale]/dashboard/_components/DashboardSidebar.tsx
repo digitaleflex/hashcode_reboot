@@ -11,6 +11,7 @@ import {
   Calendar,
   BookOpen,
   GraduationCap,
+  Flag,
   Menu,
   X,
   ChevronsLeft,
@@ -24,6 +25,7 @@ import { useTranslations } from "next-intl";
 const NAV_ITEMS = [
   { label: "overview", href: "/dashboard", icon: LayoutDashboard },
   { label: "ateliers", href: "/dashboard/ateliers", icon: BookOpen },
+  { label: "missions", href: "/dashboard/missions", icon: Flag },
   { label: "agenda", href: "/dashboard/agenda", icon: Calendar },
   { label: "mentoring", href: "/dashboard/mentoring", icon: GraduationCap },
   { label: "profile", href: "/dashboard/profile", icon: User },
