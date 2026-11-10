@@ -43,9 +43,9 @@
 |----|----------|---------------|--------|--------------|--------|-------|--------|------|------------|
 | Perf-1 | Cron event-reminders : N+1 + full-table scan Member × offsets, writes séquentielles, idempotence P2002 sous overlap | `app/api/cron/event-reminders/route.ts:81-181` | DB saturée, emails doublés | Index composite `(status, notifiedAt, startsAt)` + `(profileStatus, deletedAt)`, advisory lock, batch `createMany` | done | | XL | 2026-10-07 | 2026-10-07 |
 | Perf-2 | Cron relance : scan limité à 50 rows → travaux J+7 ignorés si backlog | `app/api/cron/relance/route.ts:38-60` | Travaux J+7 non traités | Filtrer SQL `createdAt <= now() - 7d` + index composite | done | | M | 2026-10-07 | 2026-10-07 |
-| Perf-3 | Workshops : chargements sériels `for (w of published) await loadWorkshopForMember(...)` + cache TODO jamais implémenté | `app/api/workshops/route.ts:44-45`, `lib/workshop-server.ts:74-77` | Régression O(W×3) | `Promise.all` + `unstable_cache`/Redis TTL | todo | | L | 2026-10-07 | |
-| Perf-4 | Dashboard admin : 20k lignes en mémoire, filtrage JS ×3 | `app/api/admin/dashboard/route.ts:182-186` | Payload massif + CPU | Pagination + agrégation SQL | todo | | L | 2026-10-07 | |
-| Perf-5 | Budget email : counts redondants (getAllBudgets appelle getBudget ×2), pas de cache | `lib/email-budget.ts:154-159` | Requêtes ×n par offset | Cache 30s + index composite `(type, provider, createdAt)` | todo | | M | 2026-10-07 | |
+| Perf-3 | Workshops : chargements sériels `for (w of published) await loadWorkshopForMember(...)` + cache TODO jamais implémenté | `app/api/workshops/route.ts:44-45`, `lib/workshop-server.ts:74-77` | Régression O(W×3) | `Promise.all` + `unstable_cache`/Redis TTL | done | | L | 2026-10-07 | 2026-11-10 |
+| Perf-4 | Dashboard admin : 20k lignes en mémoire, filtrage JS ×3 | `app/api/admin/dashboard/route.ts:182-186` | Payload massif + CPU | Pagination + agrégation SQL | done | | L | 2026-10-07 | 2026-11-10 |
+| Perf-5 | Budget email : counts redondants (getAllBudgets appelle getBudget ×2), pas de cache | `lib/email-budget.ts:154-159` | Requêtes ×n par offset | Cache 30s + index composite `(type, provider, createdAt)` | done | | M | 2026-10-07 | 2026-11-10 |
 | Perf-6 | email-alerts : second PrismaClient (double pool pgbouncer) | `lib/email-alerts.ts:11` | Pression connexions | Singleton via `db.ts` | done | | S | 2026-10-07 | 2026-10-07 |
 | Perf-7 | Zéro `withPrismaRetry` utilisé (définition `lib/prisma-extensions.ts:120` inerte) | `lib/prisma-extensions.ts:120` | `P2024` pool exhaustion sans rebouclage | Activer sur les crons + dashboard 20-way parallel | done | | M | 2026-10-07 | 2026-10-07 |
 | Perf-8 | Aucun lock distribué sur les crons → doubles envois sur ticks chevauchants | `app/api/cron/*` | Emails en double | Advisory lock pg + `schedule` décalé | done | | L | 2026-10-07 | 2026-10-07 |
@@ -75,3 +75,4 @@
 |------|--------|------------|
 | 2026-10-07 | orchestrator | Création — analyse 4 lanes, 27 items priorisés P0→Struct |
 | 2026-10-07 | orchestrator | Merge P0-P2 security hardening from worktree omos/p0-security (commit 3ef4a8d) |
+| 2026-11-10 | revue | Perf-3/4/5 passés `done` : déjà corrigés en code (`Promise.all` + `unstable_cache` ateliers, `groupBy` SQL dashboard, cache 30s email-budget) |

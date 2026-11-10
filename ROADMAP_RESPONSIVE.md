@@ -3,6 +3,11 @@
 > **Source unique de vérité** pour le suivi.  
 > Colonnes style Kanban : **Backlog → Ready → In Progress → Review → Done**  
 > Mise à jour hebdomadaire (lundi).
+>
+> ⚠️ **État au 2026-11-10 : kanban obsolète.** La refonte UI est mergée
+> (`eb79e4a` + `c04086e`, PR #273) mais le board ci-dessous ne le reflète pas
+> (DONE vide). Resynchronisation item par item (#001–#020) encore à faire
+> avant réutilisation de ce board.
 
 ---
 
