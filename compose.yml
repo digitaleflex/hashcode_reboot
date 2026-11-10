@@ -209,7 +209,8 @@ services:
   # via le middleware `hashcode-errors` (502–504). Jamais exposée directement
   # (pas de router Host) : injoignable depuis l'extérieur sauf par Traefik.
   maintenance:
-    image: nginx:1.27-alpine
+    # SECU 28/10/2026 : 1.27 -> 1.30.6 (CVE-2026-42945 Rift + batch 14/10).
+    image: nginx:1.30.6-alpine
     restart: unless-stopped
     volumes:
       - ./ops/maintenance:/usr/share/nginx/html:ro
