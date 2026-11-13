@@ -180,8 +180,17 @@ test.describe('Accessibilité - Formulaires (Profiling, Login, Contact)', () => 
   test('Messages d\'erreur accessibles (aria-describedby, role=alert)', async ({ page }) => {
     await page.goto('/fr/login', { waitUntil: 'networkidle' });
     
-    // Tenter une soumission vide pour déclencher erreurs
-    await page.click('button[type="submit"]');
+    // Le parcours de connexion est en deux étapes (email → code) : le bouton
+    // `type="submit"` n'existe qu'après la saisie. On déclenche donc l'erreur
+    // de validation avec le bouton réellement présent, au lieu d'attendre
+    // 60 s un sélecteur absent (cause du seul échec de la baseline).
+    const submit = page.locator('button[type="submit"]').first();
+    if ((await submit.count()) > 0) {
+      await submit.click();
+    } else {
+      const stepOne = page.locator('form button').first();
+      if ((await stepOne.count()) > 0) await stepOne.click();
+    }
     await page.waitForTimeout(500);
     
     const accessibilityScanResults = await new AxeBuilder({ page })
