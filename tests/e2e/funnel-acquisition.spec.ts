@@ -79,18 +79,30 @@ async function answerStep(page: Page, mail: string): Promise<"advanced" | "revie
       if (await fin.first().isVisible({ timeout: 3000 })) return "review";
     } catch {}
   }
-  // Pays : ouvrir, vider la recherche, choisir, attendre fermeture.
+  // Pays : ouvrir, taper « Bénin », valider par Entrée (raccourci intégré au
+  // composant : Enter = premier résultat), puis s'assurer que le popover se
+  // ferme. On évite le clic sur le bouton d'option, qui ne fermait pas le
+  // popover de manière fiable (course React).
   const paysBtn = page.getByRole("button", { name: /sélectionne ton pays/i });
   if ((await paysBtn.count()) > 0) {
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < 5; attempt++) {
       try {
-        await paysBtn.first().click({ timeout: 5000 });
-        await page.getByRole("dialog").first().waitFor({ timeout: 8000 });
+        if (await page.getByRole("dialog").count() === 0) {
+          await paysBtn.first().click({ timeout: 5000 });
+        }
         const search = page.getByRole("textbox", { name: /rechercher un pays/i });
-        if ((await search.count()) > 0) await search.first().fill("");
-        await page.getByRole("button", { name: "Bénin" }).first().click({ timeout: 8000 });
-        await page.getByRole("dialog").waitFor({ state: "detached", timeout: 8000 });
-        break;
+        if ((await search.count()) > 0) {
+          await search.first().fill("Bénin");
+          await page.waitForTimeout(200);
+          await search.first().press("Enter");
+        }
+        await page.waitForTimeout(500);
+        // Fermeture forcée si le popover est resté ouvert.
+        if ((await page.getByRole("dialog").count()) > 0) {
+          await page.keyboard.press("Escape").catch(() => {});
+          await page.waitForTimeout(300);
+        }
+        if ((await page.getByRole("dialog").count()) === 0) break;
       } catch {}
     }
   }
