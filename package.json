@@ -1,6 +1,6 @@
 {
   "name": "nextjs_tailwind_shadcn_ts",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
@@ -173,3 +173,4 @@
     "source-map-js": "1.2.2"
   }
 }
+
