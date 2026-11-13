@@ -94,6 +94,12 @@ async function answerStep(page: Page, mail: string): Promise<"advanced" | "revie
       } catch {}
     }
   }
+  // Popover pays resté ouvert = overlay qui intercepte « Continuer »
+  // (état observé en CI : bouton [expanded] + « funnel bloqué à l'étape 2 »).
+  if ((await page.getByRole("dialog").count()) > 0) {
+    await page.keyboard.press("Escape").catch(() => {});
+    await page.waitForTimeout(200);
+  }
   // Textes (jamais la recherche pays).
   for (const b of await page.getByRole("textbox").all()) {
     try {
@@ -163,10 +169,17 @@ async function answerStep(page: Page, mail: string): Promise<"advanced" | "revie
     await page.waitForTimeout(300);
   }
   if (hasCont) {
-    try {
-      await cont.first().click({ timeout: 5000 });
-      return "advanced";
-    } catch {}
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        await cont.first().click({ timeout: 5000 });
+        return "advanced";
+      } catch {
+        // Un overlay (popover pays, modale) peut intercepter le clic :
+        // on le referme une fois avant de considérer l'étape bloquée.
+        await page.keyboard.press("Escape").catch(() => {});
+        await page.waitForTimeout(300);
+      }
+    }
   }
   return "stuck";
 }

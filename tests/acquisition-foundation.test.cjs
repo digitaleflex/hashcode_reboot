@@ -455,7 +455,9 @@ describe("funnel acquisition #213 (correspondance, preuve — jamais vérité)",
       fs.readFileSync(f, "utf8").includes('invitationStatus: "EXPIRED"'),
     );
     assert.deepEqual(
-      writers.map((f) => path.relative(ROOT, f)),
+      // Séparateurs normalisés : le test doit passer sur Windows comme sur
+      // Linux (sinon `npm run validate` est rouge en local, vert en CI).
+      writers.map((f) => path.relative(ROOT, f).split(path.sep).join("/")),
       ["src/lib/invitations.ts"],
       "écrivain EXPIRED inattendu",
     );

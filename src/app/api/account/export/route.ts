@@ -95,11 +95,16 @@ export async function GET(req: NextRequest) {
           select: { id: true, kind: true, createdAt: true },
           orderBy: { createdAt: "desc" },
         }),
-        // Sessions : sans otpHash (secret), avec métadonnées utiles au membre.
-        db.memberSession.findMany({
-          where: { memberId },
-          select: { id: true, createdAt: true, lastSeenAt: true, revokedAt: true, expiresAt: true, ip: true, userAgent: true },
-          orderBy: { lastSeenAt: "desc" },
+        // Sessions : la table Better Auth (`Session`), jamais `MemberSession` —
+        // ce doublon pré-Better Auth n'est plus écrit, donc le lire renvoyait
+        // `sessions: []` alors que des sessions existaient (export RGPD faux).
+        // `token` est le secret du cookie de session : jamais sélectionné.
+        // `Session.userId` pointe sur `User`, pas sur `Member` : le filtre passe
+        // par la relation `user.email`, seule identité commune (cf. account-auth).
+        db.session.findMany({
+          where: { user: { email } },
+          select: { id: true, createdAt: true, updatedAt: true, expiresAt: true, ipAddress: true, userAgent: true },
+          orderBy: { updatedAt: "desc" },
         }),
         db.profilingDraft.findUnique({ where: { email } }),
         db.analyticsEvent.findMany({
