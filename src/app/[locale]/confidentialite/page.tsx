@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { PendingLegalDocument } from "@/components/reboot/legal/pending-document";
+import { LegalDocument } from "@/components/reboot/legal/legal-document";
 
 export async function generateMetadata({
   params,
@@ -16,5 +16,5 @@ export async function generateMetadata({
 }
 
 export default function PrivacyPage() {
-  return <PendingLegalDocument doc="privacy" />;
+  return <LegalDocument doc="privacy" />;
 }
