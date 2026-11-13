@@ -10,9 +10,13 @@ export const revalidate = 0;
 /**
  * GET /api/admin/activity-logins — activité des connexions membres (admin-only).
  *
- * Proxy : MemberSession.lastSeenAt (refresh sliding-window à chaque requête
- * authentifiée, 1 write/heure max). Membres distincts actifs par jour (DAU)
- * sur 30 jours + distincts 7j / 30j.
+ * Source : table Better Auth `Session` (`updatedAt` est rafraîchi à chaque
+ * requête authentifiée → même sémantique de fenêtre glissante que l'ancien
+ * `MemberSession.lastSeenAt`, à l'écriture près). `MemberSession` n'est plus
+ * écrit depuis la bascule Better Auth : le lire renvoyait un DAU toujours nul.
+ * `expiresAt > NOW()` remplace `revokedAt IS NULL` : Better Auth supprime la
+ * ligne à la déconnexion, il n'y a pas de colonne de révocation.
+ * Membres distincts actifs par jour (DAU) sur 30 jours + distincts 30j.
  */
 export async function GET(req: NextRequest) {
   try {
@@ -24,11 +28,11 @@ export async function GET(req: NextRequest) {
       Array<{ day: string; active: bigint }>
     >`
     SELECT
-      to_char(date_trunc('day', "lastSeenAt"), 'YYYY-MM-DD') AS day,
-      COUNT(DISTINCT "memberId") AS active
-    FROM "MemberSession"
-    WHERE "lastSeenAt" >= NOW() - INTERVAL '30 days'
-      AND "revokedAt" IS NULL
+      to_char(date_trunc('day', "updatedAt"), 'YYYY-MM-DD') AS day,
+      COUNT(DISTINCT "userId") AS active
+    FROM "Session"
+    WHERE "updatedAt" >= NOW() - INTERVAL '30 days'
+      AND "expiresAt" > NOW()
     GROUP BY 1
     ORDER BY 1 ASC
   `;
@@ -44,11 +48,11 @@ export async function GET(req: NextRequest) {
     }
 
     const last7 = daily.slice(-7).reduce((a, d) => a + d.active, 0);
-    const distinct30 = await db.memberSession.groupBy({
-      by: ["memberId"],
+    const distinct30 = await db.session.groupBy({
+      by: ["userId"],
       where: {
-        lastSeenAt: { gte: new Date(Date.now() - 30 * 24 * 3600 * 1000) },
-        revokedAt: null,
+        updatedAt: { gte: new Date(Date.now() - 30 * 24 * 3600 * 1000) },
+        expiresAt: { gt: new Date() },
       },
     });
 
