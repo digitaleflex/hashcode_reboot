@@ -270,11 +270,11 @@ jobs:
     # `playwright.a11y.config.ts` + `npm run test:a11y` leur donnent une porte
     # d'entrée. Même socle que le job funnel (Postgres éphémère + build prod).
     #
-    # non bloquant VOLONTAIREMENT : première exécution outillée, la baseline de
-    # violations axe n'est pas encore connue (les specs n'ayant jamais tourné).
-    # À passer en bloquant une fois la baseline figée — cf.
-    # docs/inventaire-reste-a-faire-2026-11-13.md §Tests.
-    continue-on-error: true
+    # Bloquant depuis que la baseline est connue (premier run outillé du
+    # 2026-11-13) : 27 specs, 0 violation axe (0 critical, 0 serious) sur les
+    # parcours publics et admin. Si ce job casse, c'est une régression réelle —
+    # pas du bruit. Cf. docs/inventaire-reste-a-faire-2026-11-13.md §Tests.
+    continue-on-error: false
     needs: [validate]
     services:
       postgres:

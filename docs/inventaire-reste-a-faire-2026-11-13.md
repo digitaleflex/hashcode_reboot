@@ -57,10 +57,11 @@
 
 | # | Point | Preuve |
 |---|---|---|
+| F0 | **E2E funnel acquisition ROUGE depuis le 2026-10-26** (dernière CI verte : 2026-10-20). Diagnostic CI du 2026-11-13 : le parcours reste bloqué sur la question 3 (email), champ rempli, bouton « Continuer » cliqué, aucune erreur affichée — soit une dérive du harnais (saisie programmatique vs état React), soit une **vraie régression du funnel**. À trancher manuellement avec une base : c'est le garde-fou du parcours d'inscription, donc priorité beta. Deux filets défensifs ont été ajoutés au spec (refermer le popover pays, retenter « Continuer » après `Escape`) sans effet sur l'application | `tests/e2e/funnel-acquisition.spec.ts`, `gh run list --workflow=ci.yml` |
 | F1 | **Ancien système d'invitation admin** à moitié vivant : autorité réelle = `Member.adminRole`, mais `sendAdminInvitationEmail` n'a aucun appelant, `/admin/setup` + `/api/admin/invite/verify` restent servis, `AdminInvitation` encore lu | `src/lib/email/builders.ts:1350`, `src/app/[locale]/admin/setup/page.tsx`, `src/lib/auth/admin.ts:161`, `docs/CHECKLIST-LANCEMENT-BETA.md:80-82` |
 | F2 | **État vide agenda** toujours absent | `src/app/[locale]/dashboard/_components/AgendaCard.tsx:333` (0 occurrence de `empty` dans le fichier) |
 | F3 | Commentaire TODO obsolète (drawer mobile admin **déjà** implémenté) | `src/components/reboot/admin/AdminShell.tsx:187` vs `AdminSidebar.tsx:272-315` |
-| F4 | Job CI `a11y` **non bloquant** : baseline axe inconnue (specs jamais lancées). À passer en bloquant une fois la baseline figée | `.github/workflows/ci.yml` job `a11y` |
+| F4 | Job CI `a11y` désormais **bloquant** : baseline du 2026-11-13 = 27 specs, **0 violation axe** (0 critical, 0 serious), parcours publics + admin | `.github/workflows/ci.yml` job `a11y` |
 | F5 | `tests/a11y/a11y-audit.spec.ts` cible `/en/*` (redirigé 301 → FR) : tests à retirer ou à garder comme garde de redirection | `tests/a11y/a11y-audit.spec.ts:12` |
 
 ## 4. Reste à faire — branches et dépôt
