@@ -170,26 +170,26 @@ async function answerStep(page: Page, mail: string): Promise<"advanced" | "revie
     await page.keyboard.press("1");
     await page.waitForTimeout(300);
   }
+  const beforeQ = await questionOf(page);
+  // Tentative 1 : Entrée (déclenche onContinue via onKeyDown, indépendant de
+  // l'état disabled du bouton — contournement de la course .fill() / React).
+  const firstInput = page.locator('input[type="email"], input[type="text"]').first();
+  if ((await firstInput.count()) > 0) {
+    await firstInput.press("Enter").catch(() => {});
+    await page.waitForTimeout(800);
+    if ((await questionOf(page)) !== beforeQ) return "advanced";
+  }
+  // Tentative 2 : clic sur « Continuer » une fois devenu cliquable.
   if (hasCont) {
-    // Le bouton « Continuer » est désactivé tant que la valeur n'est pas
-    // committée dans l'état React (disabled={!value.trim()}). .fill() met à
-    // jour le DOM avant que React ne flush, d'où une course : on attend que
-    // le bouton devienne cliquable avant de cliquer.
     for (let i = 0; i < 50; i++) {
       if (await cont.first().isEnabled().catch(() => false)) break;
       await page.waitForTimeout(100);
     }
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        await cont.first().click({ timeout: 5000 });
-        return "advanced";
-      } catch {
-        // Un overlay (popover pays, modale) peut intercepter le clic :
-        // on le referme une fois avant de considérer l'étape bloquée.
-        await page.keyboard.press("Escape").catch(() => {});
-        await page.waitForTimeout(300);
-      }
-    }
+    try {
+      await cont.first().click({ timeout: 5000 });
+      await page.waitForTimeout(800);
+      if ((await questionOf(page)) !== beforeQ) return "advanced";
+    } catch {}
   }
   return "stuck";
 }
