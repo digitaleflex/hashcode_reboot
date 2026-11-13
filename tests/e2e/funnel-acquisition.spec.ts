@@ -85,21 +85,32 @@ async function answerStep(page: Page, mail: string): Promise<"advanced" | "revie
   // popover de manière fiable (course React).
   const paysBtn = page.getByRole("button", { name: /sélectionne ton pays/i });
   if ((await paysBtn.count()) > 0) {
-    for (let attempt = 0; attempt < 5; attempt++) {
+    for (let attempt = 0; attempt < 8; attempt++) {
       try {
-        if (await page.getByRole("dialog").count() === 0) {
+        // Ouvrir si fermé.
+        if ((await page.getByRole("dialog").count()) === 0) {
           await paysBtn.first().click({ timeout: 5000 });
+          await page.waitForTimeout(300);
         }
         const search = page.getByRole("textbox", { name: /rechercher un pays/i });
-        if ((await search.count()) > 0) {
-          await search.first().fill("Bénin");
-          await page.waitForTimeout(200);
-          await search.first().press("Enter");
+        // Fallback : premier textbox visible dans le popover si le name ne matche pas.
+        const input = (await search.count()) > 0
+          ? search.first()
+          : page.locator('[role="dialog"] input, [data-radix-popper-content-wrapper] input').first();
+        if ((await input.count()) > 0) {
+          await input.fill("Bénin");
+          await page.waitForTimeout(300);
+          await input.press("Enter");
+          await page.waitForTimeout(500);
         }
-        await page.waitForTimeout(500);
-        // Fermeture forcée si le popover est resté ouvert.
-        if ((await page.getByRole("dialog").count()) > 0) {
+        // Fermeture forcée : Escape, puis clic sur le déclencheur (toggle), puis
+        // clic hors du popover.
+        for (let k = 0; k < 3 && (await page.getByRole("dialog").count()) > 0; k++) {
           await page.keyboard.press("Escape").catch(() => {});
+          await page.waitForTimeout(200);
+        }
+        if ((await page.getByRole("dialog").count()) > 0) {
+          await paysBtn.first().click({ timeout: 3000 }).catch(() => {});
           await page.waitForTimeout(300);
         }
         if ((await page.getByRole("dialog").count()) === 0) break;
