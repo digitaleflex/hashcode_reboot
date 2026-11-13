@@ -85,3 +85,6 @@ backups/
 # Rapports Playwright (générés)
 /playwright-report/
 /test-results/
+
+# Artefact local d'un ancien script d'audit i18n (aucun script ne l'ecrit plus)
+scripts/.i18n-report.json
