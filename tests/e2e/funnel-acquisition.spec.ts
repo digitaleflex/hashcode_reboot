@@ -121,6 +121,8 @@ async function answerStep(page: Page, mail: string): Promise<"advanced" | "revie
       await b.fill(v);
     } catch {}
   }
+  // Laisser React flusher l'état committé par .fill() avant de cliquer.
+  await page.waitForTimeout(500);
   const cont = page.getByRole("button", { name: "Continuer" });
   const hasCont = (await cont.count()) > 0;
   // Choix unique SANS Continuer : la sélection fait avancer — cliquer avec
@@ -169,6 +171,14 @@ async function answerStep(page: Page, mail: string): Promise<"advanced" | "revie
     await page.waitForTimeout(300);
   }
   if (hasCont) {
+    // Le bouton « Continuer » est désactivé tant que la valeur n'est pas
+    // committée dans l'état React (disabled={!value.trim()}). .fill() met à
+    // jour le DOM avant que React ne flush, d'où une course : on attend que
+    // le bouton devienne cliquable avant de cliquer.
+    for (let i = 0; i < 50; i++) {
+      if (await cont.first().isEnabled().catch(() => false)) break;
+      await page.waitForTimeout(100);
+    }
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         await cont.first().click({ timeout: 5000 });
