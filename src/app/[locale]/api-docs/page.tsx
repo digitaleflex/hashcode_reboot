@@ -2,6 +2,8 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import ReactMarkdown from "react-markdown";
 
+export const dynamic = "force-dynamic";
+
 export default function ApiDocsPage() {
   const mdPath = join(process.cwd(), "docs", "api-reference.md");
   const content = readFileSync(mdPath, "utf-8");

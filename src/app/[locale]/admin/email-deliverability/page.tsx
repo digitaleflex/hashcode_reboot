@@ -231,6 +231,18 @@ export default function EmailDeliverabilityPage() {
           </div>
         )}
 
+        {!loading && data && totalSent === 0 && (
+          <div className="bg-card border border-border/60 p-4 rounded-sm text-sm text-muted-foreground mb-4">
+            <div className="font-semibold text-foreground mb-1">Aucun email envoyé sur cette période.</div>
+            <p>
+              Les métriques de délivrabilité apparaîtront automatiquement dès les premiers envois
+              (invitations, relances, annonces). Pour démarrer : <strong>/admin/marketing → Import</strong>.
+              N'oubliez pas d'enregistrer le webhook Resend dans le dashboard Resend pour alimenter
+              les taux d'ouverture et de clic.
+            </p>
+          </div>
+        )}
+
         {/* ── TEMPS RÉEL ──────────────────────────────────────────────────── */}
         {ops && (
           <div className="space-y-4 mb-6">
