@@ -15,7 +15,7 @@ import { generateProfile } from "@/lib/profiling/engine";
 import { runAutoControls } from "@/lib/profiling/auto-controls";
 import { orientationEngine } from "@/lib/orientation/engine";
 import type { OrientationResult } from "@/lib/orientation/types";
-import { track, getSource, getOrCreateSessionId } from "@/lib/analytics";
+import { track, getSource, getOrCreateSessionId, getReferralCode, getOrCreateReferralCode } from "@/lib/analytics";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/routing";
 import { publicTagLabels } from "@/lib/profiling/public-tags";
@@ -119,6 +119,11 @@ export default function Home() {
     }
   }, [router]);
 
+  // Capture referral code from URL (best-effort, persisté en localStorage).
+  React.useEffect(() => {
+    getOrCreateReferralCode();
+  }, []);
+
   React.useEffect(() => {
     if (phase === "admin" && window.location.pathname !== "/admin") {
       window.location.assign("/admin");
@@ -152,7 +157,7 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         // Pont sessionId #213 : rattache `profil_generated` au parcours
         // anonyme (profiling_started / draft partagent ce sessionId).
-        body: JSON.stringify({ ...finalAnswers, source: getSource(), sessionId: getOrCreateSessionId() }),
+        body: JSON.stringify({ ...finalAnswers, source: getSource(), sessionId: getOrCreateSessionId(), ref: getReferralCode() }),
       });
       const data: SubmitResponse = await res.json();
       if (!res.ok || !data.ok) {
@@ -245,7 +250,7 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         // Pont sessionId #213 : même rattachement que l'envoi initial.
-        body: JSON.stringify({ ...retryAnswers, source: getSource(), sessionId: getOrCreateSessionId() }),
+        body: JSON.stringify({ ...retryAnswers, source: getSource(), sessionId: getOrCreateSessionId(), ref: getReferralCode() }),
       });
       const data: SubmitResponse = await res.json();
       if (!res.ok || !data.ok) {

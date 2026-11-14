@@ -146,6 +146,7 @@ export function toServerEventData(e: ServerEventInput): ServerEventData {
 
 const SESSION_KEY = "hashcode:reboot:session";
 const SOURCE_KEY = "hashcode:reboot:source";
+const REFERRAL_KEY = "hashcode:reboot:ref";
 
 /** Get-or-create a stable client session id (per browser). */
 export function getOrCreateSessionId(): string {
@@ -199,6 +200,34 @@ export function getSource(): string {
     return localStorage.getItem(SOURCE_KEY) ?? "direct";
   } catch {
     return "direct";
+  }
+}
+
+/** Capture referral code from URL and persist. */
+export function getOrCreateReferralCode(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const existing = localStorage.getItem(REFERRAL_KEY);
+    if (existing) return existing;
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get("ref");
+    if (ref && ref.length > 0 && ref.length <= 64) {
+      localStorage.setItem(REFERRAL_KEY, ref);
+      return ref;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/** Read the persisted referral code (or null). */
+export function getReferralCode(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem(REFERRAL_KEY);
+  } catch {
+    return null;
   }
 }
 
