@@ -16,7 +16,7 @@ datasource db {
   // Le build local ne voyait pas l'erreur : `prisma generate` ne résout pas
   // l'URL, seule la commande `migrate` le fait — le décalage n'apparaissait
   // qu'au premier `migrate deploy` en conteneur.
-  url = env("DATABASE_URL")
+  url      = env("DATABASE_URL")
 }
 
 model Member {
@@ -124,8 +124,11 @@ model Member {
   missionSubmissions MissionSubmission[]
 
   // Mentorat (#61)
-  mentorshipsAsMentor Mentorship[] @relation("Mentor")
-  mentorshipsAsMentee Mentorship[] @relation("Mentee")
+  mentorshipsAsMentor Mentorship[]   @relation("Mentor")
+  mentorshipsAsMentee Mentorship[]   @relation("Mentee")
+  referralsGiven      Referral[]     @relation("ReferralsGiven")
+  referralsReceived   Referral[]     @relation("ReferralsReceived")
+  points              PointsLedger[]
 
   @@index([email])
   @@index([country])
@@ -137,22 +140,22 @@ model Member {
   @@index([createdAt])
   @@index([deletedAt])
   // Cron event-reminders : filtre (profileStatus, deletedAt) en une passe.
-  @@index([profileStatus, deletedAt])
+  @@index([profileStatus, deletedAt]) // --- Parrainage ---
 }
 
 /// Better Auth tables for authentication
 /// These are managed by Better Auth and the Prisma adapter
 model User {
-  id            String    @id @default(cuid())
+  id            String   @id @default(cuid())
   name          String?
-  email         String    @unique
-  emailVerified Boolean   @default(false)
+  email         String   @unique
+  emailVerified Boolean  @default(false)
   image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // Link to our Member profile (via email lookup, no FK constraint)
-  memberEmail   String?   @unique
+  memberEmail String? @unique
 
   sessions      Session[]
   accounts      Account[]
@@ -163,35 +166,35 @@ model User {
 }
 
 model Session {
-  id           String   @id @default(cuid())
-  expiresAt    DateTime
-  token        String   @unique
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  ipAddress    String?
-  userAgent    String?
-  userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([token])
 }
 
 model Account {
-  id                String  @id @default(cuid())
-  accountId         String
-  providerId        String
-  userId            String
-  accessToken       String?
-  refreshToken      String?
-  idToken           String?
-  accessTokenExpiresAt DateTime?
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
   refreshTokenExpiresAt DateTime?
-  scope             String?
-  password          String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([providerId, accountId])
   @@index([userId])
@@ -239,7 +242,7 @@ model AdminUser {
 
   /// Role admin : operator | viewer. Posé à la création depuis l'invitation
   /// (jamais depuis le formulaire de sign-up — input: false côté Better Auth).
-  role String @default("viewer")
+  role       String    @default("viewer")
   /// Champs du plugin admin Better Auth (ban temporaire/définitif).
   banned     Boolean   @default(false)
   banReason  String?
@@ -266,15 +269,15 @@ model AdminUser {
 
 /// Sessions admin — une ligne = un cookie = un appareil.
 model AdminSession {
-  id        String   @id @default(cuid())
-  expiresAt DateTime
-  token     String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  ipAddress String?
-  userAgent String?
-  userId    String
-  user      AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String    @id @default(cuid())
+  expiresAt      DateTime
+  token          String    @unique
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  ipAddress      String?
+  userAgent      String?
+  userId         String
+  user           AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// Champ du plugin admin (impersonation — désactivée mais présent).
   impersonatedBy String?
 
@@ -286,20 +289,20 @@ model AdminSession {
 /// Comptes liés (credentials Better Auth : le hash du mot de passe vit ici,
 /// providerId = "credential").
 model AdminAccount {
-  id                String    @id @default(cuid())
-  accountId         String
-  providerId        String
-  userId            String
-  accessToken       String?
-  refreshToken      String?
-  idToken           String?
-  accessTokenExpiresAt DateTime?
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
   refreshTokenExpiresAt DateTime?
-  scope             String?
-  password          String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  user              AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  user                  AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([providerId, accountId])
   @@index([userId])
@@ -307,12 +310,12 @@ model AdminAccount {
 
 /// Vérifications admin (email verification, password reset, flux 2FA).
 model AdminVerification {
-  id         String    @id @default(cuid())
+  id         String     @id @default(cuid())
   identifier String
   value      String
   expiresAt  DateTime
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
   userId     String?
   user       AdminUser? @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -362,11 +365,11 @@ model AdminInvitation {
 }
 
 model RateLimit {
-  id         String   @id @default(cuid())
-  key        String   @unique
-  count      Int
+  id          String   @id @default(cuid())
+  key         String   @unique
+  count       Int
   lastRequest BigInt
-  createdAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
 
   @@index([key])
 }
@@ -483,7 +486,7 @@ model MemberEmailLog {
   /// ID retourné par le provider (messageId)
   providerId String?
   /// Statut de l'envoi : sent | failed
-  status     String @default("sent")
+  status     String  @default("sent")
 
   @@index([memberId])
   @@index([kind])
@@ -503,7 +506,7 @@ model MemberNote {
   member   Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
   /// Identité admin au moment de la création (email via getAdminIdentity).
-  author String
+  author  String
   /// Contenu libre, borné côté API (1-2000 caractères après trim).
   content String
 
@@ -560,16 +563,16 @@ model Consent {
 
   /// Lien Member SANS contrainte FK (pattern maison User.memberEmail) :
   /// un consentement cookies peut exister avant toute inscription.
-  memberId String?
-  email    String
+  memberId    String?
+  email       String
   /// Finalité : cookies | contact | profiling (union TS/Zod, phase 2).
-  purpose String
+  purpose     String
   /// Choix exprimé : granted | withdrawn (union TS/Zod, phase 2).
-  choice String
+  choice      String
   /// Version du texte / bandeau présenté (ex "cookies-v1").
   textVersion String
   /// Contexte de preuve (page, userAgent, …).
-  proof Json?
+  proof       Json?
 
   createdAt DateTime @default(now())
 
@@ -583,23 +586,23 @@ model Consent {
 model Qualification {
   id String @id @default(cuid())
 
-  memberId String
+  memberId           String
   /// Archétype calculé (ex CYBER BUILDER — union TS/Zod, phase 2).
-  archetype String?
+  archetype          String?
   /// Scores bruts du moteur par axe.
-  scores Json?
-  confidence Float?
+  scores             Json?
+  confidence         Float?
   /// Motifs / explications du score.
-  reasons Json?
+  reasons            Json?
   /// Version du moteur ayant produit la ligne (traçabilité des recalculs).
   /// Lignes acquisition #211 : ruleVersion préfixée "acq-" (discriminant).
-  engineVersion String
+  engineVersion      String
   /// Score de qualification d'entrée #211 (lignes acquisition seules, NULL sinon).
   qualificationScore Float?
   /// Statut acquisition #211 : QUALIFIED | DISQUALIFIED | INSUFFICIENT_DATA.
-  status String?
+  status             String?
   /// Version de règle acquisition #211 (ex "acq-qualif-1.0.0").
-  ruleVersion String?
+  ruleVersion        String?
 
   createdAt DateTime @default(now())
 
@@ -1014,7 +1017,6 @@ model WorkshopReview {
 
   submission WorkshopSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
 
-
   @@index([submissionId])
 }
 
@@ -1035,21 +1037,21 @@ model Mission {
   updatedAt DateTime @updatedAt
 
   /// Slug stable public (ex "first-interface") — référencé par landing/features.
-  slug String @unique
+  slug        String  @unique
   /// Titre FR.
-  title String
+  title       String
   /// Description courte FR.
   description String?
   /// Domaine : web | cybersecurity | ai (union TS/Zod).
-  domain String @default("web")
+  domain      String  @default("web")
   /// Niveau : beginner | practicing | autonomous | advanced (union TS/Zod).
-  level String @default("beginner")
+  level       String  @default("beginner")
   /// Statut éditorial : DRAFT | PUBLISHED | ARCHIVED (union TS/Zod).
-  status String @default("DRAFT")
+  status      String  @default("DRAFT")
   /// Référence libre vers la source (feature statique, URL, …).
-  sourceRef String?
+  sourceRef   String?
   /// Ordre d'affichage.
-  sortOrder Int @default(0)
+  sortOrder   Int     @default(0)
 
   assignments MissionAssignment[]
   submissions MissionSubmission[]
@@ -1070,7 +1072,7 @@ model MissionAssignment {
 
   /// UPCOMING | ACTIVE | SUBMITTED | VALIDATED | REJECTED | ABANDONED
   /// (union TS/Zod — transitions dans le moteur (b)).
-  status String @default("ACTIVE")
+  status      String    @default("ACTIVE")
   abandonedAt DateTime?
   validatedAt DateTime?
 
@@ -1087,8 +1089,8 @@ model MissionSubmission {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  missionId String
-  memberId  String
+  missionId    String
+  memberId     String
   /// Assignation d'origine (traçabilité, optionnelle).
   assignmentId String?
 
@@ -1101,8 +1103,8 @@ model MissionSubmission {
   submittedAt DateTime
   reviewedAt  DateTime?
 
-  mission Mission @relation(fields: [missionId], references: [id], onDelete: Cascade)
-  member  Member  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  mission Mission         @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  member  Member          @relation(fields: [memberId], references: [id], onDelete: Cascade)
   reviews MissionReview[]
 
   @@unique([missionId, memberId, attempt])
@@ -1136,7 +1138,7 @@ model Segment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  name       String @unique
+  name       String  @unique
   definition Json
   /// Incrémentée à chaque modification (traçabilité, pas d'historique).
   version    Int     @default(1)
@@ -1147,7 +1149,6 @@ model Segment {
 }
 
 model WorkshopQuiz {
-
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1264,4 +1265,62 @@ model MentorshipSession {
 
   @@index([mentorshipId])
   @@index([scheduledAt])
+}
+
+/// Parrainage : lien entre un parrain et un filleul.
+model Referral {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  referrerId String
+  referrer   Member @relation("ReferralsGiven", fields: [referrerId], references: [id], onDelete: Cascade)
+
+  refereeId String @unique
+  referee   Member @relation("ReferralsReceived", fields: [refereeId], references: [id], onDelete: Cascade)
+
+  status      String    @default("pending") // pending | validated | rejected
+  validatedAt DateTime?
+
+  points PointsLedger[]
+
+  @@index([referrerId])
+  @@index([status])
+}
+
+/// Catalogue de récompenses échangeables contre des points.
+model Reward {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  key         String  @unique
+  name        String
+  description String  @default("")
+  costPoints  Int
+  stock       Int     @default(-1) // -1 = illimité
+  isActive    Boolean @default(true)
+
+  exchanges PointsLedger[]
+}
+
+/// Historique des points (gain/dépense) par membre.
+model PointsLedger {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  memberId String
+  member   Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  delta  Int // positif = gain, négatif = dépense
+  reason String // referral_validated | reward_exchange | admin_adjustment
+
+  referralId String?
+  referral   Referral? @relation(fields: [referralId], references: [id], onDelete: SetNull)
+
+  rewardId String?
+  reward   Reward? @relation(fields: [rewardId], references: [id], onDelete: SetNull)
+
+  @@index([memberId])
+  @@index([createdAt])
 }

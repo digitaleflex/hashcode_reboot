@@ -81,6 +81,10 @@ export async function POST(req: NextRequest) {
     .string()
     .max(64)
     .safeParse((body as Record<string, unknown>).sessionId);
+  const refParsed = z
+    .string()
+    .max(64)
+    .safeParse((body as Record<string, unknown>).ref);
   const clientSessionId =
     sessionIdParsed.success && sessionIdParsed.data.length > 0
       ? sessionIdParsed.data
@@ -197,6 +201,21 @@ export async function POST(req: NextRequest) {
       },
       { status: 200 },
     );
+  }
+
+  // Parrainage : si un code ref est fourni et valide, créer le lien (best-effort).
+  const refCode = refParsed.success && refParsed.data.length > 0 ? refParsed.data : null;
+  if (refCode && refCode !== created.id) {
+    try {
+      const referrer = await db.member.findUnique({ where: { id: refCode }, select: { id: true } });
+      if (referrer) {
+        await db.referral.create({
+          data: { referrerId: referrer.id, refereeId: created.id, status: "pending" },
+        }).catch(() => {});
+      }
+    } catch {
+      /* best-effort */
+    }
   }
 
   // Écritures secondaires en parallèle (analytics + draft + qualification) —

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { creditReferralPoints } from "@/lib/referral";
 import { toServerEventData } from "@/lib/analytics";
 import { requireAdminRole, checkCSRF } from "@/lib/admin-auth";
 import { canTransition, deriveState, profileStatusToState } from "@/lib/acquisition-state";
@@ -139,6 +140,10 @@ export async function POST(req: NextRequest) {
             where: { id: { in: ids }, profileStatus: "APPROVED", approvedAt: null },
             data: { approvedAt: new Date() },
           });
+          // Crédit de parrainage (best-effort, en arrière-plan).
+          for (const mid of ids) {
+            void creditReferralPoints(mid);
+          }
         }
         if (action === "invite") {
           // Ne pas écraser ACCEPTED/REFUSED/BOUNCED/EXPIRED : seuls les

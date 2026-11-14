@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, rateKey } from "@/lib/rate-limit";
 import { getSession } from "@/lib/account-auth";
 import { db } from "@/lib/db";
+import { creditReferralPoints } from "@/lib/referral";
 import { toServerEventData } from "@/lib/analytics";
 import { createProfileSchema, answersToCreatePayload } from "@/lib/profiling/validate";
 import { runAutoControls } from "@/lib/profiling/auto-controls";
@@ -131,6 +132,9 @@ export async function POST(req: NextRequest) {
       select: { profileStatus: true, communityStatus: true, accessLane: true },
     });
 
+    if (updated.profileStatus === "APPROVED") {
+      void creditReferralPoints(member.id);
+    }
     void audit("member.profile-completed", "member", member.id, {
       profileStatus: updated.profileStatus,
       accessLane: updated.accessLane,

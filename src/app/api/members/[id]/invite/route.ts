@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { creditReferralPoints } from "@/lib/referral";
 import { toServerEventData } from "@/lib/analytics";
 import { requireAdminRole, getAdminRole, checkCSRF } from "@/lib/admin-auth";
 import { audit } from "@/lib/admin-audit";
@@ -84,6 +85,9 @@ export async function POST(
       }),
     ]);
 
+    if (member.profileStatus !== "APPROVED") {
+      void creditReferralPoints(id);
+    }
     // #212 : recu d'audit SANS PII (ni email, ni nom). La cle
     // d'idempotence handoff (memberId + approvedAt) permet de dedupliquer
     // les rejouements cote operateur sans reidentifier le membre.
