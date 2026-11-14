@@ -73,6 +73,15 @@ export const CRON_JOBS: readonly CronJob[] = [
     eventKey: "cron_activation_relance",
   },
   {
+    slug: "invite-waitlist",
+    label: "Invitation file d'attente (quotidien)",
+    // Après activation-relance (7h30) : envoie les invitations aux membres
+    // PENDING/NOT_INVITED, par lots de 50, respecte le quota Brevo.
+    schedule: "0 8 * * *",
+    expectedEveryH: 24,
+    eventKey: "cron_invite_waitlist",
+  },
+  {
     slug: "email-alerts",
     label: "Alertes délivrabilité",
     // Après collect-metrics (qui tourne à 4h30) : les alertes lisent les
