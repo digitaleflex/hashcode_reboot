@@ -82,6 +82,15 @@ export const CRON_JOBS: readonly CronJob[] = [
     eventKey: "cron_invite_waitlist",
   },
   {
+    slug: "engagement-relance",
+    label: "Relance engagement (J+3)",
+    // Après invite-waitlist (8h00) : relance les invités qui n'ont pas rejoint
+    // la communauté (J+3), par lots de 50, respecte le quota Brevo.
+    schedule: "30 8 * * *",
+    expectedEveryH: 24,
+    eventKey: "cron_engagement_relance",
+  },
+  {
     slug: "email-alerts",
     label: "Alertes délivrabilité",
     // Après collect-metrics (qui tourne à 4h30) : les alertes lisent les

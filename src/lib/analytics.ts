@@ -88,6 +88,7 @@ export const SERVER_ONLY_EVENT_TYPES = [
   "cron_collect_metrics",
   "cron_activation_relance",
   "cron_invite_waitlist",
+  "cron_engagement_relance",
   "cron_admin_alerts",
   "cron_email_alerts",
   "cron_event_reminders",

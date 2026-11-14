@@ -140,6 +140,7 @@ describe("cron-registry: CRON_HEALTH (garde-fou dédup dashboard)", () => {
     "cron_relance",
     "cron_activation_relance",
     "cron_invite_waitlist",
+    "cron_engagement_relance",
     "cron_email_alerts",
     "cron_admin_alerts",
     "cron_collect_metrics",
@@ -153,6 +154,7 @@ describe("cron-registry: CRON_HEALTH (garde-fou dédup dashboard)", () => {
     "Relance profils (J+7)",
     "Relance activation (J+7)",
     "Invitation file d'attente (quotidien)",
+    "Relance engagement (J+3)",
     "Alertes délivrabilité",
     "Alertes admin (Discord)",
     "Collecte métriques",
@@ -162,20 +164,20 @@ describe("cron-registry: CRON_HEALTH (garde-fou dédup dashboard)", () => {
     "Relance invitations (manuel)",
     "Import invitations (manuel)",
   ];
-  const EXPECTED_EVERY_H = [24, 24, 24, 24, 25, 24, 1, 174, null, null, null];
+  const EXPECTED_EVERY_H = [24, 24, 24, 24, 24, 25, 24, 1, 174, null, null, null];
 
-  test("les 8 premières lignes sont dérivées de CRON_JOBS via eventKey, dans l'ordre", () => {
+  test("les 9 premières lignes sont dérivées de CRON_JOBS via eventKey, dans l'ordre", () => {
     const src = readRegistry();
     const jobs = parseCronJobs(src);
     const derived = jobs.filter((j) => j.eventKey !== null);
-    assert.equal(derived.length, 8, "8 jobs HTTP doivent porter un eventKey (keepalive et health-alert exclus)");
+    assert.equal(derived.length, 9, "9 jobs HTTP doivent porter un eventKey (keepalive et health-alert exclus)");
     assert.deepEqual(
       derived.map((j) => j.eventKey),
-      EXPECTED_KEYS.slice(0, 8),
+      EXPECTED_KEYS.slice(0, 9),
     );
     assert.deepEqual(
       derived.map((j) => j.expectedEveryH),
-      EXPECTED_EVERY_H.slice(0, 8),
+      EXPECTED_EVERY_H.slice(0, 9),
     );
   });
 
@@ -183,14 +185,14 @@ describe("cron-registry: CRON_HEALTH (garde-fou dédup dashboard)", () => {
     const src = readRegistry();
     const manual = parseManual(src);
     assert.equal(manual.length, 3);
-    assert.deepEqual(manual.map((m) => m.key), EXPECTED_KEYS.slice(8));
-    assert.deepEqual(manual.map((m) => m.label), EXPECTED_LABELS.slice(8));
+    assert.deepEqual(manual.map((m) => m.key), EXPECTED_KEYS.slice(9));
+    assert.deepEqual(manual.map((m) => m.label), EXPECTED_LABELS.slice(9));
     for (const m of manual) {
       assert.equal(m.expectedEveryH, null, `${m.key} : action manuelle, expectedEveryH doit être null`);
     }
   });
 
-  test("CRON_HEALTH = dérivées + CRON_MANUAL : 11 entrées exactes, labels et seuils inchangés", () => {
+  test("CRON_HEALTH = dérivées + CRON_MANUAL : 12 entrées exactes, labels et seuils inchangés", () => {
     const src = readRegistry();
     // Le câblage doit rester une concaténation (pas une liste recopiée).
     const healthDecl = src.slice(src.indexOf("export const CRON_HEALTH"));
@@ -205,7 +207,7 @@ describe("cron-registry: CRON_HEALTH (garde-fou dédup dashboard)", () => {
         .map((j) => ({ key: j.eventKey, label: j.label, expectedEveryH: j.expectedEveryH })),
       ...manual,
     ];
-    assert.equal(health.length, 11, "le dashboard attend exactement 11 lignes");
+    assert.equal(health.length, 12, "le dashboard attend exactement 12 lignes");
     assert.deepEqual(health.map((h) => h.key), EXPECTED_KEYS);
     assert.deepEqual(health.map((h) => h.label), EXPECTED_LABELS);
     assert.deepEqual(health.map((h) => h.expectedEveryH), EXPECTED_EVERY_H);
