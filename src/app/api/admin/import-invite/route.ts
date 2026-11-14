@@ -7,6 +7,7 @@ import { audit } from "@/lib/admin-audit";
 import { rateLimit, rateKey, retryAfterHeader } from "@/lib/rate-limit";
 import { blockIfTesting } from "@/lib/test-guard";
 import { sendRejoinEmail } from "@/lib/email/builders";
+import { buildRefuseUrl } from "@/lib/invite-token";
 import { logMemberEmail, memberIdsWithEmailLog } from "@/lib/member-email-log";
 import { planBatch } from "@/lib/email-budget";
 import {
@@ -315,6 +316,7 @@ export async function POST(req: NextRequest) {
           to: member.email,
           firstName: row.firstName,
           url,
+          refuseUrl: buildRefuseUrl(member.email, base),
         });
 
         if (res.ok) {
@@ -370,6 +372,7 @@ export async function POST(req: NextRequest) {
           to: member.email,
           firstName: member.firstName || "toi",
           url,
+          refuseUrl: buildRefuseUrl(member.email, base),
           forceProvider: plan.provider,
         });
         if (res.ok) {

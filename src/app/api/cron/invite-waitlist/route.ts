@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { toServerEventData } from "@/lib/analytics";
 import { withPrismaRetry } from "@/lib/prisma-extensions";
 import { sendRejoinEmail } from "@/lib/email/builders";
+import { buildRefuseUrl } from "@/lib/invite-token";
 import { logMemberEmail, memberIdsWithEmailLog } from "@/lib/member-email-log";
 import { planBatch } from "@/lib/email-budget";
 
@@ -74,6 +75,7 @@ export async function GET(req: NextRequest) {
             to: member.email,
             firstName: member.firstName || "toi",
             url,
+            refuseUrl: buildRefuseUrl(member.email, base),
             forceProvider: plan.provider,
           });
 

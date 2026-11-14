@@ -93,6 +93,7 @@ export interface InvitationEmailInput {
   to: string;
   firstName: string;
   dashboardUrl: string;
+  refuseUrl?: string;
 }
 
 /** Mail d'invitation : passe toujours par le site (espace membre tracé), jamais de lien WhatsApp direct. */
@@ -100,6 +101,7 @@ export async function sendInvitationEmail({
   to,
   firstName,
   dashboardUrl,
+  refuseUrl,
 }: InvitationEmailInput): Promise<SendEmailResult> {
   const name = firstName.trim() || "bienvenue";
   const safeName = escapeHtml(name);
@@ -146,6 +148,7 @@ export async function sendInvitationEmail({
     `</td></tr>`,
     `</table>`,
     `<p style="margin:20px 0 0 0;font-family:${MAIL_FONT};font-size:14px;line-height:1.6;color:#F8FAFC;">À tout de suite dans le groupe,<br /><span style="color:#94A3B8;">L&apos;équipe HASHCODE</span></p>`,
+    refuseUrl ? `<p style="margin:16px 0 0 0;font-family:${MAIL_FONT};font-size:11px;line-height:1.5;color:#64748B;text-align:center;">Tu ne souhaites plus être contacté(e) ? <a href="${escapeHtml(refuseUrl)}" style="color:#94A3B8;text-decoration:underline;">Se désinscrire</a></p>` : "",
     `</td></tr>`,
   ].join("");
   const html = emailShell(
@@ -725,6 +728,7 @@ export interface RejoinEmailInput {
   to: string;
   firstName: string;
   url: string;
+  refuseUrl?: string;
   forceProvider?: "resend" | "brevo";
 }
 
@@ -736,6 +740,7 @@ export async function sendRejoinEmail({
   to,
   firstName,
   url,
+  refuseUrl,
   forceProvider,
 }: RejoinEmailInput): Promise<SendEmailResult> {
   const name = firstName.trim() || "toi";
@@ -755,6 +760,8 @@ export async function sendRejoinEmail({
     getLoginUrlForEmail(),
     "",
     "On a hâte de te revoir.",
+    "",
+    refuseUrl ? `Si tu ne souhaites plus être contacté(e) : ${refuseUrl}` : "",
     "",
     "L'équipe HASHCODE",
     "",

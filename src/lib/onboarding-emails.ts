@@ -30,6 +30,7 @@ import {
   sendWaitlistEmail,
 } from "@/lib/email/builders";
 import { planBatch } from "@/lib/email-budget";
+import { buildRefuseUrl } from "@/lib/invite-token";
 import { sendVerificationLink } from "@/lib/verify-email";
 
 export interface OnboardingMember {
@@ -139,7 +140,7 @@ export async function sendOnboardingEmails(
     const url = dashboardUrl();
     const results = await Promise.allSettled([
       sendWelcomeEmail({ to: email, firstName, archetype }),
-      sendInvitationEmail({ to: email, firstName, dashboardUrl: url }),
+      sendInvitationEmail({ to: email, firstName, dashboardUrl: url, refuseUrl: buildRefuseUrl(email, url.replace(/\/dashboard$/, "")) }),
     ]);
     const labels = ["welcome", "invitation"] as const;
     results.forEach((r, i) => {
