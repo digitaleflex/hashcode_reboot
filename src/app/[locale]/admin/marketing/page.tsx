@@ -7,6 +7,7 @@ import { EmailEngagement, type EmailStatsData } from "@/components/reboot/admin/
 import { ImportInvitePanel } from "@/app/[locale]/admin/members/ImportInvitePanel";
 import { AnnouncePanel } from "@/components/reboot/admin/marketing/AnnouncePanel";
 import { RelancePanel } from "@/components/reboot/admin/marketing/RelancePanel";
+import { WaitlistQueue } from "@/components/reboot/admin/marketing/WaitlistQueue";
 import { TestEmailPanel } from "@/components/reboot/admin/marketing/TestEmailPanel";
 import { CampaignLogPanel } from "@/components/reboot/admin/marketing/CampaignLogPanel";
 import {
@@ -194,6 +195,7 @@ export default function AdminMarketingPage() {
               </button>
             </div>
           </div>
+          <WaitlistQueue onSessionExpired={handleSessionExpired} />
           <EmailEngagement data={emailStats} loading={loadingStats} />
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <button type="button" onClick={() => router.push("/admin/invitations")} className="rounded-md border border-border/60 bg-card/40 p-4 text-left hover:border-lime/40 transition-colors">
