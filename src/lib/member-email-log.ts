@@ -25,6 +25,7 @@ export async function logMemberEmail(input: {
   kind: MemberEmailKind;
   provider?: string;
   providerId?: string;
+  status?: "sent" | "failed";
 }): Promise<void> {
   try {
     await db.memberEmailLog.create({
@@ -34,6 +35,7 @@ export async function logMemberEmail(input: {
         kind: input.kind,
         provider: input.provider ?? null,
         providerId: input.providerId ?? null,
+        status: input.status ?? "sent",
       },
     });
   } catch {

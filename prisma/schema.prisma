@@ -482,6 +482,8 @@ model MemberEmailLog {
   provider   String?
   /// ID retourné par le provider (messageId)
   providerId String?
+  /// Statut de l'envoi : sent | failed
+  status     String @default("sent")
 
   @@index([memberId])
   @@index([kind])

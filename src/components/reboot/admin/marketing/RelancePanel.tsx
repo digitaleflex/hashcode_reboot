@@ -6,6 +6,9 @@ import { fetchJson, withRetryAfter } from "@/components/reboot/admin/lib/fetchJs
 import { useToast } from "@/hooks/use-toast";
 import { Send, Loader2 } from "lucide-react";
 
+const PAGE_SIZE = 100;
+const RELANCE_CHUNK = 50;
+
 export function RelancePanel({ onSessionExpired }: { onSessionExpired: () => void }) {
   const { toast } = useToast();
   const [relanceable, setRelanceable] = React.useState<string[] | null>(null);
@@ -13,33 +16,52 @@ export function RelancePanel({ onSessionExpired }: { onSessionExpired: () => voi
   const [loading, setLoading] = React.useState(false);
 
   const load = React.useCallback(async () => {
-    const { res, data, code } = await fetchJson("/api/admin/invitations?status=INVITED&page=1&pageSize=100");
-    if (res.status === 401 || code === "UNAUTHORIZED") {
-      onSessionExpired();
-      return;
-    }
-    if (res.ok && data?.ok && Array.isArray(data.members)) {
-      const ids = (data.members as { id: string; invitationClicks: number }[])
-        .filter((m) => m.invitationClicks === 0)
-        .map((m) => m.id);
-      setRelanceable(ids);
-      // Dry-run : combien ont déjà été relancés (ignorés à l'envoi) ?
-      if (ids.length > 0) {
-        try {
-          const dry = await fetchJson("/api/invite/relance", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ memberIds: ids.slice(0, 50) }),
-          });
-          if (dry.res.ok && typeof dry.data?.alreadyRelanced === "number") {
-            setAlreadyRelanced(dry.data.alreadyRelanced as number);
-          }
-        } catch {
-          /* best-effort */
+    const ids: string[] = [];
+    let already = 0;
+    let page = 1;
+    let totalPages = 1;
+    try {
+      do {
+        const { res, data, code } = await fetchJson(
+          `/api/admin/invitations?status=INVITED&page=${page}&pageSize=${PAGE_SIZE}`,
+        );
+        if (res.status === 401 || code === "UNAUTHORIZED") {
+          onSessionExpired();
+          return;
         }
-      } else {
-        setAlreadyRelanced(0);
+        if (!res.ok || !data?.ok || !Array.isArray(data.members)) break;
+        const pageIds = (data.members as { id: string; invitationClicks: number }[])
+          .filter((m) => m.invitationClicks === 0)
+          .map((m) => m.id);
+        ids.push(...pageIds);
+        totalPages = data.pagination?.totalPages ?? 1;
+        page += 1;
+      } while (page <= totalPages);
+      // Dry-run sur tous les lots pour un compteur exact (best-effort).
+      if (ids.length > 0) {
+        let totalAlready = 0;
+        for (let i = 0; i < ids.length; i += RELANCE_CHUNK) {
+          try {
+            const dry = await fetchJson("/api/invite/relance", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ memberIds: ids.slice(i, i + RELANCE_CHUNK) }),
+            });
+            if (dry.res.ok && typeof dry.data?.alreadyRelanced === "number") {
+              totalAlready += dry.data.alreadyRelanced as number;
+            }
+          } catch {
+            /* best-effort */
+          }
+        }
+        already = totalAlready;
       }
+      setRelanceable(ids);
+      setAlreadyRelanced(already);
+      if (ids.length === 0) setAlreadyRelanced(0);
+    } catch {
+      /* best-effort */
+      setRelanceable((prev) => prev ?? []);
     }
   }, [onSessionExpired]);
 
@@ -51,20 +73,38 @@ export function RelancePanel({ onSessionExpired }: { onSessionExpired: () => voi
     if (loading || !relanceable?.length) return;
     setLoading(true);
     try {
-      const { res, data, error, code, retryAfterSec } = await fetchJson("/api/invite/relance", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ memberIds: relanceable.slice(0, 50), confirm: true }),
-      });
-      if (res.status === 401 || code === "UNAUTHORIZED") {
-        onSessionExpired();
-        return;
+      let totalSent = 0;
+      let totalSkipped = 0;
+      let lastError: string | null = null;
+      let retryAfterSec: number | undefined = undefined;
+      // Envoi par chunks de 50 (limite API), séquentiel pour respecter le rate-limit.
+      const chunks: string[][] = [];
+      for (let i = 0; i < relanceable.length; i += RELANCE_CHUNK) {
+        chunks.push(relanceable.slice(i, i + RELANCE_CHUNK));
       }
-      if (!res.ok || !data?.ok) {
-        const base = error ?? "Échec de la relance.";
+      for (const chunk of chunks) {
+        const { res, data, error, code, retryAfterSec: ra } = await fetchJson("/api/invite/relance", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ memberIds: chunk, confirm: true }),
+        });
+        if (res.status === 401 || code === "UNAUTHORIZED") {
+          onSessionExpired();
+          return;
+        }
+        if (!res.ok || !data?.ok) {
+          lastError = error ?? "Échec de la relance.";
+          retryAfterSec = ra ?? undefined;
+          break;
+        }
+        totalSent += (data.sent as number) ?? 0;
+        totalSkipped += (data.skippedRelanced as number) ?? 0;
+      }
+      if (lastError) {
         toast({
           title: "Erreur relance",
-          description: res.status === 429 || code === "RATE_LIMITED" ? withRetryAfter(base, retryAfterSec) : base,
+          description:
+            retryAfterSec !== undefined ? withRetryAfter(lastError, retryAfterSec) : lastError,
           variant: "destructive",
         });
         return;
@@ -72,9 +112,9 @@ export function RelancePanel({ onSessionExpired }: { onSessionExpired: () => voi
       toast({
         title: "Relance envoyée",
         description:
-          (data.skippedRelanced as number) > 0
-            ? `${data.sent} email(s) envoyé(s), ${data.skippedRelanced} déjà relancé(s) ignoré(s).`
-            : `${data.sent} email(s) envoyé(s).`,
+          totalSkipped > 0
+            ? `${totalSent} email(s) envoyé(s), ${totalSkipped} déjà relancé(s) ignoré(s).`
+            : `${totalSent} email(s) envoyé(s).`,
       });
       setRelanceable(null);
       setAlreadyRelanced(0);

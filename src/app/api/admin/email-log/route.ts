@@ -88,6 +88,7 @@ export async function GET(req: NextRequest) {
           kind: true,
           provider: true,
           providerId: true,
+          status: true,
           member: {
             select: {
               id: true,
@@ -171,6 +172,7 @@ export async function GET(req: NextRequest) {
           kind: l.kind,
           provider: l.provider,
           providerId: l.providerId,
+          status: l.status,
           engagement: {
             opened: e?.opened ?? 0,
             clicked: e?.clicked ?? 0,

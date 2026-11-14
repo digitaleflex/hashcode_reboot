@@ -38,6 +38,7 @@ interface LogRow {
   kind: string;
   provider: string | null;
   providerId: string | null;
+  status: string | null;
   engagement: {
     opened: number;
     clicked: number;
@@ -135,6 +136,15 @@ function KindBadge({ kind }: { kind: string }) {
     >
       <Icon className="size-3.5 shrink-0" aria-hidden />
       {cfg.label}
+    </span>
+  );
+}
+
+function StatusBadge({ status }: { status: string | null }) {
+  if (!status || status === "sent") return null;
+  return (
+    <span className="inline-flex items-center rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-medium text-destructive">
+      {status}
     </span>
   );
 }
@@ -324,6 +334,7 @@ function LogRowCard({ row }: { row: LogRow }) {
           </span>
         </div>
         <KindBadge kind={row.kind} />
+        <StatusBadge status={row.status} />
       </div>
 
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-border pt-3">
@@ -709,7 +720,10 @@ export function CampaignLogPanel({ onSessionExpired }: { onSessionExpired: () =>
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <KindBadge kind={row.kind} />
+                        <div className="flex items-center gap-2">
+                          <KindBadge kind={row.kind} />
+                          <StatusBadge status={row.status} />
+                        </div>
                       </td>
                       <td className="hidden px-4 py-3 lg:table-cell">
                         <ProviderTag provider={row.provider} />
@@ -751,10 +765,9 @@ export function CampaignLogPanel({ onSessionExpired }: { onSessionExpired: () =>
       <p className="flex items-start gap-2 text-xs text-muted-foreground">
         <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
         <span>
-          Le journal ne référence que les envois{" "}
-          <strong className="font-semibold text-foreground">acceptés par le provider</strong>. Les
-          échecs d&apos;envoi ne sont pas encore persistés : ils n&apos;apparaissent que dans le
-          rapport de la campagne qui les a produits.
+          Le journal référence les envois acceptés et les échecs (statut{" "}
+          <strong className="font-semibold text-foreground">sent / failed</strong>). Les échecs
+          restent aussi consultables dans le rapport de la campagne qui les a produits.
         </span>
       </p>
     </div>

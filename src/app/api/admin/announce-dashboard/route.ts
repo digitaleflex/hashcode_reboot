@@ -142,12 +142,27 @@ export async function POST(req: NextRequest) {
           kind: "annonce",
           provider: res.provider,
           providerId: res.id,
+          status: "sent",
         });
       } else {
         failed.push(member.email);
+        await logMemberEmail({
+          memberId: member.id,
+          email: member.email,
+          kind: "annonce",
+          provider: res.provider,
+          providerId: res.id,
+          status: "failed",
+        });
       }
     } catch {
       failed.push(member.email);
+      await logMemberEmail({
+        memberId: member.id,
+        email: member.email,
+        kind: "annonce",
+        status: "failed",
+      });
     }
     // Respect du rate-limit Resend.
     await new Promise((r) => setTimeout(r, SEND_DELAY_MS));

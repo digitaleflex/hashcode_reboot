@@ -126,9 +126,21 @@ export async function POST(req: NextRequest) {
         });
       } else {
         failed.push(member.email);
+        await logMemberEmail({
+          memberId: member.id,
+          email: member.email,
+          kind: "relance",
+          status: "failed",
+        });
       }
     } catch {
       failed.push(member.email);
+      await logMemberEmail({
+        memberId: member.id,
+        email: member.email,
+        kind: "relance",
+        status: "failed",
+      });
     }
     await new Promise((r) => setTimeout(r, SEND_DELAY_MS));
   }
